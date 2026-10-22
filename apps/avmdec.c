@@ -711,11 +711,11 @@ static FILE *open_outfile(const char *name) {
 // share the same chroma format; mixed chroma forces separate outputs.
 // Mixed bit depth is handled by promoting to the highest bit depth.
 typedef struct CompositeGroup {
-  int layer_type;      // TEXTURE_LAYER, AUX_LAYER, etc.
-  int auxiliary_type;  // only meaningful when layer_type == AUX_LAYER
+  int layer_type;       // TEXTURE_LAYER, AUX_LAYER, etc.
+  int auxiliary_type;   // only meaningful when layer_type == AUX_LAYER
   int derived_view_id;  // LcrViewId: 0-3 = VIEW_UNSPECIFIED/CENTER/LEFT/
                         // RIGHT, 256 + lcr_view_id for VIEW_EXPLICIT
-  int num_xlayers;     // how many xlayers belong to this group
+  int num_xlayers;      // how many xlayers belong to this group
   int xlayer_ids[MAX_NUM_XLAYERS];      // xlayer_ids in this group
   int xlayer_indices[MAX_NUM_XLAYERS];  // indices into xlayer_cfg.xlayers[]
                                         // (-1 if from decoder query)
