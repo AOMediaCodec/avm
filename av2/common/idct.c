@@ -963,9 +963,9 @@ void av2_highbd_inv_txfm_add_vert_c(const tran_low_t *input, uint16_t *dest,
 }
 
 // Apply inverse cross chroma component transform
-void av2_inv_cross_chroma_tx_block(tran_low_t *dqcoeff_c1,
-                                   tran_low_t *dqcoeff_c2, TX_SIZE tx_size,
-                                   CctxType cctx_type, const int bd) {
+void av2_inv_cross_chroma_tx_block_c(tran_low_t *dqcoeff_c1,
+                                     tran_low_t *dqcoeff_c2, TX_SIZE tx_size,
+                                     CctxType cctx_type, const int bd) {
   if (cctx_type == CCTX_NONE) return;
   const int ncoeffs = av2_get_max_eob(tx_size);
   int32_t *src_c1 = (int32_t *)dqcoeff_c1;
