@@ -2049,11 +2049,13 @@ static avm_codec_err_t ctrl_get_lcr_info(avm_codec_alg_priv_t *ctx,
         xl->auxiliary_type =
             (ml->lcr_layer_type[0] == 1) ? ml->lcr_auxiliary_type[0] : -1;
         xl->view_type = ml->lcr_view_type[0];
+        xl->derived_view_id = ml->LcrViewId[0];
       } else {
         xl->num_mlayers = 0;
         xl->layer_type = 0;
         xl->auxiliary_type = -1;
         xl->view_type = 0;
+        xl->derived_view_id = 0;
       }
     }
     return AVM_CODEC_OK;
@@ -2078,11 +2080,13 @@ static avm_codec_err_t ctrl_get_lcr_info(avm_codec_alg_priv_t *ctx,
           xl->auxiliary_type =
               (ml->lcr_layer_type[0] == 1) ? ml->lcr_auxiliary_type[0] : -1;
           xl->view_type = ml->lcr_view_type[0];
+          xl->derived_view_id = ml->LcrViewId[0];
         } else {
           xl->num_mlayers = 0;
           xl->layer_type = 0;
           xl->auxiliary_type = -1;
           xl->view_type = 0;
+          xl->derived_view_id = 0;
         }
         count++;
         break;  // found LCR for this xlayer, move to next

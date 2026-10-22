@@ -177,6 +177,10 @@ typedef struct avm_xlayer_layer_info {
   int max_width;      /**< lcr_max_pic_width from RepresentationInfo */
   int max_height;     /**< lcr_max_pic_height from RepresentationInfo */
   int num_mlayers;    /**< Number of embedded (media) layers */
+  int derived_view_id; /**< LcrViewId of embedded layer 0, derived from
+                            lcr_view_type and lcr_view_id: view_type for
+                            non-explicit views (0-3), 256 + lcr_view_id for
+                            explicit views (256-511) */
 } avm_xlayer_layer_info_t;
 
 /*!\brief LCR info exposed by AV2D_GET_LCR_INFO.

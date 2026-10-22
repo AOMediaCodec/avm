@@ -106,6 +106,8 @@ static int read_lcr_embedded_layer_info(struct LCRXLayerInfo *xlayer_info,
       if (mlayer_params->lcr_view_type[i] == VIEW_EXPLICIT) {
         mlayer_params->lcr_view_id[i] = avm_rb_read_literal(rb, 8);
       }
+      mlayer_params->LcrViewId[i] = av2_lcr_view_id(
+          mlayer_params->lcr_view_type[i], mlayer_params->lcr_view_id[i]);
       if (i > 0) {
         mlayer_params->lcr_dependent_layer_map[i] = avm_rb_read_literal(rb, i);
       }
