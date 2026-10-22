@@ -3112,7 +3112,13 @@ static AVM_INLINE PARTITION_TYPE get_forced_partition_type(
     return derived_partition;
   }
 
-  if (x->must_find_valid_partition) return PARTITION_INVALID;
+  // An intra superblock that found no valid partition is searched again
+  // without the dry-pass template. An inter superblock keeps the template on
+  // the retry and only resets the pruning (see BEGIN_PARTITION_SEARCH): a
+  // free search of a whole superblock costs far more than the retry saves.
+  if (x->must_find_valid_partition && frame_is_intra_only(cm)) {
+    return PARTITION_INVALID;
+  }
 
   // Partition types forced by speed_features.
   if (template_tree && template_tree->partition != PARTITION_INVALID &&
@@ -6155,10 +6161,13 @@ BEGIN_PARTITION_SEARCH:
         partition_allowed, cm, xd->tree_type,
         (pc_tree->parent ? pc_tree->parent->region_type : INTRA_REGION), mi_row,
         mi_col, ss_x, ss_y, bsize, &pc_tree->chroma_ref_info);
-    part_search_state.forced_partition = get_forced_partition_type(
-        cm, x, mi_row, mi_col, bsize, ptree_luma, template_tree,
-        pc_tree->region_type, partition_allowed);
-    part_search_state.try_none_with_forced_split = false;
+    // Inter frames keep the forced partition of the first attempt.
+    if (frame_is_intra_only(cm)) {
+      part_search_state.forced_partition = get_forced_partition_type(
+          cm, x, mi_row, mi_col, bsize, ptree_luma, template_tree,
+          pc_tree->region_type, partition_allowed);
+      part_search_state.try_none_with_forced_split = false;
+    }
     init_allowed_partitions(
         cpi, &part_search_state, &cpi->oxcf.part_cfg,
         is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
