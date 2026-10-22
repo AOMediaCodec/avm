@@ -2779,6 +2779,7 @@ void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm) {
           (int64_t *)avm_calloc(cm->gdf_info.gdf_block_num, sizeof(int64_t));
     }
   }
+  
   const int64_t rdmult = av2_compute_rd_mult(cpi, cm->quant_params.base_qindex);
 
   int *block_ids;
