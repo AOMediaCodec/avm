@@ -5868,6 +5868,34 @@ static AVM_INLINE bool can_reuse_counterpart_block(
   return true;
 }
 
+// Wet pass of the fast two-pass search: the dry-pass template forces the
+// partition of the parent blocks, so a block that ends with no valid
+// partition fails the whole superblock, which is then searched again with the
+// pruning off. The failure is certain when PARTITION_NONE is never searched,
+// PARTITION_SPLIT found nothing, no extended partition is allowed and the
+// pruners removed both rectangular types. Keep the allowed rectangular types
+// in that case.
+static AVM_INLINE void keep_rect_candidates_in_wet_pass(
+    const AV2_COMMON *cm, const MACROBLOCK *x,
+    PartitionSearchState *part_search_state) {
+  if (!x->may_consume_dry_pass_info || frame_is_intra_only(cm)) return;
+  if (part_search_state->found_best_partition ||
+      part_search_state->terminate_partition_search ||
+      part_search_state->forced_partition != PARTITION_INVALID ||
+      (part_search_state->partition_allowed[PARTITION_NONE] &&
+       !part_search_state->prune_partition[PARTITION_NONE])) {
+    return;
+  }
+  for (PARTITION_TYPE p = PARTITION_HORZ; p <= PARTITION_VERT_4B; ++p) {
+    if (part_search_state->partition_allowed[p] &&
+        !part_search_state->prune_partition[p]) {
+      return;
+    }
+  }
+  part_search_state->prune_partition[PARTITION_HORZ] = false;
+  part_search_state->prune_partition[PARTITION_VERT] = false;
+}
+
 /*!\brief AV2 block partition search (full search).
  *
  * \ingroup partition_search
@@ -6274,6 +6302,7 @@ BEGIN_PARTITION_SEARCH:
   }
   prune_rect_partitions(cpi, td, &part_search_state, &pb_source_variance,
                         part_none_rd);
+  keep_rect_candidates_in_wet_pass(cm, x, &part_search_state);
   // Search partitions horz and vert.
   rectangular_partition_search(
       cpi, td, tile_data, tp, pc_tree, &x_ctx, &part_search_state, &best_rdc,
