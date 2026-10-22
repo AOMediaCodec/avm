@@ -3355,12 +3355,13 @@ void av2_convolve_symmetric_blk8x8_highbd_avx2(
                                                   0,
                                                   0,
                                                   0 };
-      convolve_symmetric_highbd_13tap_blk8x8_avx2(dgd, stride, &filter_config_,
-                                                  filter_, dst, dst_stride,
-                                                  bit_depth, 0, 0);
+      convolve_symmetric_highbd_13tap_blk8x8_avx2(
+          dgd, stride, &filter_config_, filter_, dst, dst_stride, bit_depth,
+          block_row_begin, block_col_begin);
     } else {
       convolve_symmetric_highbd_16tap9x9_blk8x8_avx2(
-          dgd, stride, filter_config, filter, dst, dst_stride, bit_depth, 0, 0);
+          dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
+          block_row_begin, block_col_begin);
     }
     return;
   }
