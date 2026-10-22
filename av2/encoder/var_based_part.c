@@ -434,8 +434,7 @@ static inline void tune_thresh_based_on_resolution(AV2_COMP *cpi,
       thresholds[4] = INT64_MAX;
     }
   } else if (num_pixels < RESOLUTION_1080P) {
-    thresholds[3] =
-        is_screen ? ((5 * threshold_base) >> 1) : (threshold_base << 1);
+    thresholds[3] = threshold_base << 1;
     if (current_qindex > 115) {
       const int q_diff = current_qindex - 115;
       thresholds[1] = thresholds[1] + ((q_diff * thresholds[1]) >> 5);

@@ -413,7 +413,10 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
        rc->frames_since_key > 4);
   // Scale maximum Q decrease with previous frame Q so Q drops more gradually
   // at low Q indices, avoiding sudden bit spikes.
-  const int max_delta_down = clamp(rc->q_1_frame / 8, 1, 16);
+  const int max_delta_down =
+      (cpi->is_screen_content_type && cm->width * cm->height <= 1280 * 720)
+          ? clamp(rc->q_1_frame / 32, 1, 4)
+          : clamp(rc->q_1_frame / 8, 1, 16);
   const int max_delta_up = overshoot_buffer_low ? 120 : 16;
   const int change_avg_frame_bandwidth =
       abs(rc->avg_frame_bandwidth - rc->prev_avg_frame_bandwidth) >
@@ -424,6 +427,13 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
       cm->prev_frame &&
       (cm->width != cm->prev_frame->width ||
        cm->height != cm->prev_frame->height || change_avg_frame_bandwidth);
+  if (cpi->is_screen_content_type && q < 8) {
+    const int mbs = av2_get_MBs(cm->width, cm->height);
+    const int target_bits_per_mb =
+        (int)(((uint64_t)rc->this_frame_target << BPER_MB_NORMBITS) / mbs);
+    const int q_min = 8 - AVMMAX(0, target_bits_per_mb - 2400) / 600;
+    q = AVMMAX(q, q_min);
+  }
   // Apply some control/clamp to QP under certain conditions.
   if (cm->current_frame.frame_type != KEY_FRAME && rc->frames_since_key > 1 &&
       rc->q_1_frame > 0 && rc->q_2_frame > 0 && !change_target_bits_mb &&
