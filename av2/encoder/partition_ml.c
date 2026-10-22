@@ -61,6 +61,13 @@ void compute_residual_stats(AV2_COMP *const cpi, ThreadData *td, MACROBLOCK *x,
   QUANT_PARAM quant_param;
 
   av2_setup_xform(cm, x, plane, tx_size, DCT_DCT, CCTX_NONE, &txfm_param);
+  // These stats are ML features for partition pruning and are not used for
+  // coding, so always use the lossy full-size DCT_DCT. For lossless segments,
+  // av2_setup_xform() sets lossless = 1, which selects the 4x4 WHT that only
+  // writes 16 coefficients, while the loop below reads
+  // av2_get_max_eob(tx_size) coefficients (up to 1024), i.e. uninitialized
+  // memory in the shared coeff buffer.
+  txfm_param.lossless = 0;
   av2_setup_quant(tx_size, 0, AV2_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
                   &quant_param);
   av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, DCT_DCT,
