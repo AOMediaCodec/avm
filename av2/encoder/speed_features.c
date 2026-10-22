@@ -1071,6 +1071,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->selective_ref_frame = 0;
   inter_sf->prune_newmv_modes_using_prior_rd = 0;
   inter_sf->share_motion_mode_prune_pool = 0;
+  inter_sf->full_pool_inter_mode_prune_top = 0;
   inter_sf->prune_ref_frames = 0;
   inter_sf->disable_wedge_search_var_thresh = 0;
   inter_sf->fast_wedge_sign_estimate = 0;
