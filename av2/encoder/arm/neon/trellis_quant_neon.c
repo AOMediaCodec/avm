@@ -796,6 +796,8 @@ static AVM_FORCE_INLINE void get_rate_dist_lf_luma_q1_neon_impl(
     if (is_dc) {
       rd->rate_eob[1] += dc_cost;
     }
+  } else {
+    rd->rate_eob[1] = 0;
   }
 }
 
