@@ -3242,8 +3242,9 @@ static INLINE void accumulate_partition_timing_stats(
 #endif  // CONFIG_COLLECT_PARTITION_STATS
 
 static AVM_INLINE void init_allowed_partitions(
-    PartitionSearchState *part_search_state, const PartitionCfg *part_cfg,
-    const int bru_skip, const bool *partition_allowed) {
+    const AV2_COMP *cpi, PartitionSearchState *part_search_state,
+    const PartitionCfg *part_cfg, const int bru_skip,
+    const bool *partition_allowed) {
   if (bru_skip) {
     part_search_state->is_block_splittable = false;
     part_search_state->do_rectangular_split = false;
@@ -3255,6 +3256,7 @@ static AVM_INLINE void init_allowed_partitions(
     return;
   }
 
+  const AV2_COMMON *cm = &cpi->common;
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const BLOCK_SIZE bsize = blk_params->bsize;
   const bool allow_rect = part_cfg->enable_rect_partitions ||
@@ -3262,6 +3264,23 @@ static AVM_INLINE void init_allowed_partitions(
   const int min_partition_size = (blk_params->has_rows && blk_params->has_cols)
                                      ? blk_params->min_partition_size
                                      : BLOCK_4X4;
+  // At 1080p from speed 1 on screen content, default_min_partition_size is
+  // kept at BLOCK_4X4 so <= 8x8 blocks can split to 8x4/4x8/4x4 on sharp text
+  // and synthetic edges. Keep BLOCK_8X8 as the floor for extended partitions
+  // (HORZ_3..VERT_4B) and for rectangular splits on blocks larger than 8x8,
+  // except allow 16x8 and 8x16 to split into leaf 16x4 and 4x16 blocks.
+  const bool scc_1080p_sub8x8 = cpi->speed >= 1 &&
+                                AVMMIN(cm->width, cm->height) >= 1080 &&
+                                cm->features.is_scc_content_by_detector;
+  const int ext_min_partition_size =
+      scc_1080p_sub8x8 ? AVMMAX(blk_params->min_partition_size, BLOCK_8X8)
+                       : blk_params->min_partition_size;
+  const int rect_min_partition_size =
+      (scc_1080p_sub8x8 && blk_params->has_rows && blk_params->has_cols &&
+       !is_bsize_geq(BLOCK_8X8, bsize) && bsize != BLOCK_16X8 &&
+       bsize != BLOCK_8X16)
+          ? ext_min_partition_size
+          : min_partition_size;
 
   // Initialize allowed partition types for the partition block.
   part_search_state->is_block_splittable = is_partition_point(bsize);
@@ -3271,39 +3290,39 @@ static AVM_INLINE void init_allowed_partitions(
   part_search_state->partition_allowed[PARTITION_HORZ] =
       partition_allowed[PARTITION_HORZ] && allow_rect &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ),
-                   min_partition_size);
+                   rect_min_partition_size);
   part_search_state->partition_allowed[PARTITION_VERT] =
       partition_allowed[PARTITION_VERT] && allow_rect &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT),
-                   min_partition_size);
+                   rect_min_partition_size);
   part_search_state->partition_allowed[PARTITION_HORZ_3] =
       partition_allowed[PARTITION_HORZ_3] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_3),
-                   blk_params->min_partition_size) &&
+                   ext_min_partition_size) &&
       is_bsize_geq(get_h_partition_subsize(bsize, 1, PARTITION_HORZ_3),
-                   blk_params->min_partition_size);
+                   ext_min_partition_size);
   part_search_state->partition_allowed[PARTITION_VERT_3] =
       partition_allowed[PARTITION_VERT_3] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_3),
-                   blk_params->min_partition_size) &&
+                   ext_min_partition_size) &&
       is_bsize_geq(get_h_partition_subsize(bsize, 1, PARTITION_VERT_3),
-                   blk_params->min_partition_size);
+                   ext_min_partition_size);
   part_search_state->partition_allowed[PARTITION_HORZ_4A] =
       partition_allowed[PARTITION_HORZ_4A] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_4A),
-                   blk_params->min_partition_size);
+                   ext_min_partition_size);
   part_search_state->partition_allowed[PARTITION_HORZ_4B] =
       partition_allowed[PARTITION_HORZ_4B] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_4B),
-                   blk_params->min_partition_size);
+                   ext_min_partition_size);
   part_search_state->partition_allowed[PARTITION_VERT_4A] =
       partition_allowed[PARTITION_VERT_4A] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_4A),
-                   blk_params->min_partition_size);
+                   ext_min_partition_size);
   part_search_state->partition_allowed[PARTITION_VERT_4B] =
       partition_allowed[PARTITION_VERT_4B] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_4B),
-                   blk_params->min_partition_size);
+                   ext_min_partition_size);
   part_search_state->partition_allowed[PARTITION_SPLIT] =
       partition_allowed[PARTITION_SPLIT] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_SPLIT),
@@ -3488,7 +3507,7 @@ static void init_partition_search_state_params(
       pc_tree->region_type, partition_allowed);
   part_search_state->try_none_with_forced_split = false;
   init_allowed_partitions(
-      part_search_state, &cpi->oxcf.part_cfg,
+      cpi, part_search_state, &cpi->oxcf.part_cfg,
       is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
       partition_allowed);
 }
@@ -4006,6 +4025,31 @@ static void rectangular_partition_search(
           sub_force_prune_flags[perp_prune] = 1;
         }
       }
+      // On an 8x8 block, PARTITION_SPLIT does not exist in AV2; splitting into
+      // four 4x4 blocks is reached either via:
+      //   1. PARTITION_HORZ (two 8x4 sub-blocks, each split by PARTITION_VERT),
+      //   2. PARTITION_VERT (two 4x8 sub-blocks, each split by PARTITION_HORZ).
+      // At speed >= 1 on screen content, when evaluating the right 4x8
+      // sub-block (sub_idx == 1) of 8x8 PARTITION_VERT: if 8x8 PARTITION_HORZ
+      // was already searched and the left 4x8 sub-block (child_nodes[0])
+      // already split into two 4x4s, prune PARTITION_HORZ on the right 4x8
+      // sub-block so it only evaluates unsplit 4x8 ([4x4, 4x4 | 4x8]) and
+      // skips re-evaluating four 4x4s ([4x4, 4x4 | 4x4, 4x4]).
+      if (cpi->speed >= 1 && cm->features.is_scc_content_by_detector &&
+          bsize == BLOCK_8X8 && rect_type == VERT && sub_idx == 1 &&
+          part_search_state->forced_partition == PARTITION_INVALID &&
+          !x->must_find_valid_partition) {
+        PC_TREE *const *horz_8x4_nodes =
+            pc_tree->horizontal[pc_tree->region_type];
+        const bool horz_8x8_searched =
+            horz_8x4_nodes[0] != NULL && horz_8x4_nodes[1] != NULL;
+        const bool left_4x8_split_to_4x4 =
+            child_nodes[0] != NULL &&
+            child_nodes[0]->partitioning != PARTITION_NONE;
+        if (horz_8x8_searched && left_4x8_split_to_4x4) {
+          sub_force_prune_flags[PRUNE_HORZ] = 1;
+        }
+      }
 #endif
       RD_STATS this_rdc;
       if (!rd_try_subblock_partition(
@@ -4152,6 +4196,17 @@ static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
     part_search_state->partition_allowed[PARTITION_VERT] = false;
     part_search_state->found_best_partition = true;
     part_search_state->prune_partition[PARTITION_SPLIT] = false;
+  }
+
+  // At speed >= 1 on screen content, skip sub-8x8 (8x4, 4x8, 4x4) partition
+  // searches when the 8x8 (or 8x4/4x8) PARTITION_NONE candidate is already a
+  // zero-residual skip block.
+  if (cpi->speed >= 1 && cm->features.is_scc_content_by_detector &&
+      is_bsize_geq(BLOCK_8X8, bsize) &&
+      (ctx_none->skippable ||
+       ctx_none->mic.skip_txfm[av2_get_sdp_idx(xd->tree_type)])) {
+    part_search_state->terminate_partition_search = true;
+    part_search_state->do_rectangular_split = false;
   }
 }
 
@@ -5897,7 +5952,7 @@ bool av2_rd_pick_partition(
   // unsplit block.
   if (template_tree && template_tree->partition == PARTITION_INVALID &&
       AVMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 32) {
-    const int floor_px = 8;
+    const int floor_px = cm->features.is_scc_content_by_detector ? 4 : 8;
     int mind = AVMMIN(block_size_wide[bsize], block_size_high[bsize]);
     int levels = 0;
     while (mind > floor_px) {
@@ -6105,7 +6160,7 @@ BEGIN_PARTITION_SEARCH:
         pc_tree->region_type, partition_allowed);
     part_search_state.try_none_with_forced_split = false;
     init_allowed_partitions(
-        &part_search_state, &cpi->oxcf.part_cfg,
+        cpi, &part_search_state, &cpi->oxcf.part_cfg,
         is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
         partition_allowed);
 #if CONFIG_ML_PART_SPLIT
