@@ -3204,3 +3204,43 @@ void av2_lossless_inv_idtx_add_avx2(const tran_low_t *input, uint16_t *dest,
     }
   }
 }
+
+void av2_inv_cross_chroma_tx_block_avx2(tran_low_t *dqcoeff_c1,
+                                        tran_low_t *dqcoeff_c2, TX_SIZE tx_size,
+                                        CctxType cctx_type, const int bd) {
+  if (cctx_type == CCTX_NONE) return;
+  const int ncoeffs = av2_get_max_eob(tx_size);
+  int32_t *src_c1 = (int32_t *)dqcoeff_c1;
+  int32_t *src_c2 = (int32_t *)dqcoeff_c2;
+
+  const int angle_idx = cctx_type - CCTX_START;
+  const __m256i cos_t = _mm256_set1_epi32(cctx_mtx[angle_idx][0]);
+  const __m256i sin_t = _mm256_set1_epi32(cctx_mtx[angle_idx][1]);
+  const __m256i max_value = _mm256_set1_epi32((1 << (7 + bd)) - 1);
+  const __m256i min_value = _mm256_set1_epi32(-(1 << (7 + bd)));
+
+  for (int i = 0; i < ncoeffs; i += 8) {
+    const __m256i v_c1 = _mm256_loadu_si256((__m256i *)&src_c1[i]);
+    const __m256i v_c2 = _mm256_loadu_si256((__m256i *)&src_c2[i]);
+    const __m256i v_c1_or_c2 = _mm256_or_si256(v_c1, v_c2);
+    if (_mm256_testz_si256(v_c1_or_c2, v_c1_or_c2)) continue;
+
+    // Dequantized coefficients fit in [-(1 << (bd + 7)), (1 << (bd + 7)) - 1],
+    // so the CCTX matrix products do not overflow 32-bit signed integers.
+    const __m256i v_tmp0 = _mm256_mullo_epi32(cos_t, v_c1);
+    const __m256i v_tmp1 = _mm256_mullo_epi32(sin_t, v_c2);
+    const __m256i v_tmp2 = _mm256_mullo_epi32(sin_t, v_c1);
+    const __m256i v_tmp3 = _mm256_mullo_epi32(cos_t, v_c2);
+
+    __m256i v_res0 = round_power_of_two_signed_avx2(
+        _mm256_sub_epi32(v_tmp0, v_tmp1), CCTX_PREC_BITS);
+    __m256i v_res1 = round_power_of_two_signed_avx2(
+        _mm256_add_epi32(v_tmp2, v_tmp3), CCTX_PREC_BITS);
+
+    v_res0 = _mm256_min_epi32(_mm256_max_epi32(v_res0, min_value), max_value);
+    v_res1 = _mm256_min_epi32(_mm256_max_epi32(v_res1, min_value), max_value);
+
+    _mm256_storeu_si256((__m256i *)&src_c1[i], v_res0);
+    _mm256_storeu_si256((__m256i *)&src_c2[i], v_res1);
+  }
+}
