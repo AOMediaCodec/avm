@@ -883,7 +883,12 @@ static void compute_sms_data(AV2_COMP *const cpi, const TileInfo *const tile,
   // the intended behaviour.
   mbmi->mode = NEWMV;
   mbmi->refinemv_flag = 0;
-  mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
+  // Search at the MV precision of the frame, as av2_simple_motion_search()
+  // does. The MV cost tables of x->mv_costs are only built for the
+  // precisions of the frame precision set (av2_fill_mv_costs()), so the
+  // 1/8-pel tables are stale in the frames of a coarser precision.
+  set_default_max_mv_precision(mbmi, x->e_mbd.sbi->sb_mv_precision);
+  set_mv_precision(mbmi, mbmi->max_mv_precision);
   mbmi->warpmv_with_mvd_flag = 0;
   mbmi->sb_type[0] = mbmi->sb_type[1] = bsize;
   mbmi->chroma_ref_info.bsize_base = bsize;
