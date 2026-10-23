@@ -200,7 +200,10 @@ static AVM_INLINE void av2_set_two_pass_flags(
     x->intra_mode_prune_top = cpi->sf.intra_sf.intra_pruning_with_mlp
                                   ? cpi->sf.intra_sf.intra_mode_prune_top
                                   : TOP_INTRA_MODEL_COUNT;
-    x->inter_mode_prune_top = TOP_MOTION_MODE_MODEL_COUNT;
+    const int full_pool_top = cpi->sf.inter_sf.full_pool_inter_mode_prune_top;
+    x->inter_mode_prune_top =
+        full_pool_top > 0 ? AVMMIN(full_pool_top, TOP_MOTION_MODE_MODEL_COUNT)
+                          : TOP_MOTION_MODE_MODEL_COUNT;
   }
 }
 

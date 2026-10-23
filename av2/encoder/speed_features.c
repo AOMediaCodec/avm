@@ -1071,6 +1071,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->selective_ref_frame = 0;
   inter_sf->prune_newmv_modes_using_prior_rd = 0;
   inter_sf->share_motion_mode_prune_pool = 0;
+  inter_sf->full_pool_inter_mode_prune_top = 0;
   inter_sf->prune_ref_frames = 0;
   inter_sf->disable_wedge_search_var_thresh = 0;
   inter_sf->fast_wedge_sign_estimate = 0;
@@ -1805,8 +1806,28 @@ static AVM_INLINE void set_post_none_early_term_level(AV2_COMP *cpi,
       cpi->oxcf.mode == GOOD ? thresh_by_speed[AVMMIN(speed, 6)] : 0;
 }
 
+// Faster inter-frame mode search at speed 6. Set after all other
+// qindex-dependent speed features. Key frames and intra-only frames do not
+// change.
+static AVM_INLINE void set_inter_frame_speed_features(AV2_COMP *cpi,
+                                                      int speed) {
+  const AV2_COMMON *const cm = &cpi->common;
+  SPEED_FEATURES *const sf = &cpi->sf;
+  if (cpi->oxcf.mode != GOOD || speed != 6 || frame_is_intra_only(cm)) return;
+
+  // Let the adaptive RD thresholds grow to 4 times the level-1 cap, and give
+  // the full transform search to the best 6 of the 11 candidates of the full
+  // mode pool.
+  sf->inter_sf.adaptive_rd_thresh = 4;
+  sf->inter_sf.full_pool_inter_mode_prune_top = 6;
+
+  // Double the post-NONE early termination threshold on frames that are not
+  // boosted.
+  if (!frame_is_boosted(cpi)) sf->part_sf.ml_post_none_early_term_thresh *= 2;
+}
+
 // Override some speed features based on qindex
-void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
+static void set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   AV2_COMMON *const cm = &cpi->common;
   SPEED_FEATURES *const sf = &cpi->sf;
   WinnerModeParams *const winner_mode_params = &cpi->winner_mode_params;
@@ -1973,5 +1994,87 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
         sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
       }
     }
+  }
+
+  set_inter_frame_speed_features(cpi, speed);
+}
+
+static AVM_INLINE void set_fast_inter_mode_search(SPEED_FEATURES *sf) {
+  sf->inter_sf.adaptive_rd_thresh = 4;
+  sf->inter_sf.full_pool_inter_mode_prune_top = 6;
+}
+
+// On the inter frames that are not boosted and have a high pyramid level
+// use the speed features of speed + 1, except the partition speed features.
+// These frames are used as references by few frames or none, so a faster
+// search costs less quality.
+static void set_next_speed_features(AV2_COMP *cpi, int speed) {
+  // Pyramid levels for different speeds
+  static const int next_speed_min_pyramid_level[6] = { 0, 4, 4, 4, 4, 5 };
+  const AV2_COMMON *const cm = &cpi->common;
+  if (cpi->oxcf.mode != GOOD || speed < 1 || speed > 5 ||
+      frame_is_intra_only(cm) || frame_is_boosted(cpi))
+    return;
+
+  const unsigned int min_level = next_speed_min_pyramid_level[speed];
+  if (min_level == 0 || cm->current_frame.pyramid_level < min_level) return;
+
+  // At speed 2, this is done only if the qindex is at most 160. At a higher
+  // qindex, these frames are fast to encode, so the speed-3 features save
+  // little time there.
+  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+  if (speed == 2 && cm->quant_params.base_qindex > 160 + qindex_offset) return;
+
+  SPEED_FEATURES *const sf = &cpi->sf;
+  const SPEED_FEATURES cur = *sf;
+  const int cur_speed = cpi->speed;
+  cpi->speed = speed + 1;
+  av2_set_speed_features_framesize_independent(cpi, speed + 1);
+  av2_set_rd_speed_thresholds(cpi);
+  av2_set_speed_features_framesize_dependent(cpi, speed + 1);
+  set_speed_features_qindex_dependent(cpi, speed + 1);
+  cpi->speed = cur_speed;
+  sf->part_sf = cur.part_sf;
+  if (speed == 2) {
+    // Test show that speed-3 values of these speed feautures cost
+    // too much quality for their time saving. So we keep the following
+    // speed features unchanged for speed 2.
+    sf->interp_sf.use_interp_filter = cur.interp_sf.use_interp_filter;
+    sf->inter_sf.comp_inter_joint_search_thresh =
+        cur.inter_sf.comp_inter_joint_search_thresh;
+    sf->inter_sf.prune_comp_search_by_single_result =
+        cur.inter_sf.prune_comp_search_by_single_result;
+    sf->tx_sf.adaptive_tx_type_search_idx =
+        cur.tx_sf.adaptive_tx_type_search_idx;
+    sf->tx_sf.adaptive_tx_partition_type_search_idx =
+        cur.tx_sf.adaptive_tx_partition_type_search_idx;
+    sf->lpf_sf.disable_loop_restoration_chroma =
+        cur.lpf_sf.disable_loop_restoration_chroma;
+    sf->inter_sf.adaptive_rd_thresh = 4;
+  } else if (speed == 4) {
+    // At speed 4, the following speed features are kept the same
+    // since their next level tradeoff cost too much quality for
+    // their time saving.
+    sf->winner_mode_sf.multi_winner_mode_type =
+        cur.winner_mode_sf.multi_winner_mode_type;
+    sf->winner_mode_sf.disable_multiway_tx_part_in_rough_mode =
+        cur.winner_mode_sf.disable_multiway_tx_part_in_rough_mode;
+    sf->inter_sf.disable_interinter_wedge =
+        cur.inter_sf.disable_interinter_wedge;
+    sf->inter_sf.prune_cwp_search = cur.inter_sf.prune_cwp_search;
+    set_fast_inter_mode_search(sf);
+  }
+}
+
+void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
+  set_speed_features_qindex_dependent(cpi, speed);
+  set_next_speed_features(cpi, speed);
+  // At speed 5, use the faster inter-frame mode search on all inter frames.
+  // Set it after set_next_speed_features(), so that the frames that use the
+  // speed-6 features also use it. Key frames and intra-only frames do not
+  // change.
+  if (cpi->oxcf.mode == GOOD && speed == 5 &&
+      !frame_is_intra_only(&cpi->common)) {
+    set_fast_inter_mode_search(&cpi->sf);
   }
 }
