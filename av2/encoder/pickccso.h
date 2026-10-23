@@ -51,9 +51,8 @@ typedef struct {
   uint8_t frame_bits_bo_only;
   int check_ccso;
   int num_ref_frames;
-  int early_terminate_ccso_search;
-  int max_band_candidates;
   int reuse_bo_class_stats;
+  int eo_band_mask;
 } CcsoCtxCommon;
 
 typedef struct {
@@ -98,10 +97,6 @@ typedef struct {
   bool skip_filter_calculation;
   int shift_bits;
   int init_shift_bits;
-  uint64_t last_best_cost;
-  // Number of (filter candidate, max_band_log2) evaluations done for this
-  // plane.
-  int num_band_candidates;
   unsigned int checked_reuse_ref[2][7];
   int checked_reuse_ref_idx[2];
   int8_t filter_offset[CCSO_BAND_NUM * 16];
@@ -153,13 +148,10 @@ typedef struct {
 
 void av2_ccso_ctx_free(struct AV2_COMP *cpi);
 
-bool av2_ccso_param_search(AV2_COMMON *cm, CcsoCtx *ctx, MACROBLOCKD *xd);
-
 void av2_ccso_search(struct AV2_COMP *cpi, const uint16_t *ext_rec_y,
                      uint16_t *rec_uv[MAX_MB_PLANE],
                      uint16_t *org_uv[MAX_MB_PLANE],
-                     bool error_resilient_frame_seen,
-                     int early_terminate_ccso_search, int ccso_chroma_dep);
+                     bool error_resilient_frame_seen);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -519,8 +519,9 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.warp_mv_refine_early_term =
         (cm->current_frame.pyramid_level >= 3);
 
-    sf->lpf_sf.ccso_chroma_dep = 1;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
+    sf->lpf_sf.ccso_terminate_search_luma_pass_count = 16;
+    sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 32;
     sf->part_sf.intra_two_pass_partition_search = TWO_PASS_PART_FAST;
     sf->part_sf.intra_two_pass_max_qindex = 95;
   }
@@ -530,7 +531,10 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.warp_mv_refine_early_term = boosted ? false : true;
     sf->part_sf.prune_rect_split_by_rd = 2;
 
-    sf->lpf_sf.early_terminate_ccso_search_by_cost = 1;
+    sf->lpf_sf.ccso_terminate_search_luma_pass_count = 10;
+    sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 20;
+    // Empirically, it is seen that in EO pass, bands 1 and 8 are preferred.
+    sf->lpf_sf.ccso_eo_band_mask = 9;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
 
     sf->part_sf.disable_uneven_4way_partitions = true;
@@ -584,6 +588,9 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 3) {
+    sf->lpf_sf.ccso_terminate_search_luma_pass_count = 8;
+    sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 16;
+
     // These features are moved down from speed 2
     // --- Start ---
     sf->interp_sf.use_interp_filter = 1;
@@ -697,6 +704,8 @@ static void set_good_speed_features_framesize_independent(
     // The run cap is not reached with key frames at most 100 frames apart.
     sf->hl_sf.tip_first_max_run = 99;
     sf->hl_sf.tip_first_margin_pct = 1;
+    sf->lpf_sf.ccso_terminate_search_luma_pass_count = 4;
+    sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 8;
     sf->lpf_sf.skip_wienerns_frame_filter_rounding = 1;
     if (cm->current_frame.pyramid_level >= 4)
       sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
@@ -756,7 +765,6 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.gdf_prune_qp_cands =
         cm->current_frame.pyramid_level >= 4 ? 1 : 0;
-    sf->lpf_sf.ccso_max_band_candidates = 32;
     sf->lpf_sf.ccso_reuse_bo_class_stats = 1;
 
     sf->mv_sf.reduce_search_range = 1;
@@ -778,6 +786,8 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 5) {
+    sf->lpf_sf.ccso_terminate_search_luma_pass_count = 3;
+    sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 6;
     sf->intra_sf.intra_mode_prune_top = 2;
     sf->intra_sf.disable_palette = true;
     sf->part_sf.simple_motion_search_prune_agg = 3;
@@ -863,6 +873,9 @@ static void set_good_speed_features_framesize_independent(
 
     sf->inter_sf.prune_amvd = true;
     sf->inter_sf.prune_opfl = 2;
+
+    sf->lpf_sf.ccso_terminate_search_luma_pass_count = 1;
+    sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 4;
   }
 
   if (enable_motion_mode_search_in_winner_mode(&sf->inter_sf)) {
@@ -1281,7 +1294,6 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->disable_lr_filter = 0;
   lpf_sf->wienerns_refine_iters = 2;
   lpf_sf->enable_deblock_for_partition_search = 0;
-  lpf_sf->early_terminate_ccso_search_by_cost = 0;
   // Off by default: keep full RU-size search for all pyramid levels.
   lpf_sf->reduce_lr_unit_size_by_pyr = 0;
   lpf_sf->reduce_lr_unit_size_by_pyr_drop_low = 0;
@@ -1290,14 +1302,15 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->wienerns_stat_class_search = 0;
   lpf_sf->wienerns_stat_merge_eval = 0;
   lpf_sf->reduce_lr_unit_size_drop_high_level = 3;
-  lpf_sf->ccso_chroma_dep = 0;
   lpf_sf->enable_cdef_mt = 1;
   lpf_sf->enable_ccso_mt = 1;
   lpf_sf->gdf_prune_qp_cands = 0;
-  lpf_sf->ccso_max_band_candidates = 0;
   lpf_sf->ccso_reuse_bo_class_stats = 0;
   lpf_sf->enable_lr_mt = 1;
   lpf_sf->enable_gdf_mt = 1;
+  lpf_sf->ccso_terminate_search_luma_pass_count = 0;
+  lpf_sf->ccso_terminate_search_chroma_pass_count = 0;
+  lpf_sf->ccso_eo_band_mask = 15;
 }
 
 static void av2_disable_ml_based_transform_sf(TX_SPEED_FEATURES *const tx_sf) {
