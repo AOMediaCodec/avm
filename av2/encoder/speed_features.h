@@ -1317,6 +1317,10 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // If set, the GDF search and filter run on several threads. Turned off when
   // there is only one thread or when BRU is enabled.
   int enable_gdf_mt;
+
+  // If set, the sample passes of the CCSO search run on several threads.
+  // Turned off when there is only one thread.
+  int enable_ccso_mt;
 } LOOP_FILTER_SPEED_FEATURES;
 
 typedef struct REALTIME_SPEED_FEATURES {

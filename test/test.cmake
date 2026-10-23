@@ -159,9 +159,12 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/tile_independence_test.cc")
 
     if(CONFIG_MULTITHREAD)
-      list(APPEND AVM_UNIT_TEST_COMMON_SOURCES
-           "${AVM_ROOT}/test/decode_multithreaded_test.cc"
-           "${AVM_ROOT}/test/ethread_test.cc")
+      list(
+        APPEND
+        AVM_UNIT_TEST_COMMON_SOURCES
+        "${AVM_ROOT}/test/decode_multithreaded_test.cc"
+        "${AVM_ROOT}/test/encoder_frame_mt_test.cc"
+        "${AVM_ROOT}/test/ethread_test.cc")
     endif()
   endif()
 

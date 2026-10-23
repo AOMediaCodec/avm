@@ -1242,6 +1242,7 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->ccso_reuse_bo_class_stats = 0;
   lpf_sf->enable_lr_mt = 1;
   lpf_sf->enable_gdf_mt = 1;
+  lpf_sf->enable_ccso_mt = 1;
 }
 
 static void av2_disable_ml_based_transform_sf(TX_SPEED_FEATURES *const tx_sf) {
@@ -1740,6 +1741,8 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     sf->lpf_sf.enable_lr_mt = 0;
     sf->lpf_sf.enable_gdf_mt = 0;
   }
+  // The CCSO search passes raise no errors, so only the thread count matters.
+  if (oxcf->max_threads <= 1) sf->lpf_sf.enable_ccso_mt = 0;
 }
 
 static AVM_INLINE void set_erp_speed_features_qindex_dependent(AV2_COMP *cpi) {
