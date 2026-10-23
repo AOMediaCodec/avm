@@ -161,7 +161,7 @@ specialize qw/avm_highbd_dc_128_predictor_32x32 sse2/;
 add_proto qw/void avm_highbd_convolve8/, "const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst, ptrdiff_t dst_stride, const InterpKernel *filter, int x0_q4, int x_step_q4, int y0_q4, int y_step_q4, int w, int h, int bd";
 add_proto qw/void avm_convolve_copy/,             "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, int w, int h";
 
-specialize qw/avm_convolve_copy       neon dspr2 msa sse2 avx2/;
+specialize qw/avm_convolve_copy       neon sse2 avx2/;
 
 add_proto qw/void avm_highbd_convolve_copy/, "const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst, ptrdiff_t dst_stride, int w, int h";
 specialize qw/avm_highbd_convolve_copy sse2 avx2/;
@@ -615,7 +615,7 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   #
   add_proto qw/unsigned int avm_get_mb_ss/, "const int16_t *";
 
-  specialize qw/avm_get_mb_ss sse2 msa/;
+  specialize qw/avm_get_mb_ss sse2/;
 
   #
   # Variance / Subpixel Variance / Subpixel Avg Variance
