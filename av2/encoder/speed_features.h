@@ -1291,6 +1291,24 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // with all RUs, bypassing percentage subsets and qsort.
   int wienerns_fast_frame_filter_opt;
 
+  // If set, the number of classes of the WIENER_NONSEP frame-level filters is
+  // picked by evaluating every class-count candidate in the statistics domain
+  // (distortion from the accumulated A, b and the filter taps) instead of
+  // filtering the frame once per candidate. Only the winning class count is
+  // then evaluated by actually filtering, as before.
+  int wienerns_stat_class_search;
+
+  // If set, the merge candidates of the per-RU WIENER_NONSEP filter search
+  // (search_wienerns_visitor() in pickrst.c) are evaluated in the statistics
+  // domain (SSE predicted from the RU statistics and calibrated with the SSE of
+  // the RU's own filter) instead of filtering every RU that shares the filter.
+  // The merged filter is the solved filter without further refinement.
+  int wienerns_stat_merge_eval;
+
+  // With reduce_lr_unit_size_by_pyr: the pyramid level from which the largest
+  // LR unit size is dropped from the search.
+  int reduce_lr_unit_size_drop_high_level;
+
   // bypass ccso luma plane check
   int ccso_chroma_dep;
 
