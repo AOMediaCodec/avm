@@ -1983,10 +1983,20 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
           best_mode_idx = mode_idx;
       }
     }
-    // Copy color_map of palette mode for final winner mode
+    // Copy color_map of palette mode for final winner mode. In inter frames
+    // store_winner_mode_stats() does not store palette modes, so a palette
+    // best_mbmi found by av2_rd_pick_palette_intra_sby() may have no winner
+    // entry (and the list may be empty); best_mode_idx then refers to another
+    // mode's color_index_map. Use the winner's map only if that winner is the
+    // palette mode, otherwise the best map from the palette search.
     if (best_mbmi.palette_mode_info.palette_size[0] > 0) {
-      uint8_t *color_map_src =
-          x->winner_mode_stats[best_mode_idx].color_index_map;
+      const WinnerModeStats *const winner =
+          &x->winner_mode_stats[best_mode_idx];
+      const uint8_t *color_map_src =
+          best_mode_idx < x->winner_mode_count &&
+                  winner->mbmi.palette_mode_info.palette_size[0] > 0
+              ? winner->color_index_map
+              : best_palette_color_map;
       memcpy(color_map_dst, color_map_src,
              block_width * block_height * sizeof(*color_map_src));
     }
