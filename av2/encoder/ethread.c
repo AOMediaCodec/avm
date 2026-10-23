@@ -1068,6 +1068,14 @@ void av2_encode_tiles_row_mt(AV2_COMP *cpi) {
   memset(thread_id_to_tile_id, -1,
          sizeof(*thread_id_to_tile_id) * MAX_NUM_THREADS);
 
+  // Global IntraBC may reference areas several superblocks to the right on
+  // rows above (see av2_is_dv_valid()), so the rows above must be further
+  // ahead than for the usual one-superblock wavefront.
+  const int sync_range =
+      (frame_is_intra_only(cm) && cm->features.allow_global_intrabc)
+          ? av2_intrabc_wavefront_sb_lead(cm->mib_size_log2)
+          : 1;
+
   for (int tile_row = 0; tile_row < tile_rows; tile_row++) {
     for (int tile_col = 0; tile_col < tile_cols; tile_col++) {
       int tile_index = tile_row * tile_cols + tile_col;
@@ -1077,6 +1085,7 @@ void av2_encode_tiles_row_mt(AV2_COMP *cpi) {
       // Initialize num_finished_cols to -1 for all rows.
       memset(row_mt_sync->num_finished_cols, -1,
              sizeof(*row_mt_sync->num_finished_cols) * max_sb_rows);
+      row_mt_sync->sync_range = sync_range;
       row_mt_sync->next_mi_row = this_tile->tile_info.mi_row_start;
       row_mt_sync->num_threads_working = 0;
 
@@ -1147,6 +1156,7 @@ void av2_fp_encode_tiles_row_mt(AV2_COMP *cpi) {
       // Initialize num_finished_cols to -1 for all rows.
       memset(row_mt_sync->num_finished_cols, -1,
              sizeof(*row_mt_sync->num_finished_cols) * max_mb_rows);
+      row_mt_sync->sync_range = 1;
       row_mt_sync->next_mi_row = this_tile->tile_info.mi_row_start;
       row_mt_sync->num_threads_working = 0;
     }
