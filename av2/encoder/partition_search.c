@@ -33,6 +33,7 @@
 #include "av2/encoder/encodeframe.h"
 #include "av2/encoder/encodeframe_utils.h"
 #include "av2/encoder/encodemv.h"
+#include "av2/encoder/gdr_utils.h"
 #include "av2/encoder/motion_search_facade.h"
 #include "av2/encoder/partition_search.h"
 #include "av2/encoder/partition_strategy.h"
@@ -427,6 +428,42 @@ void av2_set_offsets_without_segment_id(
   av2_set_mv_limits(&cm->mi_params, &x->mv_limits, mi_row, mi_col, mi_height,
                     mi_width, cpi->oxcf.border_in_pixels);
 
+  x->gdr_tr_into_dirty = cpi->gdr_stripe_active &&
+                         gdr_intra_tr_into_dirty(cpi, mi_row, mi_col, mi_width);
+  x->gdr_enforce_mv_range = 0;
+
+  // GDR: clamp the MV search so a clean-area inter block's reference block,
+  // plus the sub-pel interpolation filter reach, stays left of every
+  // reference's dirty region. Applies to every block in the current frame's
+  // clean area (left of the deterministic boundary); for a block past the
+  // references' minimum clean boundary the clamp turns negative, forcing a
+  // leftward MV into the clean region (or intra). RefineMV/OPFL/TIP are
+  // disabled for GDR, so only the interpolation filter width is guarded.
+  if (cpi->gdr_stripe_active && mi_col < cpi->gdr_deterministic_right_mi) {
+    int min_det_right = cm->mi_params.mi_cols;
+    for (int ref = 0; ref < INTER_REFS_PER_FRAME; ref++) {
+      const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
+      if (buf == NULL || buf->is_restricted) continue;
+      if (buf->gdr_deterministic_right_mi < min_det_right)
+        min_det_right = buf->gdr_deterministic_right_mi;
+    }
+    if (min_det_right < cm->mi_params.mi_cols) {
+      // Trailing reach of the sub-pel interpolation filter past the reference
+      // block, in luma pixels. Chroma runs the same filter on its own grid, so
+      // its reach is AVM_INTERP_EXTEND chroma samples; scaling by the
+      // horizontal subsampling gives the luma-pixel span this column clamp must
+      // reserve.
+      const int guard_px = AVM_INTERP_EXTEND << cm->seq_params.subsampling_x;
+      const int gdr_col_max =
+          (min_det_right - mi_col - mi_width) * MI_SIZE - guard_px;
+      if (x->mv_limits.col_max > gdr_col_max)
+        x->mv_limits.col_max = gdr_col_max;
+      // A predicted-MV inter mode can hold a component whose MV is out of this
+      // range; make build_cur_mv() reject the whole mode in that case.
+      x->gdr_enforce_mv_range = 1;
+    }
+  }
+
   set_plane_n4(xd, mi_width, mi_height, num_planes, chroma_ref_info);
 
   // Set up distance of MB to edge of frame in 1/8th pel units.
@@ -637,7 +674,8 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
 
   // Find best coding mode & reconstruct the MB so it is available
   // as a predictor for MBs that follow in the SB
-  if (frame_is_intra_only(cm) || mbmi->region_type == INTRA_REGION) {
+  if (frame_is_intra_only(cm) || mbmi->region_type == INTRA_REGION ||
+      gdr_force_intra_block(cpi, mi_col, mi_size_wide[bsize])) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, av2_rd_pick_intra_mode_sb_time);
 #endif
@@ -3133,6 +3171,55 @@ static AVM_INLINE void init_allowed_partitions(
 #endif  // CONFIG_COLLECT_PARTITION_STATS
 }
 
+// GDR partition restrictions inside the forced-intra region:
+//  - No sub-8x8 sub-blocks: an intra/IBC block with sub-8x8 shared chroma is
+//    unsupported by the inter-frame reconstruction path (is_sub8x8_inter), so
+//    every forced-intra block must own its chroma. Applies on every window
+//    frame, including the switch frame.
+//  - At the logical boundary, also no rectangular/non-square partitions; their
+//    non-square transforms enable the wide-angle intra remap that fetches
+//    above-right samples from the dirty area.
+static AVM_INLINE void gdr_restrict_partitions(
+    const AV2_COMP *cpi, PartitionSearchState *part_search_state) {
+  if (!cpi->gdr_stripe_active) return;
+  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
+  const BLOCK_SIZE bsize = blk_params->bsize;
+  const int bw = mi_size_wide[bsize];
+  // Only blocks overlapping the forced-intra region.
+  if (blk_params->mi_col >= cpi->gdr_stripe_end_mi ||
+      blk_params->mi_col + bw <= cpi->gdr_stripe_start_mi)
+    return;
+  // Only act when NONE is allowed so the "none || rect" partition invariant
+  // still holds; edge/oversized blocks that lack NONE split and their >= 8x8
+  // sub-blocks are handled recursively.
+  if (!part_search_state->partition_allowed[PARTITION_NONE]) return;
+
+  // Forbid partitions that would create a sub-block smaller than 8x8.
+  if (!is_bsize_geq(get_partition_subsize(bsize, PARTITION_SPLIT), BLOCK_8X8))
+    part_search_state->partition_allowed[PARTITION_SPLIT] = 0;
+  if (!is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ), BLOCK_8X8))
+    part_search_state->partition_allowed[PARTITION_HORZ] = 0;
+  if (!is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT), BLOCK_8X8))
+    part_search_state->partition_allowed[PARTITION_VERT] = 0;
+  // 3-/4-way splits create thin (< 8 wide/high) sub-blocks; forbid them.
+  part_search_state->partition_allowed[PARTITION_HORZ_3] = 0;
+  part_search_state->partition_allowed[PARTITION_VERT_3] = 0;
+  part_search_state->partition_allowed[PARTITION_HORZ_4A] = 0;
+  part_search_state->partition_allowed[PARTITION_VERT_4A] = 0;
+  part_search_state->partition_allowed[PARTITION_HORZ_4B] = 0;
+  part_search_state->partition_allowed[PARTITION_VERT_4B] = 0;
+
+  // Boundary blocks: only PARTITION_NONE + square SPLIT.
+  if (cpi->gdr_stripe_active) {
+    const int right = cpi->gdr_deterministic_right_mi;
+    if (blk_params->mi_col < right && blk_params->mi_col + bw > right) {
+      part_search_state->do_rectangular_split = 0;
+      part_search_state->partition_allowed[PARTITION_HORZ] = 0;
+      part_search_state->partition_allowed[PARTITION_VERT] = 0;
+    }
+  }
+}
+
 // Initialize state variables of partition search used in
 // av2_rd_pick_partition().
 static void init_partition_search_state_params(
@@ -3236,6 +3323,7 @@ static void init_partition_search_state_params(
       part_search_state, &cpi->oxcf.part_cfg, &cpi->sf,
       is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
       partition_allowed);
+  gdr_restrict_partitions(cpi, part_search_state);
 }
 
 static const int rect_partition_type[NUM_RECT_PARTS] = { PARTITION_HORZ,
@@ -5657,6 +5745,7 @@ BEGIN_PARTITION_SEARCH:
         &part_search_state, &cpi->oxcf.part_cfg, &cpi->sf,
         is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
         partition_allowed);
+    gdr_restrict_partitions(cpi, &part_search_state);
 #if CONFIG_ML_PART_SPLIT
     part_search_state.prune_partition[PARTITION_HORZ] = false;
     part_search_state.prune_partition[PARTITION_VERT] = false;

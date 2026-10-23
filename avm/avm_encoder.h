@@ -1071,6 +1071,19 @@ typedef struct avm_codec_enc_cfg {
    */
   unsigned int sframe_type;
 
+  /*!\brief enable Gradual Decoder Refresh
+   *
+   * If nonzero, GDR is enabled for the sequence.
+   */
+  unsigned int enable_gdr;
+
+  /*!\brief GDR refresh window length
+   *
+   * Number of frames over which the forced-intra stripe sweeps the picture,
+   * starting at each restricted S-Frame. Only has an effect if enable_gdr != 0.
+   */
+  unsigned int gdr_refresh_period;
+
   /*!\brief Monochrome mode
    *
    * If this is nonzero, the encoder will generate a monochrome stream
