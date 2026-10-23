@@ -2323,6 +2323,12 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
   cpi->intrabc_used = 0;
 
   features->allow_intrabc &= (oxcf->kf_cfg.enable_intrabc);
+  if (!frame_is_intra_only(cm) &&
+      (!oxcf->kf_cfg.enable_intrabc_ext ||
+       cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame == 1)) {
+    features->allow_intrabc = 0;
+    features->allow_local_intrabc = 0;
+  }
 
   // Decide which motion modes to scan this frame
   // TODO(rachelbarker): Rework pruning into something more unified in phase 2
