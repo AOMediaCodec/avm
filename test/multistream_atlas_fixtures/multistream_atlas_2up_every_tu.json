@@ -1,0 +1,13 @@
+{
+  "atlas_multistream_info": {
+    "atlas_segment_id": 0,
+    "atlas_segment_mode_idc": "MULTISTREAM_ATLAS",
+    "msi_width": 128,
+    "msi_height": 64,
+    "background": { "red_value": 16, "green_value": 32, "blue_value": 48 },
+    "segments": [
+      { "input_stream_id": 0, "top_left_pos_x": 0,  "top_left_pos_y": 0, "width": 64, "height": 64 },
+      { "input_stream_id": 1, "top_left_pos_x": 64, "top_left_pos_y": 0, "width": 64, "height": 64 }
+    ]
+  }
+}

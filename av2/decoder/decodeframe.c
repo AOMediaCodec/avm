@@ -6931,6 +6931,13 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
   cm->cur_frame->mlayer_id = cm->mlayer_id;
   cm->cur_frame->xlayer_id = cm->xlayer_id;
   cm->cur_frame->stream_id = av2_get_stream_index(cm, cm->xlayer_id);
+  if (pbi->compose_annex_d && !cm->seq_params.monotonic_output_order_flag) {
+    if (pbi->active_multistream_atlas != NULL) {
+      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                         "This implementation of the Annex D composition "
+                         "process requires monotonic_output_order_flag=1.");
+    }
+  }
 
   if (!cm->derive_sef_order_hint) {
     current_frame->order_hint = avm_rb_read_literal(
@@ -8821,6 +8828,13 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   cm->cur_frame->mlayer_id = cm->mlayer_id;
   cm->cur_frame->xlayer_id = cm->xlayer_id;
   cm->cur_frame->stream_id = av2_get_stream_index(cm, cm->xlayer_id);
+  if (pbi->compose_annex_d && !cm->seq_params.monotonic_output_order_flag) {
+    if (pbi->active_multistream_atlas != NULL) {
+      avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+                         "This implementation of the Annex D composition "
+                         "process requires monotonic_output_order_flag=1.");
+    }
+  }
   validate_references(pbi);
 
   cm->cur_frame->buf.bit_depth = seq_params->bit_depth;
