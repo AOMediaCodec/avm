@@ -459,10 +459,6 @@ list(
   "${AVM_ROOT}/av2/encoder/arm/neon/hash_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/quantize_neon.c")
 
-list(APPEND AVM_AV2_ENCODER_INTRIN_MSA
-     "${AVM_ROOT}/av2/encoder/mips/msa/fdct4x4_msa.c"
-     "${AVM_ROOT}/av2/encoder/mips/msa/temporal_filter_msa.c")
-
 list(
   APPEND
   AVM_AV2_COMMON_INTRIN_NEON
@@ -650,11 +646,6 @@ function(setup_av2_targets)
       add_intrinsics_object_library("-mvsx -maltivec" "vsx" "avm_av2_common"
                                     "AVM_AV2_COMMON_INTRIN_VSX")
     endif()
-  endif()
-
-  if(HAVE_MSA)
-    add_intrinsics_object_library("" "msa" "avm_av2_encoder"
-                                  "AVM_AV2_ENCODER_INTRIN_MSA")
   endif()
 
   # Pass the new lib targets up to the parent scope instance of
