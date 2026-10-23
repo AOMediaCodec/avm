@@ -4773,6 +4773,9 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
           // Restore original state for the default primary ref.
           cm->last_frame_seg_map = saved_last_frame_seg_map;
           cm->seg.update_map = saved_update_map;
+          if (cm->seg.update_map && cm->current_frame.frame_type != S_FRAME &&
+              cm->last_frame_seg_map)
+            temporal_update_allowed = 1;
         } else {
           // Conservatively force update_map=1, in theory update_map could
           // remain 0, but that would necessitate comparing the two seg maps.
