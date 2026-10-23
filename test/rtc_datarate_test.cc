@@ -99,6 +99,7 @@ class RtcDatarateTest
     if (video->frame() == 0) {
       encoder->Control(AVME_SET_CPUUSED, cpu_used_);
       encoder->Control(AV2E_SET_MAX_REFERENCE_FRAMES, 1);
+      encoder->Control(AV2E_SET_AQ_MODE, aq_mode_);
     }
     const avm_rational_t tb = video->timebase();
     timebase_ = static_cast<double>(tb.num) / tb.den;
@@ -156,6 +157,7 @@ class RtcDatarateTest
   }
 
   int cpu_used_;
+  int aq_mode_ = 0;
   const RtcTestClip test_clip_;
 
   avm_codec_pts_t last_pts_;
@@ -168,6 +170,18 @@ class RtcDatarateTest
 
 // Check basic rate targeting for CBR mode on parameterized test clip.
 TEST_P(RtcDatarateTest, BasicRateTargetingCBR) {
+  aq_mode_ = 0;
+  ::libavm_test::I420VideoSource video(test_clip_.filename, test_clip_.width,
+                                       test_clip_.height, 30, 1, 0,
+                                       test_clip_.frames);
+  RunBasicRateTargetingTest(&video, test_clip_.target_bitrate,
+                            test_clip_.low_rate_err_limit,
+                            test_clip_.high_rate_err_limit);
+}
+
+// Check basic rate targeting for CBR mode with cyclic refresh (aq-mode=3).
+TEST_P(RtcDatarateTest, BasicRateTargetingCBRCyclicRefresh) {
+  aq_mode_ = 3;
   ::libavm_test::I420VideoSource video(test_clip_.filename, test_clip_.width,
                                        test_clip_.height, 30, 1, 0,
                                        test_clip_.frames);

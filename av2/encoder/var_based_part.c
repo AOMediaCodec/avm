@@ -510,7 +510,8 @@ static void set_vbp_thresholds_key_frame(int64_t thresholds[],
  * threshold
  */
 static inline void set_vbp_thresholds(AV2_COMP *cpi, int64_t thresholds[],
-                                      int qindex, SOURCE_SAD source_sad_level) {
+                                      int qindex, SOURCE_SAD source_sad_level,
+                                      int is_segment_id_boosted) {
   AV2_COMMON *const cm = &cpi->common;
   const int is_key_frame = frame_is_intra_only(cm);
   const int threshold_multiplier = is_key_frame ? 120 : 1;
@@ -593,14 +594,16 @@ static inline void set_vbp_thresholds(AV2_COMP *cpi, int64_t thresholds[],
         thresholds[2] = thresholds[2] << 2;
         thresholds[3] = thresholds[3] << 1;
         thresholds[4] = INT64_MAX;
-      } else if (source_sad_level <= kVeryLowSad && qindex >= 100) {
-        thresholds[2] = (3 * thresholds[2]) >> 1;
-        thresholds[3] = (5 * thresholds[3]) >> 2;
-      } else if (source_sad_level <= kLowSad && qindex >= 110) {
-        thresholds[2] = (5 * thresholds[2]) >> 2;
-        thresholds[3] = (9 * thresholds[3]) >> 3;
+      } else if (!is_segment_id_boosted) {
+        if (source_sad_level <= kVeryLowSad && qindex >= 100) {
+          thresholds[2] = (3 * thresholds[2]) >> 1;
+          thresholds[3] = (5 * thresholds[3]) >> 2;
+        } else if (source_sad_level <= kLowSad && qindex >= 110) {
+          thresholds[2] = (5 * thresholds[2]) >> 2;
+          thresholds[3] = (9 * thresholds[3]) >> 3;
+        }
       }
-    } else {
+    } else if (!is_segment_id_boosted) {
       if (source_sad_level == kZeroSad && qindex >= 100) {
         thresholds[1] = (7 * thresholds[1]) >> 2;
         if (num_pixels > RESOLUTION_360P) {
@@ -1070,9 +1073,22 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
   x->sb_me_mv.as_int = 0;
 
   int64_t thresholds[6];
-  const int qindex = cm->quant_params.base_qindex;
+  const uint8_t *const map =
+      cm->seg.enabled ? cpi->enc_seg.map : cm->last_frame_seg_map;
+  const int segment_id =
+      map ? get_segment_id(&cm->mi_params, map, cm->sb_size, mi_row, mi_col)
+          : 0;
+  const int is_segment_id_boosted =
+      cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cm->seg.enabled &&
+      cyclic_refresh_segment_id_boosted(segment_id);
+  const int qindex =
+      (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cm->seg.enabled)
+          ? av2_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex,
+                           cm->seq_params.bit_depth)
+          : cm->quant_params.base_qindex;
 
-  set_vbp_thresholds(cpi, thresholds, qindex, source_sad_level);
+  set_vbp_thresholds(cpi, thresholds, qindex, source_sad_level,
+                     is_segment_id_boosted);
 
   src_buf = x->plane[AVM_PLANE_Y].src.buf;
   int src_stride = x->plane[AVM_PLANE_Y].src.stride;
