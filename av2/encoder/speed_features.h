@@ -270,6 +270,20 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    * 0: every offset and filter is built on the whole frame.
    */
   int tip_direct_output_rank_band_period;
+
+  /*!
+   * Run the full-frame TIP work (the TIP frame build, its loop filter and the
+   * SSE of the TIP searches) on the encoder worker threads when there are
+   * several. The output is the same with or without it.
+   * 0: single thread.
+   * This switch exists only to A/B test the multithreaded path against the
+   * single-threaded one while the encoder baseline is still changing, because
+   * the fixed cost of multithreading can cancel its gain for light stages. Once
+   * av2-enc is stable the multithreaded stage is re-evaluated: the switch is
+   * removed if multithreading helps, and the multithreaded code is removed if
+   * it does not.
+   */
+  int enable_tip_mt;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!\cond */

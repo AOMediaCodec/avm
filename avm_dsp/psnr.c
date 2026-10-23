@@ -83,11 +83,10 @@ static int64_t highbd_get_sse_shift(const uint16_t *a, int a_stride,
   return total_sse;
 }
 
-static int64_t highbd_get_sse(const uint16_t *a, int a_stride,
-                              const uint16_t *b, int b_stride, int width,
-                              int height) {
+int64_t avm_highbd_get_sse_edges(const uint16_t *a, int a_stride,
+                                 const uint16_t *b, int b_stride, int width,
+                                 int height) {
   int64_t total_sse = 0;
-  int x, y;
   const int dw = width % 16;
   const int dh = height % 16;
   unsigned int sse = 0;
@@ -103,10 +102,21 @@ static int64_t highbd_get_sse(const uint16_t *a, int a_stride,
                               width - dw, dh, &sse, &sum);
     total_sse += sse;
   }
-  for (y = 0; y < height / 16; ++y) {
+  return total_sse;
+}
+
+int64_t avm_highbd_get_sse_block_rows(const uint16_t *a, int a_stride,
+                                      const uint16_t *b, int b_stride,
+                                      int width, int row16_start,
+                                      int row16_end) {
+  int64_t total_sse = 0;
+  unsigned int sse = 0;
+  a += row16_start * 16 * a_stride;
+  b += row16_start * 16 * b_stride;
+  for (int y = row16_start; y < row16_end; ++y) {
     const uint16_t *pa = a;
     const uint16_t *pb = b;
-    for (x = 0; x < width / 16; ++x) {
+    for (int x = 0; x < width / 16; ++x) {
       avm_highbd_8_mse16x16(pa, a_stride, pb, b_stride, &sse);
       total_sse += sse;
       pa += 16;
@@ -116,6 +126,14 @@ static int64_t highbd_get_sse(const uint16_t *a, int a_stride,
     b += 16 * b_stride;
   }
   return total_sse;
+}
+
+static int64_t highbd_get_sse(const uint16_t *a, int a_stride,
+                              const uint16_t *b, int b_stride, int width,
+                              int height) {
+  return avm_highbd_get_sse_edges(a, a_stride, b, b_stride, width, height) +
+         avm_highbd_get_sse_block_rows(a, a_stride, b, b_stride, width, 0,
+                                       height / 16);
 }
 
 uint64_t avm_highbd_get_y_var(const YV12_BUFFER_CONFIG *a, int hstart,

@@ -1891,6 +1891,17 @@ typedef struct {
    * Global Motion multi-threading object.
    */
   AV2GlobalMotionSync gm_sync;
+
+  /*!
+   * MACROBLOCKD copies of the threads 1 and up of the TIP frame build
+   * (tip_xd[i - 1] for thread i), allocated on first use.
+   */
+  MACROBLOCKD *tip_xd;
+
+  /*!
+   * Number of elements of tip_xd.
+   */
+  int num_tip_xd;
 } MultiThreadInfo;
 
 /*!\cond */

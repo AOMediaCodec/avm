@@ -2053,6 +2053,7 @@ void av2_remove_compressor(AV2_COMP *cpi) {
   if (cpi->compressor_stage != LAP_STAGE) {
     avm_free(mt_info->tile_thr_data);
     avm_free(mt_info->workers);
+    avm_free(mt_info->tip_xd);
   }
 
   av2_tpl_dealloc(&tpl_data->tpl_mt_sync);
@@ -4202,15 +4203,8 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
       if (av2_pack_bitstream(cpi, dest, &coded_size, &coded_largest_tile_id) !=
           AVM_CODEC_OK)
         return AVM_CODEC_ERROR;
-      coded_sse = avm_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
-      coded_sse += avm_highbd_sse(
-          cpi->source->u_buffer, cpi->source->uv_stride,
-          cm->cur_frame->buf.u_buffer, cm->cur_frame->buf.uv_stride,
-          cpi->source->uv_width, cpi->source->uv_height);
-      coded_sse += avm_highbd_sse(
-          cpi->source->v_buffer, cpi->source->uv_stride,
-          cm->cur_frame->buf.v_buffer, cm->cur_frame->buf.uv_stride,
-          cpi->source->uv_width, cpi->source->uv_height);
+      coded_sse = av2_enc_tip_sse(cpi, cpi->source, &cm->cur_frame->buf,
+                                  1 /* include_chroma */);
     }
 
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
@@ -4223,10 +4217,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
     cm->features.coded_lossless = 0;
     cm->features.all_lossless = 0;
 
-    ThreadData *const td = &cpi->td;
-    av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                        av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
-    );
+    av2_enc_setup_tip_frame_mt(cpi, 0 /* copy_refined_mvs */);
 
     const int64_t rdmult =
         av2_compute_rd_mult(cpi, cm->quant_params.base_qindex);
@@ -4265,7 +4256,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
       }
       search_tip_filter_level(cpi, cm);
       init_tip_lf_parameter(cm, 0, av2_num_planes(cm));
-      loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
+      av2_enc_loop_filter_tip_frame(cpi, 0, av2_num_planes(cm));
       if (cm->seq_params.enable_tip_explicit_qp == 0) {
         cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q =
             u_ac_delta_q_backup;
@@ -4285,15 +4276,8 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
       { -1, -1 }, { -1, 0 }, { -1, 1 }, { 0, -1 },
       { 0, 1 },   { 1, -1 }, { 1, 0 },  { 1, 1 },
     };
-    int64_t best_sse = avm_highbd_get_y_sse(cpi->source, tip_frame_buf);
-    best_sse +=
-        avm_highbd_sse(cpi->source->u_buffer, cpi->source->uv_stride,
-                       tip_frame_buf->u_buffer, tip_frame_buf->uv_stride,
-                       cpi->source->uv_width, cpi->source->uv_height);
-    best_sse +=
-        avm_highbd_sse(cpi->source->v_buffer, cpi->source->uv_stride,
-                       tip_frame_buf->v_buffer, tip_frame_buf->uv_stride,
-                       cpi->source->uv_width, cpi->source->uv_height);
+    int64_t best_sse = av2_enc_tip_sse(cpi, cpi->source, tip_frame_buf,
+                                       1 /* include_chroma */);
     // SSE of the zero-offset MULTITAP_SHARP build.
     const int64_t frame_sse0 = best_sse;
 
@@ -4338,23 +4322,13 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
             continue;
 
           cm->tip_global_motion.as_int = ref_mv.as_int;
-          av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                              av2_enc_calc_subpel_params,
-                              0 /* copy_refined_mvs */
-          );
+          av2_enc_setup_tip_frame_mt(cpi, 0 /* copy_refined_mvs */);
           if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
-            loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
+            av2_enc_loop_filter_tip_frame(cpi, 0, av2_num_planes(cm));
           }
 
-          int64_t this_sse = avm_highbd_get_y_sse(cpi->source, tip_frame_buf);
-          this_sse +=
-              avm_highbd_sse(cpi->source->u_buffer, cpi->source->uv_stride,
-                             tip_frame_buf->u_buffer, tip_frame_buf->uv_stride,
-                             cpi->source->uv_width, cpi->source->uv_height);
-          this_sse +=
-              avm_highbd_sse(cpi->source->v_buffer, cpi->source->uv_stride,
-                             tip_frame_buf->v_buffer, tip_frame_buf->uv_stride,
-                             cpi->source->uv_width, cpi->source->uv_height);
+          int64_t this_sse = av2_enc_tip_sse(cpi, cpi->source, tip_frame_buf,
+                                             1 /* include_chroma */);
 
           sym_rate_cost = 13;
           this_sse = (int64_t)RDCOST_DBL_WITH_NATIVE_BD_DIST(
@@ -4377,23 +4351,13 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
       for (InterpFilter interp_filter = EIGHTTAP_REGULAR;
            interp_filter <= MULTITAP_SHARP; ++interp_filter) {
         cm->tip_interp_filter = interp_filter;
-        av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                            av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
-        );
+        av2_enc_setup_tip_frame_mt(cpi, 0 /* copy_refined_mvs */);
         if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
-          loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
+          av2_enc_loop_filter_tip_frame(cpi, 0, av2_num_planes(cm));
         }
 
-        int64_t this_sse = avm_highbd_get_y_sse(cpi->source, tip_frame_buf);
-        this_sse +=
-            avm_highbd_sse(cpi->source->u_buffer, cpi->source->uv_stride,
-                           tip_frame_buf->u_buffer, tip_frame_buf->uv_stride,
-                           cpi->source->uv_width, cpi->source->uv_height);
-
-        this_sse +=
-            avm_highbd_sse(cpi->source->v_buffer, cpi->source->uv_stride,
-                           tip_frame_buf->v_buffer, tip_frame_buf->uv_stride,
-                           cpi->source->uv_width, cpi->source->uv_height);
+        int64_t this_sse = av2_enc_tip_sse(cpi, cpi->source, tip_frame_buf,
+                                           1 /* include_chroma */);
 
         if (this_sse < best_sse) {
           best_interp_filter = interp_filter;
@@ -4433,15 +4397,8 @@ static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
     tip_as_ref_sse = *sse;
     tip_as_ref_rate = *rate;
   } else {
-    tip_as_ref_sse = avm_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
-    tip_as_ref_sse += avm_highbd_sse(
-        cpi->source->u_buffer, cpi->source->uv_stride,
-        cm->cur_frame->buf.u_buffer, cm->cur_frame->buf.uv_stride,
-        cpi->source->uv_width, cpi->source->uv_height);
-    tip_as_ref_sse += avm_highbd_sse(
-        cpi->source->v_buffer, cpi->source->uv_stride,
-        cm->cur_frame->buf.v_buffer, cm->cur_frame->buf.uv_stride,
-        cpi->source->uv_width, cpi->source->uv_height);
+    tip_as_ref_sse = av2_enc_tip_sse(cpi, cpi->source, &cm->cur_frame->buf,
+                                     1 /* include_chroma */);
 
     const int64_t bits = (*size << 3);
     tip_as_ref_rate = (bits << 5);  // To match scale.
@@ -4502,13 +4459,10 @@ static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
 
     cm->cur_frame->frame_context = *cm->fc;
     const int num_planes = av2_num_planes(cm);
-    ThreadData *const td = &cpi->td;
-    av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                        av2_enc_calc_subpel_params, 1 /* copy_refined_mvs */
-    );
+    av2_enc_setup_tip_frame_mt(cpi, 1 /* copy_refined_mvs */);
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
       init_tip_lf_parameter(cm, 0, av2_num_planes(cm));
-      loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
+      av2_enc_loop_filter_tip_frame(cpi, 0, av2_num_planes(cm));
       avm_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av2_num_planes(cm),
                                0);
     }
@@ -4913,16 +4867,8 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
 
   // Compute sse and rate.
   if (sse != NULL) {
-    int64_t tip_as_ref_sse =
-        avm_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
-    tip_as_ref_sse += avm_highbd_sse(
-        cpi->source->u_buffer, cpi->source->uv_stride,
-        cm->cur_frame->buf.u_buffer, cm->cur_frame->buf.uv_stride,
-        cpi->source->uv_width, cpi->source->uv_height);
-    tip_as_ref_sse += avm_highbd_sse(
-        cpi->source->v_buffer, cpi->source->uv_stride,
-        cm->cur_frame->buf.v_buffer, cm->cur_frame->buf.uv_stride,
-        cpi->source->uv_width, cpi->source->uv_height);
+    const int64_t tip_as_ref_sse = av2_enc_tip_sse(
+        cpi, cpi->source, &cm->cur_frame->buf, 1 /* include_chroma */);
     *sse = tip_as_ref_sse;
   }
   if (rate != NULL) {
