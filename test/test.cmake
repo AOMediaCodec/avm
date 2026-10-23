@@ -249,7 +249,8 @@ if(NOT BUILD_SHARED_LIBS)
     "${AVM_ROOT}/test/av2_quantize_test.cc")
 
   list(APPEND AVM_UNIT_TEST_ENCODER_SOURCES
-       "${AVM_ROOT}/test/lossless_idtx_test.cc")
+       "${AVM_ROOT}/test/lossless_idtx_test.cc"
+       "${AVM_ROOT}/test/quantize_b_bound_test.cc")
 
   list(APPEND AVM_UNIT_TEST_ENCODER_INTRIN_SSE4_1
        "${AVM_ROOT}/test/corner_match_test.cc"

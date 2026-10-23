@@ -281,7 +281,8 @@ if(CONFIG_AV2_ENCODER)
     "${AVM_ROOT}/avm_dsp/arm/avg_neon.c"
     "${AVM_ROOT}/avm_dsp/arm/highbd_variance_neon.c"
     "${AVM_ROOT}/avm_dsp/arm/sse_neon.c"
-    "${AVM_ROOT}/avm_dsp/arm/sum_squares_neon.c")
+    "${AVM_ROOT}/avm_dsp/arm/sum_squares_neon.c"
+    "${AVM_ROOT}/avm_dsp/arm/highbd_quantize_neon.c")
 
   list(
     APPEND
