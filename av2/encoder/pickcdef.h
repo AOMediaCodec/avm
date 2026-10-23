@@ -14,6 +14,7 @@
 
 #include "av2/common/av2_common_int.h"
 #include "av2/common/cdef.h"
+#include "avm_util/avm_thread.h"
 #include "av2/encoder/speed_features.h"
 
 #ifdef __cplusplus
@@ -33,6 +34,8 @@ extern "C" {
  * \param[in]      pick_method  The method used to select params
  * \param[in]      rdmult       rd multiplier to use in making param choices
  * \param[in]      bias_against_cdef  Whether or not enable bias against CDEF
+ * \param[in]      workers      Worker threads for the row-parallel search
+ * \param[in]      num_workers  Number of workers, 1 for the serial search
  *
  * Nothing is returned. Instead, optimal CDEF parameters are stored
  * in the \c cdef_info structure of type \ref CdefInfo inside \c cm:
@@ -52,7 +55,8 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
                      ThreadData *td,
 #endif  // CONFIG_ENTROPY_STATS
                      CDEF_PICK_METHOD pick_method, int rdmult,
-                     int bias_against_cdef);
+                     int bias_against_cdef, AVxWorker *workers,
+                     int num_workers);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -219,10 +219,10 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   free_gdf_buffers(&cm->gdf_info);
   const int use_cdef = cpi->oxcf.tool_cfg.enable_cdef;
   if (!is_stat_generation_stage(cpi) && use_cdef) {
-    AV2CdefWorkerData *cdef_worker = NULL;
-    AV2CdefSync cdef_sync = { 0 };
-    av2_free_cdef_buffers(cm, &cdef_worker /* dummy */, &cdef_sync /* dummy */,
-                          1);
+    MultiThreadInfo *const mt_info = &cpi->mt_info;
+    av2_free_cdef_buffers(cm, &mt_info->cdef_worker, &mt_info->cdef_sync,
+                          AVMMAX(mt_info->num_workers, 1));
+    av2_free_cdef_sync(&mt_info->cdef_sync);
   }
   avm_free_frame_buffer(&cpi->trial_frame_rst);
   avm_free_frame_buffer(&cpi->scaled_source);
