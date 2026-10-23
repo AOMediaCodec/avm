@@ -16,6 +16,7 @@
 #include "av2/common/intra_dip.h"
 #include "av2/common/mvref_common.h"
 
+#include "av2/encoder/bitstream.h"
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/encodeframe_utils.h"
 #include "av2/encoder/partition_strategy.h"
@@ -314,6 +315,39 @@ void av2_update_state(const AV2_COMP *const cpi, ThreadData *td,
         assert(is_inter_block(mi_addr, xd->tree_type) ||
                !cpi->enc_seg.has_lossless_segment);
         mi_addr->segment_id = pred;
+      } else if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && !dry_run &&
+                 !txfm_info->skip_txfm && !cm->features.has_lossless_segment) {
+        int cdf_num;
+        const uint8_t spatial_pred =
+            av2_get_spatial_seg_pred(cm, xd, &cdf_num, 0);
+        const int coded_id = av2_neg_interleave(
+            mi_addr->segment_id, spatial_pred, seg->last_active_segid + 1);
+        const avm_cdf_prob *spatial_cdf =
+            (seg->enable_ext_seg == 1 && coded_id >= MAX_SEGMENTS_8)
+                ? xd->tile_ctx->seg.spatial_pred_seg_cdf1[cdf_num]
+                : xd->tile_ctx->seg.spatial_pred_seg_cdf[cdf_num];
+        int spatial_costs[MAX_SEGMENTS_8];
+        av2_cost_tokens_from_cdf(spatial_costs, spatial_cdf, MAX_SEGMENTS_8,
+                                 NULL);
+        const int spatial_cost =
+            spatial_costs[(coded_id < MAX_SEGMENTS_8)
+                              ? coded_id
+                              : (coded_id - MAX_SEGMENTS_8)];
+        const uint8_t temporal_pred =
+            cm->last_frame_seg_map
+                ? get_segment_id(mi_params, cm->last_frame_seg_map, bsize,
+                                 mi_row, mi_col)
+                : 0;
+        const int use_tmp_pred = (temporal_pred == mi_addr->segment_id);
+        const int tmp_pred_ctx = av2_get_pred_context_seg_id(xd);
+        const avm_cdf_prob *pred_cdf = xd->tile_ctx->seg.pred_cdf[tmp_pred_ctx];
+        int pred_costs[2];
+        av2_cost_tokens_from_cdf(pred_costs, pred_cdf, 2, NULL);
+        const int tmp_pred_cost =
+            pred_costs[use_tmp_pred] + (use_tmp_pred ? 0 : spatial_cost);
+        rdc->seg_tmp_pred_cost[0] += spatial_cost;
+        rdc->seg_tmp_pred_cost[1] += tmp_pred_cost;
+        mi_addr->seg_id_predicted = use_tmp_pred;
       }
     }
   }
