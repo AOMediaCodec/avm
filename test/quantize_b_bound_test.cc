@@ -12,7 +12,6 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <cstdio>
 #include <cstdlib>
 #include <vector>
 
@@ -82,7 +81,6 @@ CoeffBound PrimaryCoeffBound(TX_SIZE tx_size, PRIMARY_TX_TYPE tx_type,
 
 struct EntryStats {
   int fused = 0, fallback = 0;
-  int64_t mult = 0, tmp_rnd = 0, zbin_thr = 0, abs_q = 0, dq_in = 0;
 };
 
 // Rounding right shift as vrshrq_n_s32 computes it (no intermediate overflow).
@@ -114,14 +112,12 @@ void CheckEntry(int64_t coeff_max, int32_t zbin, int32_t round, int32_t quant,
   const int64_t mult = q << (15 - s);
   ASSERT_LE(mult, kMax);
   ++st->fused;
-  st->mult = std::max(st->mult, mult);
 
   const int64_t rnd = ROUND_POWER_OF_TWO(round, log_scale);
   const int64_t zbin_ls = ROUND_POWER_OF_TWO(zbin, log_scale);
   const int64_t zbin_thr = zbin_ls + rnd - 1;
   ASSERT_GE(zbin_thr, kMin);
   ASSERT_LE(zbin_thr, kMax);
-  st->zbin_thr = std::max(st->zbin_thr, zbin_thr);
   const int n = QUANT_TABLE_BITS + log_scale;
   const int64_t bias =
       log_scale == 0 ? 0
@@ -142,12 +138,10 @@ void CheckEntry(int64_t coeff_max, int32_t zbin, int32_t round, int32_t quant,
 
     const int64_t tmp_rnd = a + rnd;
     ASSERT_LE(tmp_rnd, kMax) << "a " << a;
-    st->tmp_rnd = std::max(st->tmp_rnd, tmp_rnd);
     const int64_t tmp = tmp_rnd > zbin_thr ? tmp_rnd : 0;
     const int64_t abs_q = (2 * tmp * mult) >> 32;
     ASSERT_LE(abs_q, kMax) << "a " << a;
     ASSERT_EQ(abs_q, c_abs_q) << "a " << a;
-    st->abs_q = std::max(st->abs_q, abs_q);
 
     for (const int neg : { 0, 1 }) {
       const int64_t qv = neg ? -abs_q : abs_q;
@@ -158,7 +152,6 @@ void CheckEntry(int64_t coeff_max, int32_t zbin, int32_t round, int32_t quant,
       const int64_t dq_in = prod + (log_scale == 0 ? sign : (bias ^ sign));
       ASSERT_GE(dq_in, kMin) << "a " << a;
       ASSERT_LE(dq_in, kMax) << "a " << a;
-      st->dq_in = std::max(st->dq_in, dq_in < 0 ? -dq_in : dq_in);
       ASSERT_EQ(Rshr(dq_in, n), neg ? -c_abs_dq : c_abs_dq) << "a " << a;
     }
   }
@@ -172,7 +165,6 @@ TEST(QuantizeBBoundTest, NeonIntermediatesFitInt32) {
   const int kMaxResi12 = (1 << 12) - 1;
 
   int64_t primary12[TX_SIZES_ALL] = { 0 };
-  int64_t achieved12[TX_SIZES_ALL] = { 0 };
   for (int t = 0; t < TX_SIZES_ALL; ++t) {
     const TX_SIZE ts = static_cast<TX_SIZE>(t);
     for (int type = 0; type < PRIMARY_TX_TYPES; ++type) {
@@ -186,19 +178,10 @@ TEST(QuantizeBBoundTest, NeonIntermediatesFitInt32) {
         // The bound must be reached by a real residual, not just be loose.
         EXPECT_GE(b.achieved * 100, b.linear * 98)
             << "tx " << t << " type " << type;
-        if (b.upper > primary12[t]) {
-          primary12[t] = b.upper;
-          achieved12[t] = b.achieved;
-        }
+        primary12[t] = std::max(primary12[t], b.upper);
       }
     }
   }
-
-  for (int t = 0; t < TX_SIZES_ALL; ++t)
-    printf("tx %2d %2dx%-2d: 12-bit coeff bound %lld, reached %lld\n", t,
-           tx_size_wide[t], tx_size_high[t],
-           static_cast<long long>(primary12[t]),
-           static_cast<long long>(achieved12[t]));
 
   const avm_bit_depth_t kDepths[] = { AVM_BITS_8, AVM_BITS_10, AVM_BITS_12 };
   for (const avm_bit_depth_t bd : kDepths) {
@@ -210,12 +193,10 @@ TEST(QuantizeBBoundTest, NeonIntermediatesFitInt32) {
     // IST and cross-chroma outputs are clamped to 8 + bd bits.
     const int64_t clamp_max = int64_t{ 1 } << (bd + 7);
     EntryStats st;
-    int64_t peak_coeff = 0;
     for (int t = 0; t < TX_SIZES_ALL; ++t) {
       const int log_scale = av2_get_tx_scale(static_cast<TX_SIZE>(t));
       const int64_t coeff_max = std::max(
           clamp_max, (primary12[t] * max_resi + kMaxResi12 - 1) / kMaxResi12);
-      peak_coeff = std::max(peak_coeff, coeff_max);
       for (int q = 0; q < qindex_range; ++q) {
         for (int i = 0; i < 2; ++i) {
           const int32_t *tables[3][5] = {
@@ -235,18 +216,11 @@ TEST(QuantizeBBoundTest, NeonIntermediatesFitInt32) {
         }
       }
     }
-    printf(
-        "bd %d: coeff_max %lld tmp_rnd %lld zbin_thr %lld abs_q %lld "
-        "|dq_in| %lld mult %lld; entries fused %d, C fallback (s == 16) %d\n",
-        bd, static_cast<long long>(peak_coeff),
-        static_cast<long long>(st.tmp_rnd), static_cast<long long>(st.zbin_thr),
-        static_cast<long long>(st.abs_q), static_cast<long long>(st.dq_in),
-        static_cast<long long>(st.mult), st.fused, st.fallback);
-    EXPECT_GT(st.fused, 0);
+    EXPECT_GT(st.fused, 0) << "bd " << bd;
     if (bd == AVM_BITS_12) {
-      EXPECT_GT(st.fallback, 0);
+      EXPECT_GT(st.fallback, 0) << "bd " << bd;
     } else {
-      EXPECT_EQ(st.fallback, 0);
+      EXPECT_EQ(st.fallback, 0) << "bd " << bd;
     }
   }
 }

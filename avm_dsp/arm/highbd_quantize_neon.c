@@ -133,15 +133,19 @@ static AVM_FORCE_INLINE void update_eob_8(const int16_t *iscan_ptr,
 }
 
 static AVM_FORCE_INLINE int16_t horizontal_max_s16x8(const int16x8_t v) {
+#if AVM_ARCH_AARCH64
+  return vmaxvq_s16(v);
+#else
   int16x4_t m = vpmax_s16(vget_low_s16(v), vget_high_s16(v));
   m = vpmax_s16(m, m);
   m = vpmax_s16(m, m);
   return vget_lane_s16(m, 0);
+#endif
 }
 
 static AVM_FORCE_INLINE int16x8_t quantize_b_large_neon(
     int32x4_t *qp, const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-    const int32_t *zbin_ptr, const int32_t *round_ptr, const int32_t mult_ac,
+    const int32_t zbin_ac, const int32_t round_ac, const int32_t mult_ac,
     tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr,
     const int16_t *iscan, const int log_scale) {
   const int step = 4;
@@ -156,9 +160,8 @@ static AVM_FORCE_INLINE int16x8_t quantize_b_large_neon(
   iscan += step;
   n_coeffs -= step;
 
-  qp[0] = vdupq_n_s32(ROUND_POWER_OF_TWO(zbin_ptr[1], log_scale) +
-                      ROUND_POWER_OF_TWO(round_ptr[1], log_scale) - 1);
-  qp[1] = vdupq_n_s32(ROUND_POWER_OF_TWO(round_ptr[1], log_scale));
+  qp[0] = vdupq_n_s32(zbin_ac);
+  qp[1] = vdupq_n_s32(round_ac);
   qp[2] = vdupq_n_s32(mult_ac);
   qp[3] = vdupq_n_s32(dequant_ptr[1]);
 
@@ -180,7 +183,7 @@ static AVM_FORCE_INLINE int16x8_t quantize_b_large_neon(
     const uint32x4_t zbin_lo = vcgtq_s32(abs_rnd_lo, qp[0]);
     const uint32x4_t zbin_hi = vcgtq_s32(abs_rnd_hi, qp[0]);
     const uint16x4_t any_zbin = vshrn_n_u32(vorrq_u32(zbin_lo, zbin_hi), 16);
-    if (vget_lane_u64(vreinterpret_u64_u16(any_zbin), 0) == 0) {
+    if (LIKELY(vget_lane_u64(vreinterpret_u64_u16(any_zbin), 0) == 0)) {
       const int32x4_t zero = vdupq_n_s32(0);
       vst1q_s32(qcoeff_ptr, zero);
       vst1q_s32(qcoeff_ptr + step, zero);
@@ -293,13 +296,13 @@ void avm_highbd_quantize_b_neon(
   } else {
     qp[4] = vdupq_n_s32(4 - (1 << (QUANT_TABLE_BITS - 1 + log_scale)));
     if (log_scale == 1) {
-      eob = quantize_b_large_neon(qp, coeff_ptr, n_coeffs, zbin_ptr, round_ptr,
-                                  mult_ac, qcoeff_ptr, dqcoeff_ptr, dequant_ptr,
-                                  iscan, 1);
+      eob = quantize_b_large_neon(qp, coeff_ptr, n_coeffs, zbin_arr[1],
+                                  round_arr[1], mult_ac, qcoeff_ptr,
+                                  dqcoeff_ptr, dequant_ptr, iscan, 1);
     } else {
-      eob = quantize_b_large_neon(qp, coeff_ptr, n_coeffs, zbin_ptr, round_ptr,
-                                  mult_ac, qcoeff_ptr, dqcoeff_ptr, dequant_ptr,
-                                  iscan, 2);
+      eob = quantize_b_large_neon(qp, coeff_ptr, n_coeffs, zbin_arr[1],
+                                  round_arr[1], mult_ac, qcoeff_ptr,
+                                  dqcoeff_ptr, dequant_ptr, iscan, 2);
     }
   }
 
