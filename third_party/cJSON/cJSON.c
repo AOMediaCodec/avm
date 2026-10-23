@@ -311,8 +311,7 @@ void cJSON_Delete(cJSON *item) {
       cJSON_Delete(item->child);
     if (!(item->type & cJSON_IsReference) && item->valuestring)
       free(item->valuestring);
-    if (!(item->type & cJSON_StringIsConst) && item->string)
-      free(item->string);
+    if (!(item->type & cJSON_StringIsConst) && item->string) free(item->string);
     free(item);
     item = next;
   }

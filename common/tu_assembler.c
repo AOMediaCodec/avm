@@ -12,6 +12,7 @@
 
 #include "common/tu_assembler.h"
 
+#include <assert.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1268,6 +1269,11 @@ void populate_global_lcr_from_config(const MultiXLayerConfig *mcfg,
           ml->lcr_auxiliary_type[m] = xl->auxiliary_type;
         }
         ml->lcr_view_type[m] = xl->view_type;
+        const int view_id = xlayer_config_lcr_view_id(xl);
+        // VIEW_EXPLICIT needs a valid view_id (checked by config validation).
+        assert(xl->view_type != VIEW_EXPLICIT || view_id >= 0);
+        ml->lcr_view_id[m] = view_id;
+        ml->LcrViewId[m] = av2_lcr_view_id(xl->view_type, view_id);
         ml->TLayerCount[m] = xl->num_temporal_layers;
         ml->lcr_tlayer_map[m] = (1 << xl->num_temporal_layers) - 1;
         // Set resolution flag based on scaling mode.
@@ -1300,6 +1306,11 @@ void populate_global_lcr_from_config(const MultiXLayerConfig *mcfg,
         ml->lcr_auxiliary_type[0] = xl->auxiliary_type;
       }
       ml->lcr_view_type[0] = xl->view_type;
+      const int view_id = xlayer_config_lcr_view_id(xl);
+      // VIEW_EXPLICIT needs a valid view_id (checked by config validation).
+      assert(xl->view_type != VIEW_EXPLICIT || view_id >= 0);
+      ml->lcr_view_id[0] = view_id;
+      ml->LcrViewId[0] = av2_lcr_view_id(xl->view_type, view_id);
       ml->TLayerCount[0] = xl->num_temporal_layers;
       ml->lcr_tlayer_map[0] = (1 << xl->num_temporal_layers) - 1;
       ml->lcr_same_sh_max_resolution_flag[0] = 1;

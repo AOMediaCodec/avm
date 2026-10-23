@@ -504,6 +504,27 @@ TEST_F(LcrTest, GlobalLcrWithEmbeddedLayerInfo) {
   EXPECT_EQ(dml->lcr_view_id[0], 0);
   EXPECT_EQ(dml->lcr_layer_type[1], STEREO_LAYER);
   EXPECT_EQ(dml->lcr_view_id[1], 1);
+  // LcrViewId = 256 + lcr_view_id for VIEW_EXPLICIT.
+  EXPECT_EQ(dml->LcrViewId[0], 256);
+  EXPECT_EQ(dml->LcrViewId[1], 257);
+}
+
+// LcrViewId equals lcr_view_type for the non-explicit view types (lcr_view_id
+// is not signalled and must be ignored), and 256 + lcr_view_id otherwise.
+TEST(LcrViewIdTest, Derivation) {
+  EXPECT_EQ(av2_lcr_view_id(VIEW_UNSPECIFIED, 0), 0);
+  EXPECT_EQ(av2_lcr_view_id(VIEW_CENTER, 0), 1);
+  EXPECT_EQ(av2_lcr_view_id(VIEW_LEFT, 0), 2);
+  EXPECT_EQ(av2_lcr_view_id(VIEW_RIGHT, 0), 3);
+  // A stale lcr_view_id must not affect non-explicit views.
+  EXPECT_EQ(av2_lcr_view_id(VIEW_LEFT, 7), 2);
+  EXPECT_EQ(av2_lcr_view_id(VIEW_EXPLICIT, 0), 256);
+  EXPECT_EQ(av2_lcr_view_id(VIEW_EXPLICIT, 1), 257);
+  EXPECT_EQ(av2_lcr_view_id(VIEW_EXPLICIT, 255), 511);
+  // Explicit views never collide with the other view types.
+  for (int id = 0; id < 256; ++id) {
+    EXPECT_GE(av2_lcr_view_id(VIEW_EXPLICIT, id), 256);
+  }
 }
 
 // Sweep all 16 combinations of xlayer_info present flags.
@@ -593,6 +614,7 @@ TEST_F(LcrTest, ImplicitViewType) {
   const EmbeddedLayerInfo *dml =
       &pbi_->lcr_list[0][1].local_lcr.xlayer_info.mlayer_params;
   EXPECT_EQ(dml->lcr_view_type[0], VIEW_LEFT);
+  EXPECT_EQ(dml->LcrViewId[0], VIEW_LEFT);
 }
 
 TEST_F(LcrTest, GlobalLcrMinimalFields) {

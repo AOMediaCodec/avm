@@ -84,6 +84,8 @@ typedef struct XLayerEncConfig {
   int layer_type;      // TEXTURE_LAYER, AUX_LAYER, STEREO_LAYER, etc.
   int auxiliary_type;  // LCR_ALPHA_AUX, LCR_DEPTH_AUX, etc. (if AUX_LAYER)
   int view_type;       // VIEW_UNSPECIFIED, VIEW_LEFT, VIEW_RIGHT, etc.
+  int view_id;         // lcr_view_id (0-255), -1 if not set. Required for
+                       // VIEW_EXPLICIT and not signalled otherwise.
   int num_temporal_layers;
   int num_embedded_layers;
   // Color info
@@ -126,6 +128,13 @@ typedef struct XLayerEncConfig {
     int value;
   } codec_controls[MAX_CODEC_CONTROLS];
 } XLayerEncConfig;
+
+// lcr_view_id is signalled only when lcr_view_type is VIEW_EXPLICIT.
+// When it is signalled, it must be 0-255.
+static inline int xlayer_config_lcr_view_id(const XLayerEncConfig *xl) {
+  if (xl->view_type != VIEW_EXPLICIT) return -1;
+  return (xl->view_id >= 0 && xl->view_id <= 255) ? xl->view_id : -1;
+}
 
 // Per operating-point configuration within an OPS set
 typedef struct OperatingPointConfig {
@@ -224,6 +233,7 @@ static inline void xlayer_config_init(MultiXLayerConfig *cfg) {
     cfg->xlayers[i].num_temporal_layers = 1;
     cfg->xlayers[i].num_embedded_layers = 1;
     cfg->xlayers[i].view_type = VIEW_UNSPECIFIED;
+    cfg->xlayers[i].view_id = -1;
     for (int j = 0; j < MAX_NUM_MLAYERS; j++) {
       cfg->xlayers[i].mlayer_sources[j].input_source_idx = -1;
       cfg->xlayers[i].mlayer_sources[j].atlas_pos_x = -1;

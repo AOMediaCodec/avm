@@ -706,15 +706,16 @@ static FILE *open_outfile(const char *name) {
 }
 
 // Dynamic composite groups derived from LCR layer properties.
-// Each unique (layer_type, auxiliary_type, view_type) combination
+// Each unique (layer_type, auxiliary_type, LcrViewId) combination
 // produces a separate composite output. Layers within a group must
 // share the same chroma format; mixed chroma forces separate outputs.
 // Mixed bit depth is handled by promoting to the highest bit depth.
 typedef struct CompositeGroup {
-  int layer_type;      // TEXTURE_LAYER, AUX_LAYER, etc.
-  int auxiliary_type;  // only meaningful when layer_type == AUX_LAYER
-  int view_type;       // VIEW_UNSPECIFIED, VIEW_CENTER, VIEW_LEFT, etc.
-  int num_xlayers;     // how many xlayers belong to this group
+  int layer_type;       // TEXTURE_LAYER, AUX_LAYER, etc.
+  int auxiliary_type;   // only meaningful when layer_type == AUX_LAYER
+  int derived_view_id;  // LcrViewId: 0-3 = VIEW_UNSPECIFIED/CENTER/LEFT/
+                        // RIGHT, 256 + lcr_view_id for VIEW_EXPLICIT
+  int num_xlayers;      // how many xlayers belong to this group
   int xlayer_ids[MAX_NUM_XLAYERS];      // xlayer_ids in this group
   int xlayer_indices[MAX_NUM_XLAYERS];  // indices into xlayer_cfg.xlayers[]
                                         // (-1 if from decoder query)
@@ -736,12 +737,13 @@ static const char *comp_view_type_names[] = { "unspecified", "center", "left",
 
 // Build composite groups from arrays of per-xlayer properties.
 // Allocates comp_groups and fills *out_groups / *out_num_groups.
-// xlayer_ids[], layer_types[], aux_types[], view_types[] are parallel arrays
+// xlayer_ids[], layer_types[], aux_types[], derived_view_ids[] are parallel
+// arrays (derived_view_ids[] holds LcrViewId values)
 // of length num_xlayers. config_indices[] provides the JSON config index for
 // each xlayer (-1 if built from decoder query).
 static void build_composite_groups(int num_xlayers, const int *xlayer_ids,
                                    const int *layer_types, const int *aux_types,
-                                   const int *view_types,
+                                   const int *derived_view_ids,
                                    const int *config_indices,
                                    CompositeGroup **out_groups,
                                    int *out_num_groups) {
@@ -752,12 +754,12 @@ static void build_composite_groups(int num_xlayers, const int *xlayer_ids,
   for (int i = 0; i < num_xlayers; i++) {
     int lt = layer_types[i];
     int at = aux_types[i];
-    int vt = view_types[i];
+    int derived_vid = derived_view_ids[i];
     // Find existing group or create new
     int gidx = -1;
     for (int g = 0; g < num_groups; g++) {
       if (groups[g].layer_type == lt && groups[g].auxiliary_type == at &&
-          groups[g].view_type == vt) {
+          groups[g].derived_view_id == derived_vid) {
         gidx = g;
         break;
       }
@@ -766,7 +768,7 @@ static void build_composite_groups(int num_xlayers, const int *xlayer_ids,
       gidx = num_groups++;
       groups[gidx].layer_type = lt;
       groups[gidx].auxiliary_type = at;
-      groups[gidx].view_type = vt;
+      groups[gidx].derived_view_id = derived_vid;
       groups[gidx].num_xlayers = 0;
       groups[gidx].canvas = NULL;
       groups[gidx].outfile_cg = NULL;
@@ -785,9 +787,19 @@ static void build_composite_groups(int num_xlayers, const int *xlayer_ids,
     const char *lt_name = (cg->layer_type >= 0 && cg->layer_type < 4)
                               ? comp_layer_type_names[cg->layer_type]
                               : "unknown";
-    const char *vt_name = (cg->view_type >= 0 && cg->view_type < 5)
-                              ? comp_view_type_names[cg->view_type]
-                              : "unknown";
+    // Non-explicit views are named by view type; explicit views by their
+    // lcr_view_id (LcrViewId - 256) so that different views get different
+    // labels (and therefore different output files).
+    char vt_name[32];
+    if (cg->derived_view_id >= LCR_VIEW_ID_EXPLICIT_BASE) {
+      snprintf(vt_name, sizeof(vt_name), "view%d",
+               cg->derived_view_id - LCR_VIEW_ID_EXPLICIT_BASE);
+    } else if (cg->derived_view_id >= 0 && cg->derived_view_id < 5) {
+      snprintf(vt_name, sizeof(vt_name), "%s",
+               comp_view_type_names[cg->derived_view_id]);
+    } else {
+      snprintf(vt_name, sizeof(vt_name), "unknown");
+    }
     if (cg->layer_type == AUX_LAYER && cg->auxiliary_type >= 0 &&
         cg->auxiliary_type < 4) {
       snprintf(cg->label, sizeof(cg->label), "%s_%s_%s",
@@ -1085,18 +1097,25 @@ static int main_loop(int argc, const char **argv_) {
     // Build composite groups eagerly from JSON config
     if (atlas_composite && xlayer_cfg.enable_atlas) {
       int xlids[MAX_NUM_XLAYERS], lts[MAX_NUM_XLAYERS];
-      int ats[MAX_NUM_XLAYERS], vts[MAX_NUM_XLAYERS];
+      int ats[MAX_NUM_XLAYERS], derived_vids[MAX_NUM_XLAYERS];
       int idxs[MAX_NUM_XLAYERS];
       for (int xi = 0; xi < xlayer_cfg.num_xlayers; xi++) {
         const XLayerEncConfig *xl = &xlayer_cfg.xlayers[xi];
         xlids[xi] = xl->xlayer_id;
         lts[xi] = xl->layer_type;
         ats[xi] = (xl->layer_type == AUX_LAYER) ? xl->auxiliary_type : -1;
-        vts[xi] = xl->view_type;
+        const int view_id = xlayer_config_lcr_view_id(xl);
+        if (xl->view_type == VIEW_EXPLICIT && view_id < 0) {
+          die("Error: xlayer %d has view_type \"explicit\" but no valid "
+              "view_id (0-255)\n",
+              xl->xlayer_id);
+        }
+        derived_vids[xi] = av2_lcr_view_id(xl->view_type, view_id);
         idxs[xi] = xi;
       }
-      build_composite_groups(xlayer_cfg.num_xlayers, xlids, lts, ats, vts, idxs,
-                             &comp_groups, &num_comp_groups);
+      build_composite_groups(xlayer_cfg.num_xlayers, xlids, lts, ats,
+                             derived_vids, idxs, &comp_groups,
+                             &num_comp_groups);
       comp_groups_built = 1;
     }
   }
@@ -1384,15 +1403,16 @@ static int main_loop(int argc, const char **argv_) {
           &decoder, AV2D_GET_ATLAS_INFO, &dec_atlas_info);
 
       if (have_lcr && lcr_info.num_xlayers > 0) {
-        int xlids[31], lts[31], ats_arr[31], vts[31];
+        int xlids[31], lts[31], ats_arr[31], derived_vids[31];
         for (int li = 0; li < lcr_info.num_xlayers; li++) {
           xlids[li] = lcr_info.xlayers[li].xlayer_id;
           lts[li] = lcr_info.xlayers[li].layer_type;
           ats_arr[li] = lcr_info.xlayers[li].auxiliary_type;
-          vts[li] = lcr_info.xlayers[li].view_type;
+          derived_vids[li] = lcr_info.xlayers[li].derived_view_id;
         }
-        build_composite_groups(lcr_info.num_xlayers, xlids, lts, ats_arr, vts,
-                               NULL, &comp_groups, &num_comp_groups);
+        build_composite_groups(lcr_info.num_xlayers, xlids, lts, ats_arr,
+                               derived_vids, NULL, &comp_groups,
+                               &num_comp_groups);
         comp_groups_built = 1;
 
         if (have_atlas && dec_atlas_info.num_segments > 0) {

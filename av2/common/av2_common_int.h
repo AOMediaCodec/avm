@@ -767,6 +767,8 @@ typedef struct EmbeddedLayerInfo {
   int lcr_auxiliary_type[MAX_NUM_MLAYERS];
   int lcr_view_type[MAX_NUM_MLAYERS];
   int lcr_view_id[MAX_NUM_MLAYERS];
+  // Derived: av2_lcr_view_id(lcr_view_type, lcr_view_id)
+  int LcrViewId[MAX_NUM_MLAYERS];
   int lcr_dependent_layer_map[MAX_NUM_MLAYERS];
   int lcr_same_sh_max_resolution_flag[MAX_NUM_MLAYERS];
   int lcr_max_expected_width[MAX_NUM_MLAYERS];

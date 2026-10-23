@@ -355,9 +355,21 @@ enum {
   VIEW_LEFT = 2,
   VIEW_RIGHT = 3,
   VIEW_EXPLICIT = 4,
-  // Reserved: 5-7
+  // Reserved: 5-255
   VIEW_TYPES = 8
 };
+
+// LcrViewId identifies the view of an embedded layer with a single value:
+// 256 + lcr_view_id when lcr_view_type is VIEW_EXPLICIT (256..511), and
+// lcr_view_type otherwise (0..255). lcr_view_id is only signalled for
+// VIEW_EXPLICIT, so its value is not used for the other view types.
+#define LCR_VIEW_ID_EXPLICIT_BASE 256
+
+static AVM_INLINE int av2_lcr_view_id(int lcr_view_type, int lcr_view_id) {
+  return lcr_view_type == VIEW_EXPLICIT
+             ? LCR_VIEW_ID_EXPLICIT_BASE + lcr_view_id
+             : lcr_view_type;
+}
 
 enum {
   ENHANCED_ATLAS = 0,

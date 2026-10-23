@@ -168,15 +168,19 @@ typedef struct avm_screen_content_tools_info {
  * extended layer. Populated from Global or Local LCR OBU data.
  */
 typedef struct avm_xlayer_layer_info {
-  int xlayer_id;      /**< Extended layer ID (0-30) */
-  int layer_type;     /**< 0=texture, 1=auxiliary, 2=stereo, 3=dependent */
-  int auxiliary_type; /**< 0=alpha, 1=depth, 2=segmentation, 3=gain_map
-                           (-1 if N/A) */
-  int view_type;      /**< 0=unspecified, 1=center, 2=left, 3=right,
-                            4=explicit */
-  int max_width;      /**< lcr_max_pic_width from RepresentationInfo */
-  int max_height;     /**< lcr_max_pic_height from RepresentationInfo */
-  int num_mlayers;    /**< Number of embedded (media) layers */
+  int xlayer_id;       /**< Extended layer ID (0-30) */
+  int layer_type;      /**< 0=texture, 1=auxiliary, 2=stereo, 3=dependent */
+  int auxiliary_type;  /**< 0=alpha, 1=depth, 2=segmentation, 3=gain_map
+                            (-1 if N/A) */
+  int view_type;       /**< 0=unspecified, 1=center, 2=left, 3=right,
+                             4=explicit */
+  int max_width;       /**< lcr_max_pic_width from RepresentationInfo */
+  int max_height;      /**< lcr_max_pic_height from RepresentationInfo */
+  int num_mlayers;     /**< Number of embedded (media) layers */
+  int derived_view_id; /**< LcrViewId of embedded layer 0, derived from
+                            lcr_view_type and lcr_view_id: view_type for
+                            non-explicit views (0-3), 256 + lcr_view_id for
+                            explicit views (256-511) */
 } avm_xlayer_layer_info_t;
 
 /*!\brief LCR info exposed by AV2D_GET_LCR_INFO.
