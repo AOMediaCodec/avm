@@ -1719,6 +1719,7 @@ typedef struct RD_COUNTS {
   // of those that use it. Used by sf->inter_sf.prune_bawp_by_gop_usage.
   int64_t bawp_eligible_area;
   int64_t bawp_used_area;
+  uint64_t seg_tmp_pred_cost[2];
 } RD_COUNTS;
 
 typedef struct ThreadData {

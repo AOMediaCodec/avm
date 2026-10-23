@@ -39,6 +39,7 @@ static AVM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
 
   for (int i = 0; i < 2; i++) {
     td->rd_counts.warped_used[i] += td_t->rd_counts.warped_used[i];
+    td->rd_counts.seg_tmp_pred_cost[i] += td_t->rd_counts.seg_tmp_pred_cost[i];
   }
   td->rd_counts.bawp_eligible_area += td_t->rd_counts.bawp_eligible_area;
   td->rd_counts.bawp_used_area += td_t->rd_counts.bawp_used_area;
