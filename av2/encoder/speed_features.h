@@ -506,6 +506,13 @@ typedef struct PARTITION_SPEED_FEATURES {
   int inter_sdp_fast_method_level;
   // Prune partition types if they don't align with neighbor block boundaries.
   int prune_part_with_neighbor_boundaries;
+  // In inter frames, skip the search of a block that was already searched
+  // in the current superblock pass from a different parent partition (same
+  // position, size and region type), if the earlier search shows that the
+  // block cannot fit in the rd budget of the current search: the best rd
+  // cost that it found, or the rd budget under which it found no valid
+  // partition, is not smaller than the current rd budget.
+  int skip_revisit_by_rd_bound;
 #if CONFIG_ML_PART_SPLIT
   int prune_split_with_ml;
   int prune_split_ml_level;
