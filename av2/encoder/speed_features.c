@@ -801,6 +801,12 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.reduce_lr_unit_size_drop_high_level = 2;
   }
 
+  if (speed == 5) {
+    // WARP_EXTEND early out.
+    sf->inter_sf.prune_warp_extend_by_sse = !allow_screen_content_tools;
+    sf->inter_sf.warp_extend_sse_pct_thr = -40;
+  }
+
   if (speed >= 6) {
     sf->inter_sf.disable_skip_mode_in_dry_pass = true;
     sf->inter_sf.dry_pass_skip_warp_min_pyr_level =
@@ -1111,6 +1117,8 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_interintra_by_ref_idx = 0;
   inter_sf->disable_interintra = false;
   inter_sf->prune_warp_delta_by_ref_idx = 0;
+  inter_sf->prune_warp_extend_by_sse = false;
+  inter_sf->warp_extend_sse_pct_thr = 0;
   inter_sf->prune_comp_using_best_single_mode_ref = 0;
   inter_sf->prune_mode_search_simple_translation = 0;
   inter_sf->prune_comp_type_by_comp_avg = 0;

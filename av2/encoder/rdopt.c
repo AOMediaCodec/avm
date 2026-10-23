@@ -2724,7 +2724,8 @@ static AVM_INLINE int handle_warp_delta_mode(
 static AVM_INLINE int handle_warp_extend_mode(
     const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, MB_MODE_INFO *mbmi,
     const MB_MODE_INFO_EXT *mbmi_ext, int rate2_nocoeff, int rate_mv0,
-    int *tmp_rate_mv, int *tmp_rate2, int eval_motion_mode) {
+    int *tmp_rate_mv, int *tmp_rate2, int eval_motion_mode,
+    unsigned int trans_sse) {
   const AV2_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int mi_row = xd->mi_row;
@@ -2791,11 +2792,27 @@ static AVM_INLINE int handle_warp_extend_mode(
     }
   }
 
+  // Skip the trial when the unrefined warped prediction is not better than the
+  // translational prediction at the same MV by the margin, since the MV
+  // refinement is unlikely to make WARP_EXTEND competitive. The translational
+  // luma SSE is only valid if the MV was not replaced by the neighbor-predicted
+  // fallback.
+  uint64_t max_start_sse = UINT64_MAX;
+  if (cpi->sf.inter_sf.prune_warp_extend_by_sse &&
+      mv0.as_int == mbmi->mv[0].as_int && trans_sse != (unsigned int)INT_MAX) {
+    const int pct = 100 + cpi->sf.inter_sf.warp_extend_sse_pct_thr;
+    assert(pct > 0);
+    max_start_sse = (uint64_t)trans_sse * (uint64_t)pct / 100;
+  }
+
   // Refine motion vector
-  av2_refine_mv_for_warp_extend(
-      cm, xd, &ms_params, neighbor_is_above, bsize, &neighbor_params,
-      get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
-      cpi->sf.mv_sf.warp_search_iters, cpi->sf.mv_sf.warp_mv_refine_early_term);
+  if (!av2_refine_mv_for_warp_extend(
+          cm, xd, &ms_params, neighbor_is_above, bsize, &neighbor_params,
+          get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
+          cpi->sf.mv_sf.warp_search_iters,
+          cpi->sf.mv_sf.warp_mv_refine_early_term, max_start_sse)) {
+    return -1;
+  }
 
   // If we changed the MV, update costs
   if (mv0.as_int != mbmi->mv[0].as_int) {
@@ -3009,6 +3026,9 @@ typedef struct {
   int rate_mv0;             /*!< Initial MV rate for the current trial. */
   int allowed_motion_modes; /*!< Bitmask of motion modes allowed here. */
   uint8_t enable_tx_prune;  /*!< 1 = run model-rd-based TX pruning. */
+  /*! Luma SSE of the translational prediction of this candidate, taken before
+   * the first motion mode trial (INT_MAX if not available). */
+  unsigned int trans_sse;
   /*! Per-warp-ref MVs cached across WARPMV+MVD trials. */
   int_mv *previous_mvs;
   /*! Best warp-delta models seen so far (WARP_DELTA + WARP_NEWMV). */
@@ -3091,9 +3111,9 @@ static AVM_INLINE int evaluate_motion_mode_trial(
                                &tmp_rate2, eval_motion_mode) < 0)
       return -1;
   } else if (mbmi->motion_mode == WARP_EXTEND) {
-    if (handle_warp_extend_mode(cpi, x, bsize, mbmi, mbmi_ext,
-                                ctx->rate2_nocoeff, ctx->rate_mv0, &tmp_rate_mv,
-                                &tmp_rate2, eval_motion_mode) < 0)
+    if (handle_warp_extend_mode(
+            cpi, x, bsize, mbmi, mbmi_ext, ctx->rate2_nocoeff, ctx->rate_mv0,
+            &tmp_rate_mv, &tmp_rate2, eval_motion_mode, ctx->trans_sse) < 0)
       return -1;
   }
 
@@ -3367,6 +3387,11 @@ static int64_t motion_mode_rd(
       top_motion_mode_model_rd && do_tx_search && !eval_motion_mode;
   ctx.previous_mvs = NULL;
   ctx.prev_best_models = NULL;
+  // x->pred_sse is overwritten by the model rd of every motion mode trial, so
+  // keep the translational luma SSE set by the interpolation filter search.
+  ctx.trans_sse = (allowed_motion_modes & (1 << WARP_EXTEND))
+                      ? x->pred_sse[COMPACT_INDEX0_NRS(base_mbmi.ref_frame[0])]
+                      : (unsigned int)INT_MAX;
 
   // Initialize best motion mode tracking state
   MotionModeBestState best;
