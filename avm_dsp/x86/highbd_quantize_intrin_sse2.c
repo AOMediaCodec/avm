@@ -83,7 +83,7 @@ void highbd_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t count,
             (uint32_t)((tmp4 * quant_shift_ptr[k != 0]) >> 16);
         qcoeff_ptr[k] = (int)(abs_qcoeff ^ coeff_sign[j]) - coeff_sign[j];
         const tran_low_t abs_dqcoeff = (tran_low_t)ROUND_POWER_OF_TWO_64(
-            abs_qcoeff * dequant_ptr[k != 0], QUANT_TABLE_BITS);
+            (tran_high_t)abs_qcoeff * dequant_ptr[k != 0], QUANT_TABLE_BITS);
         dqcoeff_ptr[k] =
             (tran_low_t)((abs_dqcoeff ^ coeff_sign[j]) - coeff_sign[j]);
         if (abs_qcoeff) eob_i = iscan[k] > eob_i ? iscan[k] : eob_i;
@@ -147,8 +147,8 @@ void highbd_quantize_b_32x32_sse2(
         (uint32_t)((tmp2 * quant_shift_ptr[rc != 0]) >> 15);
     qcoeff_ptr[rc] = (int)(abs_qcoeff ^ coeff_sign) - coeff_sign;
     const tran_low_t abs_dqcoeff =
-        (tran_low_t)ROUND_POWER_OF_TWO_64(abs_qcoeff * dequant_ptr[rc != 0],
-                                          QUANT_TABLE_BITS) >>
+        (tran_low_t)ROUND_POWER_OF_TWO_64(
+            (tran_high_t)abs_qcoeff * dequant_ptr[rc != 0], QUANT_TABLE_BITS) >>
         1;
     dqcoeff_ptr[rc] = (tran_low_t)((abs_dqcoeff ^ coeff_sign) - coeff_sign);
     if (abs_qcoeff) eob = iscan[idx_arr[i]] > eob ? iscan[idx_arr[i]] : eob;
@@ -209,8 +209,8 @@ void highbd_quantize_b_64x64_sse2(
         (uint32_t)((tmp2 * quant_shift_ptr[rc != 0]) >> 14);
     qcoeff_ptr[rc] = (int)(abs_qcoeff ^ coeff_sign) - coeff_sign;
     const tran_low_t abs_dqcoeff =
-        (tran_low_t)ROUND_POWER_OF_TWO_64(abs_qcoeff * dequant_ptr[rc != 0],
-                                          QUANT_TABLE_BITS) >>
+        (tran_low_t)ROUND_POWER_OF_TWO_64(
+            (tran_high_t)abs_qcoeff * dequant_ptr[rc != 0], QUANT_TABLE_BITS) >>
         2;
     dqcoeff_ptr[rc] = (tran_low_t)((abs_dqcoeff ^ coeff_sign) - coeff_sign);
     if (abs_qcoeff) eob = iscan[idx_arr[i]] > eob ? iscan[idx_arr[i]] : eob;
