@@ -173,6 +173,9 @@ list(APPEND AVM_AV2_DECODER_SOURCES "${AVM_ROOT}/av2/decoder/obu_atlas.c"
 
 list(APPEND AVM_AV2_DECODER_SOURCES "${AVM_ROOT}/av2/decoder/obu_buf.c")
 
+list(APPEND AVM_AV2_DECODER_SOURCES "${AVM_ROOT}/av2/decoder/annexD.c"
+     "${AVM_ROOT}/av2/decoder/annexD.h")
+
 list(
   APPEND
   AVM_AV2_ENCODER_SOURCES
