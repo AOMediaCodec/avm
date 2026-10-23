@@ -23,20 +23,10 @@ list(
   "${AVM_ROOT}/avm_scale/generic/yv12extend.c"
   "${AVM_ROOT}/avm_scale/yv12config.h")
 
-list(APPEND AVM_SCALE_INTRIN_DSPR2
-     "${AVM_ROOT}/avm_scale/mips/dspr2/yv12extend_dspr2.c")
-
 # Creates the avm_scale build target and makes libavm depend on it. The libavm
 # target must exist before this function is called.
 function(setup_avm_scale_targets)
   add_library(avm_scale OBJECT ${AVM_SCALE_SOURCES})
-  target_sources(avm PRIVATE $<TARGET_OBJECTS:avm_scale>)
-
-  if(HAVE_DSPR2)
-    add_intrinsics_object_library("" "dspr2" "avm_scale"
-                                  "AVM_SCALE_INTRIN_DSPR2")
-  endif()
-
   target_sources(avm PRIVATE $<TARGET_OBJECTS:avm_scale>)
   if(BUILD_SHARED_LIBS)
     target_sources(avm_static PRIVATE $<TARGET_OBJECTS:avm_scale>)

@@ -25,19 +25,12 @@ set_avm_detect_var(INLINE "" "Sets INLINE value for current target.")
 # CPUs.
 set_avm_detect_var(AVM_ARCH_AARCH64 0 "Enables AArch64 architecture.")
 set_avm_detect_var(ARCH_ARM 0 "Enables ARM architecture.")
-set_avm_detect_var(ARCH_MIPS 0 "Enables MIPS architecture.")
 set_avm_detect_var(ARCH_PPC 0 "Enables PPC architecture.")
 set_avm_detect_var(ARCH_X86 0 "Enables X86 architecture.")
 set_avm_detect_var(ARCH_X86_64 0 "Enables X86_64 architecture.")
 
 # ARM feature flags.
 set_avm_detect_var(HAVE_NEON 0 "Enables NEON intrinsics optimizations.")
-
-# MIPS feature flags.
-set_avm_detect_var(HAVE_DSPR2 0 "Enables DSPR2 optimizations.")
-set_avm_detect_var(HAVE_MIPS32 0 "Enables MIPS32 optimizations.")
-set_avm_detect_var(HAVE_MIPS64 0 "Enables MIPS64 optimizations. ")
-set_avm_detect_var(HAVE_MSA 0 "Enables MSA optimizations.")
 
 # PPC feature flags.
 set_avm_detect_var(HAVE_VSX 0 "Enables VSX optimizations.")
@@ -180,11 +173,6 @@ set_avm_option_var(ENABLE_WERROR "Converts warnings to errors at compile time."
 
 # ARM assembly / intrinsics flags.
 set_avm_option_var(ENABLE_NEON "Enables NEON optimizations on ARM targets." ON)
-
-# MIPS assembly / intrinsics flags.
-set_avm_option_var(ENABLE_DSPR2 "Enables DSPR2 optimizations on MIPS targets."
-                   OFF)
-set_avm_option_var(ENABLE_MSA "Enables MSA optimizations on MIPS targets." OFF)
 
 # VSX intrinsics flags.
 set_avm_option_var(ENABLE_VSX "Enables VSX optimizations on PowerPC targets."

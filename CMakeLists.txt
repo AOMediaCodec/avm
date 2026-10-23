@@ -130,7 +130,6 @@ list(
   "${AVM_ROOT}/third_party/libyuv/source/row_any.cc"
   "${AVM_ROOT}/third_party/libyuv/source/row_common.cc"
   "${AVM_ROOT}/third_party/libyuv/source/row_gcc.cc"
-  "${AVM_ROOT}/third_party/libyuv/source/row_mips.cc"
   "${AVM_ROOT}/third_party/libyuv/source/row_neon.cc"
   "${AVM_ROOT}/third_party/libyuv/source/row_neon64.cc"
   "${AVM_ROOT}/third_party/libyuv/source/row_win.cc"
@@ -138,7 +137,6 @@ list(
   "${AVM_ROOT}/third_party/libyuv/source/scale_any.cc"
   "${AVM_ROOT}/third_party/libyuv/source/scale_common.cc"
   "${AVM_ROOT}/third_party/libyuv/source/scale_gcc.cc"
-  "${AVM_ROOT}/third_party/libyuv/source/scale_mips.cc"
   "${AVM_ROOT}/third_party/libyuv/source/scale_neon.cc"
   "${AVM_ROOT}/third_party/libyuv/source/scale_neon64.cc"
   "${AVM_ROOT}/third_party/libyuv/source/scale_win.cc")

@@ -321,38 +321,6 @@ EOF
   common_bottom;
 }
 
-sub mips() {
-  determine_indirection("c", @ALL_ARCHS);
-
-  # Assign the helper variable for each enabled extension
-  foreach my $opt (@ALL_ARCHS) {
-    my $opt_uc = uc $opt;
-    eval "\$have_${opt}=\"flags & HAS_${opt_uc}\"";
-  }
-
-  common_top;
-
-  print <<EOF;
-#include "config/avm_config.h"
-
-#ifdef RTCD_C
-static void setup_rtcd_internal(void)
-{
-EOF
-
-  set_function_pointers("c", @ALL_ARCHS);
-
-  print <<EOF;
-#if HAVE_DSPR2
-void avm_dsputil_static_init();
-avm_dsputil_static_init();
-#endif
-}
-#endif
-EOF
-  common_bottom;
-}
-
 sub ppc() {
   determine_indirection("c", @ALL_ARCHS);
 
@@ -413,7 +381,6 @@ my @PRIORITY_ARCH = qw/
   arm_crc32 neon neon_dotprod neon_i8mm sve sve2
   rvv
   vsx
-  dspr2 msa
 /;
 my %PRIORITY_INDEX;
 for (my $i = 0; $i < @PRIORITY_ARCH; $i++) {
@@ -437,14 +404,6 @@ if ($opts{arch} eq 'x86') {
     &require(@REQUIRES);
   }
   x86;
-} elsif ($opts{arch} eq 'mips32' || $opts{arch} eq 'mips64') {
-  @ALL_ARCHS = filter("$opts{arch}");
-  if (avm_config("HAVE_DSPR2") eq "yes") {
-    @ALL_ARCHS = filter("$opts{arch}", qw/dspr2/);
-  } elsif (avm_config("HAVE_MSA") eq "yes") {
-    @ALL_ARCHS = filter("$opts{arch}", qw/msa/);
-  }
-  mips;
 } elsif ($opts{arch} =~ /armv[78]\w?/) {
   @ALL_ARCHS = filter(qw/neon/);
   arm;
