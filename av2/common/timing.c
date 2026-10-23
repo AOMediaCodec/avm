@@ -50,28 +50,18 @@ static int32_t high_kbps[1 << LEVEL_BITS] = {
   UNDEFINED_RATE, UNDEFINED_RATE, UNDEFINED_RATE, UNDEFINED_RATE
 };
 
-/* BitrateProfileFactor, indexed by the profile's factor table row
- * (see get_profile_factor_table_row_index() in annexA.c).
- * A zero entry indicates an unsupported profile. */
-static int bitrate_profile_factor[1 << PROFILE_BITS] = {
-  1, 2, 3, 3, 0, 0, 0, 0
-};
-
 // Callers treat a zero bitrate as "profile, level, and tier combination not
 // supported".
 int64_t av2_max_level_bitrate(BITSTREAM_PROFILE seq_profile, int seq_level_idx,
                               int seq_tier) {
-  int64_t bitrate;
+  const int profile_factor_row =
+      get_profile_factor_table_row_index(seq_profile);
+  const double bitrate_profile_factor =
+      get_bitrate_profile_factor(profile_factor_row);
+  const int32_t bitrate_kbps =
+      seq_tier ? high_kbps[seq_level_idx] : main_kbps[seq_level_idx];
 
-  int profile_factor_row = get_profile_factor_table_row_index(seq_profile);
-
-  if (seq_tier) {
-    bitrate =
-        high_kbps[seq_level_idx] * bitrate_profile_factor[profile_factor_row];
-  } else {
-    bitrate =
-        main_kbps[seq_level_idx] * bitrate_profile_factor[profile_factor_row];
-  }
+  const int64_t bitrate = (int64_t)(bitrate_kbps * bitrate_profile_factor);
 
   return bitrate * 1000;
 }
