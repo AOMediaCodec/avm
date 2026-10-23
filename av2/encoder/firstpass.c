@@ -215,10 +215,6 @@ static AVM_INLINE void first_pass_motion_search(AV2_COMP *cpi, MACROBLOCK *x,
       cpi->mv_search_params.search_site_cfg[SS_CFG_FPF];
   const int fine_search_interval =
       cpi->is_screen_content_type && cm->features.allow_intrabc;
-
-  if (fine_search_interval) {
-    av2_set_speed_features_framesize_independent(cpi, cpi->oxcf.speed);
-  }
   const MvSubpelPrecision pb_mv_precision = cm->features.fr_mv_precision;
   const int is_ibc_cost = 0;
 
@@ -633,6 +629,7 @@ static int firstpass_inter_prediction(
     xd->plane[0].pre[0].buf = last_frame->y_buffer + recon_yoffset;
     xd->plane[1].pre[0].buf = last_frame->u_buffer + recon_uvoffset;
     xd->plane[2].pre[0].buf = last_frame->v_buffer + recon_uvoffset;
+    xd->plane[0].pre[0].stride = last_frame->y_stride;
   } else {
     stats->sr_coded_error += motion_error;
     stats->tr_coded_error += motion_error;
@@ -1105,6 +1102,10 @@ void av2_first_pass(AV2_COMP *cpi, const int64_t ts_duration) {
 
   av2_setup_frame_size(cpi);
   avm_clear_system_state();
+
+  if (cpi->is_screen_content_type && cm->features.allow_intrabc) {
+    av2_set_speed_features_framesize_independent(cpi, cpi->oxcf.speed);
+  }
 
   set_mi_offsets(mi_params, xd, 0, 0, 0, 0);
   xd->mi[0]->sb_type[PLANE_TYPE_Y] = fp_block_size;
