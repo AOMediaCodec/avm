@@ -47,7 +47,7 @@ build/avmdec --all-layers --num-streams=2 -o decoded_%d.y4m stereo_muxed.obu
 
 ## Documentation
 
-- **[Multi-XLayer Encoding Guide](doc/multi_xlayer_encoding.md)**:
+- **[Multi-XLayer Encoding Guide](https://github.com/AOMediaCodec/avm/blob/multi-layer-av2/doc/multi_xlayer_encoding.md)**:
   full reference covering JSON schema, embedded layers, atlas, OPS,
   GOP modes, use cases, and constraints.
 
