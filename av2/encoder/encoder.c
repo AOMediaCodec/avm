@@ -3913,8 +3913,7 @@ static int encode_without_recode(AV2_COMP *cpi) {
   av2_encode_frame(cpi);
 
   // Update some stats from cyclic refresh.
-  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ && !frame_is_intra_only(cm))
-    av2_cyclic_refresh_postencode(cpi);
+  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) av2_cyclic_refresh_postencode(cpi);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av2_encode_frame_time);
@@ -4050,6 +4049,13 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
       av2_vaq_frame_setup(cpi);
     } else if (q_cfg->aq_mode == COMPLEXITY_AQ) {
       av2_setup_in_frame_q_adj(cpi);
+    } else if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) {
+      suppress_active_map(cpi);
+      if (loop_count > 0 && cpi->cyclic_refresh->apply_cyclic_refresh) {
+        cpi->cyclic_refresh->sb_index = cpi->cyclic_refresh->last_sb_index;
+      }
+      av2_cyclic_refresh_setup(cpi);
+      av2_apply_active_map(cpi);
     }
 
     if (cm->seg.enabled) {
@@ -4162,6 +4168,8 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
     if (loop) printf("\n Recoding:");
 #endif
   } while (loop);
+
+  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) av2_cyclic_refresh_postencode(cpi);
 
   return AVM_CODEC_OK;
 }

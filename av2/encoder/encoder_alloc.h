@@ -104,8 +104,7 @@ static AVM_INLINE void realloc_segmentation_maps(AV2_COMP *cpi) {
   if (cpi->cyclic_refresh) av2_cyclic_refresh_free(cpi->cyclic_refresh);
   CHECK_MEM_ERROR(
       cm, cpi->cyclic_refresh,
-      av2_cyclic_refresh_alloc(mi_params->mi_rows, mi_params->mi_cols,
-                               cm->seq_params.bit_depth));
+      av2_cyclic_refresh_alloc(mi_params->mi_rows, mi_params->mi_cols));
 
   // Create a map used to mark inactive areas.
   avm_free(cpi->active_map.map);

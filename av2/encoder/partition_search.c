@@ -1734,6 +1734,12 @@ static void encode_b(const AV2_COMP *const cpi, TileDataEnc *tile_data,
 
   encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, plane_start,
                     plane_end, rate);
+  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+      !x->txfm_search_info.skip_txfm &&
+      mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
+      xd->tree_type != CHROMA_PART && cm->seg.enabled) {
+    av2_cyclic_reset_segment_skip(cpi, x, mi_row, mi_col, bsize, dry_run);
+  }
   if (!dry_run && cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
     const MB_MODE_INFO *const mi = &ctx->mic;
     const int bw = mi_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];

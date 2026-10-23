@@ -294,10 +294,10 @@ void av2_update_state(const AV2_COMP *const cpi, ThreadData *td,
     // and then update the quantizer.
     if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
         xd->tree_type != CHROMA_PART) {
-      av2_cyclic_refresh_update_segment(cpi, mi_addr, mi_row, mi_col, bsize,
+      av2_cyclic_refresh_update_segment(cpi, x, mi_addr, mi_row, mi_col, bsize,
                                         ctx->rd_stats.rate, ctx->rd_stats.dist,
                                         txfm_info->skip_txfm,
-                                        (const uint8_t *)xd->lossless);
+                                        (const uint8_t *)xd->lossless, dry_run);
     }
 
     if (mi_addr->uv_mode == UV_CFL_PRED &&
@@ -381,6 +381,17 @@ void av2_update_state(const AV2_COMP *const cpi, ThreadData *td,
     rdc->comp_pred_diff[SINGLE_REFERENCE] += ctx->single_pred_diff;
     rdc->comp_pred_diff[COMPOUND_REFERENCE] += ctx->comp_pred_diff;
     rdc->comp_pred_diff[REFERENCE_MODE_SELECT] += ctx->hybrid_pred_diff;
+  }
+
+  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+      !frame_is_intra_only(cm) && xd->tree_type != CHROMA_PART) {
+    const MV mv = mi_addr->mv[0].as_mv;
+    if (is_inter_block(mi_addr, xd->tree_type) && abs(mv.row) < 16 &&
+        abs(mv.col) < 16) {
+      const int x_mis = AVMMIN(mi_params->mi_cols - mi_col, mi_width);
+      const int y_mis = AVMMIN(mi_params->mi_rows - mi_row, mi_height);
+      x->cnt_zeromv += x_mis * y_mis;
+    }
   }
 }
 

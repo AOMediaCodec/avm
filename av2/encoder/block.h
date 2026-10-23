@@ -1363,6 +1363,12 @@ typedef struct macroblock {
    * set 0 and all txfms are skipped.
    */
   int seg_skip_block;
+  /*! \brief Actual number of 4x4 blocks in segment 1 (cyclic refresh) */
+  int actual_num_seg1_blocks;
+  /*! \brief Actual number of 4x4 blocks in segment 2 (cyclic refresh) */
+  int actual_num_seg2_blocks;
+  /*! \brief Count of 4x4 inter blocks with zero/low motion (cyclic refresh) */
+  int cnt_zeromv;
   /**@}*/
 
   /*****************************************************************************

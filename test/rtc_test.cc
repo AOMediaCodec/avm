@@ -51,6 +51,7 @@ class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
       encoder->Control(AV2E_SET_TUNE_CONTENT, tune_content_);
       encoder->Control(AVME_SET_CPUUSED, 6);
       encoder->Control(AV2E_SET_MAX_REFERENCE_FRAMES, 1);
+      encoder->Control(AV2E_SET_AQ_MODE, aq_mode_);
     }
   }
 
@@ -61,9 +62,20 @@ class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
   }
 
   int tune_content_;
+  int aq_mode_ = 0;
 };
 
 TEST_P(RtcTest, RtcTest) {
+  ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0, 50);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+}
+
+TEST_P(RtcTest, RtcCyclicRefreshTest) {
+  aq_mode_ = 3;
+  cfg_.rc_end_usage = AVM_CBR;
+  cfg_.rc_min_quantizer = 20;
+  cfg_.rc_max_quantizer = 220;
+  cfg_.rc_target_bitrate = 500;
   ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0, 50);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
 }
