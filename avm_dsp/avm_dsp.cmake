@@ -131,32 +131,6 @@ list(
   "${AVM_ROOT}/avm_dsp/arm/subtract_neon.c"
   "${AVM_ROOT}/avm_dsp/arm/blend_a64_mask_neon.c")
 
-list(
-  APPEND
-  AVM_DSP_COMMON_INTRIN_DSPR2
-  "${AVM_ROOT}/avm_dsp/mips/avm_convolve_copy_dspr2.c"
-  "${AVM_ROOT}/avm_dsp/mips/common_dspr2.c"
-  "${AVM_ROOT}/avm_dsp/mips/common_dspr2.h"
-  "${AVM_ROOT}/avm_dsp/mips/convolve2_dspr2.c"
-  "${AVM_ROOT}/avm_dsp/mips/convolve2_horiz_dspr2.c"
-  "${AVM_ROOT}/avm_dsp/mips/convolve2_vert_dspr2.c"
-  "${AVM_ROOT}/avm_dsp/mips/convolve8_horiz_dspr2.c"
-  "${AVM_ROOT}/avm_dsp/mips/convolve8_vert_dspr2.c"
-  "${AVM_ROOT}/avm_dsp/mips/convolve_common_dspr2.h"
-  "${AVM_ROOT}/avm_dsp/mips/intrapred16_dspr2.c"
-  "${AVM_ROOT}/avm_dsp/mips/intrapred4_dspr2.c"
-  "${AVM_ROOT}/avm_dsp/mips/intrapred8_dspr2.c"
-  "${AVM_ROOT}/avm_dsp/mips/inv_txfm_dspr2.h")
-
-list(
-  APPEND
-  AVM_DSP_COMMON_INTRIN_MSA
-  "${AVM_ROOT}/avm_dsp/mips/avm_convolve8_horiz_msa.c"
-  "${AVM_ROOT}/avm_dsp/mips/avm_convolve8_vert_msa.c"
-  "${AVM_ROOT}/avm_dsp/mips/avm_convolve_copy_msa.c"
-  "${AVM_ROOT}/avm_dsp/mips/avm_convolve_msa.h"
-  "${AVM_ROOT}/avm_dsp/mips/macros_msa.h")
-
 if(CONFIG_AV2_DECODER)
   list(
     APPEND
@@ -282,14 +256,6 @@ if(CONFIG_AV2_ENCODER)
     "${AVM_ROOT}/avm_dsp/arm/highbd_variance_neon.c"
     "${AVM_ROOT}/avm_dsp/arm/sse_neon.c"
     "${AVM_ROOT}/avm_dsp/arm/sum_squares_neon.c")
-
-  list(
-    APPEND
-    AVM_DSP_ENCODER_INTRIN_MSA
-    "${AVM_ROOT}/avm_dsp/mips/sad_msa.c"
-    "${AVM_ROOT}/avm_dsp/mips/subtract_msa.c"
-    "${AVM_ROOT}/avm_dsp/mips/variance_msa.c"
-    "${AVM_ROOT}/avm_dsp/mips/sub_pixel_variance_msa.c")
 
   if(CONFIG_INTERNAL_STATS)
     list(APPEND AVM_DSP_ENCODER_SOURCES "${AVM_ROOT}/avm_dsp/fastssim.c"
@@ -422,20 +388,6 @@ function(setup_avm_dsp_targets)
       add_intrinsics_object_library(
         "${AVM_NEON_INTRIN_FLAG}" "neon" "avm_dsp_encoder"
         "AVM_DSP_ENCODER_INTRIN_NEON")
-    endif()
-  endif()
-
-  if(HAVE_DSPR2)
-    add_intrinsics_object_library("" "dspr2" "avm_dsp_common"
-                                  "AVM_DSP_COMMON_INTRIN_DSPR2")
-  endif()
-
-  if(HAVE_MSA)
-    add_intrinsics_object_library("" "msa" "avm_dsp_common"
-                                  "AVM_DSP_COMMON_INTRIN_MSA")
-    if(CONFIG_AV2_ENCODER)
-      add_intrinsics_object_library("" "msa" "avm_dsp_encoder"
-                                    "AVM_DSP_ENCODER_INTRIN_MSA")
     endif()
   endif()
 

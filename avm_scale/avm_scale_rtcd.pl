@@ -46,10 +46,8 @@ add_proto qw/void avm_yv12_partial_copy_v/, "const struct yv12_buffer_config *sr
 add_proto qw/void avm_yv12_partial_coloc_copy_v/, "const struct yv12_buffer_config *src_bc, struct yv12_buffer_config *dst_bc, int hstart, int hend, int vstart, int vend";
 
 add_proto qw/void avm_extend_frame_borders/, "struct yv12_buffer_config *ybf, const int num_planes, bool decoding";
-specialize qw/avm_extend_frame_borders dspr2/;
 
 add_proto qw/void avm_extend_frame_inner_borders/, "struct yv12_buffer_config *ybf, const int num_planes";
-specialize qw/avm_extend_frame_inner_borders dspr2/;
 
 add_proto qw/void avm_extend_frame_borders_y/, "struct yv12_buffer_config *ybf";
 1;
