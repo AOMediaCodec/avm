@@ -62,8 +62,7 @@ if(NOT AVM_TARGET_CPU)
   elseif("${cpu_lowercase}" STREQUAL "i386" OR "${cpu_lowercase}" STREQUAL
                                                "x86")
     set(AVM_TARGET_CPU "x86")
-  elseif("${cpu_lowercase}" MATCHES "^arm" OR "${cpu_lowercase}" MATCHES
-                                              "^mips")
+  elseif("${cpu_lowercase}" MATCHES "^arm")
     set(AVM_TARGET_CPU "${cpu_lowercase}")
   elseif("${cpu_lowercase}" MATCHES "aarch64")
     set(AVM_TARGET_CPU "arm64")
