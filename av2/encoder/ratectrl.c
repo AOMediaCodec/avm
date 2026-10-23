@@ -474,6 +474,17 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
         q = (3 * q + rc->q_1_frame) >> 2;
       }
     }
+    // Gentle adjustment to Q when cyclic refresh was active on previous frame
+    // and blocks were refreshed, and no scene cut or high motion, and buffer
+    // level is healthy.
+    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+        !cpi->is_screen_content_type && rc->frames_since_key > 10 &&
+        (cpi->cyclic_refresh->actual_num_seg1_blocks > 0 ||
+         cpi->cyclic_refresh->actual_num_seg2_blocks > 0) &&
+        rc->buffer_level > (rc->optimal_buffer_level >> 1) &&
+        rc->rc_1_frame != -1 && q < rc->q_1_frame) {
+      q = (3 * q + rc->q_1_frame) >> 2;
+    }
     // Limit the decrease in Q from previous frame.
     if (rc->q_1_frame - q > max_delta_down) q = rc->q_1_frame - max_delta_down;
     // Limit the increase in Q from previous frame.
@@ -649,6 +660,11 @@ void av2_rc_update_rate_correction_factors(AV2_COMP *cpi, int width,
 
   if (correction_factor > 102) {
     // We are not already at the worst allowable quality
+    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+        cpi->cyclic_refresh->apply_cyclic_refresh &&
+        !cpi->is_screen_content_type && cpi->rc.frames_since_key > 10) {
+      adjustment_limit = AVMMAX(0.25, adjustment_limit);
+    }
     correction_factor =
         (int)(100 + ((correction_factor - 100) * adjustment_limit));
     rate_correction_factor = (rate_correction_factor * correction_factor) / 100;
@@ -874,10 +890,15 @@ static int calc_active_worst_quality_no_stats_cbr(const AV2_COMP *cpi) {
 
   if (rc->buffer_level > rc->optimal_buffer_level) {
     // Adjust down.
-    active_worst_quality = AVMMIN(rc->worst_quality, ambient_qp * 5 / 4);
-    // Limit the downward adjustment of active_worst_quality to 1/3 of its
-    // value when the buffer is above the optimal level.
-    int max_adjustment_down = active_worst_quality / 3;
+    int max_adjustment_down;
+    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+        cpi->is_screen_content_type) {
+      active_worst_quality = AVMMIN(rc->worst_quality, ambient_qp);
+      max_adjustment_down = AVMMIN(4, active_worst_quality / 16);
+    } else {
+      active_worst_quality = AVMMIN(rc->worst_quality, ambient_qp * 5 / 4);
+      max_adjustment_down = active_worst_quality / 3;
+    }
     if (max_adjustment_down) {
       buff_lvl_step = ((rc->maximum_buffer_size - rc->optimal_buffer_level) /
                        max_adjustment_down);
@@ -889,16 +910,24 @@ static int calc_active_worst_quality_no_stats_cbr(const AV2_COMP *cpi) {
   } else if (rc->buffer_level > critical_level) {
     // Adjust up from ambient Q towards worst_quality as buffer drains from
     // optimal_buffer_level to critical_level.
-    active_worst_quality = AVMMIN(rc->worst_quality, ambient_qp);
     if (critical_level) {
       buff_lvl_step = (rc->optimal_buffer_level - critical_level);
       if (buff_lvl_step) {
-        int max_adjustment_up = rc->worst_quality - ambient_qp;
-        adjustment = (int)(max_adjustment_up *
+        adjustment = (int)((rc->worst_quality - ambient_qp) *
                            (rc->optimal_buffer_level - rc->buffer_level) /
                            buff_lvl_step);
       }
-      active_worst_quality += adjustment;
+      if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+          cpi->cyclic_refresh->apply_cyclic_refresh &&
+          (cpi->cyclic_refresh->actual_num_seg1_blocks > 0 ||
+           cpi->cyclic_refresh->actual_num_seg2_blocks > 0) &&
+          rc->frames_since_key > 4 &&
+          rc->buffer_level > (rc->optimal_buffer_level >> 1)) {
+        adjustment >>= 1;
+      }
+      active_worst_quality = ambient_qp + adjustment;
+    } else {
+      active_worst_quality = rc->worst_quality;
     }
   } else {
     // Set to worst_quality if buffer is below critical level.
@@ -2370,6 +2399,12 @@ int av2_encodedframe_overshoot_cbr(AV2_COMP *cpi, int *q) {
   rc->rc_1_frame = 0;
   rc->rc_2_frame = 0;
   // Adjust rate correction factor.
+  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
+    av2_cyclic_refresh_set_golden_update(cpi);
+    cpi->cyclic_refresh->apply_cyclic_refresh = 0;
+    cpi->cyclic_refresh->percent_refresh_adjustment = 5;
+    cpi->cyclic_refresh->rate_ratio_qdelta_adjustment = 0.25;
+  }
   const int MBs = av2_get_MBs(cm->width, cm->height);
   const int target_bits_per_mb =
       (int)(((uint64_t)rc->this_frame_target << BPER_MB_NORMBITS) / MBs);

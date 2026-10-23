@@ -856,6 +856,10 @@ static AVM_INLINE void accumulate_counters_enc_workers(AV2_COMP *cpi,
       cpi->td.mb.txfm_search_info.tx_search_count +=
           thread_data->td->mb.txfm_search_info.tx_search_count;
 #endif  // CONFIG_SPEED_STATS
+      if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
+        av2_accumulate_cyclic_refresh_counters(&cpi->td.mb,
+                                               &thread_data->td->mb);
+      }
     }
   }
 }
@@ -897,6 +901,9 @@ static AVM_INLINE void prepare_enc_workers(AV2_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb.mbmi_ext = thread_data->td->mbmi_ext;
     }
     thread_data->td->mb.palette_pixels = 0;
+    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
+      av2_init_cyclic_refresh_counters(&thread_data->td->mb);
+    }
 
     alloc_inter_modes_info_data(&cpi->common, &thread_data->td->mb);
     if (thread_data->td->counts != &cpi->counts) {

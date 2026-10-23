@@ -1902,6 +1902,7 @@ static AVM_INLINE void encode_tiles(AV2_COMP *cpi) {
 
   av2_init_tile_data(cpi);
   alloc_inter_modes_info_data(cm, &cpi->td.mb);
+  av2_init_cyclic_refresh_counters(&cpi->td.mb);
 
   for (tile_row = 0; tile_row < tile_rows; ++tile_row) {
     for (tile_col = 0; tile_col < tile_cols; ++tile_col) {
@@ -2450,7 +2451,9 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
 
   init_encode_frame_mb_context(cpi);
   set_default_interp_skip_flags(cm, &cpi->interp_search_flags);
-  if (cm->prev_frame && cm->prev_frame->seg.enabled)
+  if (cm->prev_frame && cm->prev_frame->seg.enabled &&
+      cm->mi_params.mi_rows == cm->prev_frame->mi_rows &&
+      cm->mi_params.mi_cols == cm->prev_frame->mi_cols)
     cm->last_frame_seg_map = cm->prev_frame->seg_map;
   else
     cm->last_frame_seg_map = NULL;

@@ -14,6 +14,8 @@
 #define AVM_AV2_ENCODER_AQ_CYCLICREFRESH_H_
 
 #include "av2/common/blockd.h"
+#include "av2/encoder/block.h"
+#include "av2/encoder/tokenize.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,13 +41,23 @@ struct CYCLIC_REFRESH {
    */
   int percent_refresh;
   /*!
+   * Adjustment to percentage of blocks per frame that are targeted as
+   * candidates for cyclic refresh.
+   */
+  int percent_refresh_adjustment;
+  /*!
    * Maximum q-delta as percentage of base q.
    */
   int max_qdelta_perc;
   /*!
-   *Superblock starting index for cycling through the frame.
+   * Superblock starting index for cycling through the frame.
    */
   int sb_index;
+  /*!
+   * Superblock starting index for cycling through the frame on the previous
+   * frame.
+   */
+  int last_sb_index;
   /*!
    * Controls how long block will need to wait to be refreshed again, in
    * excess of the cycle time, i.e., in the case of all zero motion, block
@@ -75,10 +87,6 @@ struct CYCLIC_REFRESH {
    */
   int8_t *map;
   /*!
-   * Map of the last q a block was coded at.
-   */
-  uint16_t *last_coded_q_map;
-  /*!
    * Threshold applied to the projected rate of the coding block,
    * when deciding whether block should be refreshed.
    */
@@ -98,17 +106,21 @@ struct CYCLIC_REFRESH {
    */
   double rate_ratio_qdelta;
   /*!
+   * Adjustment to rate target ratio to set q delta.
+   */
+  double rate_ratio_qdelta_adjustment;
+  /*!
    * Boost factor for rate target ratio, for segment CR_SEGMENT_ID_BOOST2.
    */
   int rate_boost_fac;
 
   /*!\cond */
-  double low_content_avg;
   int qindex_delta[3];
   double weight_segment;
   int apply_cyclic_refresh;
   int cnt_zeromv;
   double avg_frame_low_motion;
+  int counter_encode_maxq_scene_change;
   /*!\endcond */
 };
 
@@ -116,8 +128,7 @@ struct AV2_COMP;
 
 typedef struct CYCLIC_REFRESH CYCLIC_REFRESH;
 
-CYCLIC_REFRESH *av2_cyclic_refresh_alloc(int mi_rows, int mi_cols,
-                                         avm_bit_depth_t bit_depth);
+CYCLIC_REFRESH *av2_cyclic_refresh_alloc(int mi_rows, int mi_cols);
 
 void av2_cyclic_refresh_free(CYCLIC_REFRESH *cr);
 
@@ -171,7 +182,8 @@ int av2_cyclic_refresh_rc_bits_per_mb(const struct AV2_COMP *cpi, int i,
  * \callergraph
  *
  * \param[in]   cpi       Top level encoder structure
- * \param[in]   mbmi      MB_MODE_INFO pointer for mi block
+ * \param[in,out] x       Pointer to MACROBLOCK structure
+ * \param[in,out] mbmi    MB_MODE_INFO pointer for mi block
  * \param[in]   mi_row    Row coordinate of the block in a step size of MI_SIZE
  * \param[in]   mi_col    Col coordinate of the block in a step size of MI_SIZE
  * \param[in]   bsize     Block size
@@ -179,15 +191,32 @@ int av2_cyclic_refresh_rc_bits_per_mb(const struct AV2_COMP *cpi, int i,
  * \param[in]   dist      Projected block dist from pickmode
  * \param[in]   skip      Skip flag set from pickmode
  * \param[in]   lossless  Pointer to the lossless flags of all segments
+ * \param[in]   dry_run   Flag indicating whether this is a dry run
  *
  * Updates the \c mbmi->segment_id, the \c cpi->cyclic_refresh and
  * the \c cm->cpi->enc_seg.map.
  */
-void av2_cyclic_refresh_update_segment(const struct AV2_COMP *cpi,
-                                       MB_MODE_INFO *const mbmi, int mi_row,
-                                       int mi_col, BLOCK_SIZE bsize,
-                                       int64_t rate, int64_t dist, int skip,
-                                       const uint8_t *lossless);
+void av2_cyclic_refresh_update_segment(
+    const struct AV2_COMP *cpi, MACROBLOCK *const x, MB_MODE_INFO *const mbmi,
+    int mi_row, int mi_col, BLOCK_SIZE bsize, int64_t rate, int64_t dist,
+    int skip, const uint8_t *lossless, RUN_TYPE dry_run);
+
+void av2_cyclic_reset_segment_skip(const struct AV2_COMP *cpi,
+                                   MACROBLOCK *const x, int mi_row, int mi_col,
+                                   BLOCK_SIZE bsize, RUN_TYPE dry_run);
+
+static AVM_INLINE void av2_init_cyclic_refresh_counters(MACROBLOCK *const x) {
+  x->actual_num_seg1_blocks = 0;
+  x->actual_num_seg2_blocks = 0;
+  x->cnt_zeromv = 0;
+}
+
+static AVM_INLINE void av2_accumulate_cyclic_refresh_counters(
+    MACROBLOCK *const dst, const MACROBLOCK *const src) {
+  dst->actual_num_seg1_blocks += src->actual_num_seg1_blocks;
+  dst->actual_num_seg2_blocks += src->actual_num_seg2_blocks;
+  dst->cnt_zeromv += src->cnt_zeromv;
+}
 
 /*!\brief Update stats after encoding frame.
  *
