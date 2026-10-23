@@ -93,6 +93,19 @@ typedef struct PC_TREE {
   bool skippable;
   CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_this_chroma;
   int sb_root_partition_info;
+  // For a rectangular half of a square block: RD results of the two square
+  // quadrants of its perpendicular split (PARTITION_VERT inside a
+  // PARTITION_HORZ half, PARTITION_HORZ inside a PARTITION_VERT half). They
+  // stay valid after the sub-trees are freed and let later trials of the
+  // square block estimate the RD cost of the same quadrants
+  // (rectangular_partition_search()). perp_split_rd[i] is the RD result of
+  // quadrant i if its search completed (perp_split_valid[i]); otherwise
+  // perp_split_lb[i] is the RD budget within which the search found no
+  // partition, a lower bound of the quadrant's RD cost (perp_split_lb_valid).
+  RD_STATS perp_split_rd[2];
+  bool perp_split_valid[2];
+  int64_t perp_split_lb[2];
+  bool perp_split_lb_valid[2];
 } PC_TREE;
 
 typedef struct SIMPLE_MOTION_DATA_TREE {

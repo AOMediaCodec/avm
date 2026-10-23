@@ -393,6 +393,8 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.early_term_tip_direct_output_search = true;
     sf->hl_sf.tip_direct_output_rank_band_period = 8;
 
+    sf->part_sf.prune_rect_split_by_rd = 1;
+
     sf->lpf_sf.wienerns_refine_iters = 0;
     sf->lpf_sf.wienerns_fast_frame_filter_opt = 1;
     // Trim the RU-size candidate set by pyramid level (policy in pickrst.c).
@@ -523,6 +525,7 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 2) {
     sf->mv_sf.warp_search_method_sec_ref = WARP_SEARCH_DIAMOND;
     sf->mv_sf.warp_mv_refine_early_term = boosted ? false : true;
+    sf->part_sf.prune_rect_split_by_rd = 2;
 
     sf->lpf_sf.early_terminate_ccso_search_by_cost = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
@@ -1009,6 +1012,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->force_max_pb_aspect_ratio = 0;
   part_sf->prune_by_struct_orient = 0;
   part_sf->ml_post_none_early_term_thresh = 0;
+  part_sf->prune_rect_split_by_rd = 0;
 }
 
 static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
