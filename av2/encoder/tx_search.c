@@ -2576,8 +2576,9 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                   mb_plane->coeff + BLOCK_OFFSET(block),
                   x->plane[plane].dequant_QTX, tr_w, tr_h, log_scale)) {
             mb_plane->eobs[block] = 0;
-            if (primary_tx_type == DCT_DCT) eob_found = true;
-            if (primary_tx_type != DCT_DCT) {
+            const bool already_found = eob_found;
+            eob_found = true;
+            if (primary_tx_type != DCT_DCT && already_found) {
               update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
               continue;
             }
