@@ -3041,8 +3041,9 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
 
     if (cpi->lap_enabled && cpi->rc.enable_scenecut_detection) {
       int num_frames_to_detect_scenecut, frames_to_key;
+      double kf_group_err = 0.0;
       num_frames_to_detect_scenecut = MAX_GF_LENGTH_LAP + 1;
-      frames_to_key = define_kf_interval(cpi, &this_frame, NULL,
+      frames_to_key = define_kf_interval(cpi, &this_frame, &kf_group_err,
                                          num_frames_to_detect_scenecut);
       if (frames_to_key != -1)
         rc->frames_to_key = AVMMIN(rc->frames_to_key, frames_to_key);

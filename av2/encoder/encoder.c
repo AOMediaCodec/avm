@@ -1167,6 +1167,33 @@ static void set_max_bvp_drl_bits(struct AV2_COMP *cpi) {
          cm->features.max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
 }
 
+// Sets the global / local IntraBC flags of the current frame.
+static void set_intrabc_tools(struct AV2_COMP *cpi) {
+  AV2_COMMON *const cm = &cpi->common;
+  FeatureFlags *const features = &cm->features;
+  const KeyFrameCfg *const kf_cfg = &cpi->oxcf.kf_cfg;
+  if (features->allow_intrabc) {
+    const int row_mt_multi_workers =
+        cpi->oxcf.row_mt && cpi->mt_info.num_workers > 1;
+    features->allow_global_intrabc = (kf_cfg->enable_intrabc_ext != 2) &&
+                                     frame_is_intra_only(cm) &&
+                                     !row_mt_multi_workers;
+    features->allow_local_intrabc = !!kf_cfg->enable_intrabc_ext;
+    // On intra frames, allow_global_intrabc == 0 implies allow_local_intrabc
+    // == 1 in the bitstream. Turn off IntraBC if neither can be used.
+    if (frame_is_intra_only(cm) && !features->allow_global_intrabc &&
+        !features->allow_local_intrabc) {
+      features->allow_intrabc = 0;
+    }
+  }
+  if (features->allow_intrabc) {
+    set_max_bvp_drl_bits(cpi);
+  } else {
+    features->allow_global_intrabc = 0;
+    features->allow_local_intrabc = 0;
+  }
+}
+
 void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   AV2_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
@@ -3776,18 +3803,7 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
   // Determine whether to use screen content tools using two fast encoding.
   av2_determine_sc_tools_with_encoding(cpi, q);
 
-  if (cm->features.allow_intrabc) {
-    set_max_bvp_drl_bits(cpi);
-  }
-
-  if (cm->features.allow_intrabc) {
-    cm->features.allow_global_intrabc =
-        (oxcf->kf_cfg.enable_intrabc_ext != 2) && frame_is_intra_only(cm);
-    cm->features.allow_local_intrabc = !!oxcf->kf_cfg.enable_intrabc_ext;
-  } else {
-    cm->features.allow_global_intrabc = 0;
-    cm->features.allow_local_intrabc = 0;
-  }
+  set_intrabc_tools(cpi);
 
 #if CONFIG_TUNE_VMAF
   if (oxcf->tune_cfg.tuning == AVM_TUNE_VMAF_NEG_MAX_GAIN) {
@@ -4827,16 +4843,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
     features->kf_allow_sc_tools = features->allow_screen_content_tools;
   }
   cpi->is_screen_content_type = features->allow_screen_content_tools;
-  if (cm->features.allow_intrabc) {
-    cm->features.allow_global_intrabc =
-        (oxcf->kf_cfg.enable_intrabc_ext != 2) && frame_is_intra_only(cm);
-
-    cm->features.allow_local_intrabc = !!oxcf->kf_cfg.enable_intrabc_ext;
-    set_max_bvp_drl_bits(cpi);
-  } else {
-    cm->features.allow_global_intrabc = 0;
-    cm->features.allow_local_intrabc = 0;
-  }
+  set_intrabc_tools(cpi);
   const bool compute_ds_filter =
       cpi->common.current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY;
   if (compute_ds_filter) {
