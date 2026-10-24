@@ -776,12 +776,15 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
           "crop_win_top_offset and crop_win_bottom_offset must each be less "
           "than the frame height, and must not together span it");
     }
-    const int LeftPosX = (left * (int)cfg->g_w) / max_width;
+    // Computed in 64 bits to avoid signed integer overflow, since
+    // left * g_w can exceed INT32_MAX when both are large.
+    const int LeftPosX = (int)(((int64_t)left * (int)cfg->g_w) / max_width);
     const int RightPosX =
-        (int)cfg->g_w - 1 - ((right * (int)cfg->g_w) / max_width);
-    const int TopPosY = (top * (int)cfg->g_h) / max_height;
+        (int)cfg->g_w - 1 - (int)(((int64_t)right * (int)cfg->g_w) / max_width);
+    const int TopPosY = (int)(((int64_t)top * (int)cfg->g_h) / max_height);
     const int BottomPosY =
-        (int)cfg->g_h - 1 - ((bottom * (int)cfg->g_h) / max_height);
+        (int)cfg->g_h - 1 -
+        (int)(((int64_t)bottom * (int)cfg->g_h) / max_height);
     // Conformance requirement 3: LeftPosX<= RightPosX
     if (LeftPosX > RightPosX) {
       ERROR(
