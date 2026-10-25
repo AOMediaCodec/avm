@@ -216,7 +216,7 @@ static INLINE void av2_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
 // start_mv_list, ref_frame, rdmult, and ML residual stats -- all pass-invariant
 // functions of source + reference + geometry) so the wet pass reuses them, and
 // clears only what must not cross the pass boundary (mode_cache, old_sms,
-// prev_partition).
+// prev_partition and prev_rd_bound).
 static INLINE void av2_reset_sms_cross_pass_state(
     SimpleMotionDataBufs *data_bufs) {
   static_assert(sizeof(SimpleMotionDataBufs) % sizeof(SimpleMotionData) == 0,
@@ -229,6 +229,9 @@ static INLINE void av2_reset_sms_cross_pass_state(
     entry->old_sms = NULL;
     entry->has_prev_partition = 0;
     entry->prev_partition = (PARTITION_TYPE)0;
+    entry->has_prev_rd_bound = false;
+    entry->prev_rd_bound_is_found = false;
+    entry->prev_rd_bound = 0;
   }
 }
 

@@ -522,6 +522,9 @@ typedef struct SimpleMotionData {
   int num_start_mvs;                 /*!< number of start mvs */
   int has_prev_partition;            /*!< has previous partition */
   PARTITION_TYPE prev_partition;     /*!< previous partition */
+  bool has_prev_rd_bound;            /*!< has rd bound of earlier search */
+  bool prev_rd_bound_is_found;       /*!< whether bound is found */
+  int64_t prev_rd_bound;             /*!< rd bound of earlier search */
   struct PICK_MODE_CONTEXT
       *mode_cache[NUMBER_OF_CACHED_MODES]; /*!< mode cache */
   struct SIMPLE_MOTION_DATA_TREE *old_sms; /*!< old sms */

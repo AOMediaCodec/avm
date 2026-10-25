@@ -5902,6 +5902,49 @@ static AVM_INLINE void keep_rect_candidates_in_wet_pass(
   part_search_state->prune_partition[PARTITION_VERT] = false;
 }
 
+// Returns true if the revisit check applies to this block. The same block
+// (position, size and region type) can be reached from different parent
+// partitions in one superblock pass. The rd bound of each search is kept in
+// the SimpleMotionData entry of the block. Blocks that must find a valid
+// partition, or that use a template or an implied partition, keep the full
+// search.
+static AVM_INLINE bool use_revisit_check(const AV2_COMP *cpi,
+                                         const MACROBLOCK *x,
+                                         const PC_TREE *pc_tree,
+                                         const PARTITION_TREE *template_tree,
+                                         int mi_row, int mi_col,
+                                         BLOCK_SIZE bsize) {
+  const AV2_COMMON *const cm = &cpi->common;
+  return cpi->sf.part_sf.skip_revisit_by_rd_bound && !frame_is_intra_only(cm) &&
+         bsize != cm->sb_size && x->e_mbd.tree_type == SHARED_PART &&
+         pc_tree->region_type == MIXED_INTER_INTRA_REGION &&
+         !x->must_find_valid_partition &&
+         (!template_tree || template_tree->partition == PARTITION_INVALID) &&
+         bru_is_sb_active(cm, mi_col, mi_row) &&
+         !is_partition_implied_at_boundary(&cm->mi_params, mi_row, mi_col,
+                                           bsize, NULL);
+}
+
+// Updates the rd bound of the block after its search. If a valid partition
+// was found, the bound is the best rd cost across all successful searches.
+// Otherwise, if no search has succeeded yet, the block cannot fit in
+// rd_budget and the bound is the largest failing budget.
+static AVM_INLINE void update_prev_rd_bound(SimpleMotionData *sms_data,
+                                            bool found, int64_t best_rd,
+                                            int64_t rd_budget) {
+  if (found) {
+    sms_data->prev_rd_bound = sms_data->prev_rd_bound_is_found
+                                  ? AVMMIN(best_rd, sms_data->prev_rd_bound)
+                                  : best_rd;
+    sms_data->prev_rd_bound_is_found = true;
+  } else if (!sms_data->has_prev_rd_bound) {
+    sms_data->prev_rd_bound = rd_budget;
+  } else if (!sms_data->prev_rd_bound_is_found) {
+    sms_data->prev_rd_bound = AVMMAX(sms_data->prev_rd_bound, rd_budget);
+  }
+  sms_data->has_prev_rd_bound = true;
+}
+
 /*!\brief AV2 block partition search (full search).
  *
  * \ingroup partition_search
@@ -6079,6 +6122,20 @@ bool av2_rd_pick_partition(
   // Override skipping rectangular partition operations for edge blocks.
   if (none_rd) *none_rd = 0;
 
+  // Skip the search of a block that was already searched in this pass if
+  // the earlier search shows that the block cannot fit in the rd budget.
+  SimpleMotionData *const sms_data =
+      av2_get_sms_data_entry(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
+                             (int8_t)pc_tree->region_type);
+  const bool check_revisit =
+      use_revisit_check(cpi, x, pc_tree, template_tree, mi_row, mi_col, bsize);
+  const int64_t rd_budget = best_rdc.rdcost;
+  if (check_revisit && sms_data->has_prev_rd_bound &&
+      sms_data->prev_rd_bound >= rd_budget) {
+    av2_invalid_rd_stats(rd_cost);
+    return false;
+  }
+
 #if CONFIG_COLLECT_PARTITION_STATS
   // Stats at the current quad tree
   PartitionTimingStats *part_timing_stats =
@@ -6163,9 +6220,6 @@ bool av2_rd_pick_partition(
     xd->warp_param_bank, /* curr_level_warp_bank*/
     xd->warp_param_bank, /* best_level_warp_bank*/
   };
-  SimpleMotionData *sms_data =
-      av2_get_sms_data_entry(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
-                             (int8_t)pc_tree->region_type);
   sms_tree = sms_data->old_sms;
   // Pruning: before searching any partition type, using source and simple
   // motion search results to prune out unlikely partitions.
@@ -6449,6 +6503,10 @@ BEGIN_PARTITION_SEARCH:
       av2_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
                                pc_tree->partitioning,
                                (int8_t)pc_tree->region_type);
+  }
+  if (check_revisit) {
+    update_prev_rd_bound(sms_data, part_search_state.found_best_partition,
+                         best_rdc.rdcost, rd_budget);
   }
 
   // Also record the best partition in simple motion data tree because it is
