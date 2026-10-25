@@ -787,6 +787,12 @@ static void set_good_speed_features_framesize_independent(
     // Rank the chroma intra modes without the CCTX search in all frames; the
     // winner is re-evaluated with CCTX.
     sf->intra_sf.uv_mode_rank_skip_cctx = true;
+
+    // Statistics-domain WIENER_NONSEP merge and class-count evaluation.
+    sf->lpf_sf.wienerns_stat_class_search = 1;
+    sf->lpf_sf.wienerns_stat_merge_eval = 1;
+    // Drop the largest LR unit size one pyramid level earlier (level >= 2).
+    sf->lpf_sf.reduce_lr_unit_size_drop_high_level = 2;
   }
 
   if (speed >= 6) {
@@ -1238,6 +1244,9 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->reduce_lr_unit_size_by_pyr_drop_low = 0;
   lpf_sf->skip_wienerns_frame_filter_rounding = 0;
   lpf_sf->wienerns_fast_frame_filter_opt = 0;
+  lpf_sf->wienerns_stat_class_search = 0;
+  lpf_sf->wienerns_stat_merge_eval = 0;
+  lpf_sf->reduce_lr_unit_size_drop_high_level = 3;
   lpf_sf->ccso_chroma_dep = 0;
   lpf_sf->gdf_prune_qp_cands = 0;
   lpf_sf->ccso_max_band_candidates = 0;
