@@ -1576,11 +1576,102 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
 #endif  // CONFIG_ML_PART_SPLIT
 }
 
+// Set the mesh patterns of the exhaustive motion search for the speed.
+static void set_mesh_patterns(SPEED_FEATURES *sf, int speed) {
+  const int mesh_speed = AVMMIN(speed, MAX_MESH_SPEED);
+  for (int i = 0; i < MAX_MESH_STEP; ++i) {
+    sf->mv_sf.mesh_patterns[i].range =
+        good_quality_mesh_patterns[mesh_speed][i].range;
+    sf->mv_sf.mesh_patterns[i].interval =
+        good_quality_mesh_patterns[mesh_speed][i].interval;
+  }
+
+  // Update the mesh pattern of exhaustive motion search for intraBC
+  // Though intraBC mesh pattern is populated for all frame types, it is used
+  // only for intra frames of screen contents
+  for (int i = 0; i < MAX_MESH_STEP; ++i) {
+    sf->mv_sf.intrabc_mesh_patterns[i].range =
+        intrabc_mesh_patterns[mesh_speed][i].range;
+    sf->mv_sf.intrabc_mesh_patterns[i].interval =
+        intrabc_mesh_patterns[mesh_speed][i].interval;
+  }
+}
+
+// Set the subpel search function and the winner mode parameters from the
+// speed features.
+static void set_speed_feature_params(AV2_COMP *cpi) {
+  WinnerModeParams *const winner_mode_params = &cpi->winner_mode_params;
+  const SPEED_FEATURES *const sf = &cpi->sf;
+  MotionVectorSearchParams *const mv_search_params = &cpi->mv_search_params;
+  if (sf->mv_sf.subpel_search_method == SUBPEL_TREE) {
+    mv_search_params->find_fractional_mv_step = av2_find_best_sub_pixel_tree;
+  } else if (sf->mv_sf.subpel_search_method == SUBPEL_TREE_PRUNED) {
+    mv_search_params->find_fractional_mv_step =
+        av2_find_best_sub_pixel_tree_pruned;
+  } else if (sf->mv_sf.subpel_search_method == SUBPEL_TREE_PRUNED_MORE) {
+    mv_search_params->find_fractional_mv_step =
+        av2_find_best_sub_pixel_tree_pruned_more;
+  } else if (sf->mv_sf.subpel_search_method == SUBPEL_TREE_PRUNED_EVENMORE) {
+    mv_search_params->find_fractional_mv_step =
+        av2_find_best_sub_pixel_tree_pruned_evenmore;
+  }
+
+  // This is only used in motion vector unit test.
+  if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 1)
+    mv_search_params->find_fractional_mv_step = av2_return_max_sub_pixel_mv;
+  else if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 2)
+    mv_search_params->find_fractional_mv_step = av2_return_min_sub_pixel_mv;
+
+  // assert ensures that tx_domain_dist_level is accessed correctly
+  assert(cpi->sf.rd_sf.tx_domain_dist_thres_level >= 0 &&
+         cpi->sf.rd_sf.tx_domain_dist_thres_level < 3);
+  memcpy(winner_mode_params->tx_domain_dist_threshold,
+         tx_domain_dist_thresholds[cpi->sf.rd_sf.tx_domain_dist_thres_level],
+         sizeof(winner_mode_params->tx_domain_dist_threshold));
+
+  assert(cpi->sf.rd_sf.tx_domain_dist_level >= 0 &&
+         cpi->sf.rd_sf.tx_domain_dist_level < 3);
+  memcpy(winner_mode_params->use_transform_domain_distortion,
+         tx_domain_dist_types[cpi->sf.rd_sf.tx_domain_dist_level],
+         sizeof(winner_mode_params->use_transform_domain_distortion));
+
+  // assert ensures that coeff_opt_dist_thresholds is accessed correctly
+  assert(cpi->sf.rd_sf.perform_coeff_opt >= 0 &&
+         cpi->sf.rd_sf.perform_coeff_opt < 7);
+  memcpy(winner_mode_params->coeff_opt_dist_threshold,
+         coeff_opt_dist_thresholds[cpi->sf.rd_sf.perform_coeff_opt],
+         sizeof(winner_mode_params->coeff_opt_dist_threshold));
+
+  // assert ensures that coeff_opt_satd_thresholds is accessed correctly
+  assert(cpi->sf.rd_sf.perform_coeff_opt_based_on_satd >= 0 &&
+         cpi->sf.rd_sf.perform_coeff_opt_based_on_satd < 3);
+  memcpy(
+      winner_mode_params->coeff_opt_satd_threshold,
+      coeff_opt_satd_thresholds[cpi->sf.rd_sf.perform_coeff_opt_based_on_satd],
+      sizeof(winner_mode_params->coeff_opt_satd_threshold));
+
+  // assert ensures that predict_skip_levels is accessed correctly
+  assert(cpi->sf.tx_sf.tx_type_search.use_skip_flag_prediction >= 0 &&
+         cpi->sf.tx_sf.tx_type_search.use_skip_flag_prediction < 3);
+  memcpy(winner_mode_params->skip_txfm_level,
+         predict_skip_levels[cpi->sf.tx_sf.tx_type_search
+                                 .use_skip_flag_prediction],
+         sizeof(winner_mode_params->skip_txfm_level));
+
+  // assert ensures that tx_size_search_level is accessed correctly
+  assert(cpi->sf.winner_mode_sf.tx_size_search_level >= 0 &&
+         cpi->sf.winner_mode_sf.tx_size_search_level < 3);
+  memcpy(winner_mode_params->tx_size_search_methods,
+         tx_size_search_methods[cpi->sf.winner_mode_sf.tx_size_search_level],
+         sizeof(winner_mode_params->tx_size_search_methods));
+  memcpy(winner_mode_params->predict_dc_level,
+         predict_dc_levels[cpi->sf.winner_mode_sf.dc_blk_pred_level],
+         sizeof(winner_mode_params->predict_dc_level));
+}
+
 void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
   SPEED_FEATURES *const sf = &cpi->sf;
-  WinnerModeParams *const winner_mode_params = &cpi->winner_mode_params;
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
-  int i;
 
   init_hl_sf(&sf->hl_sf);
   init_tpl_sf(&sf->tpl_sf);
@@ -1685,23 +1776,7 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
         2 * (MAX_SB_SIZE_LOG2 - 6);
   }
 
-  const int mesh_speed = AVMMIN(speed, MAX_MESH_SPEED);
-  for (i = 0; i < MAX_MESH_STEP; ++i) {
-    sf->mv_sf.mesh_patterns[i].range =
-        good_quality_mesh_patterns[mesh_speed][i].range;
-    sf->mv_sf.mesh_patterns[i].interval =
-        good_quality_mesh_patterns[mesh_speed][i].interval;
-  }
-
-  // Update the mesh pattern of exhaustive motion search for intraBC
-  // Though intraBC mesh pattern is populated for all frame types, it is used
-  // only for intra frames of screen contents
-  for (i = 0; i < MAX_MESH_STEP; ++i) {
-    sf->mv_sf.intrabc_mesh_patterns[i].range =
-        intrabc_mesh_patterns[mesh_speed][i].range;
-    sf->mv_sf.intrabc_mesh_patterns[i].interval =
-        intrabc_mesh_patterns[mesh_speed][i].interval;
-  }
+  set_mesh_patterns(sf, speed);
 
   // Slow quant, dct and trellis not worthwhile for first pass
   // so make sure they are always turned off.
@@ -1712,71 +1787,7 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
   if (oxcf->pass == 0 && has_no_stats_stage(cpi))
     sf->hl_sf.recode_loop = DISALLOW_RECODE;
 
-  MotionVectorSearchParams *const mv_search_params = &cpi->mv_search_params;
-  if (sf->mv_sf.subpel_search_method == SUBPEL_TREE) {
-    mv_search_params->find_fractional_mv_step = av2_find_best_sub_pixel_tree;
-  } else if (sf->mv_sf.subpel_search_method == SUBPEL_TREE_PRUNED) {
-    mv_search_params->find_fractional_mv_step =
-        av2_find_best_sub_pixel_tree_pruned;
-  } else if (sf->mv_sf.subpel_search_method == SUBPEL_TREE_PRUNED_MORE) {
-    mv_search_params->find_fractional_mv_step =
-        av2_find_best_sub_pixel_tree_pruned_more;
-  } else if (sf->mv_sf.subpel_search_method == SUBPEL_TREE_PRUNED_EVENMORE) {
-    mv_search_params->find_fractional_mv_step =
-        av2_find_best_sub_pixel_tree_pruned_evenmore;
-  }
-
-  // This is only used in motion vector unit test.
-  if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 1)
-    mv_search_params->find_fractional_mv_step = av2_return_max_sub_pixel_mv;
-  else if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 2)
-    mv_search_params->find_fractional_mv_step = av2_return_min_sub_pixel_mv;
-
-  // assert ensures that tx_domain_dist_level is accessed correctly
-  assert(cpi->sf.rd_sf.tx_domain_dist_thres_level >= 0 &&
-         cpi->sf.rd_sf.tx_domain_dist_thres_level < 3);
-  memcpy(winner_mode_params->tx_domain_dist_threshold,
-         tx_domain_dist_thresholds[cpi->sf.rd_sf.tx_domain_dist_thres_level],
-         sizeof(winner_mode_params->tx_domain_dist_threshold));
-
-  assert(cpi->sf.rd_sf.tx_domain_dist_level >= 0 &&
-         cpi->sf.rd_sf.tx_domain_dist_level < 3);
-  memcpy(winner_mode_params->use_transform_domain_distortion,
-         tx_domain_dist_types[cpi->sf.rd_sf.tx_domain_dist_level],
-         sizeof(winner_mode_params->use_transform_domain_distortion));
-
-  // assert ensures that coeff_opt_dist_thresholds is accessed correctly
-  assert(cpi->sf.rd_sf.perform_coeff_opt >= 0 &&
-         cpi->sf.rd_sf.perform_coeff_opt < 7);
-  memcpy(winner_mode_params->coeff_opt_dist_threshold,
-         coeff_opt_dist_thresholds[cpi->sf.rd_sf.perform_coeff_opt],
-         sizeof(winner_mode_params->coeff_opt_dist_threshold));
-
-  // assert ensures that coeff_opt_satd_thresholds is accessed correctly
-  assert(cpi->sf.rd_sf.perform_coeff_opt_based_on_satd >= 0 &&
-         cpi->sf.rd_sf.perform_coeff_opt_based_on_satd < 3);
-  memcpy(
-      winner_mode_params->coeff_opt_satd_threshold,
-      coeff_opt_satd_thresholds[cpi->sf.rd_sf.perform_coeff_opt_based_on_satd],
-      sizeof(winner_mode_params->coeff_opt_satd_threshold));
-
-  // assert ensures that predict_skip_levels is accessed correctly
-  assert(cpi->sf.tx_sf.tx_type_search.use_skip_flag_prediction >= 0 &&
-         cpi->sf.tx_sf.tx_type_search.use_skip_flag_prediction < 3);
-  memcpy(winner_mode_params->skip_txfm_level,
-         predict_skip_levels[cpi->sf.tx_sf.tx_type_search
-                                 .use_skip_flag_prediction],
-         sizeof(winner_mode_params->skip_txfm_level));
-
-  // assert ensures that tx_size_search_level is accessed correctly
-  assert(cpi->sf.winner_mode_sf.tx_size_search_level >= 0 &&
-         cpi->sf.winner_mode_sf.tx_size_search_level < 3);
-  memcpy(winner_mode_params->tx_size_search_methods,
-         tx_size_search_methods[cpi->sf.winner_mode_sf.tx_size_search_level],
-         sizeof(winner_mode_params->tx_size_search_methods));
-  memcpy(winner_mode_params->predict_dc_level,
-         predict_dc_levels[cpi->sf.winner_mode_sf.dc_blk_pred_level],
-         sizeof(winner_mode_params->predict_dc_level));
+  set_speed_feature_params(cpi);
 
   if (cpi->oxcf.row_mt == 1 && (cpi->oxcf.max_threads > 1)) {
     if (sf->inter_sf.inter_mode_rd_model_estimation == 1) {
@@ -1901,8 +1912,241 @@ static AVM_INLINE void set_inter_frame_speed_features(AV2_COMP *cpi,
   sf->inter_sf.full_pool_inter_mode_prune_top = 6;
 
   // Double the post-NONE early termination threshold on frames that are not
-  // boosted.
-  if (!frame_is_boosted(cpi)) sf->part_sf.ml_post_none_early_term_thresh *= 2;
+  // boosted and have a low qindex. At a higher qindex, it costs too much
+  // quality for its time saving.
+  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+  if (!frame_is_boosted(cpi) &&
+      cm->quant_params.base_qindex <= 113 + qindex_offset) {
+    sf->part_sf.ml_post_none_early_term_thresh *= 2;
+  }
+}
+
+// Faster inter-frame mode search. Let the adaptive RD thresholds grow to 4
+// times the level-1 cap, and give the full transform search to the best 6 of
+// the 11 candidates of the full mode pool.
+static AVM_INLINE void set_fast_inter_mode_search(SPEED_FEATURES *sf) {
+  sf->inter_sf.adaptive_rd_thresh = 4;
+  sf->inter_sf.full_pool_inter_mode_prune_top = 6;
+}
+
+// Returns 1 if the frame uses the values of the next speed for some speed
+// features. The frame must be an inter frame that is not boosted, and it
+// must be on the top pyramid levels or have a low qindex:
+// - Few frames use the frames on the top pyramid levels as references, or no
+//   frames do. So a faster search on these frames costs less quality.
+// - Frames that have a low qindex are slow to encode. So a faster search on
+//   these frames saves more time.
+// The qindex conditions change with the speed. Tests on the CTC show that
+// outside these conditions, the next-speed values cost too much quality for
+// their time saving.
+static int use_faster_speed_features(const AV2_COMP *cpi, int speed) {
+  // The lowest of the top pyramid levels, for speeds 0 to 5.
+  static const unsigned int min_pyramid_level[6] = { 0, 4, 4, 4, 4, 5 };
+  const AV2_COMMON *const cm = &cpi->common;
+  if (cpi->oxcf.mode != GOOD || speed < 1 || speed > 5 ||
+      frame_is_intra_only(cm) || frame_is_boosted(cpi))
+    return 0;
+
+  const int top_level =
+      cm->current_frame.pyramid_level >= min_pyramid_level[speed];
+  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+  const int qindex = cm->quant_params.base_qindex;
+  const int low_qindex = qindex <= 113 + qindex_offset;
+  const int high_qindex = qindex > 135 + qindex_offset;
+  switch (speed) {
+    case 1: return top_level;
+    case 3: return low_qindex || (top_level && high_qindex);
+    case 5: return low_qindex || top_level;
+    default: return low_qindex;  // Speeds 2 and 4.
+  }
+}
+
+// Use the values of the next speed for some speed features, on the frames
+// that use_faster_speed_features() selects. The partition speed features do
+// not change.
+static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
+  if (!use_faster_speed_features(cpi, speed)) return;
+
+  const AV2_COMMON *const cm = &cpi->common;
+  SPEED_FEATURES *const sf = &cpi->sf;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const int is_arf2 =
+      gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE;
+  const int allow_screen_content_tools =
+      cm->features.allow_screen_content_tools;
+  const int min_side = AVMMIN(cm->width, cm->height);
+
+  if (speed == 1) {
+    // Speed-2 values.
+    sf->mv_sf.warp_search_method_sec_ref = WARP_SEARCH_DIAMOND;
+    if (cpi->is_screen_content_type)
+      sf->mv_sf.exhaustive_searches_thresh = (1 << 21);
+    if (!allow_screen_content_tools) sf->mv_sf.newmv_drl_search_limit = 2;
+
+    sf->inter_sf.disable_interinter_wedge_newmv_search = 1;
+    sf->inter_sf.prune_comp_type_by_comp_avg = 1;
+    sf->inter_sf.prune_comp_type_by_model_rd = 1;
+    sf->inter_sf.prune_motion_mode_level = 2;
+    sf->inter_sf.enable_four_param_warp_in_winner_mode = 1;
+    sf->inter_sf.reuse_inter_intra_mode = 1;
+    sf->inter_sf.skip_repeated_newmv = 1;
+    sf->inter_sf.prune_amvd_newmv = 2;
+    sf->inter_sf.reduce_max_drl_refmvs = 1;
+    sf->inter_sf.enable_fast_bawp = 1;
+    // ERP levels 2 and up set prune_ref_frames on all frames.
+    if (cpi->oxcf.part_cfg.erp_pruning_level < 2 && !allow_screen_content_tools)
+      sf->inter_sf.prune_ref_frames = 2;
+
+    if (!cm->features.is_scc_content_by_detector)
+      sf->intra_sf.prune_palette_search_level = 1;
+
+    sf->tx_sf.model_based_prune_tx_search_level = 0;
+    if (!cpi->oxcf.txfm_cfg.disable_ml_transform_speed_features)
+      sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
+
+    sf->rd_sf.perform_coeff_opt = 3;
+    sf->rd_sf.tx_domain_dist_level = 2;
+    sf->rd_sf.tx_domain_dist_thres_level = 1;
+
+    sf->lpf_sf.early_terminate_ccso_search_by_cost = 1;
+
+    // The predict_dc level is { 2, 2, 0 } for high qindex frames.
+    const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+    if (sf->winner_mode_sf.dc_blk_pred_level == 0 &&
+        cm->quant_params.base_qindex > 113 + qindex_offset) {
+      sf->winner_mode_sf.dc_blk_pred_level = 3;
+    }
+  } else if (speed == 2) {
+    // Speed-3 values. These speed features keep their speed-2 values,
+    // because their speed-3 values cost too much quality for their time
+    // saving: use_interp_filter, comp_inter_joint_search_thresh,
+    // prune_comp_search_by_single_result, adaptive_tx_type_search_idx,
+    // adaptive_tx_partition_type_search_idx and
+    // disable_loop_restoration_chroma.
+    if (cpi->oxcf.pass != 0 || !has_no_stats_stage(cpi))
+      sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
+
+    sf->gm_sf.num_refinement_steps = 0;
+
+    sf->mv_sf.auto_mv_step_size = 1;
+    sf->mv_sf.full_pixel_search_level = 1;
+    sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
+    sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
+    set_mesh_patterns(sf, 3);
+
+    sf->inter_sf.disable_interintra = true;
+    sf->inter_sf.disable_wedge_search_var_thresh = 100;
+    sf->inter_sf.prune_comp_type_by_comp_avg = 2;
+    sf->inter_sf.disable_sb_level_mv_cost_upd = 1;
+    sf->inter_sf.perform_best_rd_based_gating_for_chroma = 1;
+    sf->inter_sf.prune_inter_modes_based_on_tpl = 1;
+    sf->inter_sf.skip_repeated_ref_mv = 1;
+    sf->inter_sf.skip_repeated_full_newmv = 1;
+    sf->inter_sf.txfm_rd_gate_level = is_arf2 ? 1 : 2;
+    sf->inter_sf.prune_opfl = 1;
+
+    if (!cm->features.is_scc_content_by_detector)
+      sf->intra_sf.prune_palette_search_level = 2;
+    sf->intra_sf.intra_mode_prune_top = 3;
+
+    sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
+    if (min_side >= 480) sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
+    if (min_side >= 2160) sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
+    sf->tx_sf.prune_tx_search_by_pre_rd = 1;
+
+    sf->rd_sf.perform_coeff_opt = is_arf2 ? 3 : 4;
+
+    sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
+    sf->winner_mode_sf.dc_blk_pred_level = 2;
+
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL2;
+
+    // Not a speed-3 value: let the adaptive RD thresholds grow to 4 times the
+    // level-1 cap, as set_fast_inter_mode_search() does. Its other value,
+    // full_pool_inter_mode_prune_top = 6, is not used, because tests show
+    // that it costs too much quality for its time saving at speed 2.
+    sf->inter_sf.adaptive_rd_thresh = 4;
+  } else if (speed == 3) {
+    // Speed-4 values.
+    sf->gm_sf.downsample_level = 1;
+
+    sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+    sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
+    sf->mv_sf.newmv_drl_search_limit = 1;
+    set_mesh_patterns(sf, 4);
+
+    sf->inter_sf.alt_ref_search_fp = 1;
+    sf->inter_sf.txfm_rd_gate_level = 4;
+    sf->inter_sf.prune_bawp_by_gop_usage = 1;
+    sf->inter_sf.fast_warp_delta_decoupled_search = 1;
+    sf->inter_sf.prune_inter_modes_based_on_tpl = 3;
+
+    sf->intra_sf.skip_intra_in_interframe = 2;
+    sf->intra_sf.uv_mode_rank_skip_cctx = true;
+    sf->intra_sf.intrabc_max_rd_cands = 1;
+    sf->intra_sf.intrabc_skip_int_qtr_rd = true;
+
+    sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
+    sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
+    sf->tx_sf.prune_ist_by_best_rd = true;
+
+    sf->rd_sf.perform_coeff_opt = is_arf2 ? 3 : 5;
+
+    sf->lpf_sf.skip_wienerns_frame_filter_rounding = 1;
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
+    sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
+    sf->lpf_sf.gdf_prune_qp_cands = 1;
+    sf->lpf_sf.ccso_max_band_candidates = 32;
+    sf->lpf_sf.ccso_reuse_bo_class_stats = 1;
+    if (min_side <= 360) sf->lpf_sf.reduce_lr_unit_size_by_pyr_drop_low = 0;
+  } else if (speed == 4) {
+    // Speed-5 values. These speed features keep their speed-4 values,
+    // because their speed-5 values cost too much quality for their time
+    // saving: multi_winner_mode_type, disable_multiway_tx_part_in_rough_mode,
+    // disable_interinter_wedge and prune_cwp_search.
+    sf->hl_sf.tip_direct_output_early_term_margin_pct = 0;
+
+    sf->mv_sf.prune_mesh_search = 1;
+
+    sf->inter_sf.disable_onesided_comp = true;
+    sf->inter_sf.prune_inter_modes_if_skippable = 1;
+    if (min_side >= 720) {
+      sf->inter_sf.prune_warped_prob_thresh = 16;
+    } else if (min_side >= 480) {
+      sf->inter_sf.prune_warped_prob_thresh = 8;
+    }
+    // Speed 5 uses the faster inter-frame mode search on all inter frames.
+    set_fast_inter_mode_search(sf);
+
+    sf->intra_sf.intra_mode_prune_top = 2;
+    sf->intra_sf.disable_palette = true;
+  } else if (speed == 5) {
+    // Speed-6 values.
+    sf->gm_sf.downsample_level = 2;
+
+    sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
+    sf->mv_sf.use_bsize_dependent_search_method = 1;
+
+    sf->inter_sf.dry_pass_skip_warp_min_pyr_level =
+        DRY_PASS_SKIP_WARP_MIN_PYR_LEVEL;
+    sf->inter_sf.dry_pass_mv_prec_from_top = !allow_screen_content_tools;
+    sf->inter_sf.limit_single_ref_mv_idx = 2;
+    sf->inter_sf.prune_amvd = true;
+    sf->inter_sf.prune_opfl = 2;
+    if (min_side >= 720) sf->inter_sf.prune_ref_mv_idx_search = 2;
+
+    sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
+    if (min_side < 2160) sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
+    sf->tx_sf.disable_cctx_dry_pass = true;
+    sf->tx_sf.enable_tx_partition = false;
+
+    sf->rd_sf.perform_coeff_opt = is_arf2 ? 4 : 6;
+
+    if (enable_motion_mode_search_in_winner_mode(&sf->inter_sf))
+      sf->winner_mode_sf.motion_mode_for_winner_cand = 3;
+  }
+
+  set_speed_feature_params(cpi);
 }
 
 // Override some speed features based on qindex
@@ -2087,4 +2331,12 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   }
 
   set_inter_frame_speed_features(cpi, speed);
+  set_faster_speed_features(cpi, speed);
+
+  // At speed 5, use the faster inter-frame mode search on all inter frames,
+  // not only on the frames that use the speed-6 values. Key frames and
+  // intra-only frames do not change.
+  if (cpi->oxcf.mode == GOOD && speed == 5 && !frame_is_intra_only(cm)) {
+    set_fast_inter_mode_search(sf);
+  }
 }
