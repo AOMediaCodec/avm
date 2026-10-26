@@ -2810,6 +2810,12 @@ typedef struct AV2_COMP {
   ResizePendingParams resize_pending_params;
 
   /*!
+   * Resize scale denominator chosen for the current frame (numerator is
+   * SCALE_NUMERATOR = 8).
+   */
+  uint8_t resize_scale_denom;
+
+  /*!
    * Pointer to struct holding adaptive data/contexts/models for the tile during
    * encoding.
    */
