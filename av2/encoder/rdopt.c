@@ -9788,8 +9788,13 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         picked_ref_frames_mask =
             fetch_picked_ref_frames_mask(x, cm->sb_size, cm->mib_size);
         if (picked_ref_frames_mask) {
-          // Always ensure the primary reference (ref 0) is tested.
+          // Always ensure the primary reference (ref 0) and the reference
+          // selected for superblock variance partitioning are tested.
           picked_ref_frames_mask |= (1ULL << 0);
+          if (is_inter_ref_frame(x->vbp_ref_frame) &&
+              !is_tip_ref_frame(x->vbp_ref_frame)) {
+            picked_ref_frames_mask |= (1ULL << x->vbp_ref_frame);
+          }
         }
       }
     } else {

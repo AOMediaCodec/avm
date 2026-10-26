@@ -1568,6 +1568,9 @@ typedef struct macroblock {
   //! Superblock MV derived from int_pro motion estimation in variance
   //! partitioning.
   int_mv sb_me_mv;
+  //! Reference frame selected as predictor for the superblock in
+  //! variance-based partitioning.
+  MV_REFERENCE_FRAME vbp_ref_frame;
   //! SSE of the current predictor.
   unsigned int pred_sse[SINGLE_REF_FRAMES];
   /*! Simple motion search buffers. */

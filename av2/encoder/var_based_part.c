@@ -899,6 +899,47 @@ static AVM_INLINE void do_int_pro_motion_estimation(AV2_COMP *cpi,
   }
 }
 
+static AVM_INLINE bool is_vbp_ref_enabled(const AV2_COMMON *const cm,
+                                          MV_REFERENCE_FRAME ref) {
+  return ref >= 0 && ref < INTER_REFS_PER_FRAME &&
+         (cm->ref_frame_flags & (1 << ref)) != 0;
+}
+
+static AVM_INLINE MV_REFERENCE_FRAME
+get_primary_vbp_ref(const AV2_COMMON *const cm) {
+  const int closest_ref = get_closest_pastcur_ref_or_ref0(cm);
+  const MV_REFERENCE_FRAME fallback_ref =
+      (closest_ref >= 0 && closest_ref < INTER_REFS_PER_FRAME)
+          ? (MV_REFERENCE_FRAME)closest_ref
+          : 0;
+  if (cm->ref_frame_flags == 0) return fallback_ref;
+  if (is_vbp_ref_enabled(cm, fallback_ref) &&
+      !(cm->cur_frame && cm->cur_frame->refs_restricted_status[fallback_ref])) {
+    return fallback_ref;
+  }
+  int best_dist = INT_MAX;
+  MV_REFERENCE_FRAME best_ref = NONE_FRAME;
+  for (int i = 0; i < cm->ref_frames_info.num_past_refs; ++i) {
+    const MV_REFERENCE_FRAME ref = cm->ref_frames_info.past_refs[i];
+    if (!is_vbp_ref_enabled(cm, ref)) continue;
+    if (cm->cur_frame && cm->cur_frame->refs_restricted_status[ref]) continue;
+    const int dist = cm->ref_frames_info.ref_frame_distance[ref];
+    if (dist < best_dist) {
+      best_dist = dist;
+      best_ref = ref;
+    }
+  }
+  if (best_ref != NONE_FRAME) return best_ref;
+  for (MV_REFERENCE_FRAME ref = 0;
+       ref < cm->ref_frames_info.num_total_refs && ref < INTER_REFS_PER_FRAME;
+       ++ref) {
+    if (!is_vbp_ref_enabled(cm, ref)) continue;
+    if (cm->cur_frame && cm->cur_frame->refs_restricted_status[ref]) continue;
+    return ref;
+  }
+  return fallback_ref;
+}
+
 static void setup_planes(AV2_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                          int mi_row, int mi_col, bool scaled_ref_last) {
   AV2_COMMON *const cm = &cpi->common;
@@ -906,19 +947,26 @@ static void setup_planes(AV2_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   const int num_planes = av2_num_planes(cm);
   BLOCK_SIZE bsize = cm->sb_size;
   MB_MODE_INFO *mi = xd->mi[0];
-  const MV_REFERENCE_FRAME last_frame = get_closest_pastcur_ref_or_ref0(cm);
-  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, last_frame);
+  const MV_REFERENCE_FRAME last_frame = get_primary_vbp_ref(cm);
+  const YV12_BUFFER_CONFIG *yv12 =
+      scaled_ref_last ? av2_get_scaled_ref_frame(cpi, last_frame)
+                      : get_ref_frame_yv12_buf(cm, last_frame);
   assert(yv12 != NULL);
-  if (yv12 != NULL) {
+  const bool use_last_ref =
+      is_vbp_ref_enabled(cm, last_frame) || cm->ref_frame_flags == 0;
+
+  mi->ref_frame[0] = NONE_FRAME;
+  mi->ref_frame[1] = NONE_FRAME;
+  mi->sb_type[PLANE_TYPE_Y] = cm->seq_params.sb_size;
+  mi->sb_type[PLANE_TYPE_UV] = cm->seq_params.sb_size;
+  mi->mv[0].as_int = 0;
+
+  if (yv12 != NULL && use_last_ref) {
     av2_setup_pre_planes(
         xd, 0, yv12, mi_row, mi_col,
         scaled_ref_last ? NULL : get_ref_scale_factors(cm, last_frame),
         num_planes, NULL);
     mi->ref_frame[0] = last_frame;
-    mi->ref_frame[1] = NONE_FRAME;
-    mi->sb_type[PLANE_TYPE_Y] = cm->seq_params.sb_size;
-    mi->sb_type[PLANE_TYPE_UV] = cm->seq_params.sb_size;
-    mi->mv[0].as_int = 0;
 
     const int est_motion =
         cpi->sf.rt_sf.estimate_motion_for_var_based_partition;
@@ -948,7 +996,77 @@ static void setup_planes(AV2_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
       evaluate_neighbour_mvs(cpi, x, y_sad);
     }
   }
-  // TODO(jianj-g, marpan-max): consider other references.
+
+  // Check if other enabled reference frames provide a better zero-MV
+  // predictor for partitioning, biasing toward last_frame by factor 0.9.
+  if ((x->source_sad_level != kZeroSad || !use_last_ref) && *y_sad > 0) {
+    MV_REFERENCE_FRAME best_other_ref = NONE_FRAME;
+    unsigned int best_other_sad = UINT_MAX;
+    const YV12_BUFFER_CONFIG *best_other_yv12 = NULL;
+    bool best_other_scaled = false;
+
+    for (MV_REFERENCE_FRAME ref_frame = 0;
+         ref_frame < cm->ref_frames_info.num_total_refs &&
+         ref_frame < INTER_REFS_PER_FRAME;
+         ++ref_frame) {
+      if (ref_frame == last_frame) continue;
+      if (!is_vbp_ref_enabled(cm, ref_frame)) continue;
+      if (cm->cur_frame && cm->cur_frame->refs_restricted_status[ref_frame])
+        continue;
+      const YV12_BUFFER_CONFIG *yv12_ref =
+          get_ref_frame_yv12_buf(cm, ref_frame);
+      bool scaled_ref = false;
+      if (yv12_ref != NULL && (yv12_ref->y_crop_height != cm->height ||
+                               yv12_ref->y_crop_width != cm->width)) {
+        yv12_ref = av2_get_scaled_ref_frame(cpi, ref_frame);
+        scaled_ref = true;
+      }
+      if (yv12_ref == NULL || (use_last_ref && yv12_ref == yv12)) continue;
+
+      struct buf_2d ref_y_pre;
+      const struct macroblockd_plane *const pd_y = &xd->plane[AVM_PLANE_Y];
+      setup_pred_plane(&ref_y_pre, yv12_ref->buffers[AVM_PLANE_Y],
+                       yv12_ref->widths[0], yv12_ref->heights[0],
+                       yv12_ref->crop_widths[0], yv12_ref->crop_heights[0],
+                       yv12_ref->strides[0], mi_row, mi_col,
+                       scaled_ref ? NULL : get_ref_scale_factors(cm, ref_frame),
+                       pd_y->subsampling_x, pd_y->subsampling_y, NULL);
+      const unsigned int ref_y_sad = cpi->fn_ptr[bsize].sdf(
+          x->plane[AVM_PLANE_Y].src.buf, x->plane[AVM_PLANE_Y].src.stride,
+          ref_y_pre.buf, ref_y_pre.stride);
+      if (ref_y_sad < best_other_sad) {
+        best_other_sad = ref_y_sad;
+        best_other_ref = ref_frame;
+        best_other_yv12 = yv12_ref;
+        best_other_scaled = scaled_ref;
+      }
+    }
+
+    if (best_other_ref != NONE_FRAME &&
+        (!use_last_ref ||
+         (uint64_t)best_other_sad * 10 < (uint64_t)(*y_sad) * 9)) {
+      av2_setup_pre_planes(
+          xd, 0, best_other_yv12, mi_row, mi_col,
+          best_other_scaled ? NULL : get_ref_scale_factors(cm, best_other_ref),
+          num_planes, NULL);
+      mi->ref_frame[0] = best_other_ref;
+      mi->mv[0].as_int = 0;
+      *y_sad = best_other_sad;
+      x->sb_me_partition = 0;
+      x->sb_me_mv.as_int = 0;
+    } else if (!use_last_ref && yv12 != NULL) {
+      av2_setup_pre_planes(
+          xd, 0, yv12, mi_row, mi_col,
+          scaled_ref_last ? NULL : get_ref_scale_factors(cm, last_frame),
+          num_planes, NULL);
+      mi->ref_frame[0] = last_frame;
+      *y_sad = cpi->fn_ptr[bsize].sdf(x->plane[AVM_PLANE_Y].src.buf,
+                                      x->plane[AVM_PLANE_Y].src.stride,
+                                      xd->plane[AVM_PLANE_Y].pre[0].buf,
+                                      xd->plane[AVM_PLANE_Y].pre[0].stride);
+    }
+  }
+  x->vbp_ref_frame = mi->ref_frame[0];
 }
 
 static void set_vt_partitioning_64x64(AV2_COMP *cpi, MACROBLOCKD *xd,
@@ -1071,6 +1189,7 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
   unsigned int y_sad = UINT_MAX;
   x->sb_me_partition = 0;
   x->sb_me_mv.as_int = 0;
+  x->vbp_ref_frame = NONE_FRAME;
 
   int64_t thresholds[6];
   const uint8_t *const map =
@@ -1093,6 +1212,20 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
   src_buf = x->plane[AVM_PLANE_Y].src.buf;
   int src_stride = x->plane[AVM_PLANE_Y].src.stride;
   FULLPEL_MV full_mv = kZeroFullMv;
+
+  if (!frame_is_intra_only(cm)) {
+    const MV_REFERENCE_FRAME last_frame = get_primary_vbp_ref(cm);
+    const YV12_BUFFER_CONFIG *ref = get_ref_frame_yv12_buf(cm, last_frame);
+    if (ref == NULL) {
+      is_key_frame = true;
+    } else if (ref->y_crop_height != cm->height ||
+               ref->y_crop_width != cm->width) {
+      scaled_ref_last = true;
+      const YV12_BUFFER_CONFIG *ref_scaled =
+          av2_get_scaled_ref_frame(cpi, last_frame);
+      if (ref_scaled == NULL) is_key_frame = true;
+    }
+  }
 
   if (!is_key_frame) {
     setup_planes(cpi, x, &y_sad, mi_row, mi_col, scaled_ref_last);
