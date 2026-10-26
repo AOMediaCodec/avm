@@ -349,9 +349,14 @@ void av2_fill_mode_rates(AV2_COMMON *const cm, ModeCosts *mode_costs,
 
     for (s = 1; s < EXT_TX_SETS_INTRA; ++s) {
       if (use_intra_ext_tx_for_txsize[s][i]) {
+        // The number of symbols must match the writer: intra_ext_tx_cdf[1]
+        // codes EXT_NEW_TX_SET, and intra_ext_tx_cdf[2] is only used with
+        // reduced_tx_set_used == 3 (eset 1 + 1), which codes
+        // av2_num_reduced_tx_set[2] symbols.
+        const int nsym = (s == 1) ? av2_num_ext_tx_set_intra[EXT_NEW_TX_SET]
+                                  : av2_num_reduced_tx_set[2];
         av2_cost_tokens_from_cdf(mode_costs->intra_tx_type_costs[s][i],
-                                 fc->intra_ext_tx_cdf[s][i], PRIMARY_TX_TYPES,
-                                 NULL);
+                                 fc->intra_ext_tx_cdf[s][i], nsym, NULL);
       }
     }
   }
