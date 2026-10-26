@@ -93,6 +93,17 @@ typedef struct PC_TREE {
   bool skippable;
   CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_this_chroma;
   int sb_root_partition_info;
+  // For a rectangular half of a square block: RD results of the two square
+  // quadrants of its perpendicular split (PARTITION_VERT inside a
+  // PARTITION_HORZ half, PARTITION_HORZ inside a PARTITION_VERT half),
+  // recorded by rectangular_partition_search(). Unlike the child nodes, which
+  // are freed when the search of the half ends, they stay valid, so that
+  // later trials of the square block can estimate the RD cost of the same
+  // quadrants. A record is a lower bound of the quadrant's RD cost: with
+  // rate != INT_MAX it is the result of the completed quadrant search
+  // (exact), otherwise rdcost is the RD budget within which the search found
+  // no partition. A zero record carries no information.
+  RD_STATS perp_split_rd[2];
 } PC_TREE;
 
 typedef struct SIMPLE_MOTION_DATA_TREE {
