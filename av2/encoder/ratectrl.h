@@ -50,6 +50,10 @@ extern "C" {
 
 #define MAX_ARF_LAYERS 6
 
+// Preliminary qindex offset applied per resize denominator step above
+// SCALE_NUMERATOR (8). For example, denom = 10 shifts base_qindex by -4.
+#define RESIZE_QP_OFFSET_PER_STEP (-2)
+
 enum {
   INTER_NORMAL,
   GF_ARF_LOW,
@@ -286,6 +290,8 @@ typedef struct {
   int resize_avg_qp;
   int resize_buffer_underflow;
   int resize_count;
+  // Baseline frame base_qindex picked before applying any downscale QP offset.
+  int unresized_base_qindex;
   /*!\endcond */
 } RATE_CONTROL;
 
