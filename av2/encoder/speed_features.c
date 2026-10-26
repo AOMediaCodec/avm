@@ -897,6 +897,7 @@ static void set_rt_speed_features_framesize_independent(
   if (speed >= 6) {
     sf->inter_sf.prune_ref_frames = 3;
     sf->intra_sf.intra_pruning_with_mlp = 0;
+    sf->intra_sf.prune_palette_search_level = 2;
     sf->hl_sf.frame_parameter_update = 0;
     sf->hl_sf.recode_loop = DISALLOW_RECODE;
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_Q;
