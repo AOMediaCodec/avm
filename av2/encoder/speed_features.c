@@ -799,6 +799,8 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.wienerns_stat_merge_eval = 1;
     // Drop the largest LR unit size one pyramid level earlier (level >= 2).
     sf->lpf_sf.reduce_lr_unit_size_drop_high_level = 2;
+
+    sf->inter_sf.mvd_sign_derive_prune_level = 2;
   }
 
   if (speed >= 6) {
@@ -1118,6 +1120,8 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_comp_type_by_comp_avg = 0;
   inter_sf->disable_interinter_wedge_newmv_search = 0;
   inter_sf->prune_motion_mode_level = 0;
+  inter_sf->mvd_sign_derive_prune_level = 0;
+  inter_sf->mvd_sign_derive_prune_margin_pct = 0;
   inter_sf->prune_comp_type_by_model_rd = 0;
   inter_sf->perform_best_rd_based_gating_for_chroma = 0;
   inter_sf->disable_interinter_wedge = 0;
