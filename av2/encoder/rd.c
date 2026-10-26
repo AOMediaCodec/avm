@@ -72,8 +72,8 @@ static const int use_intra_ext_tx_for_txsize[EXT_TX_SETS_INTRA]
 static const int
     use_inter_ext_tx_for_txsize[EXT_TX_SETS_INTER][EXT_TX_SIZES] = {
       { 1, 1, 1, 1 },  // unused
-      { 1, 1, 0, 0 },  // EXT_TX_SET_ALL16
-      { 0, 0, 1, 0 },  // EXT_TX_SET_DTT9_IDTX_1DDCT
+      { 1, 1, 0, 0 },  // EXT_TX_SET_ALL16, unused
+      { 0, 0, 1, 0 },  // EXT_TX_SET_DTT9_IDTX_1DDCT, unused
       { 0, 1, 1, 1 },  // EXT_TX_SET_DCT_IDTX
       { 0, 0, 0, 0 },  // EXT_TX_SET_DCT_IDTX_IDDCT (for reduced set only)
     };
@@ -335,7 +335,9 @@ void av2_fill_mode_rates(AV2_COMMON *const cm, ModeCosts *mode_costs,
 
     int k;
     for (k = 0; k < EOB_TX_CTXS; ++k) {
-      for (s = 1; s < EXT_TX_SETS_INTER; ++s) {
+      // Sets 1 and 2 are costed from the inter_tx_type_set/idx/offset CDFs
+      // above, so only sets 3 and 4 are filled here.
+      for (s = 3; s < EXT_TX_SETS_INTER; ++s) {
         if (cm->features.reduced_tx_set_used ||
             use_inter_ext_tx_for_txsize[s][i]) {
           const TxSetType tx_set_type = av2_ext_tx_set_idx_to_type[1][s];
@@ -349,9 +351,12 @@ void av2_fill_mode_rates(AV2_COMMON *const cm, ModeCosts *mode_costs,
 
     for (s = 1; s < EXT_TX_SETS_INTRA; ++s) {
       if (use_intra_ext_tx_for_txsize[s][i]) {
+        // Match the writer's symbol count (av2_write_tx_type()). The count
+        // also selects the probability adjustment, so a wrong one skews
+        // every cost.
+        const int nsym = (s == 1) ? INTRA_TX_SET1 : INTRA_TX_SET2;
         av2_cost_tokens_from_cdf(mode_costs->intra_tx_type_costs[s][i],
-                                 fc->intra_ext_tx_cdf[s][i], PRIMARY_TX_TYPES,
-                                 NULL);
+                                 fc->intra_ext_tx_cdf[s][i], nsym, NULL);
       }
     }
   }
