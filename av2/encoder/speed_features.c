@@ -847,6 +847,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
     sf->mv_sf.use_bsize_dependent_search_method = 1;
+    sf->mv_sf.fast_mv_search = 1;
 
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
     sf->tpl_sf.disable_filtered_key_tpl = 1;
@@ -872,6 +873,8 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.motion_mode_for_winner_cand = 2;
     if (speed == 6) sf->winner_mode_sf.motion_mode_for_winner_cand = 3;
   }
+
+  if (sf->mv_sf.fast_mv_search) sf->mv_sf.search_method = DIAMOND;
 
   if (cpi->is_screen_content_type) {
     if (speed >= 3) {
@@ -1188,6 +1191,7 @@ static AVM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->warp_search_iters = 8;
   mv_sf->warp_mv_refine_early_term = false;
   mv_sf->fast_motion_estimation_on_block_256 = 0;
+  mv_sf->fast_mv_search = 0;
 }
 
 static AVM_INLINE void init_flexmv_sf(
@@ -2405,6 +2409,9 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
     if (!frame_is_intra_only(cm))
       sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
+
+  if (is_2160p_or_larger && cm->current_frame.pyramid_level < 3)
+    sf->mv_sf.fast_mv_search = 0;
 
   if (cpi->oxcf.mode == GOOD) {
     set_erp_speed_features(cpi);
