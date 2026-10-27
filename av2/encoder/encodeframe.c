@@ -2309,6 +2309,7 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
   av2_zero(rdc->comp_pred_diff);
   av2_zero(rdc->tx_type_used);
   av2_zero(rdc->warped_used);
+  av2_zero(rdc->seg_tmp_pred_cost);
   rdc->bawp_eligible_area = 0;
   rdc->bawp_used_area = 0;
 
@@ -2566,6 +2567,17 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
   }
   if (cm->delta_q_info.delta_q_present_flag && cpi->deltaq_used == 0) {
     cm->delta_q_info.delta_q_present_flag = 0;
+  }
+
+  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cm->seg.enabled &&
+      cm->seg.update_map) {
+    cm->seg.temporal_update =
+        (!frame_is_intra_only(cm) && cm->current_frame.frame_type != S_FRAME &&
+         cm->features.primary_ref_frame != PRIMARY_REF_NONE &&
+         cm->last_frame_seg_map != NULL &&
+         rdc->seg_tmp_pred_cost[1] < rdc->seg_tmp_pred_cost[0])
+            ? 1
+            : 0;
   }
 
   // Set the transform size appropriately before bitstream creation
