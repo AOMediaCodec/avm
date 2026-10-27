@@ -2338,14 +2338,15 @@ TEST_P(TcqLoopDiagonalSt8BlockTest, RandomValues) {
 
 // Every coefficient takes the q1 decide path (orig_qIdx 0/1).
 TEST_P(TcqLoopDiagonalSt8BlockTest, Q1DecidePath) {
-  RunDecidePath(kCoeffQ1Only, "Q1DecidePath");
+  ASSERT_NO_FATAL_FAILURE(RunDecidePath(kCoeffQ1Only, "Q1DecidePath"));
   EXPECT_GT(n_q1_, 0);
   EXPECT_EQ(n_gen_, 0);
 }
 
 // Every coefficient takes the generic decide path (orig_qIdx >= 2).
 TEST_P(TcqLoopDiagonalSt8BlockTest, GenericDecidePath) {
-  RunDecidePath(kCoeffGenericOnly, "GenericDecidePath");
+  ASSERT_NO_FATAL_FAILURE(
+      RunDecidePath(kCoeffGenericOnly, "GenericDecidePath"));
   EXPECT_EQ(n_q1_, 0);
   EXPECT_GT(n_gen_, 0);
 }
