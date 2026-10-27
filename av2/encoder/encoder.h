@@ -146,7 +146,8 @@ enum {
   RESIZE_DYNAMIC = 3,  // Frames coded at lower scale based on rate control.
   RESIZE_PATTERN = 4,  // Fixed pattern for resize-mode common test conditions
   RESIZE_BRIDGE_FRAME_PATTERN = 5,  // Fixed pattern for Bridge Frame unit test
-  RESIZE_RANDOM_SUBGOP = 6,  // Keyframes and each subgop use a random scale.
+  RESIZE_RANDOM_SUBGOP = 6,   // Keyframes and each subgop use a random scale.
+  RESIZE_DYNAMIC_SUBGOP = 7,  // Keyframes and each subgop use a dynamic scale.
   RESIZE_MODES
 } UENUM1BYTE(RESIZE_MODE);
 
@@ -2818,7 +2819,8 @@ typedef struct AV2_COMP {
 
   /*!
    * Resize scale denominator chosen for the current subgop in
-   * RESIZE_RANDOM_SUBGOP mode (0 if not yet chosen for the current subgop).
+   * RESIZE_RANDOM_SUBGOP and RESIZE_DYNAMIC_SUBGOP modes (0 if not yet chosen
+   * for the current subgop).
    */
   uint8_t resize_subgop_denom;
 
