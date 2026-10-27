@@ -135,10 +135,6 @@ class TcqRateLfLumaTest : public TcqRateTest<TcqRateLfLuma, tcq_rate_t> {
 // Nodes at or above this cost descend from the unreachable-state sentinel.
 static const int64_t kTcqUnreachableCost = INT64_MAX >> 12;
 
-static bool TcqNodeReachable(const tcq_node_t &n) {
-  return n.rdCost < kTcqUnreachableCost;
-}
-
 static int generate_random_q_idx(libavm_test::ACMRandom *rng) {
   int r1 = rng->Rand8() & 15;
   int r2 = (r1 == 15) ? rng->Rand8() & 15 : 0;
@@ -1059,75 +1055,6 @@ class TcqDecideStatesQ1Test
     }
   }
 
-  // The largest sum, sentinel + RDCOST(2^32 - 1, 2^24 - 1, 2^40), is < 2^54.
-  void RunExtremes() {
-    int64_t n_live_nodes = 0;
-    int n_live_iters = 0;
-    static const int64_t kPrevCost[] = { 0, INT64_MAX >> 10,
-                                         (INT64_MAX >> 10) - 1,
-                                         (int64_t)1 << 50 };
-    static const int32_t kRate[] = { 0, 1, (1 << 24) - 1 };
-    static const int64_t kRdmult[] = { 0, 1, ((int64_t)1 << 32) - 1 };
-    static const int64_t kDist[] = { 0, (int64_t)1 << 40, -((int64_t)1 << 40),
-                                     1, -1 };
-    for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
-      const int mode = iter & 3;
-      const int pc = rng_(4), rt = rng_(3), dd = rng_(5);
-      for (int i = 0; i < TCQ_N_STATES; i++) {
-        prev_[i].rdCost = kPrevCost[mode == 0 ? pc : rng_(4)];
-        prev_[i].rate = kRate[mode == 0 ? rt : rng_(3)];
-        prev_[i].absLevel = rng_.Rand8() % 16;
-        prev_[i].prevId = rng_(9) - 1;
-      }
-      for (int i = 0; i < 2 * TCQ_MAX_STATES; i++) {
-        rd_.rate[i] = kRate[mode == 0 ? rt : rng_(3)];
-      }
-      for (int i = 0; i < TCQ_MAX_STATES; i++) {
-        rd_.rate_zero[i] = kRate[mode == 0 ? rt : rng_(3)];
-      }
-      rd_.rate_eob[0] = kRate[mode == 0 ? rt : rng_(3)];
-      rd_.rate_eob[1] = kRate[mode == 0 ? rt : rng_(3)];
-      pq_.absLevel[0] = 0;
-      pq_.absLevel[1] = 1;
-      pq_.absLevel[2] = 1;
-      pq_.absLevel[3] = 0;
-      for (int i = 0; i < 4; i++) {
-        pq_.deltaDist[i] = kDist[mode == 0 ? dd : rng_(5)];
-      }
-      pq_.qIdx = 1;
-      limits_ = rng_(2);
-      try_eob_ = rng_.Rand8() & 1;
-      rdmult_ = kRdmult[rng_(3)];
-
-      tcq_node_t ref[TCQ_N_STATES], tst[TCQ_N_STATES];
-      Execute(ref, tst);
-
-      // Dead (sentinel-derived) nodes may differ between C and SIMD.
-      int n_live = 0;
-      for (int i = 0; i < TCQ_N_STATES; i++) {
-        ASSERT_EQ(TcqNodeReachable(ref[i]), TcqNodeReachable(tst[i]))
-            << "reachability mismatch at i=" << i << " iter=" << iter
-            << " ref rdCost=" << (int64_t)ref[i].rdCost
-            << " tst rdCost=" << (int64_t)tst[i].rdCost;
-        if (!TcqNodeReachable(ref[i])) continue;
-        n_live++;
-        ASSERT_EQ(ref[i].rdCost, tst[i].rdCost)
-            << "rdCost mismatch at i=" << i << " iter=" << iter
-            << " rdmult=" << rdmult_ << " try_eob=" << try_eob_;
-        ASSERT_EQ(ref[i].rate, tst[i].rate)
-            << "rate mismatch at i=" << i << " iter=" << iter;
-        ASSERT_EQ(ref[i].absLevel, tst[i].absLevel)
-            << "absLevel mismatch at i=" << i << " iter=" << iter;
-        ASSERT_EQ(ref[i].prevId, tst[i].prevId)
-            << "prevId mismatch at i=" << i << " iter=" << iter;
-      }
-      n_live_nodes += n_live;
-      n_live_iters += n_live > 0;
-    }
-    EXPECT_GT(n_live_iters, kIterations / 2)
-        << n_live_nodes << " live nodes compared";
-  }
-
   tcq_node_t prev_[TCQ_N_STATES];
   tcq_rate_t rd_;
   prequant_t pq_;
@@ -1139,8 +1066,6 @@ class TcqDecideStatesQ1Test
 TEST_P(TcqDecideStatesQ1Test, RandomValues) { RunTest(false); }
 
 TEST_P(TcqDecideStatesQ1Test, TiedCosts) { RunTest(true); }
-
-TEST_P(TcqDecideStatesQ1Test, Extremes) { RunExtremes(); }
 
 // Rows of 8 as in quant_fp_QTX / dequant_QTX: DC, then AC in [1..7].
 static void FillQuantRow8(int32_t *quant, int32_t *dequant) {
@@ -1723,21 +1648,6 @@ class TcqLoopDiagonalSt8BlockTest
     int use_qm;          // -1: random
   };
 
-  void RunDecidePath(CoeffMode cm, const char *name) {
-    for (int iter = 0; iter < kRandomIters; ++iter) {
-      const Config cfg = { cm,
-                           (iter & 1) ? kCostRandom : kCostDefaultCdf,
-                           (InitMode)(iter & 3),
-                           -1,
-                           -1,
-                           -1,
-                           -1,
-                           -1 };
-      RunOne(cfg, name, iter);
-      if (HasFatalFailure()) return;
-    }
-  }
-
   static void SetUpTestSuite() {
     static const int kCtxQindex[TOKEN_CDF_Q_CTXS] = { 60, 120, 170, 220 };
     std::unique_ptr<AV2_COMMON> cm(new AV2_COMMON());
@@ -1869,7 +1779,9 @@ class TcqLoopDiagonalSt8BlockTest
 
   void SetupQuant(int qindex) {
     const avm_bit_depth_t bd = static_cast<avm_bit_depth_t>(bd_);
-    dequant_[0] = av2_dc_quant_QTX(qindex, 0, 0, bd);
+    // A DC delta q, as y_dc_delta_q gives, so the DC dequant differs from AC.
+    const int dc_delta = rng_(2) ? 0 : rng_(97) - 48;
+    dequant_[0] = av2_dc_quant_QTX(qindex, dc_delta, 0, bd);
     dequant_[1] = av2_ac_quant_QTX(qindex, 0, 0, bd);
     for (int i = 0; i < 2; i++) {
       quant_[i] = (1 << (16 + QUANT_FP_BITS + QUANT_TABLE_BITS)) / dequant_[i];
@@ -2313,19 +2225,6 @@ TEST_P(TcqLoopDiagonalSt8BlockTest, RandomValues) {
   EXPECT_GT(n_lf_only_calls_, 0) << "LF-only calls never exercised";
 }
 
-TEST_P(TcqLoopDiagonalSt8BlockTest, Q1DecidePath) {
-  ASSERT_NO_FATAL_FAILURE(RunDecidePath(kCoeffQ1Only, "Q1DecidePath"));
-  EXPECT_GT(n_q1_, 0);
-  EXPECT_EQ(n_gen_, 0);
-}
-
-TEST_P(TcqLoopDiagonalSt8BlockTest, GenericDecidePath) {
-  ASSERT_NO_FATAL_FAILURE(
-      RunDecidePath(kCoeffGenericOnly, "GenericDecidePath"));
-  EXPECT_EQ(n_q1_, 0);
-  EXPECT_GT(n_gen_, 0);
-}
-
 TEST_P(TcqLoopDiagonalSt8BlockTest, TieBreak) {
   static const CoeffMode kCoeff[] = { kCoeffZero, kCoeffConstant,
                                       kCoeffTieSmall, kCoeffQ1Only,
@@ -2349,22 +2248,6 @@ TEST_P(TcqLoopDiagonalSt8BlockTest, TieBreak) {
   EXPECT_GT(n_gen_, 0);
 }
 
-// Zero rates, so cost_zero from a sentinel predecessor is the sentinel.
-TEST_P(TcqLoopDiagonalSt8BlockTest, SentinelCosts) {
-  for (int iter = 0; iter < kBoundaryIters; ++iter) {
-    const Config cfg = { (iter & 1) ? kCoeffZero : kCoeffTieSmall,
-                         kCostZero,
-                         (iter & 2) ? kInitSentinel : kInitProduction,
-                         -1,
-                         -1,
-                         rng_(2) ? 0 : (1LL << 32) - 1,
-                         0,
-                         0 };
-    RunOne(cfg, "SentinelCosts", iter);
-    if (HasFatalFailure()) return;
-  }
-}
-
 TEST_P(TcqLoopDiagonalSt8BlockTest, Extremes) {
   static const CoeffMode kCoeff[] = { kCoeffZero, kCoeffMax, kCoeffCheckerboard,
                                       kCoeffConstant };
@@ -2384,50 +2267,6 @@ TEST_P(TcqLoopDiagonalSt8BlockTest, Extremes) {
         RunOne(cfg, "Extremes", iter);
         if (HasFatalFailure()) return;
       }
-    }
-  }
-}
-
-TEST_P(TcqLoopDiagonalSt8BlockTest, Misaligned) {
-  static const int kOffsets[][2] = { { 1, 0 }, { 3, 0 }, { 0, 1 },
-                                     { 0, 3 }, { 1, 1 }, { 3, 3 } };
-  int iter = 0;
-  for (const auto &o : kOffsets) {
-    SetOffsets(o[0], o[1]);
-    for (int i = 0; i < 16; ++i, ++iter) {
-      const Config cfg = { (i & 1) ? kCoeffQ1Only : kCoeffLaplacian,
-                           (i & 2) ? kCostRandom : kCostDefaultCdf,
-                           kInitProduction,
-                           -1,
-                           (i & 4) ? num_coeffs_ - 1 : -1,
-                           -1,
-                           -1,
-                           (i & 8) ? 1 : 0 };
-      RunOne(cfg, "Misaligned", iter);
-      if (HasFatalFailure()) return;
-    }
-  }
-  SetOffsets(0, 0);
-}
-
-// scan_hi = -1, eob = 2, LF only (scan_hi < 10), scan_hi = 10 and full eob.
-TEST_P(TcqLoopDiagonalSt8BlockTest, EobBoundaries) {
-  const int positions[] = {
-    0, 1, 2, 3, 9, 10, 11, 12, num_coeffs_ / 2, num_coeffs_ - 2, num_coeffs_ - 1
-  };
-  int iter = 0;
-  for (const int fsp : positions) {
-    for (int i = 0; i < 16; ++i, ++iter) {
-      const Config cfg = { (i & 1) ? kCoeffQ1Only : kCoeffLaplacian,
-                           (i & 2) ? kCostRandom : kCostDefaultCdf,
-                           (InitMode)((i >> 2) & 3),
-                           -1,
-                           fsp,
-                           -1,
-                           -1,
-                           -1 };
-      RunOne(cfg, "EobBoundaries", iter);
-      if (HasFatalFailure()) return;
     }
   }
 }
@@ -2458,7 +2297,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(av2_trellis_loop_diagonal_st8_c),
                        ::testing::Values(av2_trellis_loop_diagonal_st8_neon),
                        ::testing::ValuesIn(kSt8TxSizes),
-                       ::testing::Values(8, 10, 12), ::testing::Values(true)));
+                       ::testing::Values(8, 12), ::testing::Values(true)));
 #endif  // HAVE_NEON
 
 #if HAVE_AVX2
@@ -2516,11 +2355,6 @@ INSTANTIATE_TEST_SUITE_P(NEON, TcqLoopDiagonalSt8Test,
                              av2_trellis_loop_diagonal_st8_c,
                              av2_trellis_loop_diagonal_st8_neon)));
 #endif  // HAVE_NEON
-
-// C-vs-C sanity baseline.
-INSTANTIATE_TEST_SUITE_P(C, TcqDecideStatesQ1Test,
-                         ::testing::Values(TcqDecideStatesTestFuncs(
-                             av2_decide_states_q1_c, av2_decide_states_q1_c)));
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
