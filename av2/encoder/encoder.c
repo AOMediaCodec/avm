@@ -2061,6 +2061,7 @@ void av2_remove_compressor(AV2_COMP *cpi) {
   if (mt_info->num_workers > 1) {
     av2_loop_filter_dealloc(&mt_info->lf_row_sync);
     av2_loop_restoration_dealloc(&mt_info->lr_row_sync, mt_info->num_workers);
+    av2_ccso_filter_dealloc(&mt_info->ccso_sync);
     av2_gm_dealloc(&mt_info->gm_sync);
   }
 
@@ -2758,10 +2759,11 @@ void av2_set_frame_size(AV2_COMP *cpi, int width, int height) {
   // be changed to 0 when encoding the frame for single_picture_header_flag.
   const int use_cdef = cpi->oxcf.tool_cfg.enable_cdef;
   if (!is_stat_generation_stage(cpi) && use_cdef) {
-    AV2CdefWorkerData *cdef_worker = NULL;
-    AV2CdefSync cdef_sync = { 0 };
-    av2_alloc_cdef_buffers(cm, &cdef_worker /* dummy */, &cdef_sync /* dummy */,
-                           1);
+    MultiThreadInfo *const mt_info = &cpi->mt_info;
+    const int cdef_num_workers = AVMMAX(mt_info->num_workers, 1);
+    av2_alloc_cdef_buffers(cm, &mt_info->cdef_worker, &mt_info->cdef_sync,
+                           cdef_num_workers);
+    av2_alloc_cdef_sync(cm, &mt_info->cdef_sync, cdef_num_workers);
   }
 
   const int frame_width = cm->width;
@@ -3354,6 +3356,9 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
 
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const int num_workers = mt_info->num_workers;
+  // Threads for the CDEF search and filtering, and for the CCSO filtering.
+  const int cdef_num_workers = cpi->sf.lpf_sf.enable_cdef_mt ? num_workers : 1;
+  const int ccso_num_workers = cpi->sf.lpf_sf.enable_ccso_mt ? num_workers : 1;
   if (use_restoration)
     av2_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 0);
   else {
@@ -3369,11 +3374,19 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
                     &cpi->td,
 #endif  // CONFIG_ENTROPY_STATS
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult,
-                    cpi->sf.lc_sf.bias_against_cdef);
+                    cpi->sf.lc_sf.bias_against_cdef, mt_info->workers,
+                    cdef_num_workers);
 
     // Apply the filter
-    if (cm->cdef_info.cdef_frame_enable)
-      av2_cdef_frame(&cm->cur_frame->buf, cm, xd, av2_cdef_init_fb_row);
+    if (cm->cdef_info.cdef_frame_enable) {
+      if (cdef_num_workers > 1 && mt_info->cdef_worker != NULL &&
+          !cm->seq_params.disable_loopfilters_across_tiles)
+        av2_cdef_frame_mt(cm, xd, mt_info->cdef_worker, mt_info->workers,
+                          &mt_info->cdef_sync, cdef_num_workers,
+                          av2_cdef_init_fb_row_mt);
+      else
+        av2_cdef_frame(&cm->cur_frame->buf, cm, xd, av2_cdef_init_fb_row);
+    }
 
 #if CONFIG_MISMATCH_DEBUG
     mismatch_record_frame(&cm->cur_frame->buf, num_planes, 1);
@@ -3441,7 +3454,12 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
                     cpi->error_resilient_frame_seen,
                     cpi->sf.lpf_sf.early_terminate_ccso_search_by_cost,
                     cpi->sf.lpf_sf.ccso_chroma_dep);
-    ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
+    if (ccso_num_workers > 1 &&
+        !cm->seq_params.disable_loopfilters_across_tiles)
+      av2_ccso_frame_mt(&cm->cur_frame->buf, cm, xd, mt_info->workers,
+                        ccso_num_workers, ext_rec_y, &mt_info->ccso_sync);
+    else
+      ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
 #if CONFIG_MISMATCH_DEBUG
     mismatch_record_frame(&cm->cur_frame->buf, num_planes, 2);
 #endif
