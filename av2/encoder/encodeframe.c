@@ -256,8 +256,9 @@ static AVM_INLINE void setup_delta_q(AV2_COMP *const cpi, ThreadData *td,
   // current_qindex to base_qindex.
   if (cpi->oxcf.algo_cfg.enable_tpl_model &&
       cpi->oxcf.q_cfg.deltaq_mode != NO_DELTA_Q) {
-    current_qindex =
-        clamp(current_qindex, delta_q_res, 256 - delta_q_info->delta_q_res);
+    current_qindex = clamp(
+        current_qindex, delta_q_res,
+        MAXQ_FOR_GIVEN_BIT_DEPTH(cm->seq_params.bit_depth) + 1 - delta_q_res);
   } else {
     current_qindex = cm->quant_params.base_qindex;
   }

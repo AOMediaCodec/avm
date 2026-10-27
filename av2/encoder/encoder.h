@@ -1056,7 +1056,7 @@ typedef struct {
   //   emulate 'layers'.
   int max_layer_depth_allowed;
   // This is currently only populated for AVM_Q mode
-  unsigned char q_val[MAX_STATIC_GF_GROUP_LENGTH];
+  int q_val[MAX_STATIC_GF_GROUP_LENGTH];
   int bit_allocation[MAX_STATIC_GF_GROUP_LENGTH];
   int arf_index;  // the index in the gf group of ARF, if no arf, then -1
   int size;
