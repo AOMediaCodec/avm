@@ -9657,7 +9657,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                struct macroblock *x, struct RD_STATS *rd_cost,
                                BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
                                int64_t best_rd_so_far,
-                               bool skip_inter_modes_by_none_part) {
+                               bool skip_inter_modes_by_none_part,
+                               bool *early_terminate_partition_by_best_mode) {
   // WARNING: on the dry pass, all exits must go through dry_pass_cleanup —
   // use `goto dry_pass_cleanup;` instead of `return`.
   const bool apply_dry_pass_shortcuts = x->apply_dry_pass_shortcuts;
@@ -10366,6 +10367,22 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         have_nearmv_in_inter_mode(search_state.best_mbmode.mode))) {
     search_state.best_mbmode.ref_mv_idx[0] = 0;
     search_state.best_mbmode.ref_mv_idx[1] = 0;
+  }
+
+  // The block sizes specified here will be reset in wet pass
+  // However, they are used to draw a conclusion whether to split
+  // a block or not in wet pass.
+  // If no new mv is found, splitting the block will not have greater advantage.
+  // Therefore partition search can be terminated at the first instance in dry
+  // pass.
+  if (cpi->sf.inter_sf.early_terminate_search_by_best_mode &&
+      early_terminate_partition_by_best_mode && x->apply_dry_pass_shortcuts &&
+      (!have_newmv_in_inter_mode(search_state.best_mbmode.mode) ||
+       search_state.best_mbmode.mode < NEARMV ||
+       search_state.best_mbmode.mode == MODE_INVALID) &&
+      !is_bsize_geq(bsize,
+                    get_larger_sqr_bsize(x->sb_enc.min_partition_size))) {
+    *early_terminate_partition_by_best_mode = true;
   }
 
   if (search_state.best_mbmode.mode == MODE_INVALID ||

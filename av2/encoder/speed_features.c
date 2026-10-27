@@ -805,6 +805,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.disable_skip_mode_in_dry_pass = true;
     sf->inter_sf.dry_pass_skip_warp_min_pyr_level =
         DRY_PASS_SKIP_WARP_MIN_PYR_LEVEL;
+    sf->inter_sf.early_terminate_search_by_best_mode = 1;
     sf->part_sf.prune_inter_modes_by_none_part = 1;
     // Dry pass MV precision cap; ranks partitions only.
     sf->inter_sf.dry_pass_mv_prec_from_top =
@@ -1131,6 +1132,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->reuse_erp_mode_flag = 0;
   inter_sf->prune_warpmv_prob_thresh = 32;
   inter_sf->dry_pass_skip_warp_min_pyr_level = 0;
+  inter_sf->early_terminate_search_by_best_mode = 0;
   inter_sf->prune_amvd_newmv = 0;
   inter_sf->prune_amvd = false;
   inter_sf->enable_enhanced_inter_mode_cache_reuse = 0;
@@ -1938,6 +1940,8 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
     if (!frame_is_intra_only(cm))
       sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_OFF;
   }
+
+  if (is_2160p_or_larger) sf->inter_sf.early_terminate_search_by_best_mode = 0;
 
   if (cpi->oxcf.mode == GOOD) {
     set_erp_speed_features(cpi);
