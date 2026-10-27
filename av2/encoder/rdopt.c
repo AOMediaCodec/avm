@@ -9634,6 +9634,23 @@ static void try_intrabc_after_inter_search(
   ctx->rd_stats.skip_txfm = mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
 }
 
+// Returns the number of AMVD (Adaptive MV Delta) loop iterations to evaluate
+//   1 -> only use_amvd = 0 (standard MV)
+//   2 -> both use_amvd = 0 and use_amvd = 1 (standard + AMVD-coded MV)
+static AVM_INLINE int get_num_amvd_modes(int enable_adaptive_mvd,
+                                         int prune_amvd,
+                                         PREDICTION_MODE this_mode,
+                                         bool apply_dry_pass_shortcuts,
+                                         bool skip_amvd_search_in_dry_pass) {
+  if (!enable_adaptive_mvd || !allow_amvd_mode(this_mode)) return 1;
+  if (apply_dry_pass_shortcuts && skip_amvd_search_in_dry_pass) return 1;
+  const bool amvd_suppressed_for_mode =
+      prune_amvd &&
+      (this_mode == NEAR_NEWMV || this_mode == NEAR_NEWMV_OPTFLOW ||
+       this_mode == NEW_NEARMV || this_mode == NEW_NEARMV_OPTFLOW);
+  return 1 + !amvd_suppressed_for_mode;
+}
+
 // TODO(chiyotsai@google.com): See the todo for av2_rd_pick_intra_mode_sb.
 void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                struct TileDataEnc *tile_data,
@@ -10104,15 +10121,11 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     args.single_comp_cost = real_compmode_cost;
     args.ref_frame_cost = ref_frame_cost;
 
-    const bool amvd_suppressed_for_mode =
-        inter_sf->prune_amvd &&
-        (this_mode == NEAR_NEWMV || this_mode == NEAR_NEWMV_OPTFLOW ||
-         this_mode == NEW_NEARMV || this_mode == NEW_NEARMV_OPTFLOW);
-    const int num_amvd_modes =
-        1 + (enable_adaptive_mvd && allow_amvd_mode(this_mode) &&
-             !amvd_suppressed_for_mode);
-    const int amvd_inverted = is_amvd_inverted_mode(this_mode);
+    const int num_amvd_modes = get_num_amvd_modes(
+        enable_adaptive_mvd, inter_sf->prune_amvd, this_mode,
+        apply_dry_pass_shortcuts, inter_sf->skip_amvd_search_in_dry_pass);
 
+    const int amvd_inverted = is_amvd_inverted_mode(this_mode);
     // Normally, NEAR_NEWMV* and NEW_NEARMV* (amvd_inverted) test use_amvd = 1
     // first and skip use_amvd = 0 if use_amvd = 1 did not win. However, if
     // use_amvd = 1 was not tested (either suppressed by num_amvd_modes == 1 or
