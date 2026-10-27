@@ -999,7 +999,8 @@ static void setup_planes(AV2_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 
   // Check if other enabled reference frames provide a better zero-MV
   // predictor for partitioning, biasing toward last_frame by factor 0.9.
-  if ((x->source_sad_level != kZeroSad || !use_last_ref) && *y_sad > 0) {
+  if ((x->source_sad_level != kZeroSad || !use_last_ref) && *y_sad > 0 &&
+      !x->sb_me_partition) {
     MV_REFERENCE_FRAME best_other_ref = NONE_FRAME;
     unsigned int best_other_sad = UINT_MAX;
     const YV12_BUFFER_CONFIG *best_other_yv12 = NULL;
