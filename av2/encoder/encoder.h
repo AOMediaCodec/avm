@@ -1891,6 +1891,21 @@ typedef struct {
   AV2LrSync lr_row_sync;
 
   /*!
+   * CDEF multi-threading object.
+   */
+  AV2CdefSync cdef_sync;
+
+  /*!
+   * CDEF per-worker buffers.
+   */
+  AV2CdefWorkerData *cdef_worker;
+
+  /*!
+   * CCSO multi-threading object.
+   */
+  AV2CcsoSync ccso_sync;
+
+  /*!
    * Global Motion multi-threading object.
    */
   AV2GlobalMotionSync gm_sync;
