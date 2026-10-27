@@ -807,6 +807,12 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
           dry_pass_rd_bound(x, cm->sb_size, mi_row, mi_col, bsize);
       const bool warmstart_applied =
           warmstart_bound > 0 && warmstart_bound < best_rd.rdcost;
+      x->cur_dry_pass_rd = 0;
+      if (x->may_consume_dry_pass_info) {
+        const int slot_idx =
+            dry_pass_rd_slot(cm->sb_size, mi_row, mi_col, bsize);
+        if (slot_idx >= 0) x->cur_dry_pass_rd = x->unit_dry_rd[slot_idx];
+      }
       av2_rd_pick_inter_mode_sb(
           cpi, tile_data, x, rd_cost, bsize, ctx,
           warmstart_applied ? warmstart_bound : best_rd.rdcost,

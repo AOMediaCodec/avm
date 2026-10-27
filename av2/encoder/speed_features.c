@@ -154,6 +154,16 @@ static void set_good_speed_feature_framesize_dependent(
     if (!is_480p_or_larger) sf->flexmv_sf.do_not_search_4_pel_precision = 1;
   }
 
+  // Learned budget for the inter mode candidates (inter_cand_gate.h), per
+  // speed. The model was trained on clips below 4K and skips more winners at
+  // 4K, so 4K uses a lower level at speeds 1, 4 and 5.
+  static const int inter_cand_gate_level[2][7] = {
+    { 0, 2, 2, 2, 3, 3, 4 },  // Below 4K.
+    { 0, 1, 2, 2, 2, 2, 4 },  // 4K and larger.
+  };
+  sf->inter_sf.inter_cand_gate_level =
+      inter_cand_gate_level[is_4k_or_larger][AVMMIN(speed, 6)];
+
   if (is_480p_or_larger) {
     if (is_720p_or_larger)
       sf->part_sf.auto_max_partition_based_on_simple_motion = ADAPT_PRED;
@@ -1161,6 +1171,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->limit_max_ref_mv_idx = false;
   inter_sf->limit_single_ref_mv_idx = 0;
   inter_sf->skip_amvd_search_in_dry_pass = false;
+  inter_sf->inter_cand_gate_level = 0;
 }
 
 static AVM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {

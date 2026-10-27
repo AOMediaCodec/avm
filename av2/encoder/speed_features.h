@@ -1068,6 +1068,16 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Both conditions must hold for the skip to take effect (see
   // get_num_amvd_modes()). Enabled for speed >= 3.
   bool skip_amvd_search_in_dry_pass;
+
+  // Learned budget for the inter mode candidates of the full-tool search.
+  // Before each (prediction mode, reference frame pair) candidate, a small
+  // MLP predicts the chance that the candidate wins the block; the candidate
+  // is skipped when the chance is below a threshold. The gate acts only after
+  // the block has a valid mode.
+  // 0: off.
+  // 1: never skips single-reference NEWMV.
+  // 2 to 4: thresholds from low to high (more candidates skipped).
+  int inter_cand_gate_level;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
