@@ -1013,6 +1013,12 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Maximum number of ref_mv_idx candidates searched for single-reference
   // modes (excluding WARPMV) in the full (non-dry) pass. 0: no cap.
   int limit_single_ref_mv_idx;
+
+  // Skip the AMVD (use_amvd = 1) loop iteration in the partition-search dry
+  // pass. Evaluated only when apply_dry_pass_shortcuts is also true.
+  // Both conditions must hold for the skip to take effect (see
+  // get_num_amvd_modes()). Enabled for speed >= 3.
+  bool skip_amvd_search_in_dry_pass;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
