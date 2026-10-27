@@ -1684,47 +1684,43 @@ class TcqLoopDiagonalSt8BlockTest
     scan_tbl_ = get_scan(tx_size_, DCT_DCT)->scan;
     for (int i = 0; i < num_coeffs_; i++) iscan_[scan_tbl_[i]] = i;
 
-    tcoeff_base_ = Alloc<tran_low_t>(MAX_TRELLIS + kMaxOffset);
-    qcoeff_base_ = Alloc<tran_low_t>(MAX_TRELLIS + kMaxOffset);
-    tmp_sign_base_ = Alloc<int32_t>(MAX_TRELLIS + kMaxOffset);
-    block_eob_rate_base_ = Alloc<uint16_t>(MAX_TRELLIS + kMaxOffset);
-    iqmatrix_base_ = Alloc<qm_val_t>(MAX_TRELLIS + kMaxOffset);
-    scan_base_ = Alloc<int16_t>(MAX_TRELLIS + kMaxOffset);
-    trellis_ref_base_ =
-        Alloc<tcq_node_t>(MAX_TRELLIS * TCQ_MAX_STATES + kMaxOffset);
-    trellis_tst_base_ =
-        Alloc<tcq_node_t>(MAX_TRELLIS * TCQ_MAX_STATES + kMaxOffset);
-    ctx_ref_base_ = Alloc<uint8_t>(sizeof(tcq_ctx_t) + kMaxOffset);
-    ctx_tst_base_ = Alloc<uint8_t>(sizeof(tcq_ctx_t) + kMaxOffset);
+    scan_ = scan_tbl_;
+
+    tcoeff_ = Alloc<tran_low_t>(MAX_TRELLIS);
+    qcoeff_ = Alloc<tran_low_t>(MAX_TRELLIS);
+    tmp_sign_ = Alloc<int32_t>(MAX_TRELLIS);
+    block_eob_rate_ = Alloc<uint16_t>(MAX_TRELLIS);
+    iqmatrix_ = Alloc<qm_val_t>(MAX_TRELLIS);
+    trellis_ref_ = Alloc<tcq_node_t>(MAX_TRELLIS * TCQ_MAX_STATES);
+    trellis_tst_ = Alloc<tcq_node_t>(MAX_TRELLIS * TCQ_MAX_STATES);
+    ctx_ref_ = Alloc<tcq_ctx_t>(1);
+    ctx_tst_ = Alloc<tcq_ctx_t>(1);
     rand_costs_ = Alloc<LV_MAP_COEFF_COST>(1);
-    ASSERT_NE(tcoeff_base_, nullptr);
-    ASSERT_NE(qcoeff_base_, nullptr);
-    ASSERT_NE(tmp_sign_base_, nullptr);
-    ASSERT_NE(block_eob_rate_base_, nullptr);
-    ASSERT_NE(iqmatrix_base_, nullptr);
-    ASSERT_NE(scan_base_, nullptr);
-    ASSERT_NE(trellis_ref_base_, nullptr);
-    ASSERT_NE(trellis_tst_base_, nullptr);
-    ASSERT_NE(ctx_ref_base_, nullptr);
-    ASSERT_NE(ctx_tst_base_, nullptr);
+    ASSERT_NE(tcoeff_, nullptr);
+    ASSERT_NE(qcoeff_, nullptr);
+    ASSERT_NE(tmp_sign_, nullptr);
+    ASSERT_NE(block_eob_rate_, nullptr);
+    ASSERT_NE(iqmatrix_, nullptr);
+    ASSERT_NE(trellis_ref_, nullptr);
+    ASSERT_NE(trellis_tst_, nullptr);
+    ASSERT_NE(ctx_ref_, nullptr);
+    ASSERT_NE(ctx_tst_, nullptr);
     ASSERT_NE(rand_costs_, nullptr);
     memset(rand_costs_, 0, sizeof(*rand_costs_));
-    memset(tmp_sign_base_, 0, sizeof(int32_t) * (MAX_TRELLIS + kMaxOffset));
-    SetOffsets(0, 0);
+    memset(tmp_sign_, 0, sizeof(int32_t) * MAX_TRELLIS);
     n_q1_ = n_gen_ = n_def_calls_ = n_lf_only_calls_ = n_ties_ = 0;
   }
 
   void TearDown() override {
-    avm_free(tcoeff_base_);
-    avm_free(qcoeff_base_);
-    avm_free(tmp_sign_base_);
-    avm_free(block_eob_rate_base_);
-    avm_free(iqmatrix_base_);
-    avm_free(scan_base_);
-    avm_free(trellis_ref_base_);
-    avm_free(trellis_tst_base_);
-    avm_free(ctx_ref_base_);
-    avm_free(ctx_tst_base_);
+    avm_free(tcoeff_);
+    avm_free(qcoeff_);
+    avm_free(tmp_sign_);
+    avm_free(block_eob_rate_);
+    avm_free(iqmatrix_);
+    avm_free(trellis_ref_);
+    avm_free(trellis_tst_);
+    avm_free(ctx_ref_);
+    avm_free(ctx_tst_);
     avm_free(rand_costs_);
     libavm_test::ClearSystemState();
   }
@@ -1732,33 +1728,10 @@ class TcqLoopDiagonalSt8BlockTest
  protected:
   static const int kRandomIters = 1000;
   static const int kBoundaryIters = 100;
-  static const int kMaxOffset = 8;
 
   template <typename T>
   static T *Alloc(int n) {
     return static_cast<T *>(avm_memalign(64, sizeof(T) * n));
-  }
-
-  // Offsets are in elements, except tcq_ctx_t's in bytes.
-  void SetOffsets(int in_off, int out_off) {
-    in_off_ = in_off;
-    out_off_ = out_off;
-    tcoeff_ = tcoeff_base_ + in_off;
-    qcoeff_ = qcoeff_base_ + in_off;
-    tmp_sign_ = tmp_sign_base_ + in_off;
-    block_eob_rate_ = block_eob_rate_base_ + in_off;
-    iqmatrix_ = iqmatrix_base_ + in_off;
-    if (in_off) {
-      int16_t *s = scan_base_ + in_off;
-      memcpy(s, scan_tbl_, sizeof(int16_t) * num_coeffs_);
-      scan_ = s;
-    } else {
-      scan_ = scan_tbl_;
-    }
-    trellis_ref_ = trellis_ref_base_ + out_off;
-    trellis_tst_ = trellis_tst_base_ + out_off;
-    ctx_ref_ = reinterpret_cast<tcq_ctx_t *>(ctx_ref_base_ + out_off);
-    ctx_tst_ = reinterpret_cast<tcq_ctx_t *>(ctx_tst_base_ + out_off);
   }
 
   int MaxQindex() const {
@@ -2031,8 +2004,7 @@ class TcqLoopDiagonalSt8BlockTest
        << (int)tx_size_ << ") bd=" << bd_ << " iter=" << iter
        << " first_scan_pos=" << first_scan_pos_ << " qindex=" << qindex_
        << " rdmult=" << rdmult_ << " sharpness=" << sharpness_
-       << " qm=" << (param_.iqmatrix != NULL) << " in_off=" << in_off_
-       << " out_off=" << out_off_;
+       << " qm=" << (param_.iqmatrix != NULL);
     return os.str();
   }
 
@@ -2175,17 +2147,14 @@ class TcqLoopDiagonalSt8BlockTest
   const int16_t *scan_tbl_;
   const int16_t *scan_;
   int iscan_[MAX_TRELLIS];
-  int in_off_ = 0, out_off_ = 0;
 
-  tran_low_t *tcoeff_base_, *tcoeff_;
-  tran_low_t *qcoeff_base_, *qcoeff_;
-  int32_t *tmp_sign_base_, *tmp_sign_;
-  uint16_t *block_eob_rate_base_, *block_eob_rate_;
-  qm_val_t *iqmatrix_base_, *iqmatrix_;
-  int16_t *scan_base_;
-  tcq_node_t *trellis_ref_base_, *trellis_ref_;
-  tcq_node_t *trellis_tst_base_, *trellis_tst_;
-  uint8_t *ctx_ref_base_, *ctx_tst_base_;
+  tran_low_t *tcoeff_;
+  tran_low_t *qcoeff_;
+  int32_t *tmp_sign_;
+  uint16_t *block_eob_rate_;
+  qm_val_t *iqmatrix_;
+  tcq_node_t *trellis_ref_;
+  tcq_node_t *trellis_tst_;
   tcq_ctx_t *ctx_ref_;
   tcq_ctx_t *ctx_tst_;
   LV_MAP_COEFF_COST *rand_costs_;
