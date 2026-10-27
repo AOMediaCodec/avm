@@ -2626,6 +2626,21 @@ class AV2ConvolveNonSepSymTestBase : public ::testing::TestWithParam<WnsParam> {
     RunLayout(l, 200);
   }
 
+  // Drops the center row: the shortened config is a prefix of the SIMD table,
+  // but C then applies no center tap, so the old center tap must be ignored.
+  void RunNoCenterTap(bool by_contents) {
+    if (by_contents) UseConfigCopies();
+    --cfg_.num_pixels;
+    if (dual_) --cfg_.num_pixels2;
+    center_ = center2_ = -1;
+    const WnsLayout l = DefaultLayout();
+    for (int i = 0; i < 200; ++i) {
+      FillRandom(l);
+      RandomTaps(false);
+      ASSERT_NO_FATAL_FAILURE(RunComparison(l, i, "no-center-tap"));
+    }
+  }
+
   void RunSpeed() {
     const WnsLayout l = DefaultLayout();
     FillRandom(l);
@@ -2682,6 +2697,8 @@ class AV2ConvolveNonSepSymTestBase : public ::testing::TestWithParam<WnsParam> {
   TEST_P(Suite, MisalignedSrcAndDst) { RunMisalignedSrcAndDst(); }   \
   TEST_P(Suite, PartialBlockOffsets) { RunPartialBlockOffsets(); }   \
   TEST_P(Suite, ConfigByContents) { RunConfigByContents(); }         \
+  TEST_P(Suite, NoCenterTap) { RunNoCenterTap(false); }              \
+  TEST_P(Suite, NoCenterTapByContents) { RunNoCenterTap(true); }     \
   TEST_P(Suite, DISABLED_Speed) { RunSpeed(); }
 
 class AV2ConvolveNonSepSymHighbdTest : public AV2ConvolveNonSepSymTestBase {};

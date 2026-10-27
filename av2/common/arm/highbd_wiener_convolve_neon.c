@@ -489,27 +489,19 @@ static WIENER_NOINLINE void convolve_symmetric_highbd_7tap_4x4_neon(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter, int prec_bits, uint16_t *dst, int dst_stride,
     int bit_depth, int block_row_begin, int block_col_begin) {
-  const int num_sym_taps = filter_config->num_pixels / 2;
-  assert(num_sym_taps == 6);
+  // The dispatcher matched wienerns_simd_config_uv_from_uvonly: the pairs use
+  // taps 0-5 in order and the center tap is 6.
+  assert(filter_config->num_pixels / 2 == 6);
 
   int32_t singleton_tap = 1 << prec_bits;
-  if (filter_config->num_pixels % 2) {
-    const int idx =
-        filter_config->config[filter_config->num_pixels - 1][NONSEP_BUF_POS];
-    singleton_tap += filter[idx];
-  }
+  if (filter_config->num_pixels % 2) singleton_tap += filter[6];
   const int16_t singleton_s16 = (int16_t)singleton_tap;
 
   const uint16x4_t max_u16 = vdup_n_u16((uint16_t)((1 << bit_depth) - 1));
 
-  int16_t taps[6];
-  for (int k = 0; k < num_sym_taps; ++k) {
-    taps[k] = filter[filter_config->config[2 * k][NONSEP_BUF_POS]];
-  }
-
-  const int16x4_t taps_0_3 = vld1_s16(&taps[0]);
-  int16_t taps_4_5_padded[4] = { taps[4], taps[5], 0, 0 };
-  const int16x4_t taps_4_5 = vld1_s16(taps_4_5_padded);
+  const int16x4_t taps_0_3 = vld1_s16(&filter[0]);
+  // Taps 4 and 5 in lanes 1 and 2; this load stays within the 7 taps.
+  const int16x4_t taps_3_6 = vld1_s16(&filter[3]);
 
   const int off0 = 1 * stride;
   const int off1 = 1;
@@ -537,8 +529,8 @@ static WIENER_NOINLINE void convolve_symmetric_highbd_7tap_4x4_neon(
     PAIR_7T_LANE(off1, taps_0_3, 1);
     PAIR_7T_LANE(off2, taps_0_3, 2);
     PAIR_7T_LANE(off3, taps_0_3, 3);
-    PAIR_7T_LANE(off4, taps_4_5, 0);
-    PAIR_7T_LANE(off5, taps_4_5, 1);
+    PAIR_7T_LANE(off4, taps_3_6, 1);
+    PAIR_7T_LANE(off5, taps_3_6, 2);
 
 #undef PAIR_7T_LANE
 
@@ -927,12 +919,14 @@ static WIENER_NOINLINE void convolve_symmetric_highbd_dispatch_neon(
   const int num_rows = block_row_end - block_row_begin;
   const int num_cols = block_col_end - block_col_begin;
 
-  // large_config_y first: config_y is its prefix, so a memcmp of num_pixels >
-  // 25 would read past config_y.
+  // The exact num_pixels checks keep each memcmp inside its table and reject a
+  // config without its center row: C applies no center tap to that, but these
+  // kernels always do (wienerns_simd_large_config_y has 33 rows,
+  // wienerns_simd_config_y 25).
   if (LIKELY(num_rows == 4 && num_cols == 4)) {
-    const int num_sym_taps = filter_config->num_pixels / 2;
+    const int num_pixels = filter_config->num_pixels;
 
-    if (num_sym_taps == 16 &&
+    if (num_pixels == 33 &&
         (filter_config->config == wienerns_simd_large_config_y ||
          !memcmp(wienerns_simd_large_config_y, filter_config->config,
                  filter_config->num_pixels * 3 *
@@ -948,16 +942,16 @@ static WIENER_NOINLINE void convolve_symmetric_highbd_dispatch_neon(
           bit_depth, block_row_begin, block_col_begin, 4);
       return;
     }
-    if (filter_config->config == wienerns_simd_config_y ||
-        !memcmp(wienerns_simd_config_y, filter_config->config,
-                filter_config->num_pixels * 3 *
-                    sizeof(filter_config->config[0][0]))) {
+    if (num_pixels == 25 &&
+        (filter_config->config == wienerns_simd_config_y ||
+         !memcmp(wienerns_simd_config_y, filter_config->config,
+                 num_pixels * 3 * sizeof(filter_config->config[0][0])))) {
       convolve_symmetric_highbd_13tap_4xh_neon(
           dgd, stride, filter, filter[12], filter_config->prec_bits, dst,
           dst_stride, bit_depth, block_row_begin, block_col_begin, 4);
       return;
     }
-    if (num_sym_taps == 6 &&
+    if (num_pixels / 2 == 6 &&
         (filter_config->config == wienerns_simd_config_uv_from_uvonly ||
          !memcmp(wienerns_simd_config_uv_from_uvonly, filter_config->config,
                  filter_config->num_pixels * 3 *
@@ -970,7 +964,7 @@ static WIENER_NOINLINE void convolve_symmetric_highbd_dispatch_neon(
   }
 
   if (num_rows == 2 && num_cols == 4) {
-    if (filter_config->num_pixels / 2 == 16 &&
+    if (filter_config->num_pixels == 33 &&
         (filter_config->config == wienerns_simd_large_config_y ||
          !memcmp(wienerns_simd_large_config_y, filter_config->config,
                  filter_config->num_pixels * 3 *
@@ -986,10 +980,11 @@ static WIENER_NOINLINE void convolve_symmetric_highbd_dispatch_neon(
           bit_depth, block_row_begin, block_col_begin, 2);
       return;
     }
-    if (filter_config->config == wienerns_simd_config_y ||
-        !memcmp(wienerns_simd_config_y, filter_config->config,
-                filter_config->num_pixels * 3 *
-                    sizeof(filter_config->config[0][0]))) {
+    if (filter_config->num_pixels == 25 &&
+        (filter_config->config == wienerns_simd_config_y ||
+         !memcmp(wienerns_simd_config_y, filter_config->config,
+                 filter_config->num_pixels * 3 *
+                     sizeof(filter_config->config[0][0])))) {
       convolve_symmetric_highbd_13tap_4xh_neon(
           dgd, stride, filter, filter[12], filter_config->prec_bits, dst,
           dst_stride, bit_depth, block_row_begin, block_col_begin, 2);
@@ -1013,9 +1008,9 @@ void av2_convolve_symmetric_highbd_neon(const uint16_t *dgd, int stride,
 
   if (LIKELY(block_row_end - block_row_begin == 4 &&
              block_col_end - block_col_begin == 4)) {
-    const int num_sym_taps = filter_config->num_pixels / 2;
+    const int num_pixels = filter_config->num_pixels;
     const int(*const config)[3] = filter_config->config;
-    if (num_sym_taps == 16 && config == wienerns_simd_large_config_y) {
+    if (num_pixels == 33 && config == wienerns_simd_large_config_y) {
       if (vget_lane_u64(vreinterpret_u64_s16(vld1_s16(filter + 12)), 0) == 0) {
         convolve_symmetric_highbd_13tap_4xh_neon(
             dgd, stride, filter, filter[16], filter_config->prec_bits, dst,
@@ -1027,7 +1022,7 @@ void av2_convolve_symmetric_highbd_neon(const uint16_t *dgd, int stride,
           bit_depth, block_row_begin, block_col_begin, 4);
       return;
     }
-    if (config == wienerns_simd_config_y) {
+    if (num_pixels == 25 && config == wienerns_simd_config_y) {
       convolve_symmetric_highbd_13tap_4xh_neon(
           dgd, stride, filter, filter[12], filter_config->prec_bits, dst,
           dst_stride, bit_depth, block_row_begin, block_col_begin, 4);
@@ -1464,8 +1459,8 @@ static WIENER_NOINLINE void convolve_symmetric_blk8x8_highbd_dispatch_neon(
   const int prec_bits = filter_config->prec_bits;
 
   if (num_cols == 8 && (num_rows == 8 || num_rows == 6)) {
-    // large_config_y first (see convolve_symmetric_highbd_dispatch_neon).
-    if (filter_config->num_pixels / 2 == 16 &&
+    // See convolve_symmetric_highbd_dispatch_neon for the num_pixels checks.
+    if (filter_config->num_pixels == 33 &&
         (filter_config->config == wienerns_simd_large_config_y ||
          !memcmp(wienerns_simd_large_config_y, filter_config->config,
                  filter_config->num_pixels * 3 *
@@ -1493,10 +1488,11 @@ static WIENER_NOINLINE void convolve_symmetric_blk8x8_highbd_dispatch_neon(
       }
       return;
     }
-    if (filter_config->config == wienerns_simd_config_y ||
-        !memcmp(wienerns_simd_config_y, filter_config->config,
-                filter_config->num_pixels * 3 *
-                    sizeof(filter_config->config[0][0]))) {
+    if (filter_config->num_pixels == 25 &&
+        (filter_config->config == wienerns_simd_config_y ||
+         !memcmp(wienerns_simd_config_y, filter_config->config,
+                 filter_config->num_pixels * 3 *
+                     sizeof(filter_config->config[0][0])))) {
       if (num_rows == 8) {
         convolve_symmetric_highbd_13tap_8xh_neon(
             dgd, stride, filter, filter[12], prec_bits, dst, dst_stride,
@@ -1524,14 +1520,15 @@ void av2_convolve_symmetric_blk8x8_highbd_neon(
 
   if (LIKELY(block_row_end - block_row_begin == 8 &&
              block_col_end - block_col_begin == 8)) {
+    const int num_pixels = filter_config->num_pixels;
     const int(*const config)[3] = filter_config->config;
-    if (config == wienerns_simd_config_y) {
+    if (num_pixels == 25 && config == wienerns_simd_config_y) {
       convolve_symmetric_highbd_13tap_8xh_neon(
           dgd, stride, filter, filter[12], filter_config->prec_bits, dst,
           dst_stride, bit_depth, block_row_begin, block_col_begin, 8);
       return;
     }
-    if (config == wienerns_simd_large_config_y) {
+    if (num_pixels == 33 && config == wienerns_simd_large_config_y) {
       if (vget_lane_u64(vreinterpret_u64_s16(vld1_s16(filter + 12)), 0) == 0) {
         convolve_symmetric_highbd_13tap_8xh_neon(
             dgd, stride, filter, filter[16], filter_config->prec_bits, dst,
@@ -1555,45 +1552,27 @@ static void convolve_symmetric_dual_highbd_7plus13tap_4x4_neon(
     int dgd_dual_stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter, int prec_bits, uint16_t *dst, int dst_stride,
     int bit_depth, int block_row_begin, int block_col_begin) {
-  const int num_sym_taps = filter_config->num_pixels / 2;
-  assert(num_sym_taps == 6);
-  const int num_taps_dual = filter_config->num_pixels2 & ~1;
-  assert(num_taps_dual == 12);
+  // The dispatcher matched wienerns_simd_config_uv_from_uv and
+  // wienerns_simd_config_uv_from_y: the main pairs use taps 0-5, the dual taps
+  // are 6-17 in order, and the center taps are 18 and 19.
+  assert(filter_config->num_pixels / 2 == 6);
+  assert((filter_config->num_pixels2 & ~1) == 12);
 
   int32_t singleton_tap = 1 << prec_bits;
-  if (filter_config->num_pixels % 2) {
-    const int idx =
-        filter_config->config[filter_config->num_pixels - 1][NONSEP_BUF_POS];
-    singleton_tap += filter[idx];
-  }
+  if (filter_config->num_pixels % 2) singleton_tap += filter[18];
   const int16_t singleton_s16 = (int16_t)singleton_tap;
 
-  int32_t singleton_tap_dual = 0;
-  if (filter_config->num_pixels2 % 2) {
-    const int last = filter_config->num_pixels2 - 1;
-    const int idx = filter_config->config2[last][NONSEP_BUF_POS];
-    singleton_tap_dual = filter[idx];
-  }
-
-  int16_t taps_main[6];
-  for (int k = 0; k < num_sym_taps; ++k) {
-    taps_main[k] = filter[filter_config->config[2 * k][NONSEP_BUF_POS]];
-  }
-
-  int16_t taps_dual[12];
-  for (int k = 0; k < num_taps_dual; ++k) {
-    taps_dual[k] = filter[filter_config->config2[k][NONSEP_BUF_POS]];
-  }
+  const int32_t singleton_tap_dual =
+      (filter_config->num_pixels2 % 2) ? filter[19] : 0;
 
   const uint16x4_t max_u16 = vdup_n_u16((uint16_t)((1 << bit_depth) - 1));
 
-  const int16x4_t main_0_3 = vld1_s16(&taps_main[0]);
-  int16_t main_4_5_padded[4] = { taps_main[4], taps_main[5], 0, 0 };
-  const int16x4_t main_4_5 = vld1_s16(main_4_5_padded);
+  const int16x4_t main_0_3 = vld1_s16(&filter[0]);
+  const int16x4_t main_4_5 = vld1_s16(&filter[4]);
 
-  const int16x4_t dual_0_3 = vld1_s16(&taps_dual[0]);
-  const int16x4_t dual_4_7 = vld1_s16(&taps_dual[4]);
-  const int16x4_t dual_8_11 = vld1_s16(&taps_dual[8]);
+  const int16x4_t dual_0_3 = vld1_s16(&filter[6]);
+  const int16x4_t dual_4_7 = vld1_s16(&filter[10]);
+  const int16x4_t dual_8_11 = vld1_s16(&filter[14]);
 
   const int m_off0 = 1 * dgd_stride;
   const int m_off1 = 1;
