@@ -1732,6 +1732,23 @@ class TcqLoopDiagonalSt8BlockTest
     int use_qm;          // -1: random
   };
 
+  // kRandomIters blocks of coefficient mode cm, alternating the default-CDF
+  // and random cost tables and cycling the initial trellis states.
+  void RunDecidePath(CoeffMode cm, const char *name) {
+    for (int iter = 0; iter < kRandomIters; ++iter) {
+      const Config cfg = { cm,
+                           (iter & 1) ? kCostRandom : kCostDefaultCdf,
+                           (InitMode)(iter & 3),
+                           -1,
+                           -1,
+                           -1,
+                           -1,
+                           -1 };
+      RunOne(cfg, name, iter);
+      if (HasFatalFailure()) return;
+    }
+  }
+
   static void SetUpTestSuite() {
     // Default-CDF cost tables, one per TOKEN_CDF_Q_CTXS category.
     static const int kCtxQindex[TOKEN_CDF_Q_CTXS] = { 60, 120, 170, 220 };
@@ -2321,36 +2338,14 @@ TEST_P(TcqLoopDiagonalSt8BlockTest, RandomValues) {
 
 // Every coefficient takes the q1 decide path (orig_qIdx 0/1).
 TEST_P(TcqLoopDiagonalSt8BlockTest, Q1DecidePath) {
-  for (int iter = 0; iter < kRandomIters; ++iter) {
-    const Config cfg = { kCoeffQ1Only,
-                         (iter & 1) ? kCostRandom : kCostDefaultCdf,
-                         (InitMode)(iter & 3),
-                         -1,
-                         -1,
-                         -1,
-                         -1,
-                         -1 };
-    RunOne(cfg, "Q1DecidePath", iter);
-    if (HasFatalFailure()) return;
-  }
+  RunDecidePath(kCoeffQ1Only, "Q1DecidePath");
   EXPECT_GT(n_q1_, 0);
   EXPECT_EQ(n_gen_, 0);
 }
 
 // Every coefficient takes the generic decide path (orig_qIdx >= 2).
 TEST_P(TcqLoopDiagonalSt8BlockTest, GenericDecidePath) {
-  for (int iter = 0; iter < kRandomIters; ++iter) {
-    const Config cfg = { kCoeffGenericOnly,
-                         (iter & 1) ? kCostRandom : kCostDefaultCdf,
-                         (InitMode)(iter & 3),
-                         -1,
-                         -1,
-                         -1,
-                         -1,
-                         -1 };
-    RunOne(cfg, "GenericDecidePath", iter);
-    if (HasFatalFailure()) return;
-  }
+  RunDecidePath(kCoeffGenericOnly, "GenericDecidePath");
   EXPECT_EQ(n_q1_, 0);
   EXPECT_GT(n_gen_, 0);
 }

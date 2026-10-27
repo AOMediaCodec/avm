@@ -100,10 +100,10 @@ typedef struct {
 } q1_dq_t;
 
 static AVM_FORCE_INLINE q1_dq_t q1_dq_neon(int dqv, int log_scale) {
-  int64_t dq_round = 1LL << (QUANT_TABLE_BITS - 1);
-  int shift = QUANT_TABLE_BITS + log_scale;
-  int32_t dqca = (int32_t)(((int64_t)dqv + dq_round) >> shift);
-  int32_t dqcb = (int32_t)((((int64_t)dqv << 1) + dq_round) >> shift);
+  const int64_t dq_round = 1LL << (QUANT_TABLE_BITS - 1);
+  const int shift = QUANT_TABLE_BITS + log_scale;
+  const int32_t dqca = (int32_t)(((int64_t)dqv + dq_round) >> shift);
+  const int32_t dqcb = (int32_t)((((int64_t)dqv << 1) + dq_round) >> shift);
   const int32x2_t d =
       vcreate_s32((uint32_t)(dqca << (log_scale - 1)) |
                   ((uint64_t)(uint32_t)(dqcb << (log_scale - 1)) << 32));
@@ -126,7 +126,7 @@ static AVM_FORCE_INLINE int64x2_t pre_quant_q1_neon(tran_low_t tqc,
   pq->absLevel[2] = 1;
 
   int32_t abs_tqc_sh = abs_tqc << (log_scale - 1);
-  int64x2_t dd = vmlsl_n_s32(dq->dsq, dq->d2, abs_tqc_sh);
+  const int64x2_t dd = vmlsl_n_s32(dq->dsq, dq->d2, abs_tqc_sh);
 
   const int64x2_t dd_sh = vshlq_n_s64(dd, RDDIV_BITS);
   vst1q_s64(&pq->deltaDist[1], dd_sh);
@@ -195,7 +195,8 @@ static AVM_FORCE_INLINE void get_prev_neon(const st8_nodes_t *n,
 // the prev pairs: a[i] / b[i] hold pairs 2i (low) and 2i + 1 (high).
 static AVM_FORCE_INLINE void split_rates_neon(const int32_t *rate,
                                               uint32x4_t *a, uint32x4_t *b) {
-  static const uint32_t kLane0[4] = { 0xFFFFFFFF, 0, 0xFFFFFFFF, 0 };
+  DECLARE_ALIGNED(16, static const uint32_t, kLane0[4]) = { 0xFFFFFFFF, 0,
+                                                            0xFFFFFFFF, 0 };
   const uint32x4_t m = vld1q_u32(kLane0);
   for (int i = 0; i < 2; i++) {
     // lo = entries of states 4i, 4i + 1, hi = of states 4i + 2, 4i + 3.
@@ -249,7 +250,8 @@ static AVM_FORCE_INLINE void store_nodes_neon(const int64x2_t *w_rd,
   }
 #if AVM_ARCH_AARCH64
   // Byte 7 of each info word is prevId, gathered in state order.
-  static const uint8_t kPidByte[8] = { 7, 15, 23, 31, 39, 47, 55, 63 };
+  DECLARE_ALIGNED(8, static const uint8_t, kPidByte[8]) = { 7,  15, 23, 31,
+                                                            39, 47, 55, 63 };
   uint8x16x4_t wi;
   wi.val[0] = vreinterpretq_u8_u64(w_info[0]);
   wi.val[1] = vreinterpretq_u8_u64(w_info[1]);
@@ -264,11 +266,11 @@ static AVM_FORCE_INLINE uint8x8_t update_states_neon(
     const st8_nodes_t *n, int col, uint8x8_t orig, struct tcq_ctx_t *tcq_ctx) {
   // The high 32 bits of each info word: absLevel | prevId << 24, of states
   // 0..3 (info_lo) and 4..7 (info_hi).
-  int32x4_t info_lo =
+  const int32x4_t info_lo =
       vreinterpretq_s32_u32(vuzpq_u32(vreinterpretq_u32_u64(n->info[0]),
                                       vreinterpretq_u32_u64(n->info[1]))
                                 .val[1]);
-  int32x4_t info_hi =
+  const int32x4_t info_hi =
       vreinterpretq_s32_u32(vuzpq_u32(vreinterpretq_u32_u64(n->info[2]),
                                       vreinterpretq_u32_u64(n->info[3]))
                                 .val[1]);
@@ -333,7 +335,7 @@ static AVM_FORCE_INLINE void decide_states_neon_core(
   const int64_t *ds = pq->deltaDist;
 
   // The prevIds of the prev pairs (0, 2), (1, 3), (4, 6), (5, 7).
-  static const uint64_t kPairPid[8] = {
+  DECLARE_ALIGNED(16, static const uint64_t, kPairPid[8]) = {
     0,          2ULL << 56, 1ULL << 56, 3ULL << 56,
     4ULL << 56, 6ULL << 56, 5ULL << 56, 7ULL << 56,
   };
@@ -454,19 +456,19 @@ static AVM_FORCE_INLINE void decide_states_q1_neon_core(
 
   DECLARE_ALIGNED(32, static const uint64_t, kPidInfo[16]) = {
     0,
-    (2ULL << 56),
-    (1ULL << 32),
+    2ULL << 56,
+    1ULL << 32,
     (1ULL << 32) | (2ULL << 56),
-    (1ULL << 56),
-    (3ULL << 56),
+    1ULL << 56,
+    3ULL << 56,
     (1ULL << 32) | (1ULL << 56),
     (1ULL << 32) | (3ULL << 56),
-    (4ULL << 56),
-    (6ULL << 56),
+    4ULL << 56,
+    6ULL << 56,
     (1ULL << 32) | (4ULL << 56),
     (1ULL << 32) | (6ULL << 56),
-    (5ULL << 56),
-    (7ULL << 56),
+    5ULL << 56,
+    7ULL << 56,
     (1ULL << 32) | (5ULL << 56),
     (1ULL << 32) | (7ULL << 56),
   };
@@ -1556,7 +1558,7 @@ void av2_trellis_loop_diagonal_st8_neon(const struct tcq_param_t *p,
       tcq_node_t *decision = &trellis[scan_pos << TCQ_N_STATES_LOG];
       prequant_t pq_data;
       assert((scan[scan_pos] != 0) == (scan_pos != 0));
-      const int is_ac = scan_pos != 0;
+      const bool is_ac = scan_pos != 0;
       int temp_dqv = is_ac ? dqv_ac : dqv_dc;
       if (iqmatrix != NULL) {
         temp_dqv =
