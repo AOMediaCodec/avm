@@ -227,7 +227,9 @@ static void set_good_speed_feature_framesize_dependent(
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
     }
 
-    if (is_4k_or_larger) {
+    // Speed 6 turns this pruning off in the framesize-independent pass, which
+    // runs before this one; do not turn it back on there.
+    if (is_4k_or_larger && speed < 6) {
       sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
     }
 
