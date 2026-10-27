@@ -480,6 +480,11 @@ typedef struct PARTITION_SPEED_FEATURES {
   //    1080p; 4k uses level 1 at speeds >= 5)
   int prune_rect_with_split_depth;
 
+  // Two-pass search: when the dry pass settles a 256x256 superblock as a
+  // NEARMV block without residual and the previous frame coded it whole too,
+  // the wet pass re-evaluates only NEARMV on that block.
+  int wet_static_256_nearmv_only;
+
   // prune inter mode in binary partitions based on none part
   int prune_inter_modes_by_none_part;
 

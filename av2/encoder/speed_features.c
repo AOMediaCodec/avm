@@ -802,6 +802,7 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 6) {
+    sf->part_sf.wet_static_256_nearmv_only = 1;
     sf->inter_sf.disable_skip_mode_in_dry_pass = true;
     sf->inter_sf.dry_pass_skip_warp_min_pyr_level =
         DRY_PASS_SKIP_WARP_MIN_PYR_LEVEL;
@@ -1006,6 +1007,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->ext_recur_depth_level = 0;
   part_sf->uneven_4way_recur_depth_level = 0;
   part_sf->prune_rect_with_split_depth = 0;
+  part_sf->wet_static_256_nearmv_only = 0;
   part_sf->prune_part_h_with_partition_boundary = 0;
   part_sf->inter_sdp_fast_method_level = 0;
   part_sf->prune_part_with_neighbor_boundaries = 0;

@@ -1601,6 +1601,12 @@ typedef struct macroblock {
    * search; a block on this path may consume the dry-pass template. */
   bool may_consume_dry_pass_info;
 
+  /*! \brief For the dry pass when the superblock is a 256x256 and the mode is
+   * NEARMV without residual and the previous frame coded it whole too;
+   * the wet pass then only re-evaluates NEARMV.
+   */
+  bool dry_static_256;
+
   /*! \brief Cap on top intra Y candidates for full RD. */
   int intra_mode_prune_top;
 

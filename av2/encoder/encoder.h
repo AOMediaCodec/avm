@@ -2897,6 +2897,19 @@ typedef struct AV2_COMP {
   int intrabc_used;
 
   /*!
+   * Per 256x256 superblock, whether the previously encoded frame coded it as
+   * a single block (PARTITION_NONE at 256x256);
+   * Indexed by superblock row * sb256_map_stride + column.
+   */
+  uint8_t *sb256_none_prev;
+  /*! The same map being filled for the current frame. */
+  uint8_t *sb256_none_cur;
+  /*! Number of 256x256 superblock columns of sb256_none_prev/cur. */
+  int sb256_map_stride;
+  /*! Number of 256x256 superblock rows of sb256_none_prev/cur. */
+  int sb256_map_rows;
+
+  /*!
    * Loop Restoration context.
    */
   AV2LrStruct lr_ctxt;
