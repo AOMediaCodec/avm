@@ -760,6 +760,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Dry pass: top-1 MV precision on non-boosted frames at pyramid level >= 2.
   int dry_pass_mv_prec_from_top;
 
+  // Leave skip mode to the wet pass: the dry pass of the two-pass partition
+  // search does not run rd_pick_skip_mode().
+  bool disable_skip_mode_in_dry_pass;
+
   // Prune reference frames for ALTREF
   int alt_ref_search_fp;
 
