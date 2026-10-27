@@ -646,6 +646,7 @@ static void set_good_speed_features_framesize_independent(
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
     sf->inter_sf.enable_four_param_warp_in_winner_mode = 1;
     sf->inter_sf.prune_opfl = 1;
+    sf->inter_sf.skip_amvd_search_in_dry_pass = true;
 
     // TODO(any): disable_smooth_intra does not have speed up while introducing
     // coding loss. Disable  it before it is improved.
@@ -1139,6 +1140,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_bawp_by_gop_usage = 0;
   inter_sf->limit_max_ref_mv_idx = false;
   inter_sf->limit_single_ref_mv_idx = 0;
+  inter_sf->skip_amvd_search_in_dry_pass = false;
 }
 
 static AVM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
