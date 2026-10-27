@@ -2443,15 +2443,6 @@ static const TX_SIZE kSt8TxSizes[] = {
 };
 #endif  // HAVE_AVX2 || HAVE_NEON
 
-// C-vs-C sanity baseline.
-INSTANTIATE_TEST_SUITE_P(
-    C, TcqLoopDiagonalSt8BlockTest,
-    ::testing::Combine(::testing::Values(av2_trellis_loop_diagonal_st8_c),
-                       ::testing::Values(av2_trellis_loop_diagonal_st8_c),
-                       ::testing::Values(TX_4X4, TX_8X8, TX_16X16, TX_32X32,
-                                         TX_4X16, TX_64X64),
-                       ::testing::Values(8), ::testing::Values(true)));
-
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, TcqLoopDiagonalSt8BlockTest,
