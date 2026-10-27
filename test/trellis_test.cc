@@ -150,7 +150,6 @@ static int generate_random_q_idx(libavm_test::ACMRandom *rng) {
 // Init coeff syntax costs randomly
 // - base_cost[], lps_cost[], base_eob_cost[]
 // - base_cost_zero[], base_cost_low_tbl[], base_eob_cost_tbl[], mid_cost_tbl[]
-// cost_mask bounds every random cost (default 11 bits).
 static void generate_random_cost_tables(libavm_test::ACMRandom *rng,
                                         LV_MAP_COEFF_COST *txb_costs,
                                         int cost_mask = 2048 - 1) {
@@ -1060,8 +1059,7 @@ class TcqDecideStatesQ1Test
     }
   }
 
-  // int64 rdCost boundaries. The largest sum,
-  // sentinel + RDCOST(2^32 - 1, 2^24 - 1, 2^40), stays below 2^54.
+  // The largest sum, sentinel + RDCOST(2^32 - 1, 2^24 - 1, 2^40), is < 2^54.
   void RunExtremes() {
     int64_t n_live_nodes = 0;
     int n_live_iters = 0;
@@ -1073,7 +1071,6 @@ class TcqDecideStatesQ1Test
     static const int64_t kDist[] = { 0, (int64_t)1 << 40, -((int64_t)1 << 40),
                                      1, -1 };
     for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
-      // iter % 4: 0 puts every field at one extreme, 1-3 mix them.
       const int mode = iter & 3;
       const int pc = rng_(4), rt = rng_(3), dd = rng_(5);
       for (int i = 0; i < TCQ_N_STATES; i++) {
@@ -1153,7 +1150,6 @@ static void FillQuantRow8(int32_t *quant, int32_t *dequant) {
   }
 }
 
-// init_tcq_ctx() in trellis_quant.c, for the diagonal of blk_pos.
 static void InitTcqCtxDiagonal(tcq_ctx_t *tcq_ctx, int blk_pos, int bwl) {
   const int row = blk_pos >> bwl;
   const int col = blk_pos - (row << bwl);
@@ -1174,7 +1170,6 @@ static void InitTcqCtxDiagonal(tcq_ctx_t *tcq_ctx, int blk_pos, int bwl) {
   }
 }
 
-// Compares the av2_find_best_path() results: eob, rate, cost, qcoeff, dqcoeff.
 static void CompareBestPath(const tcq_node_t *trellis_ref,
                             const tcq_node_t *trellis_tst, const int16_t *scan,
                             const int32_t *dequant, const qm_val_t *iqmatrix,
@@ -1682,10 +1677,7 @@ class TcqLoopDiagonalSt8Test
 TEST_P(TcqLoopDiagonalSt8Test, RandomValues) { RunEquivalenceTest(); }
 TEST_P(TcqLoopDiagonalSt8Test, DISABLED_Speed) { RunSpeedTest(); }
 
-// av2_trellis_loop_diagonal_st8 on blocks built as in av2_trellis_quant().
-
-// ref func, test func, tx size, bit depth, strict. Live nodes, context lanes
-// and the best path must match; strict also compares the unreachable set.
+// ref func, test func, tx size, bit depth, strict (also compare dead nodes).
 typedef std::tuple<TcqLoopDiagonalSt8Func, TcqLoopDiagonalSt8Func, TX_SIZE, int,
                    bool>
     TcqLoopDiagonalSt8BlockParam;
@@ -1703,9 +1695,9 @@ class TcqLoopDiagonalSt8BlockTest
     kCoeffGenericOnly,
     kCoeffZero,
     kCoeffMax,
-    kCoeffTieSmall,      // orig_qIdx in [0, 3]
-    kCoeffConstant,      // one magnitude, random sign
-    kCoeffCheckerboard,  // alternating zero / large
+    kCoeffTieSmall,  // orig_qIdx in [0, 3]
+    kCoeffConstant,
+    kCoeffCheckerboard,
   };
   enum CostMode {
     kCostDefaultCdf,  // av2_fill_coeff_costs() from the default CDFs
@@ -1713,12 +1705,11 @@ class TcqLoopDiagonalSt8BlockTest
     kCostTiny,        // random costs in [0, 3]: many rate ties
     kCostZero,
   };
-  // Initial trellis state at first_scan_pos.
   enum InitMode {
     kInitProduction,  // trellis_first_pos(): states 0 and 4 live
-    kInitAllEqual,    // all live, equal rdCost and rate
-    kInitNearEqual,   // all live, rdCost differing by -1 / 0 / +1
-    kInitSentinel,    // random live subset, others at or near the sentinel
+    kInitAllEqual,
+    kInitNearEqual,  // all live, rdCost differing by -1 / 0 / +1
+    kInitSentinel,   // random live subset, others at or near the sentinel
   };
 
   struct Config {
@@ -1732,8 +1723,6 @@ class TcqLoopDiagonalSt8BlockTest
     int use_qm;          // -1: random
   };
 
-  // kRandomIters blocks of coefficient mode cm, alternating the default-CDF
-  // and random cost tables and cycling the initial trellis states.
   void RunDecidePath(CoeffMode cm, const char *name) {
     for (int iter = 0; iter < kRandomIters; ++iter) {
       const Config cfg = { cm,
@@ -1750,7 +1739,6 @@ class TcqLoopDiagonalSt8BlockTest
   }
 
   static void SetUpTestSuite() {
-    // Default-CDF cost tables, one per TOKEN_CDF_Q_CTXS category.
     static const int kCtxQindex[TOKEN_CDF_Q_CTXS] = { 60, 120, 170, 220 };
     std::unique_ptr<AV2_COMMON> cm(new AV2_COMMON());
     const std::unique_ptr<FRAME_CONTEXT> fc(new FRAME_CONTEXT());
@@ -1786,7 +1774,6 @@ class TcqLoopDiagonalSt8BlockTest
     scan_tbl_ = get_scan(tx_size_, DCT_DCT)->scan;
     for (int i = 0; i < num_coeffs_; i++) iscan_[scan_tbl_[i]] = i;
 
-    // kMaxOffset spare elements per buffer for the Misaligned test.
     tcoeff_base_ = Alloc<tran_low_t>(MAX_TRELLIS + kMaxOffset);
     qcoeff_base_ = Alloc<tran_low_t>(MAX_TRELLIS + kMaxOffset);
     tmp_sign_base_ = Alloc<int32_t>(MAX_TRELLIS + kMaxOffset);
@@ -1842,8 +1829,7 @@ class TcqLoopDiagonalSt8BlockTest
     return static_cast<T *>(avm_memalign(64, sizeof(T) * n));
   }
 
-  // in_off / out_off offset the inputs (scan is then a copy) and the outputs
-  // (tcq_ctx_t in bytes, the trellis in nodes).
+  // Offsets are in elements, except tcq_ctx_t's in bytes.
   void SetOffsets(int in_off, int out_off) {
     in_off_ = in_off;
     out_off_ = out_off;
@@ -1891,8 +1877,6 @@ class TcqLoopDiagonalSt8BlockTest
     FillQuantRow8(quant_, dequant_);
   }
 
-  // av2_compute_rd_mult_based_on_qindex() (RA), then
-  // av2_compute_rdmult_for_plane(), as in av2_trellis_quant().
   int64_t ProductionRdmult(int qindex, int sharpness, int is_inter) {
     const int q =
         av2_dc_quant_QTX(qindex, 0, 0, static_cast<avm_bit_depth_t>(bd_));
@@ -1900,14 +1884,12 @@ class TcqLoopDiagonalSt8BlockTest
         ROUND_POWER_OF_TWO_64((int64_t)q * q * 84 / 32, 2 * QUANT_TABLE_BITS);
     if (bd_ == 10) rd = ROUND_POWER_OF_TWO(rd, 4);
     if (bd_ == 12) rd = ROUND_POWER_OF_TWO(rd, 8);
-    // Per-block adjustments: 0.5x .. 2x.
     rd = (rd * (64 + rng_(192))) >> 7;
     if (rd < 1) rd = 1;
     return av2_compute_rdmult_for_plane(rd, plane_rd_mult[is_inter][0], bd_,
                                         sharpness + 2);
   }
 
-  // av2_calc_block_eob_rate_c() without a MACROBLOCK.
   void ComputeBlockEobRate(const CoeffCosts *cc, int is_inter, int eob) {
     const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size_);
     const LV_MAP_COEFF_COST *txb_costs = &cc->coeff_costs[txs_ctx][0];
@@ -1968,7 +1950,6 @@ class TcqLoopDiagonalSt8BlockTest
     }
   }
 
-  // A coefficient whose orig_qIdx is (close to) t.
   tran_low_t CoeffForQIdx(int t, int scan_pos, bool exact_zero) {
     if (exact_zero) return 0;
     const int64_t q = quant_[scan_pos != 0];
@@ -1982,7 +1963,6 @@ class TcqLoopDiagonalSt8BlockTest
     return (tran_low_t)(rng_(2) ? -c : c);
   }
 
-  // Builds one block as av2_trellis_quant() does; tst gets a copy of ref.
   void GenerateBlock(const Config &cfg) {
     qindex_ = cfg.qindex >= 0 ? cfg.qindex : -1;
     if (qindex_ < 0) {
@@ -2113,7 +2093,6 @@ class TcqLoopDiagonalSt8BlockTest
           d[st].rate = base_rate + rng_(3);
           break;
         case kInitSentinel:
-          // At least one live state, as in production.
           live = st == forced_live || rng_(3) == 0;
           if (live) {
             d[st].rdCost = base + rng_(3);
@@ -2220,7 +2199,6 @@ class TcqLoopDiagonalSt8BlockTest
       }
     }
 
-    // Final best path, as consumed by av2_trellis_quant().
     ASSERT_NO_FATAL_FAILURE(CompareBestPath(
         trellis_ref_, trellis_tst_, scan_, dequant_, param_.iqmatrix, tcoeff_,
         first_scan_pos_, log_scale_, bwl_, num_coeffs_, ctx));
@@ -2316,7 +2294,6 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqLoopDiagonalSt8BlockTest);
 
 CoeffCosts *TcqLoopDiagonalSt8BlockTest::cdf_costs_[TOKEN_CDF_Q_CTXS] = {};
 
-// Production-like random blocks, kRandomIters per (TX size, bit depth).
 TEST_P(TcqLoopDiagonalSt8BlockTest, RandomValues) {
   for (int iter = 0; iter < kRandomIters; ++iter) {
     const Config cfg = { kCoeffLaplacian,
@@ -2336,14 +2313,12 @@ TEST_P(TcqLoopDiagonalSt8BlockTest, RandomValues) {
   EXPECT_GT(n_lf_only_calls_, 0) << "LF-only calls never exercised";
 }
 
-// Every coefficient takes the q1 decide path (orig_qIdx 0/1).
 TEST_P(TcqLoopDiagonalSt8BlockTest, Q1DecidePath) {
   ASSERT_NO_FATAL_FAILURE(RunDecidePath(kCoeffQ1Only, "Q1DecidePath"));
   EXPECT_GT(n_q1_, 0);
   EXPECT_EQ(n_gen_, 0);
 }
 
-// Every coefficient takes the generic decide path (orig_qIdx >= 2).
 TEST_P(TcqLoopDiagonalSt8BlockTest, GenericDecidePath) {
   ASSERT_NO_FATAL_FAILURE(
       RunDecidePath(kCoeffGenericOnly, "GenericDecidePath"));
@@ -2351,8 +2326,6 @@ TEST_P(TcqLoopDiagonalSt8BlockTest, GenericDecidePath) {
   EXPECT_GT(n_gen_, 0);
 }
 
-// rdCost ties in both decide paths: equal or +-1 costs, zero or tiny rates,
-// rdmult 0..15 and sentinel states.
 TEST_P(TcqLoopDiagonalSt8BlockTest, TieBreak) {
   static const CoeffMode kCoeff[] = { kCoeffZero, kCoeffConstant,
                                       kCoeffTieSmall, kCoeffQ1Only,
@@ -2392,7 +2365,6 @@ TEST_P(TcqLoopDiagonalSt8BlockTest, SentinelCosts) {
   }
 }
 
-// All-zero, maximum, checkerboard and constant blocks at qindex 0 and max.
 TEST_P(TcqLoopDiagonalSt8BlockTest, Extremes) {
   static const CoeffMode kCoeff[] = { kCoeffZero, kCoeffMax, kCoeffCheckerboard,
                                       kCoeffConstant };
@@ -2416,8 +2388,6 @@ TEST_P(TcqLoopDiagonalSt8BlockTest, Extremes) {
   }
 }
 
-// Inputs and outputs at +1 / +3 elements from a 64-byte aligned base, apart
-// and together.
 TEST_P(TcqLoopDiagonalSt8BlockTest, Misaligned) {
   static const int kOffsets[][2] = { { 1, 0 }, { 3, 0 }, { 0, 1 },
                                      { 0, 3 }, { 1, 1 }, { 3, 3 } };

@@ -26,8 +26,7 @@
 #include "av2/encoder/trellis_quant.h"
 #include "config/av2_rtcd.h"
 
-// Table lookup returning 0xFF for any index >= 8 (state indices here are
-// 0..7 or negative).
+// Lookup that returns 0xFF for indices >= 8 (negative dead states).
 static AVM_FORCE_INLINE uint8x8_t tbl8_fill_ff(uint8x8_t tab, uint8x8_t idx) {
 #if AVM_ARCH_AARCH64
   return vqtbx1_u8(vdup_n_u8(0xFF), vcombine_u8(tab, vdup_n_u8(0xFF)), idx);
@@ -36,7 +35,6 @@ static AVM_FORCE_INLINE uint8x8_t tbl8_fill_ff(uint8x8_t tab, uint8x8_t idx) {
 #endif
 }
 
-// orig holds tcq_ctx->orig_st, carried in a register across the block.
 static AVM_FORCE_INLINE void get_coeff_ctx_neon(const struct tcq_ctx_t *tcq_ctx,
                                                 uint8x8_t orig, int col,
                                                 struct tcq_coeff_ctx_t *cc) {
@@ -90,10 +88,7 @@ static AVM_FORCE_INLINE void pre_quant_neon(tran_low_t tqc,
   vst1q_s64(&pq->deltaDist[2], vshlq_n_s64(dd23, RDDIV_BITS));
 }
 
-// The q1 candidates' dequantized values D = dqc << (log_scale - 1) of dqv,
-// lane 0 dqca and lane 1 dqcb, as the distortion takes them: d2 = 2 * D and
-// dsq = D * D. They depend on dqv alone, so the loops set them once per block
-// for the AC dequant and recompute them only where dqv differs.
+// Per-dqv q1 terms, lane 0 dqca and lane 1 dqcb: d2 = 2 * D, dsq = D * D.
 typedef struct {
   int32x2_t d2;
   int64x2_t dsq;
@@ -113,9 +108,7 @@ static AVM_FORCE_INLINE q1_dq_t q1_dq_neon(int dqv, int log_scale) {
   return q;
 }
 
-// Returns deltaDist[1..2] (also stored to pq) so the q1 decide can take them
-// in a register instead of reloading them from the stack. With A the scaled
-// abs_tqc, (D - A)^2 - A^2 = D * D - 2 * D * A, exact in 64 bits.
+// (D - A)^2 - A^2 = D * D - 2 * D * A, exact in 64 bits.
 static AVM_FORCE_INLINE int64x2_t pre_quant_q1_neon(tran_low_t tqc,
                                                     struct prequant_t *pq,
                                                     const q1_dq_t *dq,
@@ -133,13 +126,8 @@ static AVM_FORCE_INLINE int64x2_t pre_quant_q1_neon(tran_low_t tqc,
   return dd_sh;
 }
 
-// The 8 nodes of the latest decision, carried in registers from one position
-// to the next (the decision of scan_pos is the prev of scan_pos - 1), in
-// adjacent output pairs: rd[j] and info[j] hold states 2j (lane 0) and 2j + 1
-// (lane 1): rdCost, and rate | absLevel << 32 | prevId << 56, the second 8
-// bytes of tcq_node_t, so { rd[j], info[j] } is decision[2j..2j + 1] as one
-// interleaved pair. On AArch64, pid holds the prevId bytes of states 0..7,
-// set by store_nodes_neon.
+// The latest decision; rd[j] / info[j] hold states 2j, 2j + 1: rdCost and the
+// second 8 bytes of tcq_node_t. pid: the prevId bytes of states 0..7.
 typedef struct {
   int64x2_t rd[4];
   uint64x2_t info[4];
@@ -148,14 +136,9 @@ typedef struct {
 #endif
 } st8_nodes_t;
 
-// The prev states the decides read, in pairs k = (0, 2), (1, 3), (4, 6),
-// (5, 7). Lane 0 of every pair has t = (s >> 1) & 1 = 0 and lane 1 has t = 1,
-// so the per-t distortions and levels are the same vector for every pair.
-// Output pair j (states 2j, 2j + 1) takes its zero / A candidates from pair
-// kSrcZ[j] and its odd / B candidates from pair kSrcO[j], lane for lane: the
-// zero / A prev state of output d is { 0, 2, 5, 7, 1, 3, 4, 6 }[d] and the
-// other prev state is that one ^ 1. rd[k] holds the pairs' rdCost and rate[i]
-// the rates of pairs 2i (low half) and 2i + 1 (high half).
+// Prev states in pairs (0, 2), (1, 3), (4, 6), (5, 7): lane 0 has t = 0 and
+// lane 1 t = 1, so per-t distortions and levels are one vector for all pairs.
+// Output pair j takes zero / A from pair kSrcZ[j] and B from pair kSrcO[j].
 typedef struct {
   int64x2_t rd[4];
   uint32x4_t rate[2];
@@ -182,8 +165,6 @@ static AVM_FORCE_INLINE void get_prev_neon(const st8_nodes_t *n,
   pv->rd[1] = zip_hi_s64(n->rd[0], n->rd[1]);
   pv->rd[2] = zip_lo_s64(n->rd[2], n->rd[3]);
   pv->rd[3] = zip_hi_s64(n->rd[2], n->rd[3]);
-  // The low words of (2j, 2j + 1) and (2j + 2, 2j + 3): rates of states
-  // 4i, 4i + 2, 4i + 1, 4i + 3.
   for (int i = 0; i < 2; i++) {
     pv->rate[i] = vtrnq_u32(vreinterpretq_u32_u64(n->info[2 * i]),
                             vreinterpretq_u32_u64(n->info[2 * i + 1]))
@@ -191,15 +172,13 @@ static AVM_FORCE_INLINE void get_prev_neon(const st8_nodes_t *n,
   }
 }
 
-// The 16 rates of rd->rate as the A (entry t) and B (entry 1 - t) rates of
-// the prev pairs: a[i] / b[i] hold pairs 2i (low) and 2i + 1 (high).
+// a[i] / b[i]: A (entry t) and B (entry 1 - t) rates of pairs 2i, 2i + 1.
 static AVM_FORCE_INLINE void split_rates_neon(const int32_t *rate,
                                               uint32x4_t *a, uint32x4_t *b) {
   DECLARE_ALIGNED(16, static const uint32_t, kLane0[4]) = { 0xFFFFFFFF, 0,
                                                             0xFFFFFFFF, 0 };
   const uint32x4_t m = vld1q_u32(kLane0);
   for (int i = 0; i < 2; i++) {
-    // lo = entries of states 4i, 4i + 1, hi = of states 4i + 2, 4i + 3.
     const uint32x4_t lo = vld1q_u32((const uint32_t *)&rate[8 * i]);
     const uint32x4_t hi = vld1q_u32((const uint32_t *)&rate[8 * i + 4]);
     a[i] = vbslq_u32(m, lo, hi);
@@ -207,7 +186,6 @@ static AVM_FORCE_INLINE void split_rates_neon(const int32_t *rate,
   }
 }
 
-// rd->rate_zero in prev pair order: z[i] holds pairs 2i (low), 2i + 1 (high).
 static AVM_FORCE_INLINE void split_rate_zero_neon(const int32_t *rate_zero,
                                                   uint32x4_t *z) {
   for (int i = 0; i < 2; i++) {
@@ -227,9 +205,6 @@ static AVM_FORCE_INLINE void load_nodes_neon(const tcq_node_t *prev,
   }
 }
 
-// Stores the decide's 4 output pairs (pair j holds decision[2j] in lane 0 and
-// decision[2j + 1] in lane 1) and keeps them as the nodes of the next
-// position.
 static AVM_FORCE_INLINE void store_nodes_neon(const int64x2_t *w_rd,
                                               const uint64x2_t *w_info,
                                               tcq_node_t *decision,
@@ -249,7 +224,7 @@ static AVM_FORCE_INLINE void store_nodes_neon(const int64x2_t *w_rd,
     n->info[j] = w_info[j];
   }
 #if AVM_ARCH_AARCH64
-  // Byte 7 of each info word is prevId, gathered in state order.
+  // Byte 7 of each info word is prevId.
   DECLARE_ALIGNED(8, static const uint8_t, kPidByte[8]) = { 7,  15, 23, 31,
                                                             39, 47, 55, 63 };
   uint8x16x4_t wi;
@@ -261,11 +236,8 @@ static AVM_FORCE_INLINE void store_nodes_neon(const int64x2_t *w_rd,
 #endif
 }
 
-// Returns the remapped orig_st. n holds the nodes of the current decision.
 static AVM_FORCE_INLINE uint8x8_t update_states_neon(
     const st8_nodes_t *n, int col, uint8x8_t orig, struct tcq_ctx_t *tcq_ctx) {
-  // The high 32 bits of each info word: absLevel | prevId << 24, of states
-  // 0..3 (info_lo) and 4..7 (info_hi).
   const int32x4_t info_lo =
       vreinterpretq_s32_u32(vuzpq_u32(vreinterpretq_u32_u64(n->info[0]),
                                       vreinterpretq_u32_u64(n->info[1]))
@@ -299,8 +271,7 @@ static AVM_FORCE_INLINE uint8x8_t update_states_neon(
 #endif
 }
 
-// Returns a > b per 64-bit lane. armv7 has no vcgtq_s64: the sign of the
-// saturating difference b - a gives the same result.
+// armv7 has no vcgtq_s64: the sign of the saturating b - a gives a > b.
 static AVM_FORCE_INLINE uint64x2_t cgtq_s64_neon(int64x2_t a, int64x2_t b) {
 #if AVM_ARCH_AARCH64
   return vcgtq_s64(a, b);
@@ -309,32 +280,21 @@ static AVM_FORCE_INLINE uint64x2_t cgtq_s64_neon(int64x2_t a, int64x2_t b) {
 #endif
 }
 
-// rate * rdmult, rounded down by AV2_PROB_COST_SHIFT, plus dist.
 static AVM_FORCE_INLINE int64x2_t rdcost_neon(uint32x2_t rate, uint32x2_t rdm,
                                               int64x2_t dist) {
   return vreinterpretq_s64_u64(vrsraq_n_u64(
       vreinterpretq_u64_s64(dist), vmull_u32(rate, rdm), AV2_PROB_COST_SHIFT));
 }
 
-// Branchless generic decide, one output pair per pass. Output pair j reads
-// prev pairs kSrcZ[j] (zero / A candidates) and kSrcO[j] (B candidates),
-// lane for lane: each output takes the zero/A candidate of one prev state
-// (zero only if strictly cheaper than A) unless the B candidate of the other
-// prev state is strictly cheaper, as in av2_decide_states_c. Lane 0 of a prev
-// pair has A = rate[2s] with absLevel[0] and B = rate[2s+1] with absLevel[2],
-// lane 1 A = rate[2s+1] with absLevel[3] and B = rate[2s] with absLevel[1].
-// pq->deltaDist[] must already be scaled by (1 << RDDIV_BITS), as produced
-// by pre_quant_neon().
-// ra[i] / rb[i] / rz[i] hold the A, B and zero rates of prev pairs 2i (low
-// half) and 2i + 1 (high half); r_e is rd->rate_eob[0..1] (unused unless
-// try_eob).
+// As in av2_decide_states_c, zero replaces A and B replaces zero / A only
+// when strictly cheaper. pq->deltaDist must be pre-scaled by RDDIV_BITS.
 static AVM_FORCE_INLINE void decide_states_neon_core(
     st8_nodes_t *nodes, const uint32x4_t *ra, const uint32x4_t *rb,
     const uint32x4_t *rz, uint32x2_t r_e, const prequant_t *pq, int try_eob,
     uint32x2_t v_rdm, tcq_node_t *decision) {
   const int64_t *ds = pq->deltaDist;
 
-  // The prevIds of the prev pairs (0, 2), (1, 3), (4, 6), (5, 7).
+  // prevId << 56 of the prev pairs (0, 2), (1, 3), (4, 6), (5, 7).
   DECLARE_ALIGNED(16, static const uint64_t, kPairPid[8]) = {
     0,          2ULL << 56, 1ULL << 56, 3ULL << 56,
     4ULL << 56, 6ULL << 56, 5ULL << 56, 7ULL << 56,
@@ -394,9 +354,7 @@ static AVM_FORCE_INLINE void decide_states_neon_core(
   }
 
   if (try_eob) {
-    // decision[0] (lane 0 of pair 0) tries eob with absLevel[0], decision[4]
-    // (lane 0 of pair 2) with absLevel[2]. Lane 1 gets cost INT64_MAX so it
-    // never takes eob.
+    // Only decision[0] and decision[4] may take eob; lane 1 gets INT64_MAX.
     const int64x2_t d_e = vcombine_s64(vld1_s64(&ds[0]), vld1_s64(&ds[2]));
     const int64x2_t c_e = rdcost_neon(r_e, v_rdm, d_e);
     const uint64x2_t abs_e =
@@ -417,7 +375,6 @@ static AVM_FORCE_INLINE void decide_states_neon_core(
   store_nodes_neon(w_rd, w_info, decision, nodes);
 }
 
-// The generic decide on rates read from rd.
 static AVM_FORCE_INLINE void decide_states_neon_impl(
     st8_nodes_t *nodes, const tcq_rate_t *rd, const prequant_t *pq, int try_eob,
     uint32x2_t v_rdm, tcq_node_t *decision) {
@@ -441,12 +398,8 @@ static AVM_FORCE_INLINE int64x2_t rdcost_q1_neon(uint32x2_t rate,
 // all stay in NEON registers. On armv7 the 64-bit comparison uses saturating
 // subtract + arithmetic shift in place of vcgtq_s64. pq->deltaDist[] must
 // already be scaled by (1 << RDDIV_BITS), as produced by pre_quant_q1_neon().
-// rz[i] and ro[i] hold the zero and odd-candidate rates of prev pairs 2i (low
-// half) and 2i + 1 (high half) (see st8_prev_t); rate_eob1 is
-// rd->rate_eob[1]; dd12 holds pq->deltaDist[1..2]. The odd candidate of a
-// prev pair's lane 0 (t = 0) has deltaDist[2], of lane 1 deltaDist[1].
-// kPidInfo packs, per prev pair, its prevIds and, with absLevel 1 for the odd
-// candidate (pq->absLevel[1..2] == 1), the same prevIds.
+// The odd candidate of lane 0 (t = 0) takes deltaDist[2]. kPidInfo holds, per
+// prev pair, its prevIds, then the same with absLevel 1.
 static AVM_FORCE_INLINE void decide_states_q1_neon_core(
     st8_nodes_t *nodes, const uint32x4_t *rz, const uint32x4_t *ro,
     int32_t rate_eob1, int64x2_t dd12, int try_eob, uint32x2_t v_rdm,
@@ -473,9 +426,7 @@ static AVM_FORCE_INLINE void decide_states_q1_neon_core(
     (1ULL << 32) | (7ULL << 56),
   };
 
-  // Two 4-register loads instead of 8 constant-pool loads: clang folds a
-  // vld1q_u64 of a static const table into a rematerialized adrp + ldr per
-  // use inside the scan loop, but keeps a vld1q_u64_x4 as one ld1.
+  // clang rematerializes a vld1q_u64 of a static table per use in the loop.
 #if AVM_ARCH_AARCH64
   const uint64x2x4_t pid_info[2] = { vld1q_u64_x4(&kPidInfo[0]),
                                      vld1q_u64_x4(&kPidInfo[8]) };
@@ -514,8 +465,7 @@ static AVM_FORCE_INLINE void decide_states_q1_neon_core(
     const int o = kSrcO[j];
 #if AVM_ARCH_AARCH64 && (defined(__GNUC__) || defined(__clang__))
     uint64x2_t mask = vcgtq_s64(c_z[z], c_o[o]);
-    // Without the barrier clang matches the rd select as a min and lowers it
-    // with a second, reversed compare.
+    // Stops clang lowering the rd select as a min with a second compare.
     __asm__("" : "+w"(mask));
 #else
     int64x2_t diff = vqsubq_s64(c_o[o], c_z[z]);
@@ -527,9 +477,7 @@ static AVM_FORCE_INLINE void decide_states_q1_neon_core(
   }
 
   if (try_eob) {
-    // decision[4] is lane 0 of output pair 2: rate_eob[1], absLevel[2] (== 1,
-    // asserted above), prevId -1. Lane 1 (decision[5]) gets cost INT64_MAX
-    // so it never takes eob.
+    // Only decision[4] may take eob (absLevel 1); lane 1 gets INT64_MAX.
     const uint32x2_t r_e = vdup_n_u32((uint32_t)rate_eob1);
     const int64x2_t c_e =
         vsetq_lane_s64(INT64_MAX, rdcost_q1_neon(r_e, v_rdm, dist_o), 1);
@@ -546,7 +494,6 @@ static AVM_FORCE_INLINE void decide_states_q1_neon_core(
   store_nodes_neon(w_rd, w_info, decision, nodes);
 }
 
-// The q1 decide on rates read from rd.
 static AVM_FORCE_INLINE void decide_states_q1_neon_impl(
     st8_nodes_t *nodes, const tcq_rate_t *rd, const prequant_t *pq, int try_eob,
     uint32x2_t v_rdm, tcq_node_t *decision) {
@@ -647,33 +594,21 @@ static AVM_FORCE_INLINE void get_rate_dist_def_luma_q1_neon_impl(
 #endif  // !AVM_ARCH_AARCH64
 
 #if AVM_ARCH_AARCH64
-// The default-region q1 rates of one diagonal as byte tables over the 8
-// base contexts bdc + c, c = coef & 0x0F (c < 8, see below), both of 16-bit
-// entries in one layout (t = 0 at bytes 2c, t = 1 at 16 + 2c), so one index
-// vector in prev pair order serves both lookups: z holds
-// base_cost_zero[t][bdc + c] narrowed to 16 bits, nz holds
-// base_cost_low_tbl[0][bdc + c][t][1 - t]. State s uses t = (s >> 1) & 1, and
-// its odd candidate is entry 1 - t of the pair (see
-// decide_states_q1_neon_impl). Each position loads the tables from the
-// stack, so no table stays live in registers across positions.
+// Default-region q1 rates of contexts bdc + c, c < 8, as 16-bit entries at
+// byte 2c + 16t; nz is base_cost_low_tbl entry [t][1 - t].
 typedef struct {
   DECLARE_ALIGNED(32, uint8_t, z[32]);
   DECLARE_ALIGNED(32, uint8_t, nz[32]);
 } q1_def_rate_tbl_t;
 
-// The default region starts at scan position 10, where
-// av2_update_nbr_diagonal_c() caps c at 4, so the reads of 8 contexts from
-// bdc stay inside the rows of base_cost_zero and base_cost_low_tbl[0],
-// addressed from the start of the array. base_cost_zero holds a symbol cost
-// as base_cost_low_tbl does (rd.c fills both from base_cost[]), so it fits in
-// 16 bits (asserted).
+// From scan position 10, c <= 4, so 8 contexts from bdc stay in the row.
+// base_cost_zero is a symbol cost like base_cost_low_tbl, so fits 16 bits.
 static AVM_FORCE_INLINE void load_q1_def_rate_tbl(const LV_MAP_COEFF_COST *tc,
                                                   int bdc,
                                                   q1_def_rate_tbl_t *t) {
   assert(bdc >= 0 && bdc + 8 <= SIG_COEF_CONTEXTS);
   uint8x16x2_t z;
   for (int k = 0; k < TCQ_CTXS; k++) {
-    // val[0] is the low half of each 32-bit cost, val[1] the high half.
     const uint16x8x2_t w =
         vld2q_u16((const uint16_t *)&tc->base_cost_zero[k][bdc]);
     assert(vmaxvq_u16(w.val[1]) == 0);
@@ -690,16 +625,12 @@ static AVM_FORCE_INLINE void load_q1_def_rate_tbl(const LV_MAP_COEFF_COST *tc,
   vst1q_u8_x2(t->nz, nz);
 }
 
-// The q1 decide's rz[] / ro[] (see decide_states_q1_neon_core) for the
-// default region, gathered by table lookup from the raw ctx row of the
-// position. The base-context scaling is applied to the row before the
-// lookup by orig, so only the lookup sits on the orig_st dependency chain;
-// vtbl1 still returns 0 for the dead-state (>= 0x80) indices.
+// Scaling the row before the orig lookup keeps only the lookup on the orig_st
+// dependency chain.
 static AVM_FORCE_INLINE void get_rates_def_luma_q1_tbl_neon(
     const q1_def_rate_tbl_t *t, uint8x8_t ctx_row, uint8x8_t orig,
     uint32x4_t *rz, uint32x4_t *ro) {
-  // kIdx[0] lists the states in prev pair order 0, 2, 1, 3, 4, 6, 5, 7 (see
-  // st8_prev_t), kIdx[1] the byte offsets of their t.
+  // kIdx[0]: states in prev pair order; kIdx[1]: byte offsets of their t.
   DECLARE_ALIGNED(16, static const uint8_t, kIdx[2][16]) = {
     { 0, 0, 2, 2, 1, 1, 3, 3, 4, 4, 6, 6, 5, 5, 7, 7 },
     { 0, 1, 16, 17, 0, 1, 16, 17, 0, 1, 16, 17, 0, 1, 16, 17 },
@@ -719,13 +650,9 @@ static AVM_FORCE_INLINE void get_rates_def_luma_q1_tbl_neon(
   ro[1] = vmovl_high_u16(nz);
 }
 
-// The LF-region q1 rates of one diagonal as byte tables over the 16 base
-// contexts bdc + c, c = coef & 0x0F, both of 16-bit entries: z[t] points at
-// base_lf_cost_zero[t][bdc] (c = 0..15), read in place, and nz holds
-// base_lf_cost_low_tbl[0][bdc + c][t][1 - t]: bytes 0-15 t = 0 c = 0..7,
-// 16-31 t = 0 c = 8..15, 32-47 t = 1 c = 0..7, 48-63 t = 1 c = 8..15. bdc is
-// 0, 9 or 16, so bdc + 15 stays inside the LF_SIG_COEF_CONTEXTS entries of
-// every row read.
+// LF-region q1 rates of contexts bdc + c, c < 16: z[t] points into
+// base_lf_cost_zero, nz holds entry [t][1 - t] at byte 2c + 32t. bdc is 0, 9
+// or 16, so bdc + 15 stays inside the row.
 typedef struct {
   const uint8_t *z[2];
   DECLARE_ALIGNED(64, uint8_t, nz[64]);
@@ -750,11 +677,7 @@ static AVM_FORCE_INLINE void load_q1_lf_rate_tbl(const LV_MAP_COEFF_COST *tc,
   vst1q_u8_x4(t->nz, nz);
 }
 
-// The q1 decide's rz[] / ro[] for the LF region, gathered by table lookup
-// from the raw ctx row of the position (see get_rates_def_luma_q1_tbl_neon).
-// The zero and odd tables share one layout (t = 0 at bytes 2c, t = 1 at
-// 32 + 2c), so one index vector in prev pair order serves both lookups.
-// dc_cost is added to the odd rates only, as the C adds it to rate[] alone.
+// dc_cost goes to the odd rates only, as the C adds it to rate[] alone.
 static AVM_FORCE_INLINE void get_rates_lf_luma_q1_tbl_neon(
     const q1_lf_rate_tbl_t *t, uint8x8_t ctx_row, uint8x8_t orig, int dc_cost,
     uint32x4_t *rz, uint32x4_t *ro) {
@@ -784,24 +707,15 @@ static AVM_FORCE_INLINE void get_rates_lf_luma_q1_tbl_neon(
   ro[1] = vaddw_high_u16(v_dc, nz);
 }
 
-// The generic decide's ra[] / rb[] / rz[] (see decide_states_neon_core) and
-// rate_eob[0..1] for the default region, gathered in registers by table
-// lookup from the raw ctx row of the position: no per-state scalar context
-// extraction and no rate round trip through tcq_rate_t. The base pairs are
-// base_cost_low_tbl[idx][bdc + c] (8 bytes per context, c <= 8, so bytes
-// 0..71 from bdc: one tbl4 plus a tbx1 for c = 8), the mid pairs
-// mid_cost_tbl[mid_idx][m] (the default-region mid diag ctx is 0 and m <= 6,
-// so the 56-byte row: one tbl4). In prev pair order (lanes
-// alternate t = 0, 1), A is entry [t][t] at byte c * 8 + 6t and B entry
-// [t][1 - t] at byte c * 8 + 2 + 2t. Dead states (orig >= 0x80) read c = m = 0,
-// as vtbl1 does for the coef bytes.
+// Base pairs: 8 bytes per context and c <= 8, so bytes 0..71 (tbl4 + tbx1).
+// Mid pairs: mid diag ctx 0 and m <= 6, so one 56-byte row. A is at byte
+// 8c + 6t, B at 8c + 2 + 2t. Dead states read c = m = 0.
 static AVM_FORCE_INLINE int32x2_t get_rates_def_luma_gen_tbl_neon(
     const q1_def_rate_tbl_t *t, const LV_MAP_COEFF_COST *tc, int bdc,
     const prequant_t *pq, uint8x8_t ctx_row, uint8x8_t orig, int try_eob,
     int eob_ctx, int eob_rate, uint32x4_t *ra, uint32x4_t *rb, uint32x4_t *rz) {
-  // kIdx[0] lists the states in prev pair order (see st8_prev_t), kIdx[1]
-  // the same for the m bytes 8..15 of cm8, kIdx[2] / kIdx[3] the A / B byte
-  // offsets in a base or mid pair, kIdx[4] the z byte offsets of t.
+  // kIdx: [0] prev pair order, [1] the same for m (bytes 8..15 of cm8),
+  // [2] / [3] A / B offsets in a pair, [4] z offsets of t.
   DECLARE_ALIGNED(16, static const uint8_t, kIdx[5][16]) = {
     { 0, 0, 2, 2, 1, 1, 3, 3, 4, 4, 6, 6, 5, 5, 7, 7 },
     { 8, 8, 10, 10, 9, 9, 11, 11, 12, 12, 14, 14, 13, 13, 15, 15 },
@@ -817,13 +731,10 @@ static AVM_FORCE_INLINE int32x2_t get_rates_def_luma_gen_tbl_neon(
   const uint8x8_t c = vand_u8(ctx_row, vdup_n_u8(0x0F));
   assert(vmaxv_u8(vtbl1_u8(c, orig)) < 8);
   const uint8x8_t m = vshr_n_u8(ctx_row, 4);
-  // c * 8 of states 0..7 in bytes 0..7, m * 8 in bytes 8..15.
   const uint8x16_t cm8 =
       vqtbl1q_u8(vcombine_u8(vshl_n_u8(c, 3), vshl_n_u8(m, 3)),
                  vcombine_u8(orig, vorr_u8(orig, vdup_n_u8(8))));
 
-  // c * 8 in prev pair order; c * 2 indexes the z table (see
-  // q1_def_rate_tbl_t).
   const uint8x16_t rep_c = vqtbl1q_u8(cm8, idx.val[0]);
   const uint8x16_t iz = vorrq_u8(vshrq_n_u8(rep_c, 2), vld1q_u8(kIdx[4]));
   const uint16x8_t z = vreinterpretq_u16_u8(vqtbl2q_u8(vld1q_u8_x2(t->z), iz));
@@ -891,8 +802,7 @@ static AVM_FORCE_INLINE int32x2_t get_rates_def_luma_gen_tbl_neon(
   }
 
   if (qIdx >= 6) {
-    // g[t * 2 + e] is added to entry e of every t state's pair, and g[0..1]
-    // to rate_eob[0..1].
+    // g[t * 2 + e] goes to entry e of each t state, g[0..1] to rate_eob.
     int32_t g[4];
     const int gol_idx = qIdx - 5;
     if (gol_idx <= 248) {
@@ -1295,14 +1205,12 @@ static AVM_FORCE_INLINE uint8x8_t map_state_neon(uint8x8_t prev,
   return tbl8_fill_ff(prev, state);
 }
 
-// vtbl1 returns 0 for the negative (>= 0x80) dead-state indices.
 static AVM_FORCE_INLINE uint8x8_t remap_lev_neon(uint8x8_t lev_raw,
                                                  uint8x8_t state) {
   return vtbl1_u8(lev_raw, state);
 }
 
-// orig_st is the diagonal's final orig_st; returns the reset (identity)
-// orig_st for the next diagonal.
+// Returns the identity orig_st for the next diagonal.
 static AVM_FORCE_INLINE uint8x8_t update_nbr_diagonal_neon(
     struct tcq_ctx_t *tcq_ctx, uint8x8_t orig_st, int row, int col, int bwl) {
   int diag = row + col;
@@ -1401,10 +1309,8 @@ void av2_trellis_loop_diagonal_st8_neon(const struct tcq_param_t *p,
   const int dqv_ac = dequant[1];
   const int32_t quant_ac = quant[1];
   const q1_dq_t q1_dq_ac = q1_dq_neon(dqv_ac, log_scale);
-  // Every default-region position has scan_pos >= 10 > 0, so its
-  // get_lower_levels_ctx_eob is 1 + (scan_pos > eob_t1) + (scan_pos > eob_t2),
-  // and its q1 eob rate base_eob_cost_tbl[0][ctx][1] is 16-bit field ctx of
-  // q1_eob_rates (field 0 unused).
+  // scan_pos >= 10 fixes the eob ctx's first term at 1; q1_eob_rates packs
+  // the q1 eob rate of ctx in 16-bit field ctx.
   const int eob_t1 = (height << bwl) / 8;
   const int eob_t2 = (height << bwl) / 4;
 #if AVM_ARCH_AARCH64
@@ -1439,10 +1345,7 @@ void av2_trellis_loop_diagonal_st8_neon(const struct tcq_param_t *p,
     for (int scan_pos = scan_hi; scan_pos >= scan_lo; --scan_pos) {
       tcq_node_t *decision = &trellis[scan_pos << TCQ_N_STATES_LOG];
       prequant_t pq_data;
-      // scan_pos >= 10 here, so scan[scan_pos] != 0 (scan[0] is the DC):
-      // get_dqv's dequant[!!coeff_idx] is dqv_ac and quant[scan_pos != 0] is
-      // quant_ac. Without a quant matrix the position needs neither the scan
-      // entry nor the dequant / quant loads.
+      // scan_pos >= 10, so the position is AC: no scan, dequant or quant load.
       assert(scan[scan_pos] != 0);
       int temp_dqv = dqv_ac;
       if (iqmatrix != NULL) {
@@ -1520,12 +1423,8 @@ void av2_trellis_loop_diagonal_st8_neon(const struct tcq_param_t *p,
     scan_hi = scan_lo - 1;
   }
 
-  // LF region: scan[scan_pos] == 0 only at scan_pos 0 (the DC), so get_dqv's
-  // dequant[!!coeff_idx] and quant[scan_pos != 0] pick between the DC and AC
-  // values by scan_pos alone, and get_lower_levels_ctx_eob is
-  // (scan_pos > 0) + (scan_pos > eob_t1) + (scan_pos > eob_t2) (eob_t1 >= 2).
-  // The q1 eob rate base_lf_eob_cost_tbl[0][ctx][1] is 16-bit field ctx of
-  // q1_lf_eob_rates.
+  // LF region: only scan_pos 0 is the DC, so DC / AC and the eob ctx follow
+  // from scan_pos.
   const int dqv_dc = dequant[0];
   const int32_t quant_dc = quant[0];
 #if AVM_ARCH_AARCH64
