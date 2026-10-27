@@ -479,7 +479,10 @@ static void fill_sms_buf(SimpleMotionDataBufs *data_buf,
   SimpleMotionData *sms_data = av2_get_sms_data_entry(data_buf, mi_row, mi_col,
                                                       bsize, sb_size, sdp_flag);
   sms_data->old_sms = sms_node;
-  if (bsize >= BLOCK_8X8 && bsize != BLOCK_INVALID) {
+
+  // SMS Data is only checked on blocks of size 8x8 or larger by current speed
+  // features, therefore only blocks of size 16x16 or up need to be split here.
+  if (bsize >= BLOCK_16X16 && bsize != BLOCK_INVALID) {
     const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
     for (int r_idx = 0; r_idx < SUB_PARTITIONS_SPLIT; r_idx++) {
       assert(bsize < BLOCK_SIZES_ALL);
@@ -552,10 +555,21 @@ static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
     } else {
       av2_init_sms_data_bufs(data_bufs);
     }
-    fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
-                 0);
-    fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
-                 1);
+
+    // The wet pass of the fast two-pass search keeps every old_sms pointer from
+    // the dry pass, so there is nothing to refill.
+    // Inter frames only read the INTRA_REGION ones when inter SDP is searched,
+    // so fill each region only when it can actually be read.
+    if (!preserve_sms_cache) {
+      if (frame_is_intra_only(cm) || cm->seq_params.enable_extended_sdp) {
+        fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size,
+                     cm->sb_size, INTRA_REGION);
+      }
+      if (!frame_is_intra_only(cm)) {
+        fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size,
+                     cm->sb_size, MIXED_INTER_INTRA_REGION);
+      }
+    }
   }
   if (x->e_mbd.tree_type == CHROMA_PART) {
     assert(is_bsize_square(x->sb_enc.min_partition_size));
