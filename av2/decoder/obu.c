@@ -1757,6 +1757,8 @@ static int is_coded_frame(OBU_TYPE obu_type) {
 //   local config (LCR -> OPS -> Atlas) -> SH -> frame unit data
 // When the xlayer_id increases, the state resets to TU_STATE_LOCAL_INFO so
 // the new xlayer group may begin with local config, SH, or frame unit data.
+// Note: This function does NOT implement checks related to CI OBU as
+// AV2-ISOBMFF strips all the CI OBUs.
 int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
                                   int xlayer_id, int metadata_is_suffix,
                                   int prev_obu_type, int prev_xlayer_id) {
@@ -1766,6 +1768,8 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
   // After the global phase, an xlayer_id change starts a fresh per-xlayer
   // group. No increasing-xlayer constraint: a TU may group all per-xlayer
   // config ahead of all frame data.
+  // TODO(avm issue #5582): This is more permissive and allows certain OBU
+  // orders not allowed by the AV2 spec.
   if (*state == TU_STATE_LOCAL_INFO || *state == TU_STATE_SEQUENCE_HEADER ||
       *state == TU_STATE_FRAME_UINT_DATA) {
     if (xlayer_id != GLOBAL_XLAYER_ID && prev_xlayer_id != GLOBAL_XLAYER_ID &&
