@@ -55,6 +55,8 @@ int av2_write_uleb_obu_size(size_t obu_header_size, size_t obu_payload_size,
 
 void av2_add_trailing_bits(struct avm_write_bit_buffer *wb);
 
+int av2_neg_interleave(int x, int ref, int max);
+
 uint32_t av2_write_layer_configuration_record_obu(AV2_COMP *const cpi,
                                                   int xlayer_id,
                                                   uint8_t *const dst);

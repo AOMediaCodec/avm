@@ -1432,7 +1432,14 @@ static AVM_INLINE void write_inter_segment_id(
       }
     }
     if (seg->temporal_update) {
-      const int pred_flag = mbmi->seg_id_predicted;
+      const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
+      const int pred_segment_id =
+          cm->last_frame_seg_map
+              ? get_segment_id(&cm->mi_params, cm->last_frame_seg_map, bsize,
+                               mi_row, mi_col)
+              : 0;
+      const int pred_flag = (pred_segment_id == mbmi->segment_id);
+      mbmi->seg_id_predicted = pred_flag;
       avm_cdf_prob *pred_cdf = av2_get_pred_cdf_seg_id(segp, xd);
       avm_write_symbol(w, pred_flag, pred_cdf, 2);
       if (!pred_flag) {
