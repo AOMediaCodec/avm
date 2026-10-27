@@ -861,6 +861,21 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.motion_mode_for_winner_cand = 2;
     if (speed == 6) sf->winner_mode_sf.motion_mode_for_winner_cand = 3;
   }
+
+  if (cpi->is_screen_content_type) {
+    if (speed >= 3) {
+      // Sub-pel refinement is critical for sharp synthetic edges and text.
+      sf->mv_sf.subpel_search_method = SUBPEL_TREE;
+      sf->mv_sf.skip_second_best_subpel = 0;
+
+      // Compound and inter-intra modes provide substantial coding gains on
+      // screen content sequences with high efficiency.
+      sf->inter_sf.disable_interintra = false;
+      sf->inter_sf.comp_inter_joint_search_thresh = BLOCK_4X4;
+      sf->inter_sf.prune_comp_type_by_comp_avg = 0;
+      sf->inter_sf.prune_comp_search_by_single_result = 0;
+    }
+  }
 }
 
 // Define frame size independent speed features for low complexity decoding
