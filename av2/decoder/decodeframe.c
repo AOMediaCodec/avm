@@ -3545,6 +3545,20 @@ static AVM_INLINE void setup_render_size(AV2_COMMON *cm,
   }
 
   (void)rb;
+  // Default to the sequence header's full display dimensions (accounting for
+  // any conformance cropping window) so downscaled frames in raw OBU streams
+  // report the full sequence display size rather than the current frame's coded
+  // size.
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  int default_render_width = seq_params->max_frame_width;
+  int default_render_height = seq_params->max_frame_height;
+  if (seq_params->conf.conf_win_enabled_flag) {
+    default_render_width -= seq_params->conf.conf_win_left_offset +
+                            seq_params->conf.conf_win_right_offset;
+    default_render_height -= seq_params->conf.conf_win_top_offset +
+                             seq_params->conf.conf_win_bottom_offset;
+  }
+
   if (cm->lcr != NULL && cm->lcr->valid) {
     struct LCRXLayerInfo *xlayer_info = NULL;
     if (cm->lcr->is_global) {
@@ -3564,13 +3578,13 @@ static AVM_INLINE void setup_render_size(AV2_COMMON *cm,
       cm->render_width = xlayer_info->rep_params.lcr_max_pic_width;
       cm->render_height = xlayer_info->rep_params.lcr_max_pic_height;
     } else {
-      cm->render_width = cm->width;
-      cm->render_height = cm->height;
+      cm->render_width = default_render_width;
+      cm->render_height = default_render_height;
     }
   } else {
-    // No active LCR, use the frame dimensions
-    cm->render_width = cm->width;
-    cm->render_height = cm->height;
+    // No active LCR: use the sequence header display dimensions.
+    cm->render_width = default_render_width;
+    cm->render_height = default_render_height;
   }
 }
 
