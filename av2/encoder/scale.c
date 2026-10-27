@@ -225,6 +225,20 @@ static uint8_t calculate_next_resize_scale(AV2_COMP *cpi) {
         new_denom = resize_cfg->resize_scale_denominator;
       break;
     case RESIZE_RANDOM: new_denom = lcg_rand16(&seed) % 9 + 8; break;
+    case RESIZE_RANDOM_SUBGOP:
+      // Keyframes pick an independent random scale like RESIZE_RANDOM; for
+      // each subgop, pick a random scale once on its first non-keyframe and
+      // reuse it across all frames in that subgop.
+      if (cpi->common.current_frame.frame_type == KEY_FRAME) {
+        new_denom = lcg_rand16(&seed) % 9 + 8;
+        cpi->resize_subgop_denom = 0;
+      } else {
+        if (cpi->resize_subgop_denom == 0) {
+          cpi->resize_subgop_denom = lcg_rand16(&seed) % 9 + 8;
+        }
+        new_denom = cpi->resize_subgop_denom;
+      }
+      break;
     case RESIZE_DYNAMIC: new_denom = calculate_dynamic_resize_scale(cpi); break;
     case RESIZE_PATTERN:
       new_denom = is_low_delay_enc
@@ -257,8 +271,8 @@ static int validate_size_scales(RESIZE_MODE resize_mode, int owidth,
   if (dimensions_are_ok(owidth, oheight, rsz)) {  // Nothing to do.
     return 1;
   }
-  if (resize_mode == RESIZE_RANDOM || resize_mode == RESIZE_DYNAMIC ||
-      resize_mode == RESIZE_PATTERN) {
+  if (resize_mode == RESIZE_RANDOM || resize_mode == RESIZE_RANDOM_SUBGOP ||
+      resize_mode == RESIZE_DYNAMIC || resize_mode == RESIZE_PATTERN) {
     // Alter resize scale as needed to enforce conformity.
     int resize_denom =
         (2 * SCALE_NUMERATOR * SCALE_NUMERATOR) / SCALE_NUMERATOR;
