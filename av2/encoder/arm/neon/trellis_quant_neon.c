@@ -742,7 +742,7 @@ static AVM_FORCE_INLINE int32x2_t get_rates_def_luma_gen_tbl_neon(
   rz[0] = vmovl_u16(vget_low_u16(z));
   rz[1] = vmovl_high_u16(z);
 
-  assert(bdc + 10 <= SIG_COEF_CONTEXTS);
+  assert(bdc + 8 <= SIG_COEF_CONTEXTS);
   const int qIdx = pq->qIdx;
   const int idx_lo = AVMMIN(qIdx - 1, 4);
   const uint8_t *bp =
