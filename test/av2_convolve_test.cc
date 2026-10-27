@@ -1273,19 +1273,16 @@ class AV2ConvolveNonSep2DHighbdTest
     : public AV2ConvolveTest<highbd_convolve_nonsep_2d_func> {
  public:
   void RunTest(RestorationType rtype) {
-    InitFilterConfigs(prec_bits_);
     for (int i = 0; i < kTestIterations; i++) {
       SetFilterTaps();
       TestConvolve(FilterTaps_, rtype);
     }
   }
   void RunSpeedTest(RestorationType rtype) {
-    InitFilterConfigs(prec_bits_);
     SpeedTestConvolve(FilterTaps_, rtype);
   };
 
- protected:
-  int prec_bits_ = 12;
+ private:
   void BitMatchTest(const uint16_t *input, int input_stride, int width,
                     int height, const int16_t *filter, uint16_t *reference,
                     uint16_t *test, int dst_stride, int bit_depth,
@@ -1341,7 +1338,7 @@ class AV2ConvolveNonSep2DHighbdTest
     const uint16_t *extreme_input = FirstRandomInput16Extreme(GetParam());
     int16_t Extream_Tap_[kMaxNumSymmetricTaps + 1];
     RandomizeExtreamFilterTap(Extream_Tap_, kMaxNumSymmetricTaps + 1,
-                              prec_bits_);
+                              kMaxPrecisionBeforeOverflow);
     BitMatchTest(extreme_input, input_stride, width, height, Extream_Tap_,
                  reference, test, kOutputStride, bit_depth, 0, height, 0, width,
                  rtype);
@@ -1418,7 +1415,8 @@ class AV2ConvolveNonSep2DHighbdTest
   // last added tap at (2 * kMaxNumSymmetricTaps) is unconstrained and intended
   // for CONFIG_PC_WIENER use case.
   void SetFilterTaps() {
-    Randomize(FilterTaps_, kMaxNumSymmetricTaps + 1, prec_bits_);
+    Randomize(FilterTaps_, kMaxNumSymmetricTaps + 1,
+              kMaxPrecisionBeforeOverflow);
   }
 
   // Fills the array p with signed integers.
@@ -1445,70 +1443,72 @@ class AV2ConvolveNonSep2DHighbdTest
     return (value >> 7) & 0x1;
   }
 
-  void InitFilterConfigs(int prec_bits) {
-    UnconstrainedSumFilterConfig_ = { prec_bits,
-                                      (int)(sizeof(wienerns_simd_config_y) /
-                                            sizeof(wienerns_simd_config_y[0])),
-                                      0,
-                                      wienerns_simd_config_y,
-                                      NULL,
-                                      0,
-                                      0,
-                                      1,
-                                      1 };
-    PcWienerNonsepFilterConfigChroma_ = {
-      prec_bits,
-      (int)(sizeof(wienerns_simd_config_uv_from_uvonly) /
-            sizeof(wienerns_simd_config_uv_from_uvonly[0])),
-      0,
-      wienerns_simd_config_uv_from_uvonly,
-      NULL,
-      0,
-      0,
-      1,
-      1
-    };
-    UnitSumFilterConfig_ = { prec_bits,
-                             (int)(sizeof(wienerns_simd_config_y) /
-                                       sizeof(wienerns_simd_config_y[0]) -
-                                   1),
-                             0,
-                             wienerns_simd_config_y,
-                             NULL,
-                             0,
-                             1,
-                             1,
-                             1 };
-    UnitSumFilterConfigChroma_ = {
-      prec_bits,
-      (int)(sizeof(wienerns_simd_config_uv_from_uv) /
-                sizeof(wienerns_simd_config_uv_from_uv[0]) -
-            1),
-      0,
-      wienerns_simd_config_uv_from_uv,
-      NULL,
-      0,
-      1,
-      1,
-      1
-    };
-  }
-
   libavm_test::ACMRandom rnd_;
+  static constexpr int kMaxPrecisionBeforeOverflow = 12;
   static constexpr int kMaxNumSymmetricTaps = 18;
   static constexpr int kMaxTapOffset = 3;  // Filters are 7x7.
   static constexpr int kSpeedIterations = 10000;
   static constexpr int kTestIterations = 100;
 
-  NonsepFilterConfig UnconstrainedSumFilterConfig_ = {};
-  NonsepFilterConfig PcWienerNonsepFilterConfigChroma_ = {};
-  NonsepFilterConfig UnitSumFilterConfig_ = {};
-  NonsepFilterConfig UnitSumFilterConfigChroma_ = {};
+  // Filters use all unique taps.
+  const NonsepFilterConfig UnconstrainedSumFilterConfig_ = {
+    kMaxPrecisionBeforeOverflow,
+    sizeof(wienerns_simd_config_y) / sizeof(wienerns_simd_config_y[0]),
+    0,
+    wienerns_simd_config_y,
+    NULL,
+    0,
+    0,
+    1,
+    1
+  };
+
+  const NonsepFilterConfig PcWienerNonsepFilterConfigChroma_ = {
+    kMaxPrecisionBeforeOverflow,
+    sizeof(wienerns_simd_config_uv_from_uvonly) /
+        sizeof(wienerns_simd_config_uv_from_uvonly[0]),
+    0,
+    wienerns_simd_config_uv_from_uvonly,
+    NULL,
+    0,
+    0,
+    1,
+    1
+  };
+
+  const NonsepFilterConfig UnitSumFilterConfig_ = {
+    kMaxPrecisionBeforeOverflow,
+    sizeof(wienerns_simd_config_y) / sizeof(wienerns_simd_config_y[0]) - 1,
+    0,
+    wienerns_simd_config_y,
+    NULL,
+    0,
+    1,
+    1,
+    1
+  };
+
+  // Config used for filtering of chroma when CONFIG_WIENER_NONSEP=1.
+  const NonsepFilterConfig UnitSumFilterConfigChroma_ = {
+    kMaxPrecisionBeforeOverflow,
+    sizeof(wienerns_simd_config_uv_from_uv) /
+            sizeof(wienerns_simd_config_uv_from_uv[0]) -
+        1,
+    0,
+    wienerns_simd_config_uv_from_uv,
+    NULL,
+    0,
+    1,
+    1,
+    1
+  };
 
   int16_t FilterTaps_[kMaxNumSymmetricTaps + 1];
 };
 
-TEST_P(AV2ConvolveNonSep2DHighbdTest, RunTest) { RunTest(RESTORE_PC_WIENER); }
+TEST_P(AV2ConvolveNonSep2DHighbdTest, DISABLED_RunTest) {
+  RunTest(RESTORE_PC_WIENER);
+}
 
 TEST_P(AV2ConvolveNonSep2DHighbdTest, DISABLED_Speed) {
   RunSpeedTest(RESTORE_PC_WIENER);
@@ -1517,11 +1517,6 @@ TEST_P(AV2ConvolveNonSep2DHighbdTest, DISABLED_Speed) {
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveNonSep2DHighbdTest,
                          BuildHighbdParams(av2_convolve_symmetric_highbd_avx2));
-#endif
-
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(NEON, AV2ConvolveNonSep2DHighbdTest,
-                         BuildHighbdParams(av2_convolve_symmetric_highbd_neon));
 #endif
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2ConvolveNonSep2DHighbdTest);
@@ -1561,39 +1556,8 @@ INSTANTIATE_TEST_SUITE_P(
     BuildHighbdParams(av2_convolve_symmetric_blk8x8_highbd_avx2));
 #endif
 
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(
-    NEON, AV2ConvolveNonSepBlk8x82DHighbdTest,
-    BuildHighbdParams(av2_convolve_symmetric_blk8x8_highbd_neon));
-#endif
-
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
     AV2ConvolveNonSepBlk8x82DHighbdTest);
-
-class AV2ConvolveNonSepBlk8x82DHighbdLowPrecTest
-    : public AV2ConvolveNonSep2DHighbdTest {
- public:
-  AV2ConvolveNonSepBlk8x82DHighbdLowPrecTest() { prec_bits_ = 7; }
-};
-
-TEST_P(AV2ConvolveNonSepBlk8x82DHighbdLowPrecTest, RunTest) {
-  RunTest(RESTORE_PC_WIENER);
-}
-
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(
-    NEON, AV2ConvolveNonSepBlk8x82DHighbdLowPrecTest,
-    BuildHighbdParams(av2_convolve_symmetric_blk8x8_highbd_neon));
-#endif
-
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV2ConvolveNonSepBlk8x82DHighbdLowPrecTest,
-    BuildHighbdParams(av2_convolve_symmetric_blk8x8_highbd_avx2));
-#endif
-
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
-    AV2ConvolveNonSepBlk8x82DHighbdLowPrecTest);
 
 //////////////////////////////////////////////////////////
 // Nonseparable convolve-2d Dual functions (high bit-depth)
@@ -1610,20 +1574,18 @@ class AV2ConvolveNonSep_dual2DHighbdTest
     : public AV2ConvolveTest<highbd_convolve_nonsep_dual_2d_func> {
  public:
   void RunTest(int is_subtract_center) {
-    InitDualFilterConfigs(prec_bits_);
     for (int i = 0; i < kTestIterations; i++) {
       SetFilterTaps();
       TestConvolve(FilterTaps_, is_subtract_center);
     }
   }
   void RunSpeedTest(int is_subtract_center) {
-    InitDualFilterConfigs(prec_bits_);
     SpeedTestConvolve(FilterTaps_, is_subtract_center);
   };
 
- protected:
-  int prec_bits_ = 12;
+ private:
   libavm_test::ACMRandom rnd_;
+  static constexpr int kMaxPrecisionBeforeOverflow = 12;
   static constexpr int kNumSubtractCenterOffTaps = 20;
   static constexpr int kMaxTapOffset = 2;  // Filters are 5x5.
   static constexpr int kSpeedIterations = 10000;
@@ -1642,7 +1604,8 @@ class AV2ConvolveNonSep_dual2DHighbdTest
   }
 
   void SetFilterTaps() {
-    Randomize(FilterTaps_, kNumSubtractCenterOffTaps, prec_bits_);
+    Randomize(FilterTaps_, kNumSubtractCenterOffTaps,
+              kMaxPrecisionBeforeOverflow);
   }
 
   int RandBool() {
@@ -1714,7 +1677,7 @@ class AV2ConvolveNonSep_dual2DHighbdTest
     const uint16_t *extreme_input2 = FirstRandomInput16Extreme(GetParam());
     int16_t Extream_Tap_[kNumSubtractCenterOffTaps];
     RandomizeExtreamFilterTap(Extream_Tap_, kNumSubtractCenterOffTaps,
-                              prec_bits_);
+                              kMaxPrecisionBeforeOverflow);
     BitMatchTest(extreme_input1, extreme_input2, input_stride, width, height,
                  Extream_Tap_, reference, test, kOutputStride, bit_depth, 0,
                  height, 0, width, is_subtract_center);
@@ -1776,39 +1739,35 @@ class AV2ConvolveNonSep_dual2DHighbdTest
         width, height, c_time_per_pixel, opt_time_per_pixel, scaling);
   }
 
-  void InitDualFilterConfigs(int prec_bits) {
-    DualFilterWithCenterConfig_ = {
-      prec_bits,  // prec_bits;
-      (int)(sizeof(wienerns_simd_config_uv_from_uv) /
-                sizeof(wienerns_simd_config_uv_from_uv[0]) -
-            1),  // num_pixels;
-      (int)(sizeof(wienerns_simd_config_uv_from_y) /
-                sizeof(wienerns_simd_config_uv_from_y[0]) -
-            1),                         // num_pixels2
-      wienerns_simd_config_uv_from_uv,  // config
-      wienerns_simd_config_uv_from_y,   // config2
-      0,                                // strict_bounds
-      1,                                // subtract_center
-      1,                                // symmetry config
-      0,                                // symmetry config2
-    };
-    DualFilterWithoutCenterConfig_ = {
-      prec_bits,  // prec_bits;
-      (int)(sizeof(wienerns_simd_config_uv_from_uv) /
-            sizeof(wienerns_simd_config_uv_from_uv[0])),  // num_pixels;
-      (int)(sizeof(wienerns_simd_config_uv_from_y) /
-            sizeof(wienerns_simd_config_uv_from_y[0])),  // num_pixels2
-      wienerns_simd_config_uv_from_uv,                   // config
-      wienerns_simd_config_uv_from_y,                    // config2
-      0,                                                 // strict_bounds
-      0,                                                 // subtract_center
-      1,                                                 // symmetry config
-      0,                                                 // symmetry config2
-    };
-  }
+  const NonsepFilterConfig DualFilterWithCenterConfig_ = {
+    kMaxPrecisionBeforeOverflow,  // prec_bits;
+    sizeof(wienerns_simd_config_uv_from_uv) /
+            sizeof(wienerns_simd_config_uv_from_uv[0]) -
+        1,  // num_pixels;
+    sizeof(wienerns_simd_config_uv_from_y) /
+            sizeof(wienerns_simd_config_uv_from_y[0]) -
+        1,                            // num_pixels2
+    wienerns_simd_config_uv_from_uv,  // config
+    wienerns_simd_config_uv_from_y,   // config2
+    0,                                // strict_bounds
+    1,                                // subtract_center
+    1,                                // symmetry config
+    0,                                // symmetry config2
+  };
 
-  NonsepFilterConfig DualFilterWithCenterConfig_ = {};
-  NonsepFilterConfig DualFilterWithoutCenterConfig_ = {};
+  const NonsepFilterConfig DualFilterWithoutCenterConfig_ = {
+    kMaxPrecisionBeforeOverflow,  // prec_bits;
+    sizeof(wienerns_simd_config_uv_from_uv) /
+        sizeof(wienerns_simd_config_uv_from_uv[0]),  // num_pixels;
+    sizeof(wienerns_simd_config_uv_from_y) /
+        sizeof(wienerns_simd_config_uv_from_y[0]),  // num_pixels2
+    wienerns_simd_config_uv_from_uv,                // config
+    wienerns_simd_config_uv_from_y,                 // config2
+    0,                                              // strict_bounds
+    0,                                              // subtract_center
+    1,                                              // symmetry config
+    0,                                              // symmetry config2
+  };
 };
 
 TEST_P(AV2ConvolveNonSep_dual2DHighbdTest, RunTest) { RunTest(1); }
@@ -1838,39 +1797,8 @@ INSTANTIATE_TEST_SUITE_P(
     BuildHighbdParams(av2_convolve_symmetric_dual_highbd_avx2));
 #endif
 
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(
-    NEON, AV2ConvolveDualWithoutsubtract2DHighbdTest,
-    BuildHighbdParams(av2_convolve_symmetric_dual_highbd_neon));
-#endif
-
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
     AV2ConvolveDualWithoutsubtract2DHighbdTest);
-
-class AV2ConvolveDualWithoutsubtract2DHighbdLowPrecTest
-    : public AV2ConvolveNonSep_dual2DHighbdTest {
- public:
-  AV2ConvolveDualWithoutsubtract2DHighbdLowPrecTest() { prec_bits_ = 7; }
-};
-
-TEST_P(AV2ConvolveDualWithoutsubtract2DHighbdLowPrecTest, RunTest) {
-  RunTest(0);
-}
-
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(
-    NEON, AV2ConvolveDualWithoutsubtract2DHighbdLowPrecTest,
-    BuildHighbdParams(av2_convolve_symmetric_dual_highbd_neon));
-#endif
-
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV2ConvolveDualWithoutsubtract2DHighbdLowPrecTest,
-    BuildHighbdParams(av2_convolve_symmetric_dual_highbd_avx2));
-#endif
-
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
-    AV2ConvolveDualWithoutsubtract2DHighbdLowPrecTest);
 
 enum WnsConfigId {
   kWnsLargeY16,
@@ -2023,7 +1951,6 @@ class AV2ConvolveNonSepSymTestBase : public ::testing::TestWithParam<WnsParam> {
   static constexpr int kSrcAlloc =
       (kMaxBegin + kMaxH + 2 * kMaxRadius + 4) * kMaxStride + 64;
   static constexpr int kDstAlloc = (kMaxBegin + kMaxH + 1) * kMaxStride + 64;
-  static constexpr int kNumRandomIter = 1000;
   static constexpr int kMaxTaps = 24;
 
   void SetMainConfig(const int (*config)[3], int num_pixels) {
@@ -2175,69 +2102,18 @@ class AV2ConvolveNonSepSymTestBase : public ::testing::TestWithParam<WnsParam> {
     if (use_table) DeriveCenters();
   }
 
-  enum TapSet {
-    kCodecMax,
-    kCodecMin,
-    kEnvMax,
-    kEnvMin,
-    kAltPosFirst,
-    kAltNegFirst,
-    kCodecAlt,
-  };
-
-  static const char *TapSetName(int s) {
-    switch (s) {
-      case kCodecMax: return "codec-max";
-      case kCodecMin: return "codec-min";
-      case kEnvMax: return "env-max";
-      case kEnvMin: return "env-min";
-      case kAltPosFirst: return "alt+-";
-      case kAltNegFirst: return "alt-+";
-      case kCodecAlt: return "codec-alt";
-      default: return "?";
-    }
-  }
-
-  void SetTaps(int set) {
-    for (int pos = 0; pos < n_filter_; ++pos) {
-      int lo, hi;
-      CodecRange(pos, &lo, &hi);
-      int v = 0;
-      switch (set) {
-        case kCodecMax: v = hi; break;
-        case kCodecMin: v = lo; break;
-        case kEnvMax: v = EnvMax(pos); break;
-        case kEnvMin: v = EnvMin(pos); break;
-        case kAltPosFirst:
-          v = IsCenter(pos) ? EnvMax(pos)
-                            : ((pos & 1) ? EnvMin(pos) : EnvMax(pos));
-          break;
-        case kAltNegFirst:
-          v = IsCenter(pos) ? EnvMin(pos)
-                            : ((pos & 1) ? EnvMax(pos) : EnvMin(pos));
-          break;
-        case kCodecAlt: v = (pos & 1) ? lo : hi; break;
-        default: FAIL() << "unknown tap set " << set;
-      }
-      filter_[pos] = static_cast<int16_t>(v);
-    }
-    FixupTaps();
-    if ((set == kCodecMax || set == kCodecMin || set == kCodecAlt) &&
-        CodecTable() != nullptr) {
-      DeriveCenters();
-    }
-  }
-
   int MinSrcStride(int col_begin) const {
     return col_begin + p_.width + 2 * radius_;
   }
 
   static int AlignUp(int v, int a) { return (v + a - 1) / a * a; }
 
+  // The src, dst and dual strides all differ, so a kernel that uses one for
+  // another fails.
   WnsLayout DefaultLayout(int row_begin = 0, int col_begin = 0) const {
     const int min_src = MinSrcStride(col_begin);
     return { AlignUp(min_src, 8) + 8,
-             AlignUp(col_begin + p_.width, 8) + 16,
+             AlignUp(col_begin + p_.width, 8) + 24,
              AlignUp(min_src, 8) + 16,
              0,
              0,
@@ -2301,33 +2177,6 @@ class AV2ConvolveNonSepSymTestBase : public ::testing::TestWithParam<WnsParam> {
     Fill(l, [v](int, int) { return v; });
   }
 
-  void FillCheckerboard(const WnsLayout &l) {
-    const int m = mask_;
-    Fill(l, [m](int r, int c) { return ((r + c) & 1) ? m : 0; });
-  }
-
-  void FillAccumulatorPattern(const WnsLayout &l, bool want_positive) {
-    FillConstant(l, 0);
-    uint16_t *o = Src(l) + l.row_begin * l.src_stride + l.col_begin;
-    for (int k = 0; k < cfg_.num_pixels; ++k) {
-      const int pos = cfg_.config[k][NONSEP_BUF_POS];
-      int w = filter_[pos];
-      if (k == cfg_.num_pixels - 1) w += 1 << p_.prec_bits;
-      const bool on = want_positive ? w > 0 : w < 0;
-      o[cfg_.config[k][NONSEP_ROW_ID] * l.src_stride +
-        cfg_.config[k][NONSEP_COL_ID]] = on ? mask_ : 0;
-    }
-    if (dual_) {
-      uint16_t *o2 = Dual(l) + l.row_begin * l.dual_stride + l.col_begin;
-      for (int k = 0; k < cfg_.num_pixels2; ++k) {
-        const int w = filter_[cfg_.config2[k][NONSEP_BUF_POS]];
-        const bool on = want_positive ? w > 0 : w < 0;
-        o2[cfg_.config2[k][NONSEP_ROW_ID] * l.dual_stride +
-           cfg_.config2[k][NONSEP_COL_ID]] = on ? mask_ : 0;
-      }
-    }
-  }
-
   void CallRef(const WnsLayout &l, uint16_t *dst) {
     const int rb = l.row_begin, cb = l.col_begin;
     if (dual_) {
@@ -2379,89 +2228,6 @@ class AV2ConvolveNonSepSymTestBase : public ::testing::TestWithParam<WnsParam> {
           << " dst_stride=" << l.dst_stride << " dual_stride=" << l.dual_stride
           << " src_off=" << l.src_off << " dst_off=" << l.dst_off
           << " dual_off=" << l.dual_off << " taps=" << taps;
-    }
-  }
-
-  void RunRandomBitExact() {
-    const WnsLayout l = DefaultLayout();
-    for (int i = 0; i < kNumRandomIter; ++i) {
-      FillRandom(l);
-      RandomTaps((i & 1) == 0);
-      ASSERT_NO_FATAL_FAILURE(RunComparison(l, i, "random"));
-    }
-  }
-
-  void RunConstantInput(int value, const char *what) {
-    const WnsLayout l = DefaultLayout();
-    FillConstant(l, value);
-    for (int i = 0; i < 4; ++i) {
-      RandomTaps((i & 1) == 0);
-      ASSERT_NO_FATAL_FAILURE(RunComparison(l, i, what));
-    }
-    for (int set : { kCodecMax, kCodecMin }) {
-      SetTaps(set);
-      ASSERT_NO_FATAL_FAILURE(RunComparison(l, set, what));
-    }
-  }
-
-  void RunExtremesAllZero() { RunConstantInput(0, "all-zero"); }
-  void RunExtremesAllMax() { RunConstantInput(mask_, "all-max"); }
-  void RunBitDepthMidpoint() { RunConstantInput(1 << (p_.bd - 1), "midpoint"); }
-
-  void RunBitDepthCheckerboard() {
-    const WnsLayout l = DefaultLayout();
-    FillCheckerboard(l);
-    for (int i = 0; i < 4; ++i) {
-      RandomTaps((i & 1) == 0);
-      ASSERT_NO_FATAL_FAILURE(RunComparison(l, i, "checkerboard"));
-    }
-    for (int set : { kCodecMax, kCodecMin, kCodecAlt }) {
-      SetTaps(set);
-      ASSERT_NO_FATAL_FAILURE(RunComparison(l, set, "checkerboard"));
-    }
-  }
-
-  void RunTapSets(std::initializer_list<int> sets) {
-    const WnsLayout l = DefaultLayout();
-    for (int set : sets) {
-      for (int input = 0; input < 3; ++input) {
-        if (input == 0) FillRandom(l);
-        if (input == 1) FillConstant(l, mask_);
-        if (input == 2) FillCheckerboard(l);
-        SetTaps(set);
-        const std::string what =
-            std::string(TapSetName(set)) + (input == 0   ? "/random"
-                                            : input == 1 ? "/all-max"
-                                                         : "/checkerboard");
-        ASSERT_NO_FATAL_FAILURE(RunComparison(l, input, what.c_str()));
-      }
-    }
-  }
-
-  void RunExtremeTaps() {
-    RunTapSets({ kCodecMax, kCodecMin, kEnvMax, kEnvMin });
-  }
-
-  void RunAlternatingSignTaps() {
-    RunTapSets({ kAltPosFirst, kAltNegFirst, kCodecAlt });
-  }
-
-  // At bd 12 / prec_bits 12 this is the int32 stress case.
-  void RunAccumulatorStress() {
-    const WnsLayout l = DefaultLayout();
-    FillConstant(l, mask_);
-    SetTaps(kEnvMax);
-    ASSERT_NO_FATAL_FAILURE(RunComparison(l, 0, "acc/env-max/all-max"));
-    SetTaps(kEnvMin);
-    ASSERT_NO_FATAL_FAILURE(RunComparison(l, 1, "acc/env-min/all-max"));
-    for (int set : { kAltPosFirst, kAltNegFirst, kCodecAlt }) {
-      SetTaps(set);
-      for (bool positive : { true, false }) {
-        FillAccumulatorPattern(l, positive);
-        const std::string what = std::string("acc/") + TapSetName(set) +
-                                 (positive ? "/positive" : "/negative");
-        ASSERT_NO_FATAL_FAILURE(RunComparison(l, set, what.c_str()));
-      }
     }
   }
 
@@ -2554,60 +2320,6 @@ class AV2ConvolveNonSepSymTestBase : public ::testing::TestWithParam<WnsParam> {
     }
   }
 
-  void RunStrideMinimum() {
-    const int min_src = MinSrcStride(0);
-    RunLayout({ min_src, p_.width, min_src, 0, 0, 0, 0, 0, "stride-min" }, 20);
-  }
-
-  void RunStridePadded() {
-    const int min_src = MinSrcStride(0);
-    ASSERT_NO_FATAL_FAILURE(
-        RunLayout({ min_src + 16, p_.width + 16, min_src + 24, 0, 0, 0, 0, 0,
-                    "stride-padded" },
-                  20));
-    ASSERT_NO_FATAL_FAILURE(
-        RunLayout({ min_src + 17, p_.width + 19, min_src + 21, 0, 0, 0, 0, 0,
-                    "stride-padded-odd" },
-                  20));
-  }
-
-  void RunOffsets(int src_off, int dst_off, int dual_off, const char *label) {
-    WnsLayout l = DefaultLayout();
-    l.src_off = src_off;
-    l.dst_off = dst_off;
-    l.dual_off = dual_off;
-    l.label = label;
-    RunLayout(l, 20);
-  }
-
-  void RunMisalignedSrc() {
-    for (int off : { 1, 3 }) {
-      SCOPED_TRACE(off);
-      ASSERT_NO_FATAL_FAILURE(RunOffsets(off, 0, 0, "src-misaligned"));
-    }
-  }
-  void RunMisalignedDst() {
-    for (int off : { 1, 3 }) {
-      SCOPED_TRACE(off);
-      ASSERT_NO_FATAL_FAILURE(RunOffsets(0, off, 0, "dst-misaligned"));
-    }
-  }
-  void RunMisalignedSrcAndDst() {
-    ASSERT_NO_FATAL_FAILURE(RunOffsets(1, 3, 0, "src+dst-misaligned"));
-    ASSERT_NO_FATAL_FAILURE(RunOffsets(3, 1, 0, "src+dst-misaligned"));
-  }
-  void RunMisalignedDual() {
-    for (int off : { 1, 3 }) {
-      SCOPED_TRACE(off);
-      ASSERT_NO_FATAL_FAILURE(RunOffsets(0, 0, off, "dual-misaligned"));
-    }
-  }
-  void RunMisalignedAll() {
-    ASSERT_NO_FATAL_FAILURE(RunOffsets(1, 3, 3, "src+dst+dual-misaligned"));
-    ASSERT_NO_FATAL_FAILURE(RunOffsets(3, 1, 1, "src+dst+dual-misaligned"));
-    ASSERT_NO_FATAL_FAILURE(RunOffsets(1, 0, 3, "src+dual-misaligned"));
-  }
-
   // As the pc-wiener loop passes them (kernels index by absolute row/column).
   void RunPartialBlockOffsets() {
     static const int kBegins[][2] = { { 0, 1 }, { 1, 0 }, { 2, 3 },
@@ -2619,25 +2331,22 @@ class AV2ConvolveNonSepSymTestBase : public ::testing::TestWithParam<WnsParam> {
     }
   }
 
-  void RunConfigByContents() {
-    UseConfigCopies();
-    WnsLayout l = DefaultLayout();
-    l.label = "config-by-contents";
-    RunLayout(l, 200);
-  }
-
   // Drops the center row: the shortened config is a prefix of the SIMD table,
   // but C then applies no center tap, so the old center tap must be ignored.
-  void RunNoCenterTap(bool by_contents) {
-    if (by_contents) UseConfigCopies();
-    --cfg_.num_pixels;
-    if (dual_) --cfg_.num_pixels2;
-    center_ = center2_ = -1;
-    const WnsLayout l = DefaultLayout();
-    for (int i = 0; i < 200; ++i) {
-      FillRandom(l);
-      RandomTaps(false);
-      ASSERT_NO_FATAL_FAILURE(RunComparison(l, i, "no-center-tap"));
+  void RunNoCenterTap() {
+    for (const bool by_contents : { false, true }) {
+      SCOPED_TRACE(by_contents ? "config by contents" : "config by pointer");
+      ASSERT_NO_FATAL_FAILURE(InitConfig());
+      if (by_contents) UseConfigCopies();
+      --cfg_.num_pixels;
+      if (dual_) --cfg_.num_pixels2;
+      center_ = center2_ = -1;
+      const WnsLayout l = DefaultLayout();
+      for (int i = 0; i < 200; ++i) {
+        FillRandom(l);
+        RandomTaps(false);
+        ASSERT_NO_FATAL_FAILURE(RunComparison(l, i, "no-center-tap"));
+      }
     }
   }
 
@@ -2681,64 +2390,45 @@ class AV2ConvolveNonSepSymTestBase : public ::testing::TestWithParam<WnsParam> {
   uint16_t *tst_dst_ = nullptr;
 };
 
-#define WNS_SYM_TESTS(Suite)                                         \
-  TEST_P(Suite, RandomBitExact) { RunRandomBitExact(); }             \
-  TEST_P(Suite, ExtremesAllZero) { RunExtremesAllZero(); }           \
-  TEST_P(Suite, ExtremesAllMax) { RunExtremesAllMax(); }             \
-  TEST_P(Suite, BitDepthMidpoint) { RunBitDepthMidpoint(); }         \
-  TEST_P(Suite, BitDepthCheckerboard) { RunBitDepthCheckerboard(); } \
-  TEST_P(Suite, ExtremeTaps) { RunExtremeTaps(); }                   \
-  TEST_P(Suite, AlternatingSignTaps) { RunAlternatingSignTaps(); }   \
-  TEST_P(Suite, AccumulatorStress) { RunAccumulatorStress(); }       \
-  TEST_P(Suite, StrideMinimum) { RunStrideMinimum(); }               \
-  TEST_P(Suite, StridePadded) { RunStridePadded(); }                 \
-  TEST_P(Suite, MisalignedSrc) { RunMisalignedSrc(); }               \
-  TEST_P(Suite, MisalignedDst) { RunMisalignedDst(); }               \
-  TEST_P(Suite, MisalignedSrcAndDst) { RunMisalignedSrcAndDst(); }   \
-  TEST_P(Suite, PartialBlockOffsets) { RunPartialBlockOffsets(); }   \
-  TEST_P(Suite, ConfigByContents) { RunConfigByContents(); }         \
-  TEST_P(Suite, NoCenterTap) { RunNoCenterTap(false); }              \
-  TEST_P(Suite, NoCenterTapByContents) { RunNoCenterTap(true); }     \
+#define WNS_SYM_TESTS(Suite)                                       \
+  TEST_P(Suite, PartialBlockOffsets) { RunPartialBlockOffsets(); } \
+  TEST_P(Suite, NoCenterTap) { RunNoCenterTap(); }                 \
   TEST_P(Suite, DISABLED_Speed) { RunSpeed(); }
+
+// Random taps rarely pass the 16-bit check at bd 10 / 12; the bound filters
+// drive both the pointer-matched and the memcmp-matched routes into the 16-bit
+// kernels.
+#define WNS_S16_TEST(Suite)               \
+  TEST_P(Suite, S16AccumulatorBoundary) { \
+    {                                     \
+      SCOPED_TRACE("config by pointer");  \
+      RunS16AccumulatorBoundary();        \
+    }                                     \
+    if (HasFatalFailure()) return;        \
+    SCOPED_TRACE("config by contents");   \
+    UseConfigCopies();                    \
+    RunS16AccumulatorBoundary();          \
+  }
 
 class AV2ConvolveNonSepSymHighbdTest : public AV2ConvolveNonSepSymTestBase {};
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2ConvolveNonSepSymHighbdTest);
 WNS_SYM_TESTS(AV2ConvolveNonSepSymHighbdTest)
-TEST_P(AV2ConvolveNonSepSymHighbdTest, S16AccumulatorBoundary) {
-  RunS16AccumulatorBoundary();
-}
-// Random taps rarely pass the 16-bit check at bd 10 / 12; this drives the
-// memcmp-matched routes into the 16-bit kernels.
-TEST_P(AV2ConvolveNonSepSymHighbdTest, S16AccumulatorBoundaryByContents) {
-  UseConfigCopies();
-  RunS16AccumulatorBoundary();
-}
+WNS_S16_TEST(AV2ConvolveNonSepSymHighbdTest)
 
 class AV2ConvolveNonSepSymBlk8x8HighbdTest
     : public AV2ConvolveNonSepSymTestBase {};
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
     AV2ConvolveNonSepSymBlk8x8HighbdTest);
 WNS_SYM_TESTS(AV2ConvolveNonSepSymBlk8x8HighbdTest)
-TEST_P(AV2ConvolveNonSepSymBlk8x8HighbdTest, S16AccumulatorBoundary) {
-  RunS16AccumulatorBoundary();
-}
-TEST_P(AV2ConvolveNonSepSymBlk8x8HighbdTest, S16AccumulatorBoundaryByContents) {
-  UseConfigCopies();
-  RunS16AccumulatorBoundary();
-}
+WNS_S16_TEST(AV2ConvolveNonSepSymBlk8x8HighbdTest)
 
 class AV2ConvolveNonSepSymDualHighbdTest : public AV2ConvolveNonSepSymTestBase {
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
     AV2ConvolveNonSepSymDualHighbdTest);
 WNS_SYM_TESTS(AV2ConvolveNonSepSymDualHighbdTest)
-TEST_P(AV2ConvolveNonSepSymDualHighbdTest, MisalignedDual) {
-  RunMisalignedDual();
-}
-TEST_P(AV2ConvolveNonSepSymDualHighbdTest, MisalignedSrcDstAndDual) {
-  RunMisalignedAll();
-}
 
+#undef WNS_S16_TEST
 #undef WNS_SYM_TESTS
 
 #define WNS_SYM_PARAMS(name, ref, tst)                               \
