@@ -10333,7 +10333,11 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       is_intra_mode_allowed);
 
   search_state.best_mbmode.skip_mode = 0;
-  if (is_skip_mode_allowed(cm, xd)) {
+  // The dry pass only picks a partition shape; the wet pass re-searches every
+  // mode, so skip mode's full RD can be left to it.
+  if (is_skip_mode_allowed(cm, xd) &&
+      !(x->apply_dry_pass_shortcuts &&
+        cpi->sf.inter_sf.disable_skip_mode_in_dry_pass)) {
     rd_pick_skip_mode(&search_state, cpi, x, bsize, yv12_mb, ctx, rd_cost);
   }
 
