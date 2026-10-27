@@ -18,6 +18,10 @@
 #include "av2/encoder/encodemb.h"
 #include "av2/encoder/encoder.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define FEATURE_SIZE_SMS_SPLIT_FAST 6
 #define FEATURE_SIZE_SMS_SPLIT 17
 #define FEATURE_SIZE_SMS_PRUNE_PART 25
@@ -207,32 +211,28 @@ PARTITION_TYPE av2_get_prev_partition(MACROBLOCK *x, int mi_row, int mi_col,
                                       BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
                                       int8_t region_type);
 
-static INLINE void av2_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
-  memset(data_bufs, 0, sizeof(*data_bufs));
+// Clears the fields of an entry that must not cross the boundary between the
+// two passes of the fast two-pass partition search.
+static INLINE void av2_clear_sms_cross_pass_fields(SimpleMotionData *entry) {
+  av2_zero(entry->mode_cache);
+  entry->old_sms = NULL;
+  entry->has_prev_partition = 0;
+  entry->prev_partition = (PARTITION_TYPE)0;
+  entry->has_prev_rd_bound = false;
+  entry->prev_rd_bound_is_found = false;
+  entry->prev_rd_bound = 0;
 }
 
-// Boundary reset between the two passes of the fast two-pass partition search.
-// Preserves the motion-search results (MVs, sse/var, rate/dist/rdcost,
-// start_mv_list, ref_frame, rdmult, and ML residual stats -- all pass-invariant
-// functions of source + reference + geometry) so the wet pass reuses them, and
-// clears only what must not cross the pass boundary (mode_cache, old_sms,
-// prev_partition and prev_rd_bound).
+// Starts a new generation; each entry is cleared lazily on its next access.
+static INLINE void av2_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
+  ++data_bufs->cur_gen;
+}
+
+// Boundary reset between the two passes of the fast two-pass partition search;
+// keeps the reusable motion-search results.
 static INLINE void av2_reset_sms_cross_pass_state(
     SimpleMotionDataBufs *data_bufs) {
-  static_assert(sizeof(SimpleMotionDataBufs) % sizeof(SimpleMotionData) == 0,
-                "SimpleMotionDataBufs must hold a whole number of entries");
-  SimpleMotionData *const entries = (SimpleMotionData *)data_bufs;
-  const size_t num_entries = sizeof(*data_bufs) / sizeof(SimpleMotionData);
-  for (size_t i = 0; i < num_entries; i++) {
-    SimpleMotionData *const entry = &entries[i];
-    av2_zero(entry->mode_cache);
-    entry->old_sms = NULL;
-    entry->has_prev_partition = 0;
-    entry->prev_partition = (PARTITION_TYPE)0;
-    entry->has_prev_rd_bound = false;
-    entry->prev_rd_bound_is_found = false;
-    entry->prev_rd_bound = 0;
-  }
+  ++data_bufs->cur_xgen;
 }
 
 struct PartitionSearchState;
@@ -270,4 +270,9 @@ static INLINE int use_auto_max_partition(const AV2_COMP *const cpi,
              KFFLT_OVERLAY_UPDATE &&
          cpi->gf_group.update_type[cpi->gf_group.index] != INTNL_OVERLAY_UPDATE;
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
 #endif  // AVM_AV2_ENCODER_PARTITION_STRATEGY_H_

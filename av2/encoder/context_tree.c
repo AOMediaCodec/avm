@@ -514,7 +514,8 @@ void av2_free_sms_tree(ThreadData *td) {
 }
 
 void av2_setup_sms_bufs(AV2_COMMON *cm, ThreadData *td) {
-  CHECK_MEM_ERROR(cm, td->sms_bufs, avm_malloc(sizeof(*td->sms_bufs)));
+  // Zeroed so the stamps and the counters all start at generation 0.
+  CHECK_MEM_ERROR(cm, td->sms_bufs, avm_calloc(1, sizeof(*td->sms_bufs)));
 }
 
 void av2_free_sms_bufs(ThreadData *td) {
