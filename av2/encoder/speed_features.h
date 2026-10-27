@@ -217,6 +217,21 @@ enum {
 #define REUSE_INTERFRAME_FLAG \
   (REUSE_INTRA_MODE_IN_INTERFRAME_FLAG | REUSE_INTER_MODE_IN_INTERFRAME_FLAG)
 
+/*!\brief Returns the ERP reuse flags the encoder applies for \c flag.
+ *
+ * Stop-gap to prevent unbounded memory allocation. The mode cache holds
+ * pointers into the partition tree, so with mode reuse the encoder keeps the
+ * whole tree of a superblock (keep_tree in av2_rd_pick_partition()). Without
+ * partition reuse, every revisit of a block searches its whole subtree again,
+ * so the kept tree grows with the search. Mode reuse therefore turns on
+ * partition reuse. Caching the modes by value, so the tree can be freed, is
+ * potentially a better solution and would make this unnecessary.
+ */
+static INLINE int av2_get_erp_reuse_mode_flag(int flag) {
+  if (flag & REUSE_INTERFRAME_FLAG) flag |= REUSE_PARTITION_MODE_FLAG;
+  return flag;
+}
+
 /*!
  * \brief Sequence/frame level speed vs quality features
  */
