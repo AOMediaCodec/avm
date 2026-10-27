@@ -707,7 +707,8 @@ static AVM_FORCE_INLINE void get_rates_lf_luma_q1_tbl_neon(
   ro[1] = vaddw_high_u16(v_dc, nz);
 }
 
-// Base pairs: 8 bytes per context and c <= 8, so bytes 0..71 (tbl4 + tbx1).
+// Base pairs: 8 bytes per context and c <= 4 from scan position 10, so
+// bytes 0..39 (one tbl4).
 // Mid pairs: mid diag ctx 0 and m <= 6, so one 56-byte row. A is at byte
 // 8c + 6t, B at 8c + 2 + 2t. Dead states read c = m = 0.
 static AVM_FORCE_INLINE int32x2_t get_rates_def_luma_gen_tbl_neon(
@@ -729,7 +730,7 @@ static AVM_FORCE_INLINE int32x2_t get_rates_def_luma_gen_tbl_neon(
   const uint8x16_t off_b = idx.val[3];
 
   const uint8x8_t c = vand_u8(ctx_row, vdup_n_u8(0x0F));
-  assert(vmaxv_u8(vtbl1_u8(c, orig)) < 8);
+  assert(vmaxv_u8(vtbl1_u8(c, orig)) <= 4);
   const uint8x8_t m = vshr_n_u8(ctx_row, 4);
   const uint8x16_t cm8 =
       vqtbl1q_u8(vcombine_u8(vshl_n_u8(c, 3), vshl_n_u8(m, 3)),
@@ -748,14 +749,10 @@ static AVM_FORCE_INLINE int32x2_t get_rates_def_luma_gen_tbl_neon(
       (const uint8_t *)tc->base_cost_low_tbl +
       (idx_lo * SIG_COEF_CONTEXTS + bdc) * sizeof(tc->base_cost_low_tbl[0][0]);
   const uint8x16x4_t bt = vld1q_u8_x4(bp);
-  const uint8x16_t bt8 = vld1q_u8(bp + 64);
   const uint8x16_t ia = vorrq_u8(rep_c, off_a);
   const uint8x16_t ib = vorrq_u8(rep_c, off_b);
-  const uint8x16_t k40 = vdupq_n_u8(0x40);
-  const uint16x8_t base_a = vreinterpretq_u16_u8(
-      vqtbx1q_u8(vqtbl4q_u8(bt, ia), bt8, veorq_u8(ia, k40)));
-  const uint16x8_t base_b = vreinterpretq_u16_u8(
-      vqtbx1q_u8(vqtbl4q_u8(bt, ib), bt8, veorq_u8(ib, k40)));
+  const uint16x8_t base_a = vreinterpretq_u16_u8(vqtbl4q_u8(bt, ia));
+  const uint16x8_t base_b = vreinterpretq_u16_u8(vqtbl4q_u8(bt, ib));
 
   int32x2_t rate_eob = vdup_n_s32(0);
   if (try_eob) {
