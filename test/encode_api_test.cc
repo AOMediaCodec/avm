@@ -11,6 +11,7 @@
  */
 
 #include <cstdlib>
+#include <vector>
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
@@ -19,6 +20,7 @@
 #include "avm/avmcx.h"
 #include "avm/avm_encoder.h"
 #include "av2/common/enums.h"
+#include "test/acm_random.h"
 
 namespace {
 
@@ -383,5 +385,93 @@ TEST(EncodeAPI, AvmIssue749) {
   EXPECT_EQ(avm_codec_get_cx_data(&enc, &iter), nullptr);
   EXPECT_EQ(avm_codec_destroy(&enc), AVM_CODEC_OK);
 }
+
+// Encodes one 64x64 intra frame of 2x2 blocks with deterministic random
+// full-range values at the given bit depth and qp, and returns the compressed
+// size in bytes. High-contrast content keeps residual at high qindex, so the
+// size follows the superblock qindex that the delta-q objective codes.
+size_t EncodeHighbdBlockNoiseFrame(avm_bit_depth_t bit_depth, int qp) {
+  constexpr unsigned int kWidth = 64;
+  constexpr unsigned int kHeight = 64;
+  constexpr unsigned int kChromaSize = (kWidth / 2) * (kHeight / 2);
+  const uint16_t max_value = (1 << bit_depth) - 1;
+  std::vector<uint16_t> buf(kWidth * kHeight + 2 * kChromaSize);
+  libavm_test::ACMRandom rnd(libavm_test::ACMRandom::DeterministicSeed());
+  uint16_t *plane = buf.data();
+  for (int p = 0; p < 3; ++p) {
+    const unsigned int w = p ? kWidth / 2 : kWidth;
+    const unsigned int h = p ? kHeight / 2 : kHeight;
+    for (unsigned int r = 0; r < h; r += 2) {
+      for (unsigned int c = 0; c < w; c += 2) {
+        const uint16_t v = rnd.Rand16() & max_value;
+        plane[r * w + c] = v;
+        plane[r * w + c + 1] = v;
+        plane[(r + 1) * w + c] = v;
+        plane[(r + 1) * w + c + 1] = v;
+      }
+    }
+    plane += w * h;
+  }
+  avm_image_t img;
+  EXPECT_EQ(&img, avm_img_wrap(&img, AVM_IMG_FMT_I42016, kWidth, kHeight, 1,
+                               reinterpret_cast<uint8_t *>(buf.data())));
+  avm_codec_iface_t *iface = avm_codec_av2_cx();
+  avm_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AVM_CODEC_OK,
+            avm_codec_enc_config_default(iface, &cfg, AVM_USAGE_GOOD_QUALITY));
+  cfg.rc_end_usage = AVM_Q;
+  cfg.g_profile = MAIN_420_10_IP0;
+#if CONFIG_12BIT_PROFILE
+  if (bit_depth == AVM_BITS_12) cfg.g_profile = MAIN_444C_12_IP2;
+#endif  // CONFIG_12BIT_PROFILE
+  cfg.g_bit_depth = bit_depth;
+  cfg.g_input_bit_depth = bit_depth;
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_limit = 1;
+  cfg.g_threads = 1;
+  cfg.kf_max_dist = 0;
+  avm_codec_ctx_t enc;
+  EXPECT_EQ(avm_codec_enc_init(&enc, iface, &cfg, 0), AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AVME_SET_CPUUSED, 5), AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AVME_SET_QP, qp), AVM_CODEC_OK);
+  size_t bytes = 0;
+  const avm_codec_cx_pkt_t *pkt;
+  avm_codec_iter_t iter = nullptr;
+  EXPECT_EQ(avm_codec_encode(&enc, &img, 0, 1, 0), AVM_CODEC_OK);
+  while ((pkt = avm_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    if (pkt->kind == AVM_CODEC_CX_FRAME_PKT) bytes += pkt->data.frame.sz;
+  }
+  EXPECT_EQ(avm_codec_encode(&enc, nullptr, 0, 1, 0), AVM_CODEC_OK);
+  iter = nullptr;
+  while ((pkt = avm_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    if (pkt->kind == AVM_CODEC_CX_FRAME_PKT) bytes += pkt->data.frame.sz;
+  }
+  EXPECT_EQ(avm_codec_destroy(&enc), AVM_CODEC_OK);
+  return bytes;
+}
+
+// With the delta-q objective (deltaq-mode 1, the default, with TPL), the
+// superblock qindex must be able to reach the bit depth's maximum qindex. A
+// clamp to the 8-bit limit of 252 codes every superblock of a high-qindex
+// 10/12-bit frame at about qindex 252, so raising qp past the 8-bit range stops
+// shrinking the frame. Qindex = qp + 48 at 10-bit and qp + 96 at 12-bit.
+TEST(EncodeAPI, HighbdDeltaQReachesMaxQindex10Bit) {
+  // qp 206 -> qindex 254 (under 8-bit range), qp 230 -> qindex 278.
+  const size_t bytes_206 = EncodeHighbdBlockNoiseFrame(AVM_BITS_10, 206);
+  const size_t bytes_230 = EncodeHighbdBlockNoiseFrame(AVM_BITS_10, 230);
+  EXPECT_LT(bytes_230 * 4, bytes_206)
+      << "qp206 " << bytes_206 << " B, qp230 " << bytes_230 << " B";
+}
+
+#if CONFIG_12BIT_PROFILE
+TEST(EncodeAPI, HighbdDeltaQReachesMaxQindex12Bit) {
+  // qp 158 -> qindex 254 (under 8-bit range), qp 255 -> qindex 351.
+  const size_t bytes_158 = EncodeHighbdBlockNoiseFrame(AVM_BITS_12, 158);
+  const size_t bytes_255 = EncodeHighbdBlockNoiseFrame(AVM_BITS_12, 255);
+  EXPECT_LT(bytes_255 * 4, bytes_158)
+      << "qp158 " << bytes_158 << " B, qp255 " << bytes_255 << " B";
+}
+#endif  // CONFIG_12BIT_PROFILE
 
 }  // namespace
