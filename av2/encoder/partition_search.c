@@ -4444,7 +4444,9 @@ static int64_t get_dist_offset_by_deblock(
   int64_t rec_dist = avm_highbd_get_y_sse_part(src, curr, mi_col * MI_SIZE, bw,
                                                mi_row * MI_SIZE, bh);
 
-  if (x->e_mbd.tree_type != LUMA_PART) {
+  // Only a chroma reference block has its chroma reconstructed and counted in
+  // this_rdc->dist.
+  if (x->e_mbd.tree_type != LUMA_PART && x->e_mbd.is_chroma_ref) {
     const int sub_x = cm->seq_params.subsampling_x;
     const int sub_y = cm->seq_params.subsampling_y;
     rec_dist += avm_highbd_get_u_sse_part(
