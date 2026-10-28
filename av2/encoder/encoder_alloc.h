@@ -70,6 +70,19 @@ static AVM_INLINE void alloc_compressor_data(AV2_COMP *cpi) {
                        "Failed to allocate context buffers");
   }
 
+  // One entry per 256x256 superblock; see wet_static_256_nearmv_only.
+  const int sb256_mi_size = mi_size_wide[BLOCK_256X256];
+  cpi->sb256_map_stride =
+      (cm->mi_params.mi_cols + sb256_mi_size - 1) / sb256_mi_size;
+  cpi->sb256_map_rows =
+      (cm->mi_params.mi_rows + sb256_mi_size - 1) / sb256_mi_size;
+  const size_t sb256_map_size =
+      (size_t)cpi->sb256_map_rows * cpi->sb256_map_stride;
+  avm_free(cpi->sb256_none_prev);
+  avm_free(cpi->sb256_none_cur);
+  CHECK_MEM_ERROR(cm, cpi->sb256_none_prev, avm_calloc(sb256_map_size, 1));
+  CHECK_MEM_ERROR(cm, cpi->sb256_none_cur, avm_calloc(sb256_map_size, 1));
+
   if (!is_stat_generation_stage(cpi)) {
     av2_alloc_txb_buf(cpi);
 
@@ -146,6 +159,11 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   TokenInfo *token_info = &cpi->token_info;
 
   dealloc_context_buffers_ext(&cpi->mbmi_ext_info);
+
+  avm_free(cpi->sb256_none_prev);
+  cpi->sb256_none_prev = NULL;
+  avm_free(cpi->sb256_none_cur);
+  cpi->sb256_none_cur = NULL;
 
   avm_free(cpi->tile_data);
   cpi->tile_data = NULL;

@@ -10039,6 +10039,13 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       continue;
     if (skip_inter_modes_by_none_part && is_intermode_selected(this_mode))
       continue;
+    // Static 256x256 superblock (see dry_static_256): the wet pass only
+    // re-evaluates NEARMV; the dry pass already rejected everything else on
+    // a block that carries no residual.
+    if (cpi->sf.part_sf.wet_static_256_nearmv_only &&
+        x->may_consume_dry_pass_info && x->dry_static_256 &&
+        bsize == BLOCK_256X256 && this_mode != NEARMV)
+      continue;
     if (this_mode == WARPMV && !warpmv_allowed) continue;
     if (this_mode == WARP_NEWMV && (!warpmv_allowed || !warp_newmv_allowed))
       continue;

@@ -900,6 +900,7 @@ static AVM_INLINE void perform_two_pass_partition_search(
   // Drop the previous superblock's dry-pass rd records. The recorded rdcosts
   // are in the dry pass's rdmult units, which the wet pass must not recompute.
   if (fast_two_pass) av2_zero(x->unit_dry_rd);
+  x->dry_static_256 = false;
   perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
                              SB_DRY_PASS, NULL, 0);
   PARTITION_TREE *part_ref = xd->sbi->ptree_root[0];
@@ -2322,6 +2323,14 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
 
   // Reset the flag.
   cpi->intrabc_used = 0;
+
+  // The previous frame's 256x256 NONE map serves this frame; start a fresh
+  // one for the next.
+  uint8_t *const sb256_none_map = cpi->sb256_none_prev;
+  cpi->sb256_none_prev = cpi->sb256_none_cur;
+  cpi->sb256_none_cur = sb256_none_map;
+  memset(cpi->sb256_none_cur, 0,
+         (size_t)cpi->sb256_map_rows * cpi->sb256_map_stride);
 
   features->allow_intrabc &= (oxcf->kf_cfg.enable_intrabc);
   if (!frame_is_intra_only(cm) &&
