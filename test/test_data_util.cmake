@@ -522,6 +522,7 @@ if(CONFIG_AV2_DECODER)
     "av1-1-b8-22-svc-L2T2.ivf.md5"
     "av1-1-b8-23-film_grain-50.ivf"
     "av1-1-b8-23-film_grain-50.ivf.md5"
+    "av2-04-ml-alpha.demuxed.obu"
     "av2-1-b8-03-sizeup.mkv"
     "av2-1-b8-03-sizeup.mkv.md5"
     "invalid-bug-1814.ivf"
