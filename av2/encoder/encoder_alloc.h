@@ -175,6 +175,10 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   av2_cyclic_refresh_free(cpi->cyclic_refresh);
   cpi->cyclic_refresh = NULL;
 
+  avm_free(cpi->src_sad_blk_64x64);
+  cpi->src_sad_blk_64x64 = NULL;
+  cpi->src_sad_blk_alloc_size = 0;
+
   avm_free(cpi->active_map.map);
   cpi->active_map.map = NULL;
 
