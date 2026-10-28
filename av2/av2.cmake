@@ -470,7 +470,8 @@ list(
   "${AVM_ROOT}/av2/common/arm/highbd_inv_txfm_neon.c"
   "${AVM_ROOT}/av2/common/arm/reconinter_neon.c"
   "${AVM_ROOT}/av2/common/arm/highbd_warp_affine_neon.c"
-  "${AVM_ROOT}/av2/common/cdef_block_neon.c")
+  "${AVM_ROOT}/av2/common/cdef_block_neon.c"
+  "${AVM_ROOT}/av2/common/arm/highbd_wiener_convolve_neon.c")
 
 list(APPEND AVM_AV2_ENCODER_INTRIN_SSE4_2
      "${AVM_ROOT}/av2/encoder/x86/hash_sse42.c")
