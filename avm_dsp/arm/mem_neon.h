@@ -60,6 +60,11 @@ static INLINE uint8x16x2_t vld1q_u8_x2(const uint8_t *ptr) {
   uint8x16x2_t res = { { vld1q_u8(ptr + 0 * 16), vld1q_u8(ptr + 1 * 16) } };
   return res;
 }
+
+static INLINE int64x2x2_t vld1q_s64_x2(const int64_t *ptr) {
+  int64x2x2_t res = { { vld1q_s64(ptr + 0 * 2), vld1q_s64(ptr + 1 * 2) } };
+  return res;
+}
 #endif  // __GNUC__ < 8
 
 #if __GNUC__ < 9
@@ -76,6 +81,26 @@ static INLINE uint16x8x4_t vld1q_u16_x4(const uint16_t *ptr) {
   uint16x8x4_t res = { { vld1q_u16(ptr + 0 * 8), vld1q_u16(ptr + 1 * 8),
                          vld1q_u16(ptr + 2 * 8), vld1q_u16(ptr + 3 * 8) } };
   return res;
+}
+
+// The other x4 forms are assumed to arrive with vld1q_u16_x4.
+static INLINE uint8x16x4_t vld1q_u8_x4(const uint8_t *ptr) {
+  uint8x16x4_t res = { { vld1q_u8(ptr + 0 * 16), vld1q_u8(ptr + 1 * 16),
+                         vld1q_u8(ptr + 2 * 16), vld1q_u8(ptr + 3 * 16) } };
+  return res;
+}
+
+static INLINE uint64x2x4_t vld1q_u64_x4(const uint64_t *ptr) {
+  uint64x2x4_t res = { { vld1q_u64(ptr + 0 * 2), vld1q_u64(ptr + 1 * 2),
+                         vld1q_u64(ptr + 2 * 2), vld1q_u64(ptr + 3 * 2) } };
+  return res;
+}
+
+static INLINE void vst1q_u8_x4(uint8_t *ptr, uint8x16x4_t val) {
+  vst1q_u8(ptr + 0 * 16, val.val[0]);
+  vst1q_u8(ptr + 1 * 16, val.val[1]);
+  vst1q_u8(ptr + 2 * 16, val.val[2]);
+  vst1q_u8(ptr + 3 * 16, val.val[3]);
 }
 #endif  // ((__GNUC__ << 8) | __GNUC_MINOR__) < 0x805
 #endif  // defined(__GNUC__) && !defined(__clang__)
