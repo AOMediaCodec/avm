@@ -696,7 +696,6 @@ static void set_good_speed_features_framesize_independent(
     // TODO(any): evaluate if these lpf features can be moved to speed 2.
     // For screen content, "prune_sgr_based_on_wiener = 2" cause large quality
     // loss.
-    sf->lpf_sf.disable_loop_restoration_chroma = boosted ? 0 : 1;
     sf->winner_mode_sf.dc_blk_pred_level = 2;
   }
 
@@ -706,6 +705,7 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.tip_first_margin_pct = 1;
     sf->lpf_sf.ccso_terminate_search_luma_pass_count = 4;
     sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 8;
+    sf->lpf_sf.disable_loop_restoration_chroma = boosted ? 0 : 1;
     sf->lpf_sf.skip_wienerns_frame_filter_rounding = 1;
     if (cm->current_frame.pyramid_level >= 4)
       sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
