@@ -714,7 +714,8 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
   x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
 
   x->sms_bufs = td->sms_bufs;
-  x->reuse_inter_mode_cache_type = cpi->sf.inter_sf.reuse_erp_mode_flag;
+  x->reuse_inter_mode_cache_type =
+      av2_get_erp_reuse_mode_flag(cpi->sf.inter_sf.reuse_erp_mode_flag);
   init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                     1);
   const int intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
