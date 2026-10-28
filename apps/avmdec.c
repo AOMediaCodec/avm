@@ -127,6 +127,11 @@ static const arg_def_t selectlocalopsarg = ARG_DEF(
     "(format: xlayer_id,ops_id,op_index, e.g., --select-local-ops=0,1,0)");
 static const arg_def_t outallarg = ARG_DEF(
     NULL, "all-layers", 0, "Output all decoded frames of a scalable bitstream");
+static const arg_def_t compose_annex_d_arg =
+    ARG_DEF(NULL, "compose-annex-d", 0,
+            "Composite extended layers per the MULTISTREAM_ATLAS or "
+            "MULTISTREAM_ALPHA_ATLAS metadata (Annex D) into a single output "
+            "frame per temporal unit");
 static const arg_def_t skipfilmgrain =
     ARG_DEF(NULL, "skip-film-grain", 0, "Skip film grain application");
 static const arg_def_t randomaccess =
@@ -165,6 +170,7 @@ static const arg_def_t *all_args[] = { &help,
                                        &selectopsarg,
                                        &selectlocalopsarg,
                                        &outallarg,
+                                       &compose_annex_d_arg,
                                        &skipfilmgrain,
                                        &randomaccess,
                                        &bruoptmodearg,
@@ -339,7 +345,8 @@ static int raw_read_frame(FILE *infile, uint8_t **buffer, size_t *bytes_read,
 }
 
 static int read_frame(struct AvxDecInputContext *input, uint8_t **buf,
-                      size_t *bytes_in_buffer, size_t *buffer_size) {
+                      size_t *bytes_in_buffer, size_t *buffer_size,
+                      int whole_tu) {
   switch (input->avm_input_ctx->file_type) {
 #if CONFIG_WEBM_IO
     case FILE_TYPE_WEBM:
@@ -353,8 +360,10 @@ static int read_frame(struct AvxDecInputContext *input, uint8_t **buf,
       return ivf_read_frame(input->avm_input_ctx->file, buf, bytes_in_buffer,
                             buffer_size, NULL);
     case FILE_TYPE_OBU:
-      return obudec_read_frame_unit(input->obu_ctx, buf, bytes_in_buffer,
-                                    buffer_size);
+      return whole_tu ? obudec_read_temporal_unit(input->obu_ctx, buf,
+                                                  bytes_in_buffer, buffer_size)
+                      : obudec_read_frame_unit(input->obu_ctx, buf,
+                                               bytes_in_buffer, buffer_size);
     default: return 1;
   }
 }
@@ -678,6 +687,7 @@ static int main_loop(int argc, const char **argv_) {
   int local_ops_selections[31][3];
   int num_local_ops_selections = 0;
   int output_all_layers = 0;
+  int compose_annex_d = 0;
   int skip_film_grain = 0;
   int random_access_point_index = 0;
   int bru_opt_mode = 0;
@@ -868,6 +878,8 @@ static int main_loop(int argc, const char **argv_) {
       num_local_ops_selections++;
     } else if (arg_match(&arg, &outallarg, argi)) {
       output_all_layers = 1;
+    } else if (arg_match(&arg, &compose_annex_d_arg, argi)) {
+      compose_annex_d = 1;
     } else if (arg_match(&arg, &skipfilmgrain, argi)) {
       skip_film_grain = 1;
     } else if (arg_match(&arg, &randomaccess, argi)) {
@@ -1034,6 +1046,19 @@ static int main_loop(int argc, const char **argv_) {
     goto fail;
   }
 
+  if (compose_annex_d && num_streams > 1) {
+    fprintf(stderr,
+            "Error: --compose-annex-d cannot be combined with --num-streams "
+            "(composition produces a single output stream).\n");
+    goto fail;
+  }
+  if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_COMPOSE_ANNEX_D,
+                                    compose_annex_d)) {
+    fprintf(stderr, "Failed to set compose_annex_d: %s\n",
+            avm_codec_error(&decoder));
+    goto fail;
+  }
+
   if (AVM_CODEC_CONTROL_TYPECHECKED(&decoder, AV2D_SET_SKIP_FILM_GRAIN,
                                     skip_film_grain)) {
     fprintf(stderr, "Failed to set skip_film_grain: %s\n",
@@ -1057,7 +1082,9 @@ static int main_loop(int argc, const char **argv_) {
 
   if (arg_skip) fprintf(stderr, "Skipping first %d frames.\n", arg_skip);
   while (arg_skip) {
-    if (read_frame(&input, &buf, &bytes_in_buffer, &buffer_size)) break;
+    if (read_frame(&input, &buf, &bytes_in_buffer, &buffer_size,
+                   compose_annex_d))
+      break;
     arg_skip--;
   }
 
@@ -1088,7 +1115,8 @@ static int main_loop(int argc, const char **argv_) {
 
     frame_avail = 0;
     if (!stop_after || frame_in < stop_after) {
-      if (!read_frame(&input, &buf, &bytes_in_buffer, &buffer_size)) {
+      if (!read_frame(&input, &buf, &bytes_in_buffer, &buffer_size,
+                      compose_annex_d)) {
         frame_avail = 1;
         // frame_in counts number of frame units i.e. multiple tile
         // groups that compose one frame count as 1.
