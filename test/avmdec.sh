@@ -14,12 +14,12 @@
 ##
 . $(dirname $0)/tools_common.sh
 
-AV2_ML_ALPHA_DEMUXED_OBU="${LIBAVM_TEST_DATA_PATH}/av2-04-ml-alpha.demuxed.obu"
+AV2_ML_ALPHA_DEMUXED_FILE="${LIBAVM_TEST_DATA_PATH}/av2-04-ml-alpha.demuxed.obu"
 
 # Environment check: Make sure input is available.
 avmdec_verify_environment() {
-  if [ ! -e "${AV2_ML_ALPHA_DEMUXED_OBU}" ]; then
-    elog "The file ${AV2_ML_ALPHA_DEMUXED_OBU##*/} must exist in"
+  if [ ! -e "${AV2_ML_ALPHA_DEMUXED_FILE}" ]; then
+    elog "The file ${AV2_ML_ALPHA_DEMUXED_FILE##*/} must exist in"
     elog "LIBAVM_TEST_DATA_PATH."
     return 1
   fi
@@ -123,7 +123,7 @@ avmdec_av2_obu() {
 
 avmdec_av2_ml_alpha_demuxed_obu() {
   if [ "$(avmdec_can_decode_av2)" = "yes" ]; then
-    avmdec "${AV2_ML_ALPHA_DEMUXED_OBU}" --summary --noblit
+    avmdec "${AV2_ML_ALPHA_DEMUXED_FILE}" --summary --noblit
   fi
 }
 
