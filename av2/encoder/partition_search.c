@@ -4509,6 +4509,8 @@ static int64_t get_dist_offset_by_deblock(
     const int64_t filtered_y_dist = avm_highbd_get_y_sse_part(
         src, filtered, h_start, area_w, v_start, area_h);
 
+    av2_setup_dst_planes(pd, curr, mi_row, mi_col, plane, plane + 1, NULL);
+
     if (bit_depth <= 10) {
       return dist_normal * (filtered_y_dist - unfiltered_y_dist);
     } else {
