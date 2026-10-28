@@ -175,6 +175,19 @@ enum {
   WARP_SEARCH_METHODS
 } UENUM1BYTE(WARP_SEARCH_METHOD);
 
+/*!\brief Per-trial parameters for warp newmv estimation.
+ * First pass identifies key motion mode and warp ref index.
+ * Second pass refines motion vector for the selected motion mode and warp ref
+ * index.
+ */
+typedef struct {
+  int pass_iter;
+  int is_early_terminate;
+  int best_wrl_idx;
+  uint64_t bestmse;
+  MOTION_MODE best_warp_motion_mode;
+} WarpNewmvTwoPassParam;
+
 // This struct holds fullpixel motion search parameters that should be constant
 // during the search
 typedef struct {
@@ -557,13 +570,13 @@ void reset_warp_stats_buffer(warp_mode_info_array *warp_stats);
 void update_warp_stats_buffer(const warp_mode_info *const this_warp_stats,
                               warp_mode_info_array *warp_stats);
 
-unsigned int av2_refine_warped_mv(MACROBLOCKD *xd, const AV2_COMMON *const cm,
-                                  const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
-                                  BLOCK_SIZE bsize, const int *pts0,
-                                  const int *pts_inref0, int total_samples,
-                                  int8_t ref, WARP_SEARCH_METHOD search_method,
-                                  int num_iterations,
-                                  bool warp_mv_refine_early_term);
+int av2_refine_warped_mv(MACROBLOCKD *xd, const AV2_COMMON *const cm,
+                         const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
+                         BLOCK_SIZE bsize, const int *pts0,
+                         const int *pts_inref0, int total_samples, int8_t ref,
+                         WARP_SEARCH_METHOD search_method, int num_iterations,
+                         bool warp_mv_refine_early_term,
+                         WarpNewmvTwoPassParam *warp_two_pass_param);
 uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV2_COMMON *const cm,
                            MACROBLOCK *const x, MB_MODE_INFO *mbmi,
                            BLOCK_SIZE bsize, MV *mv_diffs, MV *ref_mvs,
@@ -583,15 +596,16 @@ int av2_refine_mv_for_base_param_warp_model(
     const MB_MODE_INFO_EXT *mbmi_ext,
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
     WARP_SEARCH_METHOD search_method, int num_iterations,
-    bool warp_mv_refine_early_term);
+    bool warp_mv_refine_early_term, WarpNewmvTwoPassParam *warp_two_pass_param);
 
-void av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
-                                   const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
-                                   bool neighbor_is_above, BLOCK_SIZE bsize,
-                                   const WarpedMotionParams *neighbor_params,
-                                   WARP_SEARCH_METHOD search_method,
-                                   int num_iterations,
-                                   bool warp_mv_refine_early_term);
+int av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
+                                  const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
+                                  bool neighbor_is_above, BLOCK_SIZE bsize,
+                                  const WarpedMotionParams *neighbor_params,
+                                  WARP_SEARCH_METHOD search_method,
+                                  int num_iterations,
+                                  bool warp_mv_refine_early_term,
+                                  WarpNewmvTwoPassParam *warp_two_pass_param);
 
 static INLINE void av2_set_fractional_mv(int_mv *fractional_best_mv) {
   for (int z = 0; z < 3; z++) {

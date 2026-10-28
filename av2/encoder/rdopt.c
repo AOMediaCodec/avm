@@ -11,6 +11,7 @@
  */
 
 #include <assert.h>
+#include <limits.h>
 #include <math.h>
 #include <stdbool.h>
 
@@ -2484,7 +2485,8 @@ static AVM_INLINE WARP_SEARCH_METHOD get_warp_search_method(
 static AVM_INLINE int handle_warp_causal_mode(
     const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, MB_MODE_INFO *mbmi,
     PREDICTION_MODE this_mode, int rate2_nocoeff, int rate_mv0,
-    int *tmp_rate_mv, int *tmp_rate2, int eval_motion_mode) {
+    int *tmp_rate_mv, int *tmp_rate2, int eval_motion_mode,
+    WarpNewmvTwoPassParam *warp_two_pass_param) {
   const AV2_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int mi_row = xd->mi_row;
@@ -2538,11 +2540,12 @@ static AVM_INLINE int handle_warp_causal_mode(
       av2_make_default_subpel_ms_params(
           &ms_params, cpi, x, bsize, &ref_mv.as_mv, pb_mv_precision, 0, NULL);
       // Refine MV in a small range.
-      av2_refine_warped_mv(
-          xd, cm, &ms_params, bsize, pts0, pts_inref0, total_samples0, 0,
-          get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
-          cpi->sf.mv_sf.warp_search_iters,
-          cpi->sf.mv_sf.warp_mv_refine_early_term);
+      if (!av2_refine_warped_mv(
+              xd, cm, &ms_params, bsize, pts0, pts_inref0, total_samples0, 0,
+              get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
+              cpi->sf.mv_sf.warp_search_iters,
+              cpi->sf.mv_sf.warp_mv_refine_early_term, warp_two_pass_param))
+        return -1;
       if (mv0.as_int != mbmi->mv[0].as_int) {
         if (mbmi->mode == NEW_NEWMV) {
           int tmp_rate_mv0 = av2_mv_bit_cost(
@@ -2570,11 +2573,12 @@ static AVM_INLINE int handle_warp_causal_mode(
       av2_make_default_subpel_ms_params(
           &ms_params, cpi, x, bsize, &ref_mv.as_mv, pb_mv_precision, 0, NULL);
       // Refine MV in a small range.
-      av2_refine_warped_mv(
-          xd, cm, &ms_params, bsize, pts1, pts_inref1, total_samples1, 1,
-          get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[1]),
-          cpi->sf.mv_sf.warp_search_iters,
-          cpi->sf.mv_sf.warp_mv_refine_early_term);
+      if (!av2_refine_warped_mv(
+              xd, cm, &ms_params, bsize, pts1, pts_inref1, total_samples1, 1,
+              get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[1]),
+              cpi->sf.mv_sf.warp_search_iters,
+              cpi->sf.mv_sf.warp_mv_refine_early_term, warp_two_pass_param))
+        return -1;
 
       if (mv1.as_int != mbmi->mv[1].as_int) {
         int tmp_rate_mv1 = av2_mv_bit_cost(
@@ -2605,7 +2609,7 @@ static AVM_INLINE int handle_warp_delta_mode(
     const BUFFER_SET *orig_dst, int_mv *previous_mvs,
     warp_mode_info_array *prev_best_models, int org_warp_inter_intra,
     int rate2_nocoeff, int rate_mv0, int *tmp_rate_mv, int *tmp_rate2,
-    int eval_motion_mode) {
+    int eval_motion_mode, WarpNewmvTwoPassParam *warp_two_pass_param) {
   const AV2_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int mi_row = xd->mi_row;
@@ -2676,8 +2680,9 @@ static AVM_INLINE int handle_warp_delta_mode(
           cm, xd, mbmi, mbmi_ext, &ms_params,
           get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
           cpi->sf.mv_sf.warp_search_iters,
-          cpi->sf.mv_sf.warp_mv_refine_early_term);
+          cpi->sf.mv_sf.warp_mv_refine_early_term, warp_two_pass_param);
   } else {
+    assert(warp_two_pass_param->pass_iter == 0);
     mbmi->six_param_warp_model_flag = get_default_six_param_flag(cm, mbmi);
     const int warp_delta_in_winner =
         mbmi->six_param_warp_model_flag
@@ -2724,7 +2729,8 @@ static AVM_INLINE int handle_warp_delta_mode(
 static AVM_INLINE int handle_warp_extend_mode(
     const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, MB_MODE_INFO *mbmi,
     const MB_MODE_INFO_EXT *mbmi_ext, int rate2_nocoeff, int rate_mv0,
-    int *tmp_rate_mv, int *tmp_rate2, int eval_motion_mode) {
+    int *tmp_rate_mv, int *tmp_rate2, int eval_motion_mode,
+    WarpNewmvTwoPassParam *warp_two_pass_param) {
   const AV2_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int mi_row = xd->mi_row;
@@ -2792,10 +2798,12 @@ static AVM_INLINE int handle_warp_extend_mode(
   }
 
   // Refine motion vector
-  av2_refine_mv_for_warp_extend(
-      cm, xd, &ms_params, neighbor_is_above, bsize, &neighbor_params,
-      get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
-      cpi->sf.mv_sf.warp_search_iters, cpi->sf.mv_sf.warp_mv_refine_early_term);
+  if (!av2_refine_mv_for_warp_extend(
+          cm, xd, &ms_params, neighbor_is_above, bsize, &neighbor_params,
+          get_warp_search_method(cpi, eval_motion_mode, mbmi->ref_frame[0]),
+          cpi->sf.mv_sf.warp_search_iters,
+          cpi->sf.mv_sf.warp_mv_refine_early_term, warp_two_pass_param))
+    return -1;
 
   // If we changed the MV, update costs
   if (mv0.as_int != mbmi->mv[0].as_int) {
@@ -3027,7 +3035,8 @@ static AVM_INLINE int evaluate_motion_mode_trial(
     int do_tx_search, InterModesInfo *inter_modes_info,
     int64_t top_motion_mode_model_rd[], const MB_MODE_INFO *base_mbmi,
     const MotionModeTrialParams *trial, const MotionModeTrialCtx *ctx,
-    MotionModeBestState *best, int eval_motion_mode) {
+    MotionModeBestState *best, int eval_motion_mode,
+    WarpNewmvTwoPassParam *warp_two_pass_param) {
   const AV2_COMMON *const cm = &cpi->common;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   const int num_planes = av2_num_planes(cm);
@@ -3071,7 +3080,8 @@ static AVM_INLINE int evaluate_motion_mode_trial(
   } else if (mbmi->motion_mode == WARP_CAUSAL) {
     if (handle_warp_causal_mode(cpi, x, bsize, mbmi, base_mbmi->mode,
                                 ctx->rate2_nocoeff, ctx->rate_mv0, &tmp_rate_mv,
-                                &tmp_rate2, eval_motion_mode) < 0)
+                                &tmp_rate2, eval_motion_mode,
+                                warp_two_pass_param) < 0)
       return -1;
   } else if (mbmi->motion_mode == INTERINTRA) {
     if (prune_interintra_search(&cpi->sf.inter_sf, mbmi->ref_frame[0], bsize,
@@ -3084,16 +3094,17 @@ static AVM_INLINE int evaluate_motion_mode_trial(
   } else if (mbmi->motion_mode == WARP_DELTA) {
     if (cpi->sf.inter_sf.prune_warp_delta_by_ref_idx && mbmi->ref_frame[0] > 2)
       return -1;
-    if (handle_warp_delta_mode(cpi, x, bsize, mbmi, mbmi_ext, args,
-                               *ref_best_rd, orig_dst, ctx->previous_mvs,
-                               ctx->prev_best_models, org_warp_inter_intra,
-                               ctx->rate2_nocoeff, ctx->rate_mv0, &tmp_rate_mv,
-                               &tmp_rate2, eval_motion_mode) < 0)
+    if (handle_warp_delta_mode(
+            cpi, x, bsize, mbmi, mbmi_ext, args, *ref_best_rd, orig_dst,
+            ctx->previous_mvs, ctx->prev_best_models, org_warp_inter_intra,
+            ctx->rate2_nocoeff, ctx->rate_mv0, &tmp_rate_mv, &tmp_rate2,
+            eval_motion_mode, warp_two_pass_param) < 0)
       return -1;
   } else if (mbmi->motion_mode == WARP_EXTEND) {
     if (handle_warp_extend_mode(cpi, x, bsize, mbmi, mbmi_ext,
                                 ctx->rate2_nocoeff, ctx->rate_mv0, &tmp_rate_mv,
-                                &tmp_rate2, eval_motion_mode) < 0)
+                                &tmp_rate2, eval_motion_mode,
+                                warp_two_pass_param) < 0)
       return -1;
   }
 
@@ -3252,6 +3263,38 @@ static AVM_INLINE int evaluate_motion_mode_trial(
   return 0;
 }
 
+//  Updates the per-iteration fields of \c warp_two_pass_param (pass index and
+//  early-terminate flag) and determines whether the current (warp_pass,
+//  mode_index) combination should be skipped under the two-pass warp search.
+//  Pass 0 only performs an early terminate for WARP_NEWMV (excluding
+//  inital warp mode ) to identify the best motion mode / warp ref index. Pass 1
+//  then refines the MV for the selected motion mode and warp ref index, while
+//  also evaluating the non-WARP_NEWMV motion modes.
+
+static AVM_INLINE int set_two_pass_warp_search(
+    int warp_pass_limit, int warp_pass, PREDICTION_MODE base_mode,
+    int mode_index, WarpNewmvTwoPassParam *warp_two_pass_param,
+    MOTION_MODE initial_warp_motion_mode) {
+  warp_two_pass_param->pass_iter = warp_pass;
+  // Pass 0 only does an early terminate for WARP_NEWMV; pass 1 never does.
+  warp_two_pass_param->is_early_terminate =
+      (warp_pass_limit == 2 && warp_pass == 0 && base_mode == WARP_NEWMV &&
+       mode_index != initial_warp_motion_mode)
+          ? 1
+          : 0;
+  // Pass 0 evaluates only WARP_CAUSAL/WARP_DELTA/WARP_EXTEND from
+  // WARP_NEWMV; pass 1 evaluates best warp mode found in pass 0 and other
+  // motion modes.
+  const int warp_eval_skip =
+      (warp_pass == 0)
+          ? (base_mode != WARP_NEWMV)
+          : ((base_mode == WARP_NEWMV &&
+              (warp_two_pass_param->best_warp_motion_mode != mode_index ||
+               mode_index == initial_warp_motion_mode)));
+  if (warp_pass_limit == 2 && warp_eval_skip) return 1;
+  return 0;
+}
+
 /*!\brief AV2 motion mode search
  *
  * \ingroup inter_mode_search
@@ -3368,6 +3411,22 @@ static int64_t motion_mode_rd(
   ctx.previous_mvs = NULL;
   ctx.prev_best_models = NULL;
 
+  // intialize two pass warp newmv params
+  WarpNewmvTwoPassParam warp_two_pass_param;
+  warp_two_pass_param.pass_iter = 0;
+  warp_two_pass_param.is_early_terminate = 0;
+  warp_two_pass_param.best_wrl_idx = 0;
+  warp_two_pass_param.bestmse = UINT64_MAX;
+  warp_two_pass_param.best_warp_motion_mode =
+      eval_motion_mode ? mbmi->motion_mode : SIMPLE_TRANSLATION;
+  const int warp_pass_limit =
+      cpi->sf.inter_sf.enable_two_pass_warp_search &&
+              cpi->sf.inter_sf.initial_motion_mode_for_two_search_warp >=
+                  WARP_CAUSAL &&
+              cpi->sf.inter_sf.initial_motion_mode_for_two_search_warp <
+                  MOTION_MODES
+          ? 2
+          : 1;
   // Initialize best motion mode tracking state
   MotionModeBestState best;
   best.best_rd = INT64_MAX;
@@ -3386,102 +3445,122 @@ static int64_t motion_mode_rd(
   //                         × warp_inter_intra
   const int mode_index_end =
       base_mbmi.refinemv_flag ? INTERINTRA : MOTION_MODES;
-  for (int mode_index = SIMPLE_TRANSLATION; mode_index < mode_index_end;
-       mode_index++) {
-    if ((modes_to_search & (1 << mode_index)) == 0) continue;
-    assert(IMPLIES(eval_motion_mode, enable_motion_mode_search_in_winner_mode(
-                                         &cpi->sf.inter_sf)));
-    if (eval_motion_mode &&
-        (mode_index == WARP_CAUSAL || mode_index == WARP_EXTEND))
-      continue;
-    int warp_ref_idx_limit =
-        get_warp_ref_idx_limit(xd, &base_mbmi, mbmi_ext, mode_index);
-    // Dry pass: try only one warp reference candidate.
-    if (x->apply_dry_pass_shortcuts) {
-      warp_ref_idx_limit = AVMMIN(warp_ref_idx_limit, cfg->warp_ref_idx_cap);
-    }
-
-    if (mode_index != WARP_DELTA) {
-      // SIMPLE_TRANSLATION, WARP_CAUSAL, INTERINTRA, WARP_EXTEND:
-      // single trial with all warp parameters at default (0)
-      const MotionModeTrialParams trial = { mode_index, 0, warp_ref_idx_limit,
-                                            0,          0, 0 };
-      const int ret = evaluate_motion_mode_trial(
-          cpi, tile_data, x, bsize, rd_stats, rd_stats_y, rd_stats_uv, args,
-          &ref_best_rd, ref_skip_rd, orig_dst, best_est_rd, do_tx_search,
-          inter_modes_info, top_motion_mode_model_rd, &base_mbmi, &trial, &ctx,
-          &best, eval_motion_mode);
-      if (ret > 0) return INT64_MAX;
-    } else if (base_mbmi.mode == WARPMV) {
-      // WARP_DELTA + WARPMV: iterate warp_inter_intra × ref_idx × mvd_flag
-      assert(mode_index == WARP_DELTA);
-      int_mv previous_mvs[MAX_WARP_REF_CANDIDATES];
-      for (int i = 0; i < MAX_WARP_REF_CANDIDATES; i++)
-        previous_mvs[i].as_int = INVALID_MV;
-      ctx.previous_mvs = previous_mvs;
-      const int is_low_delay_enc = (cpi->oxcf.gf_cfg.lag_in_frames == 0);
-      int warp_inter_intra_limit =
-          1 + (!cpi->sf.inter_sf.disable_interintra &&
-               allow_warp_inter_intra(&base_mbmi) && !is_low_delay_enc);
-      int warpmv_with_mvd_limit = 2;
-      // Dry pass: try only the first option of each extra warp choice.
+  for (int warp_pass = 0; warp_pass < warp_pass_limit; warp_pass++) {
+    for (int mode_index = SIMPLE_TRANSLATION; mode_index < mode_index_end;
+         mode_index++) {
+      if ((modes_to_search & (1 << mode_index)) == 0) continue;
+      if (set_two_pass_warp_search(
+              warp_pass_limit, warp_pass, base_mbmi.mode, mode_index,
+              &warp_two_pass_param,
+              cpi->sf.inter_sf.initial_motion_mode_for_two_search_warp))
+        continue;
+      assert(IMPLIES(
+          warp_pass_limit == 2 && !warp_pass,
+          mode_index != SIMPLE_TRANSLATION && mode_index != INTERINTRA));
+      assert(IMPLIES(eval_motion_mode, enable_motion_mode_search_in_winner_mode(
+                                           &cpi->sf.inter_sf)));
+      if (eval_motion_mode &&
+          (mode_index == WARP_CAUSAL || mode_index == WARP_EXTEND))
+        continue;
+      int warp_ref_idx_limit =
+          get_warp_ref_idx_limit(xd, &base_mbmi, mbmi_ext, mode_index);
+      // Dry pass: try only one warp reference candidate.
       if (x->apply_dry_pass_shortcuts) {
-        warp_inter_intra_limit = cfg->warp_inter_intra_cap;
-        warpmv_with_mvd_limit = cfg->warpmv_with_mvd_cap;
+        warp_ref_idx_limit = AVMMIN(warp_ref_idx_limit, cfg->warp_ref_idx_cap);
       }
-      for (int warp_inter_intra = 0; warp_inter_intra < warp_inter_intra_limit;
-           warp_inter_intra++) {
+
+      if (mode_index != WARP_DELTA) {
+        // SIMPLE_TRANSLATION, WARP_CAUSAL, INTERINTRA, WARP_EXTEND:
+        // single trial with all warp parameters at default (0)
+        const MotionModeTrialParams trial = { mode_index, 0, warp_ref_idx_limit,
+                                              0,          0, 0 };
+        const int ret = evaluate_motion_mode_trial(
+            cpi, tile_data, x, bsize, rd_stats, rd_stats_y, rd_stats_uv, args,
+            &ref_best_rd, ref_skip_rd, orig_dst, best_est_rd, do_tx_search,
+            inter_modes_info, top_motion_mode_model_rd, &base_mbmi, &trial,
+            &ctx, &best, eval_motion_mode, &warp_two_pass_param);
+        if (ret > 0) return INT64_MAX;
+      } else if (base_mbmi.mode == WARPMV) {
+        // WARP_DELTA + WARPMV: iterate warp_inter_intra × ref_idx × mvd_flag
+        assert(mode_index == WARP_DELTA);
+        int_mv previous_mvs[MAX_WARP_REF_CANDIDATES];
+        for (int i = 0; i < MAX_WARP_REF_CANDIDATES; i++)
+          previous_mvs[i].as_int = INVALID_MV;
+        ctx.previous_mvs = previous_mvs;
+        const int is_low_delay_enc = (cpi->oxcf.gf_cfg.lag_in_frames == 0);
+        int warp_inter_intra_limit =
+            1 + (!cpi->sf.inter_sf.disable_interintra &&
+                 allow_warp_inter_intra(&base_mbmi) && !is_low_delay_enc);
+        int warpmv_with_mvd_limit = 2;
+        // Dry pass: try only the first option of each extra warp choice.
+        if (x->apply_dry_pass_shortcuts) {
+          warp_inter_intra_limit = cfg->warp_inter_intra_cap;
+          warpmv_with_mvd_limit = cfg->warpmv_with_mvd_cap;
+        }
+        for (int warp_inter_intra = 0;
+             warp_inter_intra < warp_inter_intra_limit; warp_inter_intra++) {
+          for (int warp_ref_idx = 0; warp_ref_idx < warp_ref_idx_limit;
+               warp_ref_idx++) {
+            // Search warp interintra in winner mode for remaing wrl indices
+            // if warp interintra is selected in rough mode
+            if (cpi->sf.inter_sf.enable_warp_inter_intra_in_winner &&
+                (eval_motion_mode != (warp_inter_intra && warp_ref_idx < 2)))
+              continue;
+            assert(IMPLIES(cpi->sf.inter_sf.enable_warp_inter_intra_in_winner &&
+                               !eval_motion_mode,
+                           (!warp_inter_intra || warp_ref_idx >= 2)));
+            for (int warpmv_with_mvd_flag = 0;
+                 warpmv_with_mvd_flag < warpmv_with_mvd_limit;
+                 warpmv_with_mvd_flag++) {
+              const MotionModeTrialParams trial = {
+                mode_index,           warp_ref_idx,     warp_ref_idx_limit,
+                warpmv_with_mvd_flag, warp_inter_intra, 0
+              };
+              const int ret = evaluate_motion_mode_trial(
+                  cpi, tile_data, x, bsize, rd_stats, rd_stats_y, rd_stats_uv,
+                  args, &ref_best_rd, ref_skip_rd, orig_dst, best_est_rd,
+                  do_tx_search, inter_modes_info, top_motion_mode_model_rd,
+                  &base_mbmi, &trial, &ctx, &best, eval_motion_mode,
+                  &warp_two_pass_param);
+              if (ret > 0) return INT64_MAX;
+            }
+          }
+        }
+      } else {
+        // WARP_DELTA + WARP_NEWMV: iterate ref_idx × precision
+        assert(base_mbmi.mode == WARP_NEWMV);
+        assert(mode_index == WARP_DELTA);
+        warp_mode_info_array prev_best_models;
+        reset_warp_stats_buffer(&prev_best_models);
+        ctx.prev_best_models = &prev_best_models;
+        int warp_precision_limit = NUM_WARP_PRECISION_MODES;
+        // Dry pass: try only the first warp precision.
+        if (x->apply_dry_pass_shortcuts)
+          warp_precision_limit = cfg->warp_precision_cap;
         for (int warp_ref_idx = 0; warp_ref_idx < warp_ref_idx_limit;
              warp_ref_idx++) {
-          // Search warp interintra in winner mode for remaing wrl indices
-          // if warp interintra is selected in rough mode
-          if (cpi->sf.inter_sf.enable_warp_inter_intra_in_winner &&
-              (eval_motion_mode != (warp_inter_intra && warp_ref_idx < 2)))
+          // four param and six param warp are fully searched in first warp pass
+          // as they include non-translational refinements. Therefore they are
+          // skipped in second warp pass.
+          // Only best warp ref index is searched in second pass
+          if (warp_pass && (warp_ref_idx < 2 ||
+                            warp_two_pass_param.best_wrl_idx != warp_ref_idx))
             continue;
-          assert(IMPLIES(cpi->sf.inter_sf.enable_warp_inter_intra_in_winner &&
-                             !eval_motion_mode,
-                         (!warp_inter_intra || warp_ref_idx >= 2)));
-          for (int warpmv_with_mvd_flag = 0;
-               warpmv_with_mvd_flag < warpmv_with_mvd_limit;
-               warpmv_with_mvd_flag++) {
+          for (int warp_precision_idx = 0;
+               warp_precision_idx < warp_precision_limit;
+               warp_precision_idx++) {
             const MotionModeTrialParams trial = {
-              mode_index,           warp_ref_idx,     warp_ref_idx_limit,
-              warpmv_with_mvd_flag, warp_inter_intra, 0
+              mode_index, warp_ref_idx,      warp_ref_idx_limit, 0,
+              0,          warp_precision_idx
             };
             const int ret = evaluate_motion_mode_trial(
                 cpi, tile_data, x, bsize, rd_stats, rd_stats_y, rd_stats_uv,
                 args, &ref_best_rd, ref_skip_rd, orig_dst, best_est_rd,
                 do_tx_search, inter_modes_info, top_motion_mode_model_rd,
-                &base_mbmi, &trial, &ctx, &best, eval_motion_mode);
+                &base_mbmi, &trial, &ctx, &best, eval_motion_mode,
+                &warp_two_pass_param);
             if (ret > 0) return INT64_MAX;
           }
-        }
-      }
-    } else {
-      // WARP_DELTA + WARP_NEWMV: iterate ref_idx × precision
-      assert(base_mbmi.mode == WARP_NEWMV);
-      assert(mode_index == WARP_DELTA);
-      warp_mode_info_array prev_best_models;
-      reset_warp_stats_buffer(&prev_best_models);
-      ctx.prev_best_models = &prev_best_models;
-      int warp_precision_limit = NUM_WARP_PRECISION_MODES;
-      // Dry pass: try only the first warp precision.
-      if (x->apply_dry_pass_shortcuts)
-        warp_precision_limit = cfg->warp_precision_cap;
-      for (int warp_ref_idx = 0; warp_ref_idx < warp_ref_idx_limit;
-           warp_ref_idx++) {
-        for (int warp_precision_idx = 0;
-             warp_precision_idx < warp_precision_limit; warp_precision_idx++) {
-          const MotionModeTrialParams trial = {
-            mode_index, warp_ref_idx,      warp_ref_idx_limit, 0,
-            0,          warp_precision_idx
-          };
-          const int ret = evaluate_motion_mode_trial(
-              cpi, tile_data, x, bsize, rd_stats, rd_stats_y, rd_stats_uv, args,
-              &ref_best_rd, ref_skip_rd, orig_dst, best_est_rd, do_tx_search,
-              inter_modes_info, top_motion_mode_model_rd, &base_mbmi, &trial,
-              &ctx, &best, eval_motion_mode);
-          if (ret > 0) return INT64_MAX;
         }
       }
     }
