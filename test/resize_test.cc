@@ -401,4 +401,143 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ResizeModeTestLarge);
 //    ::testing::Values(1, 2), ::testing::Values(8, 12, 16),
 //    ::testing::Values(8, 12, 16), ::testing::Range(2, 7));
 
+// Synthetic video source with smooth gradients in the first two subgops and
+// higher-frequency spatial patterns in later subgops to exercise dynamic and
+// subgop resize mode decisions without external test files.
+class SyntheticSubgopVideoSource : public ::libavm_test::DummyVideoSource {
+ public:
+  static constexpr unsigned int kWidth = 128;
+  static constexpr unsigned int kHeight = 96;
+  static constexpr unsigned int kFrames = 17;
+
+  SyntheticSubgopVideoSource() {
+    SetSize(kWidth, kHeight);
+    set_limit(kFrames);
+  }
+
+  ~SyntheticSubgopVideoSource() override {}
+
+ protected:
+  void FillFrame() override {
+    if (img_ == NULL) return;
+    uint8_t *y_plane = img_->planes[AVM_PLANE_Y];
+    const int y_stride = img_->stride[AVM_PLANE_Y];
+    for (unsigned int r = 0; r < height_; ++r) {
+      for (unsigned int c = 0; c < width_; ++c) {
+        if (frame_ <= 8) {
+          // Smooth gradient: low resampling MSE, favors downscaling.
+          y_plane[r * y_stride + c] =
+              static_cast<uint8_t>((r * 2 + c * 2 + frame_ * 5) & 0xff);
+        } else {
+          // High-frequency pattern: higher resampling MSE, favors larger scale.
+          y_plane[r * y_stride + c] = static_cast<uint8_t>(
+              (((r ^ c) * 37 + frame_ * 13) & 0xff) ^ ((r & 1) ? 0x55 : 0xaa));
+        }
+      }
+    }
+    for (int plane = AVM_PLANE_U; plane <= AVM_PLANE_V; ++plane) {
+      uint8_t *uv_plane = img_->planes[plane];
+      const int uv_stride = img_->stride[plane];
+      const unsigned int uv_h = (height_ + 1) >> 1;
+      const unsigned int uv_w = (width_ + 1) >> 1;
+      for (unsigned int r = 0; r < uv_h; ++r) {
+        memset(uv_plane + r * uv_stride, 128, uv_w);
+      }
+    }
+  }
+};
+
+class ResizeDynamicAndSubgopTest
+    : public ::libavm_test::CodecTestWith2Params<libavm_test::TestMode, int>,
+      public ::libavm_test::EncoderTest {
+ protected:
+  static constexpr int kSubgopInterval = 4;
+
+  ResizeDynamicAndSubgopTest()
+      : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
+        resize_mode_(GET_PARAM(2)) {}
+  ~ResizeDynamicAndSubgopTest() override {}
+
+  void SetUp() override {
+    InitializeConfig();
+    SetMode(encoding_mode_);
+    const avm_rational timebase = { 1, 30 };
+    cfg_.g_timebase = timebase;
+    cfg_.rc_end_usage = AVM_Q;
+    cfg_.g_threads = 1;
+    cfg_.g_lag_in_frames = 17;
+    cfg_.rc_resize_mode = resize_mode_;
+  }
+
+  void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                          ::libavm_test::Encoder *encoder) override {
+    if (video->frame() == 0) {
+      encoder->Control(AVME_SET_CPUUSED, 6);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AV2E_SET_MIN_GF_INTERVAL, kSubgopInterval);
+      encoder->Control(AV2E_SET_MAX_GF_INTERVAL, kSubgopInterval);
+      encoder->Control(AVME_SET_QP, 180);
+    }
+  }
+
+  void DecompressedFrameHook(const avm_image_t &img,
+                             avm_codec_pts_t pts) override {
+    frame_info_list_.push_back(FrameInfo(pts, img.d_w, img.d_h));
+  }
+
+  ::libavm_test::TestMode encoding_mode_;
+  int resize_mode_;
+  std::vector<FrameInfo> frame_info_list_;
+};
+
+TEST_P(ResizeDynamicAndSubgopTest, SubgopFramesShareScale) {
+  SyntheticSubgopVideoSource video;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  ASSERT_EQ(frame_info_list_.size(),
+            static_cast<size_t>(SyntheticSubgopVideoSource::kFrames));
+
+  bool saw_downscaled_frame = false;
+  for (size_t i = 0; i < frame_info_list_.size(); ++i) {
+    if (frame_info_list_[i].w < SyntheticSubgopVideoSource::kWidth ||
+        frame_info_list_[i].h < SyntheticSubgopVideoSource::kHeight) {
+      saw_downscaled_frame = true;
+    }
+  }
+  EXPECT_TRUE(saw_downscaled_frame);
+
+  // In RESIZE_RANDOM_SUBGOP and RESIZE_DYNAMIC_SUBGOP modes, every frame
+  // within each subgop after the keyframe (frames [1..4], [5..8], [9..12],
+  // [13..16]) must be coded at the same dimensions.
+  if (resize_mode_ == RESIZE_RANDOM_SUBGOP ||
+      resize_mode_ == RESIZE_DYNAMIC_SUBGOP) {
+    for (size_t subgop_start = 1;
+         subgop_start + kSubgopInterval <= frame_info_list_.size();
+         subgop_start += kSubgopInterval) {
+      const unsigned int subgop_w = frame_info_list_[subgop_start].w;
+      const unsigned int subgop_h = frame_info_list_[subgop_start].h;
+      for (int offset = 1; offset < kSubgopInterval; ++offset) {
+        const size_t idx = subgop_start + offset;
+        EXPECT_EQ(frame_info_list_[idx].w, subgop_w)
+            << "Frame " << idx << " width differs from subgop start frame "
+            << subgop_start;
+        EXPECT_EQ(frame_info_list_[idx].h, subgop_h)
+            << "Frame " << idx << " height differs from subgop start frame "
+            << subgop_start;
+      }
+    }
+  }
+  if (resize_mode_ == RESIZE_DYNAMIC_SUBGOP) {
+    // Smooth first subgop (frames 1..4) should be downscaled relative to the
+    // high-frequency third subgop (frames 9..12).
+    EXPECT_LT(frame_info_list_[1].w, SyntheticSubgopVideoSource::kWidth);
+    EXPECT_GT(frame_info_list_[9].w, frame_info_list_[1].w);
+  }
+}
+
+AV2_INSTANTIATE_TEST_SUITE(
+    ResizeDynamicAndSubgopTest, ::testing::Values(::libavm_test::kOnePassGood),
+    ::testing::Values(static_cast<int>(RESIZE_DYNAMIC),
+                      static_cast<int>(RESIZE_RANDOM_SUBGOP),
+                      static_cast<int>(RESIZE_DYNAMIC_SUBGOP)));
+
 }  // namespace
