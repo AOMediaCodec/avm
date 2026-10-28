@@ -135,7 +135,7 @@ void av2_single_motion_search(const AV2_COMP *const cpi, MACROBLOCK *x,
 
   if (cpi->sf.rt_sf.estimate_motion_for_var_based_partition &&
       x->sb_me_partition && mbmi->motion_mode == SIMPLE_TRANSLATION &&
-      ref == get_closest_pastcur_ref_or_ref0(cm)) {
+      ref == x->vbp_ref_frame) {
     FULLPEL_MV sb_fmv = get_fullmv_from_mv(&x->sb_me_mv.as_mv);
     clamp_fullmv(&sb_fmv, &x->mv_limits);
     full_pel_lower_mv_precision(&sb_fmv, mbmi->pb_mv_precision);
