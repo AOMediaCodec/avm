@@ -445,6 +445,8 @@ typedef struct AV2Decoder {
 
   AV2DecRowMTInfo frame_row_mt_info;
   avm_metadata_array_t *metadata;
+  // Persistent metadata, indexed by metadata type.
+  avm_metadata_t *persistent_metadata[NUM_OBU_METADATA_TYPES];
 
   int context_update_tile_id;
   int skip_loop_filter;
