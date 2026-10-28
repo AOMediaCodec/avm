@@ -170,33 +170,111 @@ static int frame_max_bits(const RATE_CONTROL *rc,
   return (int)max_bits;
 }
 
-static const double q_pow_term[(QINDEX_RANGE >> 5) + 1] = { 0.65, 0.70, 0.75,
-                                                            0.80, 0.85, 0.90,
-                                                            0.95, 0.95, 0.95 };
+// Power term indexed by the 8-bit equivalent qindex. Higher bit depths extend
+// the qindex range by MAXQ_OFFSET per extra bit, with the same quantizer step
+// as the 8-bit qindex shifted by that offset, so the qindex is mapped back to
+// the 8-bit range before the lookup.
+static const double q_pow_term[(QINDEX_RANGE_8_BITS >> 5) + 1] = {
+  0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 0.95, 0.95
+};
 #define ERR_DIVISOR 96.0
-static double calc_correction_factor(double err_per_mb, int q) {
+static double calc_correction_factor(double err_per_mb, int q,
+                                     avm_bit_depth_t bit_depth) {
   const double error_term = err_per_mb / ERR_DIVISOR;
-  const int index = q >> 5;
+  const int q_8bit =
+      clamp(q - ((int)bit_depth - AVM_BITS_8) * MAXQ_OFFSET, 0, MAXQ_8_BITS);
+  const int index = q_8bit >> 5;
   // Adjustment to power term based on qindex
   const double power_term =
       q_pow_term[index] +
-      (((q_pow_term[index + 1] - q_pow_term[index]) * (q % 32)) / 32.0);
+      (((q_pow_term[index + 1] - q_pow_term[index]) * (q_8bit % 32)) / 32.0);
   assert(error_term >= 0.0);
   return fclamp(pow(error_term, power_term), 0.05, 5.0);
 }
 
-static void twopass_update_bpm_factor(TWO_PASS *twopass) {
+// Based on history adjust expectations of bits per macroblock.
+static void twopass_update_bpm_factor(AV2_COMP *cpi, int rate_err_tol) {
+  TWO_PASS *const twopass = &cpi->twopass;
+  const RATE_CONTROL *const rc = &cpi->rc;
+
   // Based on recent history adjust expectations of bits per macroblock.
-  double last_group_rate_err =
-      (double)twopass->rolling_arf_group_actual_bits /
-      DOUBLE_DIVIDE_CHECK((double)twopass->rolling_arf_group_target_bits);
-  last_group_rate_err = AVMMAX(0.25, AVMMIN(4.0, last_group_rate_err));
-  twopass->bpm_factor *= (3.0 + last_group_rate_err) / 4.0;
-  twopass->bpm_factor = AVMMAX(0.25, AVMMIN(4.0, twopass->bpm_factor));
+  const double damp_fac = AVMMAX(5.0, rate_err_tol / 10.0);
+  double rate_err_factor = 1.0;
+
+  const int err_estimate = rc->rate_error_estimate;
+  const int64_t bits_left = twopass->bits_left;
+  const int64_t total_actual_bits = rc->total_actual_bits;
+  const int64_t bits_off_target = rc->vbr_bits_off_target;
+  const double rolling_arf_group_actual_bits =
+      (double)twopass->rolling_arf_group_actual_bits;
+  const double rolling_arf_group_target_bits =
+      (double)twopass->rolling_arf_group_target_bits;
+  const double total_bits_estimate =
+      DOUBLE_DIVIDE_CHECK((double)AVMMAX(total_actual_bits, bits_left));
+  double adj_limit_cap;
+
+  if (rate_err_tol) {
+    const double initial_adj_limit = 0.0626;
+    const double abs_err_tol = 0.6 * rate_err_tol;
+    const double step_size =
+        (0.2 - initial_adj_limit) / (rate_err_tol - abs_err_tol);
+    const double abs_err_till_now =
+        100 * fabs((double)bits_off_target / total_bits_estimate);
+    adj_limit_cap = initial_adj_limit;
+
+    // Increase the adj_limit_cap (i.e., allow a swifter adjustment rate) as the
+    // abs_err_till_now increases.
+    if (abs_err_till_now >= abs_err_tol) {
+      adj_limit_cap =
+          AVMMIN(0.2, initial_adj_limit +
+                          (abs_err_till_now - abs_err_tol) * step_size);
+    }
+  } else {
+    // Force adj_limit_cap to 0.2 when rate_err_tol is 0.
+    adj_limit_cap = 0.2;
+  }
+
+  const double adj_limit =
+      AVMMAX(adj_limit_cap, (double)(100 - rate_err_tol) / 200.0);
+  const double min_fac = 1.0 - adj_limit;
+  const double max_fac = 1.0 + adj_limit;
+
+  if (rc->bits_off_target && total_actual_bits > 0) {
+    if (cpi->lap_enabled) {
+      rate_err_factor = rolling_arf_group_actual_bits /
+                        DOUBLE_DIVIDE_CHECK(rolling_arf_group_target_bits);
+    } else {
+      rate_err_factor = 1.0 - ((double)bits_off_target / total_bits_estimate);
+    }
+
+    // Adjustment is damped if this is 1 pass with look ahead processing
+    // (as there are only ever a few frames of data) and for all but the first
+    // GOP in normal two pass.
+    if ((twopass->bpm_factor != 1.0) || cpi->lap_enabled) {
+      rate_err_factor = 1.0 + ((rate_err_factor - 1.0) / damp_fac);
+    }
+    rate_err_factor = AVMMAX(min_fac, AVMMIN(max_fac, rate_err_factor));
+  }
+
+  // Is the rate control trending in the right direction. Only make
+  // an adjustment if things are getting worse.
+  if ((rate_err_factor < 1.0 && err_estimate >= 0) ||
+      (rate_err_factor > 1.0 && err_estimate <= 0)) {
+    twopass->bpm_factor *= rate_err_factor;
+    if (rate_err_tol >= 100) {
+      twopass->bpm_factor =
+          AVMMAX(min_fac, AVMMIN(max_fac, twopass->bpm_factor));
+    } else {
+      twopass->bpm_factor = AVMMAX(0.1, AVMMIN(10.0, twopass->bpm_factor));
+    }
+  }
 }
 
+// The base value is about 0.8x of libaom's 1125750 scaled by 1/2 (to account
+// for av2_convert_qindex_to_q() returning the unitary normalized q step size),
+// since AVM spends fewer bits than AV1 at a given q step size.
 static int qbpm_enumerator(int rate_err_tol) {
-  return 625000 + 150000 * AVMMIN(75, AVMMAX(rate_err_tol - 25, 0)) / 75;
+  return 450000 + 150000 * AVMMIN(75, AVMMAX(rate_err_tol - 25, 0)) / 75;
 }
 
 // Similar to find_qindex_by_rate() function in ratectrl.c, but includes
@@ -211,7 +289,8 @@ static int find_qindex_by_rate_with_correction(
 
   while (low < high) {
     const int mid = (low + high) >> 1;
-    const double mid_factor = calc_correction_factor(error_per_mb, mid);
+    const double mid_factor =
+        calc_correction_factor(error_per_mb, mid, bit_depth);
     const double q = av2_convert_qindex_to_q(mid, bit_depth);
     const int enumerator = qbpm_enumerator(rate_err_tol);
     const int mid_bits_per_mb =
@@ -245,15 +324,12 @@ static int find_qindex_by_rate_with_correction(
  *                                   Here we want to ignore the bands at the
  *                                   top and bottom.
  * \param[in]    av_target_bandwidth The target bits per frame
- * \param[in]    group_weight_factor A correction factor allowing the algorithm
- *                                   to correct for errors over time.
  *
  * \return The maximum Q for frames in the group.
  */
 static int get_twopass_worst_quality(AV2_COMP *cpi, const double av_frame_err,
                                      double inactive_zone,
-                                     int av_target_bandwidth,
-                                     double group_weight_factor) {
+                                     int av_target_bandwidth) {
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
@@ -271,12 +347,14 @@ static int get_twopass_worst_quality(AV2_COMP *cpi, const double av_frame_err,
         (int)((uint64_t)av_target_bandwidth << BPER_MB_NORMBITS) / active_mbs;
     int rate_err_tol = AVMMIN(rc_cfg->under_shoot_pct, rc_cfg->over_shoot_pct);
 
-    twopass_update_bpm_factor(&cpi->twopass);
+    // Update bpm correction factor based on previous GOP rate error.
+    twopass_update_bpm_factor(cpi, rate_err_tol);
+
     // Try and pick a max Q that will be high enough to encode the
     // content at the given rate.
     int q = find_qindex_by_rate_with_correction(
         target_norm_bits_per_mb, cpi->common.seq_params.bit_depth,
-        av_err_per_mb, group_weight_factor, rate_err_tol, rc->best_quality,
+        av_err_per_mb, cpi->twopass.bpm_factor, rate_err_tol, rc->best_quality,
         rc->worst_quality);
 
     // Restriction on active max q for constrained quality mode.
@@ -1137,10 +1215,6 @@ int determine_high_err_gf(double *errs, int *is_high, double *si, int len,
   return reset;
 }
 
-#if GROUP_ADAPTIVE_MAXQ
-#define RC_FACTOR_MIN 0.75
-#define RC_FACTOR_MAX 1.25
-#endif  // GROUP_ADAPTIVE_MAXQ
 #define MIN_FWD_KF_INTERVAL 8
 #define MIN_SHRINK_LEN 6      // the minimum length of gf if we are shrinking
 #define SI_HIGH AVG_SI_THRES  // high quality classification
@@ -1945,25 +2019,9 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
          (rc->baseline_gf_interval * (double)cm->mi_params.mb_rows));
 
     int tmp_q;
-    // rc factor is a weight factor that corrects for local rate control drift.
-    double rc_factor = 1.0;
-    int64_t bits = rc_cfg->target_bandwidth;
-
-    if (bits > 0) {
-      int rate_error;
-
-      rate_error = (int)((rc->vbr_bits_off_target * 100) / bits);
-      rate_error = clamp(rate_error, -100, 100);
-      if (rate_error > 0) {
-        rc_factor = AVMMAX(RC_FACTOR_MIN, (double)(100 - rate_error) / 100.0);
-      } else {
-        rc_factor = AVMMIN(RC_FACTOR_MAX, (double)(100 - rate_error) / 100.0);
-      }
-    }
-
     tmp_q = get_twopass_worst_quality(
         cpi, group_av_err, (group_av_skip_pct + group_av_inactive_zone),
-        vbr_group_bits_per_frame, rc_factor);
+        vbr_group_bits_per_frame);
     rc->active_worst_quality = AVMMAX(tmp_q, rc->active_worst_quality >> 1);
   }
 #endif
@@ -2738,7 +2796,6 @@ static int is_skippable_frame(const AV2_COMP *cpi) {
 #if ARF_STATS_OUTPUT
 unsigned int arf_count = 0;
 #endif
-#define DEFAULT_GRP_WEIGHT 1.0
 
 static int get_section_target_bandwidth(AV2_COMP *cpi) {
   AV2_COMMON *const cm = &cpi->common;
@@ -2787,7 +2844,7 @@ static void process_first_pass_stats(AV2_COMP *cpi,
         ((double)cm->mi_params.mb_rows * section_length);
     const int tmp_q = get_twopass_worst_quality(
         cpi, section_error, section_intra_skip + section_inactive_zone,
-        section_target_bandwidth, DEFAULT_GRP_WEIGHT);
+        section_target_bandwidth);
 
     rc->active_worst_quality = tmp_q;
     rc->last_q[INTER_FRAME] = tmp_q;

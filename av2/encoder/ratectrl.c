@@ -1462,13 +1462,22 @@ static void get_intra_q_and_bounds(const AV2_COMP *cpi, int width, int height,
     int delta_qindex;
     int qindex;
 
-    qindex = rc->last_boosted_qindex;
-    last_boosted_q = av2_convert_qindex_to_q(qindex, bit_depth);
-    delta_qindex = av2_compute_qdelta(
-        rc, last_boosted_q,
-        last_boosted_q * (is_stat_consumption_stage_twopass(cpi) ? 0.75 : 0.50),
-        bit_depth);
-    active_best_quality = AVMMAX(qindex + delta_qindex, rc->best_quality);
+    if (is_stat_consumption_stage_twopass(cpi) &&
+        cpi->twopass.last_kfgroup_zeromotion_pct >= STATIC_MOTION_THRESH) {
+      qindex = AVMMIN(rc->last_kf_qindex, rc->last_boosted_qindex);
+      active_best_quality = qindex;
+      last_boosted_q = av2_convert_qindex_to_q(qindex, bit_depth);
+      delta_qindex = av2_compute_qdelta(rc, last_boosted_q,
+                                        last_boosted_q * 1.25, bit_depth);
+      active_worst_quality =
+          AVMMIN(qindex + delta_qindex, active_worst_quality);
+    } else {
+      qindex = rc->last_boosted_qindex;
+      last_boosted_q = av2_convert_qindex_to_q(qindex, bit_depth);
+      delta_qindex = av2_compute_qdelta(rc, last_boosted_q,
+                                        last_boosted_q * 0.50, bit_depth);
+      active_best_quality = AVMMAX(qindex + delta_qindex, rc->best_quality);
+    }
   } else {
     // Not forced keyframe.
     double q_adj_factor = 1.0;
@@ -1479,6 +1488,11 @@ static void get_intra_q_and_bounds(const AV2_COMP *cpi, int width, int height,
         get_kf_active_quality(rc, active_worst_quality, bit_depth);
     if (cpi->is_screen_content_type) {
       active_best_quality /= 2;
+    }
+
+    if (is_stat_consumption_stage_twopass(cpi) &&
+        cpi->twopass.kf_zeromotion_pct >= STATIC_KF_GROUP_THRESH) {
+      active_best_quality /= 3;
     }
 
     // Allow somewhat lower kf minq with small image formats.
