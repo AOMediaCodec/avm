@@ -104,16 +104,23 @@ static void yuvconfig2image(avm_image_t *img, const YV12_BUFFER_CONFIG *yv12,
     img->w_conf_win_top_offset = yv12->w_win_top_offset;
     img->w_conf_win_bottom_offset = yv12->w_win_bottom_offset;
 
-    // Convert
+    // Convert. The offsets are less than max_width/max_height and y_crop_width
+    // does not exceed max_width, but the products can still exceed INT32_MAX
+    // (e.g. 65535 * 65536), so they are computed in 64 bits to avoid signed
+    // integer overflow, which would otherwise shift the plane pointers below
+    // the frame buffer and inflate the cropped size past the buffer.
     const int plane_left_offset =
-        (img->w_conf_win_left_offset * yv12->y_crop_width) / yv12->max_width;
+        (int)(((int64_t)img->w_conf_win_left_offset * yv12->y_crop_width) /
+              yv12->max_width);
     const int plane_right_offset =
-        (img->w_conf_win_right_offset * yv12->y_crop_width) / yv12->max_width;
+        (int)(((int64_t)img->w_conf_win_right_offset * yv12->y_crop_width) /
+              yv12->max_width);
     const int plane_top_offset =
-        (img->w_conf_win_top_offset * yv12->y_crop_height) / yv12->max_height;
+        (int)(((int64_t)img->w_conf_win_top_offset * yv12->y_crop_height) /
+              yv12->max_height);
     const int plane_bottom_offset =
-        (img->w_conf_win_bottom_offset * yv12->y_crop_height) /
-        yv12->max_height;
+        (int)(((int64_t)img->w_conf_win_bottom_offset * yv12->y_crop_height) /
+              yv12->max_height);
 
     // Calculate cropping positions
     int left_pos_x = plane_left_offset;
@@ -130,9 +137,11 @@ static void yuvconfig2image(avm_image_t *img, const YV12_BUFFER_CONFIG *yv12,
     img->d_h = img->crop_height;
 
     const int scaled_left_offset =
-        (yv12->w_win_left_offset * yv12->y_crop_width) / yv12->max_width;
+        (int)(((int64_t)yv12->w_win_left_offset * yv12->y_crop_width) /
+              yv12->max_width);
     const int scaled_top_offset =
-        (yv12->w_win_top_offset * yv12->y_crop_height) / yv12->max_height;
+        (int)(((int64_t)yv12->w_win_top_offset * yv12->y_crop_height) /
+              yv12->max_height);
 
     // Adjust plane pointers to point to the cropped region
     const int bytes_per_sample = (img->fmt & AVM_IMG_FMT_HIGHBITDEPTH) ? 2 : 1;

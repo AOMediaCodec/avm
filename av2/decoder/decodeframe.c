@@ -3909,19 +3909,27 @@ void av2_validate_frame_level_conformance(
 
   const int SubX = seq_params->subsampling_x + 1;
   const int SubY = seq_params->subsampling_y + 1;
+  // The offsets are validated to be less than max_frame_width/max_frame_height
+  // and frame_width/frame_height do not exceed the maxima, but the products
+  // below can still exceed INT32_MAX (e.g. 65535 * 65536), so they are
+  // computed in 64 bits to avoid signed integer overflow.
   const int LeftPosX =
-      (conf->conf_win_left_offset * frame_width) / seq_params->max_frame_width;
+      (int)(((int64_t)conf->conf_win_left_offset * frame_width) /
+            seq_params->max_frame_width);
 
-  const int RightPosX = frame_width - 1 -
-                        ((conf->conf_win_right_offset * frame_width) /
-                         seq_params->max_frame_width);
+  const int RightPosX =
+      frame_width - 1 -
+      (int)(((int64_t)conf->conf_win_right_offset * frame_width) /
+            seq_params->max_frame_width);
 
   const int TopPosY =
-      (conf->conf_win_top_offset * frame_height) / seq_params->max_frame_height;
+      (int)(((int64_t)conf->conf_win_top_offset * frame_height) /
+            seq_params->max_frame_height);
 
-  const int BottomPosY = frame_height - 1 -
-                         ((conf->conf_win_bottom_offset * frame_height) /
-                          seq_params->max_frame_height);
+  const int BottomPosY =
+      frame_height - 1 -
+      (int)(((int64_t)conf->conf_win_bottom_offset * frame_height) /
+            seq_params->max_frame_height);
 
   // Conformance requirement 1: LeftPosX == SubX * (LeftPosX/Subx)
   if (!seq_params->monochrome && SubX > 1 &&
