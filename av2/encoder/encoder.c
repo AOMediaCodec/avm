@@ -5008,6 +5008,11 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
     features->kf_allow_sc_tools = features->allow_screen_content_tools;
   }
   cpi->is_screen_content_type = features->allow_screen_content_tools;
+  if (!cpi->seq_params_locked && cpi->is_screen_content_type &&
+      oxcf->part_cfg.enable_ext_partitions) {
+    cm->seq_params.enable_ext_partitions = 1;
+    cpi->sf.part_sf.disable_ext_partitions = false;
+  }
   set_intrabc_tools(cpi);
   const bool compute_ds_filter =
       cpi->common.current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY;

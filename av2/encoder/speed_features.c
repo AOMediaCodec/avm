@@ -589,7 +589,7 @@ static void set_good_speed_features_framesize_independent(
     sf->interp_sf.use_interp_filter = 1;
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
     sf->rd_sf.disable_tcq = 0;
-    sf->part_sf.disable_ext_partitions = true;
+    sf->part_sf.disable_ext_partitions = !cpi->is_screen_content_type;
     // --- End ---
 
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
@@ -1653,8 +1653,17 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     if (sf->part_sf.disable_extended_sdp) {
       cpi->common.seq_params.enable_extended_sdp = 0;
     }
-    cpi->common.seq_params.enable_ext_partitions &=
-        !sf->part_sf.disable_ext_partitions;
+    const bool is_scc = cpi->is_screen_content_type ||
+                        cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN ||
+                        cpi->common.seq_params.force_screen_content_tools == 1;
+    if (is_scc) {
+      cpi->common.seq_params.enable_ext_partitions =
+          oxcf->part_cfg.enable_ext_partitions;
+      sf->part_sf.disable_ext_partitions = false;
+    } else {
+      cpi->common.seq_params.enable_ext_partitions &=
+          !sf->part_sf.disable_ext_partitions;
+    }
 
     cpi->common.seq_params.enable_uneven_4way_partitions &=
         !sf->part_sf.disable_uneven_4way_partitions;
@@ -1915,6 +1924,10 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   // Speed 1 and fine quantizers only; assigned, not cleared, because this
   // function runs per frame while the framesize-independent pass does not.
   sf->tx_sf.use_tx_result_cache = cpi->oxcf.mode == GOOD && speed >= 1;
+
+  if (cpi->oxcf.mode == GOOD && speed >= 3) {
+    sf->part_sf.disable_ext_partitions = !cpi->is_screen_content_type;
+  }
 
   if (cpi->oxcf.mode == GOOD && speed == 0) {
     const int qindex_thresh = 124 + qindex_offset;
