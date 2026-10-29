@@ -906,12 +906,18 @@ static AVM_INLINE bool is_vbp_ref_enabled(const AV2_COMMON *const cm,
 }
 
 static AVM_INLINE MV_REFERENCE_FRAME
-get_primary_vbp_ref(const AV2_COMMON *const cm) {
+get_primary_vbp_ref(const AV2_COMP *const cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
   const int closest_ref = get_closest_pastcur_ref_or_ref0(cm);
-  const MV_REFERENCE_FRAME fallback_ref =
+  MV_REFERENCE_FRAME fallback_ref =
       (closest_ref >= 0 && closest_ref < INTER_REFS_PER_FRAME)
           ? (MV_REFERENCE_FRAME)closest_ref
           : 0;
+  if (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled &&
+      !cm->bru.frame_inactive_flag && fallback_ref == cm->bru.update_ref_idx) {
+    fallback_ref =
+        (fallback_ref == 0 && cm->ref_frames_info.num_total_refs > 1) ? 1 : 0;
+  }
   if (cm->ref_frame_flags == 0) return fallback_ref;
   if (is_vbp_ref_enabled(cm, fallback_ref) &&
       !(cm->cur_frame && cm->cur_frame->refs_restricted_status[fallback_ref])) {
@@ -947,7 +953,7 @@ static void setup_planes(AV2_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   const int num_planes = av2_num_planes(cm);
   BLOCK_SIZE bsize = cm->sb_size;
   MB_MODE_INFO *mi = xd->mi[0];
-  const MV_REFERENCE_FRAME last_frame = get_primary_vbp_ref(cm);
+  const MV_REFERENCE_FRAME last_frame = get_primary_vbp_ref(cpi);
   const YV12_BUFFER_CONFIG *yv12 =
       scaled_ref_last ? av2_get_scaled_ref_frame(cpi, last_frame)
                       : get_ref_frame_yv12_buf(cm, last_frame);
@@ -1215,7 +1221,7 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
   FULLPEL_MV full_mv = kZeroFullMv;
 
   if (!frame_is_intra_only(cm)) {
-    const MV_REFERENCE_FRAME last_frame = get_primary_vbp_ref(cm);
+    const MV_REFERENCE_FRAME last_frame = get_primary_vbp_ref(cpi);
     const YV12_BUFFER_CONFIG *ref = get_ref_frame_yv12_buf(cm, last_frame);
     if (ref == NULL) {
       is_key_frame = true;

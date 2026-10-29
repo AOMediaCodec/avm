@@ -945,6 +945,84 @@ static void set_good_speed_features_lc_dec_framesize_independent(
   }
 }
 
+static bool can_enable_cbr_bru(const AV2_COMP *const cpi, int speed) {
+  const AV2EncoderConfig *const oxcf = &cpi->oxcf;
+  const AV2_COMMON *const cm = &cpi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  if (oxcf->tool_cfg.enable_bru == 0) return false;
+  if (speed < 6 || oxcf->mode != REALTIME) return false;
+  if (oxcf->pass != AVM_RC_ONE_PASS || !has_no_stats_stage(cpi)) return false;
+  if (oxcf->rc_cfg.mode != AVM_CBR) return false;
+  if (oxcf->tune_cfg.content != AVM_CONTENT_SCREEN) return false;
+  if (oxcf->gf_cfg.lag_in_frames != 0 || oxcf->kf_cfg.key_freq_max <= 0)
+    return false;
+  if (seq_params->still_picture || seq_params->single_picture_header_flag)
+    return false;
+  if (oxcf->resize_cfg.resize_mode != RESIZE_NONE) return false;
+  // Disable RTC BRU when tools that conflict with in-place BRU reference
+  // swapping are enabled: bru_swap_common() swaps cm->cur_frame with the BRU
+  // reference buffer without updating per-reference MFMV motion field buffers
+  // (ref_frame_mvs), global motion parameters, film grain, or frame hash
+  // metadata across the swapped buffer, and error-resilient / S-frames restrict
+  // or reset DPB reference slots needed by BRU.
+  // TODO(jianj): Support ref_frame_mvs and global_motion with RTC BRU by
+  // updating motion field and global motion state in bru_swap_common().
+  if (oxcf->tool_cfg.g_error_resilient_mode || oxcf->kf_cfg.enable_sframe ||
+      oxcf->tool_cfg.enable_ref_frame_mvs ||
+      oxcf->tool_cfg.ref_frame_mvs_present ||
+      oxcf->tool_cfg.enable_global_motion ||
+      oxcf->tool_cfg.frame_hash_metadata != 0 ||
+      oxcf->tune_cfg.film_grain_test_vector != 0 ||
+      oxcf->tune_cfg.film_grain_table_filename != NULL) {
+    return false;
+  }
+  if (cm->number_mlayers > 1 || cm->number_tlayers > 1) return false;
+  if (is_lossless_requested(&oxcf->rc_cfg)) return false;
+  // Note: BRU cannot work when dpb_size < 3 because the BRU reference frame is
+  // at distance 2 (cur_frame_disp - 2, since BRU_ENC_LOOKAHEAD_DIST_MINUS_1 =
+  // 1) and get_refresh_idx() preserves the 2 closest past frames in output
+  // order (frame_order > cur_frame_disp - 3), requiring at least 3 DPB slots
+  // so a slot with frame_order <= cur_frame_disp - 3 is available to refresh
+  // on non-BRU frames. BRU also cannot work when max_reference_frames < 3
+  // because bru_is_valid_inter() forbids BRU_ACTIVE_SB blocks from using
+  // update_ref_idx as an inter reference, so >= 3 reference frames are needed
+  // to keep update_ref_idx in the active reference list while leaving coding
+  // references for BRU_ACTIVE_SB blocks.
+  if (seq_params->ref_frames < 3 || oxcf->ref_frm_cfg.max_reference_frames < 3)
+    return false;
+  if (cpi->seq_params_locked && !seq_params->enable_bru) return false;
+  if (cpi->lookahead != NULL &&
+      cpi->lookahead->extra_sz < BRU_ENC_LOOKAHEAD_DIST_MINUS_1) {
+    return false;
+  }
+  return true;
+}
+
+static void sync_rt_bru_seq_params(AV2_COMP *cpi) {
+  const AV2EncoderConfig *const oxcf = &cpi->oxcf;
+  SequenceHeader *const seq_params = &cpi->common.seq_params;
+  if (cpi->seq_params_locked || oxcf->mode != REALTIME) return;
+  if (cpi->sf.rt_sf.rtc_enable_bru) {
+    seq_params->enable_bru = oxcf->tool_cfg.enable_bru;
+    if (seq_params->seq_tile_info_present_flag) {
+      seq_params->tile_params.allow_tile_info_change = 1;
+    }
+  } else if (oxcf->tool_cfg.enable_bru > 0) {
+    // av2_init_seq_coding_tools() initializes seq_params->enable_bru from
+    // oxcf->tool_cfg.enable_bru before speed features are set. If
+    // can_enable_cbr_bru() disallowed BRU in REALTIME mode (e.g., non-screen
+    // content or < 3 reference frames), clear seq_params->enable_bru so BRU is
+    // not signaled in the sequence or frame headers.
+    seq_params->enable_bru = 0;
+    if (seq_params->seq_tile_info_present_flag) {
+      seq_params->tile_params.allow_tile_info_change =
+          !(oxcf->resize_cfg.resize_mode == RESIZE_NONE ||
+            oxcf->tile_cfg.tile_width_count == 0 ||
+            oxcf->tile_cfg.tile_height_count == 0);
+    }
+  }
+}
+
 static void set_rt_speed_features_framesize_independent(
     AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   // Set this good features as default for now.
@@ -990,6 +1068,9 @@ static void set_rt_speed_features_framesize_independent(
             (!sf->rt_sf.check_scene_detection || cpi->rc.high_source_sad) ? 2
                                                                           : 1;
       }
+    }
+    if (can_enable_cbr_bru(cpi, speed)) {
+      sf->rt_sf.rtc_enable_bru = 1;
     }
   }
 }
@@ -1370,6 +1451,7 @@ static AVM_INLINE void init_rt_sf(REALTIME_SPEED_FEATURES *rt_sf) {
   rt_sf->overshoot_detection_cbr = NO_DETECTION;
   rt_sf->estimate_motion_for_var_based_partition = 0;
   rt_sf->prune_intrabc_on_keyframe = 0;
+  rt_sf->rtc_enable_bru = 0;
 }
 
 // Speed >= 6 partition search breakout tuning: left shift applied to the
@@ -1810,6 +1892,8 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     if (sf->tx_sf.tx_type_search.disable_inter_ist) {
       cpi->common.seq_params.enable_inter_ist = 0;
     }
+
+    sync_rt_bru_seq_params(cpi);
 
     if (sf->inter_sf.disable_interintra) {
       cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << INTERINTRA);

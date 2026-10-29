@@ -1503,6 +1503,12 @@ typedef struct REALTIME_SPEED_FEATURES {
   // bsize <= BLOCK_16X16 and source_variance above threshold, and cap
   // the IntraBC hash table block size to 16x16.
   int prune_intrabc_on_keyframe;
+
+  // Enable Backward Reference Update (BRU) for 1-pass CBR screen content
+  // (when --enable-bru=1 and --tune-content=1 at speed >= 6):
+  // 0: Disabled
+  // 1: Enabled
+  int rtc_enable_bru;
 } REALTIME_SPEED_FEATURES;
 
 typedef struct LC_DEC_SPEED_FEATURES {

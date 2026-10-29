@@ -29,12 +29,14 @@
 #include "av2/common/bru.h"
 #include "av2/common/reconinter.h"
 
+#include "av2/encoder/bru.h"
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/encode_strategy.h"
 #include "av2/encoder/encodeframe.h"
 #include "av2/encoder/firstpass.h"
 #include "av2/encoder/gop_structure.h"
 #include "av2/encoder/pass2_strategy.h"
+#include "av2/encoder/segmentation.h"
 #include "av2/encoder/temporal_filter.h"
 #include "av2/encoder/tpl_model.h"
 #include "av2/encoder/encoder_utils.h"
@@ -1306,6 +1308,8 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   cm->current_frame.order_hint = cur_frame_disp;
   cm->current_frame.display_order_hint = cur_frame_disp;
   cm->current_frame.display_order_hint_restricted = cur_frame_disp;
+  av2_update_rt_bru_lookahead_disp_order(cpi, source, frame_params.frame_type,
+                                         cur_frame_disp);
   cm->current_frame.pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index],
       cm->current_frame.frame_type == KEY_FRAME, cpi->gf_group.max_layer_depth,
@@ -1370,9 +1374,17 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   if (!is_stat_generation_stage(cpi)) {
     cm->current_frame.frame_type = frame_params.frame_type;
     // get last frame idx as bru frame
-    cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru > 0 &&
-                      (frame_params.frame_type == INTER_FRAME);
+    cm->bru.enabled =
+        cpi->oxcf.tool_cfg.enable_bru > 0 &&
+        (cpi->oxcf.mode != REALTIME || cpi->sf.rt_sf.rtc_enable_bru) &&
+        (frame_params.frame_type == INTER_FRAME);
     cm->bru.frame_inactive_flag = 0;
+    int cbr_bru_slot = -1;
+    if (cm->bru.enabled && cpi->sf.rt_sf.rtc_enable_bru) {
+      cbr_bru_slot = av2_find_rtc_cbr_bru_slot(cpi, &frame_input,
+                                               bru_ref_source, cur_frame_disp);
+      if (cbr_bru_slot < 0) cm->bru.enabled = 0;
+    }
     if (cm->bru.enabled) {
       int n_future = 0;
       for (int i = 0; i < REF_FRAMES; i++) {
@@ -1393,8 +1405,13 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     }
     if (cm->bru.enabled && frame_input.bru_ref_source != NULL &&
         !frame_is_intra_only(&cpi->common)) {
-      active_region_detection(cpi, frame_input.source,
-                              frame_input.bru_ref_source);
+      if (cpi->sf.rt_sf.rtc_enable_bru) {
+        av2_detect_cbr_bru_regions(cpi, frame_input.source,
+                                   frame_input.bru_ref_source, cbr_bru_slot);
+      } else {
+        active_region_detection(cpi, frame_input.source,
+                                frame_input.bru_ref_source);
+      }
       //  disable bru if
       //  1. too many active regions
       //  2. active ratio too large > 50%
@@ -1408,12 +1425,17 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       if (cm->bru.blocks_skipped == 0) {
         cm->bru.enabled = 0;
         cm->bru.update_ref_idx = -1;
+        cm->bru.explicit_ref_idx = -1;
       }
       cm->bru.frame_inactive_flag =
           (cm->bru.blocks_skipped == cm->bru.total_units);
     } else {
       cm->bru.enabled = 0;
       cm->bru.update_ref_idx = -1;
+      if (cm->seq_params.enable_bru > 0 || cpi->sf.rt_sf.rtc_enable_bru) {
+        cm->bru.blocks_skipped = 0;
+        cm->bru.explicit_ref_idx = -1;
+      }
     }
     // clean up active sb queue if any left over
     // it may happen if encoder decide not using BRU for lots of active sbs
@@ -1424,6 +1446,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
       // so no global cleanup needed here
     } else {
       cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
+      av2_disable_rtc_bru_segmentation(cpi);
     }
     if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm)) {
       av2_get_ref_frames_enc(cpi, cur_frame_disp, cm->ref_frame_map_pairs);
@@ -1477,6 +1500,11 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     // max-reference-frames.
     frame_params.ref_frame_flags =
         (1 << cpi->common.ref_frames_info.num_total_refs) - 1;
+    if (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled &&
+        !cm->bru.frame_inactive_flag && cm->bru.update_ref_idx >= 0 &&
+        cm->bru.update_ref_idx < INTER_REFS_PER_FRAME) {
+      frame_params.ref_frame_flags &= ~(1 << cm->bru.update_ref_idx);
+    }
 
     frame_params.order_offset = gf_group->arf_src_offset[gf_group->index];
 

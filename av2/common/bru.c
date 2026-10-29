@@ -352,11 +352,28 @@ RefCntBuffer *bru_swap_common(AV2_COMMON *cm) {
     ref_buf->long_term_id = cm->cur_frame->long_term_id;
     ref_buf->absolute_poc = cm->cur_frame->absolute_poc;
     ref_buf->pyramid_level = cm->cur_frame->pyramid_level;
-    if (!cm->bru.frame_inactive_flag)
+    if (!cm->bru.frame_inactive_flag) {
       ref_buf->base_qindex = cm->cur_frame->base_qindex;
+      ref_buf->u_ac_delta_q = cm->cur_frame->u_ac_delta_q;
+      ref_buf->v_ac_delta_q = cm->cur_frame->v_ac_delta_q;
+    }
     ref_buf->num_ref_frames = cm->cur_frame->num_ref_frames;
     ref_buf->frame_output_done = 0;
     ref_buf->frame_type = cm->cur_frame->frame_type;
+    ref_buf->seg = tmp_buf->seg;
+    ref_buf->seg.enabled = cm->seg.enabled;
+    if (ref_buf->seg_map != NULL) {
+      const size_t seg_map_elems =
+          (size_t)ref_buf->mi_rows * (size_t)ref_buf->mi_cols;
+      if (!cm->seg.enabled || cm->bru.frame_inactive_flag) {
+        memset(ref_buf->seg_map, 0, seg_map_elems * sizeof(*ref_buf->seg_map));
+      } else if (tmp_buf->seg_map != NULL &&
+                 ref_buf->mi_rows == tmp_buf->mi_rows &&
+                 ref_buf->mi_cols == tmp_buf->mi_cols) {
+        memcpy(ref_buf->seg_map, tmp_buf->seg_map,
+               seg_map_elems * sizeof(*ref_buf->seg_map));
+      }
+    }
     ref_buf->rst_info[0] = tmp_buf->rst_info[0];
     ref_buf->rst_info[1] = tmp_buf->rst_info[1];
     ref_buf->rst_info[2] = tmp_buf->rst_info[2];

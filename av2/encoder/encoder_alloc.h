@@ -202,6 +202,8 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   avm_free(bru_info->active_region);
   bru_info->active_region = NULL;
 
+  av2_rc_free_rtc_bru(&cpi->rc);
+
   avm_free(cpi->td.mb.inter_modes_info);
   cpi->td.mb.inter_modes_info = NULL;
 
