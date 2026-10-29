@@ -419,10 +419,27 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
   int max_delta_down;
   int max_delta_up;
   if (cpi->is_screen_content_type) {
-    max_delta_down = cm->width * cm->height <= 1280 * 720
-                         ? clamp(rc->q_1_frame / 32, 1, 4)
-                         : clamp(rc->q_1_frame / 8, 1, 16);
     max_delta_up = overshoot_buffer_low ? 120 : 16;
+    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+        cpi->cyclic_refresh->apply_cyclic_refresh) {
+      // For static screen type content limit the Q drop till the start of the
+      // next refresh cycle.
+      if (cpi->cyclic_refresh->sb_index > cpi->cyclic_refresh->last_sb_index) {
+        max_delta_down = clamp(rc->q_1_frame / 32, 1, 8);
+      } else {
+        max_delta_down = clamp(rc->q_1_frame / 8, 1, 16);
+      }
+      // Link max_delta_up to max_delta_down and buffer status.
+      if (rc->buffer_level > rc->optimal_buffer_level) {
+        max_delta_up = AVMMAX(4, max_delta_down);
+      } else if (!overshoot_buffer_low) {
+        max_delta_up = AVMMAX(8, max_delta_down);
+      }
+    } else {
+      max_delta_down = cm->width * cm->height <= 1280 * 720
+                           ? clamp(rc->q_1_frame / 32, 1, 4)
+                           : clamp(rc->q_1_frame / 8, 1, 16);
+    }
   } else {
     max_delta_down = clamp(rc->q_1_frame / 4, 1, 32);
     max_delta_up = overshoot_buffer_low ? 48 : 16;
@@ -2337,17 +2354,27 @@ static inline int set_key_frame(AV2_COMP *cpi, unsigned int frame_flags) {
 // real-time CBR rate control.
 void av2_rc_scene_detection_onepass_rt(AV2_COMP *cpi,
                                        const EncodeFrameInput *frame_input) {
-  const AV2_COMMON *const cm = &cpi->common;
+  AV2_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   rc->high_source_sad = 0;
+  rc->frame_source_sad = 0;
   const YV12_BUFFER_CONFIG *const unscaled_src = frame_input->source;
   const YV12_BUFFER_CONFIG *const unscaled_last_src = frame_input->last_source;
-  if (unscaled_src == NULL || unscaled_last_src == NULL) return;
+  if (unscaled_src == NULL || unscaled_last_src == NULL) {
+    avm_free(cpi->src_sad_blk_64x64);
+    cpi->src_sad_blk_64x64 = NULL;
+    cpi->src_sad_blk_alloc_size = 0;
+    return;
+  }
   const int src_width = unscaled_src->y_width;
   const int src_height = unscaled_src->y_height;
   const int last_src_width = unscaled_last_src->y_width;
   const int last_src_height = unscaled_last_src->y_height;
-  if (src_width != last_src_width || src_height != last_src_height) {
+  if (src_width != last_src_width || src_height != last_src_height ||
+      src_width != cm->width || src_height != cm->height) {
+    avm_free(cpi->src_sad_blk_64x64);
+    cpi->src_sad_blk_64x64 = NULL;
+    cpi->src_sad_blk_alloc_size = 0;
     return;
   }
   const uint16_t *src_y = unscaled_src->y_buffer;
@@ -2372,12 +2399,30 @@ void av2_rc_scene_detection_onepass_rt(AV2_COMP *cpi,
 
   const int sb_cols = cm->width >> 6;
   const int sb_rows = cm->height >> 6;
-  if (sb_cols == 0 || sb_rows == 0) return;
+  if (sb_cols == 0 || sb_rows == 0) {
+    avm_free(cpi->src_sad_blk_64x64);
+    cpi->src_sad_blk_64x64 = NULL;
+    cpi->src_sad_blk_alloc_size = 0;
+    return;
+  }
+
+  if (cpi->src_sad_blk_alloc_size != sb_cols * sb_rows) {
+    avm_free(cpi->src_sad_blk_64x64);
+    cpi->src_sad_blk_64x64 = NULL;
+    cpi->src_sad_blk_alloc_size = 0;
+    CHECK_MEM_ERROR(cm, cpi->src_sad_blk_64x64,
+                    (uint64_t *)avm_calloc(sb_cols * sb_rows,
+                                           sizeof(*cpi->src_sad_blk_64x64)));
+    cpi->src_sad_blk_alloc_size = sb_cols * sb_rows;
+  }
 
   for (int sbi_row = 0; sbi_row < sb_rows; ++sbi_row) {
     for (int sbi_col = 0; sbi_col < sb_cols; ++sbi_col) {
       tmp_sad = cpi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
                                        last_src_stride);
+      if (cpi->src_sad_blk_64x64 != NULL) {
+        cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols] = tmp_sad;
+      }
       avg_sad += tmp_sad;
       num_samples++;
       if (tmp_sad == 0) num_zero_temp_sad++;
@@ -2416,6 +2461,7 @@ void av2_get_one_pass_rt_params(AV2_COMP *cpi, FRAME_TYPE *const frame_type,
   GF_GROUP *const gf_group = &cpi->gf_group;
   int target;
   rc->high_source_sad = 0;
+  rc->frame_source_sad = 0;
   // Set frame type.
   if (set_key_frame(cpi, frame_flags)) {
     *frame_type = KEY_FRAME;
@@ -2424,12 +2470,19 @@ void av2_get_one_pass_rt_params(AV2_COMP *cpi, FRAME_TYPE *const frame_type,
     rc->frames_to_key = cpi->oxcf.kf_cfg.key_freq_max;
     rc->kf_boost = DEFAULT_KF_BOOST_RT;
     gf_group->update_type[gf_group->index] = KF_UPDATE;
+    avm_free(cpi->src_sad_blk_64x64);
+    cpi->src_sad_blk_64x64 = NULL;
+    cpi->src_sad_blk_alloc_size = 0;
   } else {
     *frame_type = INTER_FRAME;
     gf_group->update_type[gf_group->index] = LF_UPDATE;
     if (cpi->oxcf.rc_cfg.mode == AVM_CBR &&
         cpi->sf.rt_sf.check_scene_detection) {
       av2_rc_scene_detection_onepass_rt(cpi, frame_input);
+    } else {
+      avm_free(cpi->src_sad_blk_64x64);
+      cpi->src_sad_blk_64x64 = NULL;
+      cpi->src_sad_blk_alloc_size = 0;
     }
   }
   // Set target size.
@@ -2481,6 +2534,7 @@ int av2_encodedframe_overshoot_cbr(AV2_COMP *cpi, int *q) {
   if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
     av2_cyclic_refresh_set_golden_update(cpi);
     cpi->cyclic_refresh->apply_cyclic_refresh = 0;
+    cpi->cyclic_refresh->counter_encode_maxq_scene_change = 0;
     cpi->cyclic_refresh->percent_refresh_adjustment = 5;
     cpi->cyclic_refresh->rate_ratio_qdelta_adjustment = 0.25;
   }

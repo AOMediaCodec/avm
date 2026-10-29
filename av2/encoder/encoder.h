@@ -2703,6 +2703,16 @@ typedef struct AV2_COMP {
    * Parameters related to cyclic refresh aq-mode.
    */
   CYCLIC_REFRESH *cyclic_refresh;
+
+  /*!
+   * 64x64 block source SADs computed during 1-pass RT scene detection.
+   */
+  uint64_t *src_sad_blk_64x64;
+
+  /*!
+   * Number of 64x64 block entries allocated in \c src_sad_blk_64x64.
+   */
+  int src_sad_blk_alloc_size;
   /*!
    * Parameters related to active map. Active maps indicate
    * if there is any activity on a 4x4 block basis.

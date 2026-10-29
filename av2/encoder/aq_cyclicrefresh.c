@@ -387,6 +387,9 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
   cr->target_num_seg_blocks = 0;
   do {
     int sum_map = 0;
+    uint64_t sb_sad = 0;
+    uint64_t thresh_sad_low = 0;
+    uint64_t thresh_sad = UINT64_MAX;
     // Get the mi_row/mi_col corresponding to superblock index i.
     int sb_row_index = (i / sb_cols);
     int sb_col_index = i - sb_row_index * sb_cols;
@@ -398,6 +401,39 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
     // Loop through all MI blocks in superblock and update map.
     xmis = AVMMIN(mi_params->mi_cols - mi_col, cm->mib_size);
     ymis = AVMMIN(mi_params->mi_rows - mi_row, cm->mib_size);
+    if (cr->use_block_sad_scene_det && cpi->rc.frames_since_key > 30 &&
+        cr->counter_encode_maxq_scene_change > 30 &&
+        cpi->src_sad_blk_64x64 != NULL && cpi->unscaled_source != NULL &&
+        cm->width == cpi->unscaled_source->y_width &&
+        cm->height == cpi->unscaled_source->y_height) {
+      const int num_64x64_cols = cm->width >> 6;
+      const int num_64x64_rows = cm->height >> 6;
+      if (num_64x64_cols * num_64x64_rows == cpi->src_sad_blk_alloc_size) {
+        const int blk_step = (cm->sb_size == BLOCK_128X128) ? 2 : 1;
+        const int blk_row_start = sb_row_index * blk_step;
+        const int blk_col_start = sb_col_index * blk_step;
+        uint64_t sum_sad = 0;
+        int num_blks = 0;
+        for (int r = 0; r < blk_step && blk_row_start + r < num_64x64_rows;
+             ++r) {
+          for (int c = 0; c < blk_step && blk_col_start + c < num_64x64_cols;
+               ++c) {
+            sum_sad +=
+                cpi->src_sad_blk_64x64[(blk_row_start + r) * num_64x64_cols +
+                                       (blk_col_start + c)];
+            num_blks++;
+          }
+        }
+        if (num_blks > 0) {
+          sb_sad = sum_sad / num_blks;
+          const int bd_shift = cm->seq_params.bit_depth - 8;
+          const uint64_t scale = (cm->width * cm->height < 640 * 360) ? 6 : 8;
+          const uint64_t scale_low = 2;
+          thresh_sad = (scale * 64 * 64) << bd_shift;
+          thresh_sad_low = (scale_low * 64 * 64) << bd_shift;
+        }
+      }
+    }
     // cr_map only needed at 8x8 blocks.
     for (y = 0; y < ymis; y += 2) {
       for (x = 0; x < xmis; x += 2) {
@@ -405,7 +441,8 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
         // If the block is as a candidate for clean up then mark it
         // for possible boost/refresh (segment 1). The segment id may get
         // reset to 0 later if block gets coded anything other than low motion.
-        if (cr->map[bl_index2] == 0) {
+        // If the block_sad (sb_sad) is very low label it for refresh anyway.
+        if (cr->map[bl_index2] == 0 || sb_sad < thresh_sad_low) {
           sum_map += 4;
         } else if (cr->map[bl_index2] < 0) {
           cr->map[bl_index2]++;
@@ -414,7 +451,8 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
     }
     // Enforce constant segment over superblock.
     // If segment is at least half of superblock, set to 1.
-    if (sum_map >= (xmis * ymis) >> 1) {
+    // Enforce that block sad (sb_sad) is not too high.
+    if (sum_map >= (xmis * ymis) >> 1 && sb_sad < thresh_sad) {
       for (y = 0; y < ymis; y++)
         for (x = 0; x < xmis; x++) {
           seg_map[bl_index + y * mi_params->mi_cols + x] = CR_SEGMENT_ID_BOOST1;
@@ -433,8 +471,10 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
 }
 
 static int is_scene_change_detected(const AV2_COMP *const cpi) {
+  const uint64_t sad_thresh = 50000ULL
+                              << (cpi->common.seq_params.bit_depth - 8);
   return cpi->rc.high_source_sad ||
-         (cpi->oxcf.mode == REALTIME && cpi->rc.frame_source_sad > 50000 &&
+         (cpi->oxcf.mode == REALTIME && cpi->rc.frame_source_sad > sad_thresh &&
           cpi->rc.frame_source_sad > 3 * cpi->rc.prev_avg_source_sad);
 }
 
@@ -451,35 +491,47 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
   double weight_segment = 0;
   const int bd_offset =
       MAXQ_FOR_GIVEN_BIT_DEPTH(cm->seq_params.bit_depth) - MAXQ_8_BITS;
+  const int is_screen_content =
+      (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
   int qp_thresh = AVMMAX(63 + bd_offset, rc->best_quality + 4);
-  if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN)
+  if (is_screen_content)
     qp_thresh = AVMMAX(84 + bd_offset, rc->best_quality + 4);
   int qp_max_thresh = 211 + bd_offset;
   const int scene_change_detected = is_scene_change_detected(cpi);
+
+  // Cases to reset the cyclic refresh adjustment parameters.
+  if (frame_is_intra_only(cm) || scene_change_detected) {
+    cr->percent_refresh_adjustment = 5;
+    cr->rate_ratio_qdelta_adjustment = 0.25;
+    cr->counter_encode_maxq_scene_change = 0;
+  }
+
+  // A scene change or key frame marks the start of a cyclic refresh cycle.
+  const int frames_since_scene_change =
+      !is_screen_content
+          ? rc->frames_since_key
+          : AVMMIN(rc->frames_since_key, cr->counter_encode_maxq_scene_change);
 
   // Cases to turn off cyclic refresh:
   // 1) Frame is intra-only or lossless
   // 2) Preceding frames have low average qindex (< qp_thresh)
   // 3) Scene change is detected
-  // 4) Non-screen content with high average qindex (> qp_max_thresh) or too
-  //    much motion (avg_frame_low_motion < 45).
+  // 4) Preceding frames have high average qindex (> qp_max_thresh)
+  // 5) Non-screen content with too much motion (avg_frame_low_motion < 45).
   if (frame_is_intra_only(cm) || is_lossless_requested(&cpi->oxcf.rc_cfg) ||
-      scene_change_detected ||
-      (cpi->oxcf.tune_cfg.content != AVM_CONTENT_SCREEN &&
-       ((rc->avg_frame_qindex[INTER_FRAME] < qp_thresh &&
-         rc->frames_since_key > 20) ||
-        (rc->frames_since_key > 20 &&
-         rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||
-        (cr->avg_frame_low_motion < 45 && rc->frames_since_key > 40)))) {
+      scene_change_detected || rc->avg_frame_qindex[INTER_FRAME] < qp_thresh ||
+      (frames_since_scene_change > 20 &&
+       rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||
+      (!is_screen_content && cr->avg_frame_low_motion < 45 &&
+       frames_since_scene_change > 40)) {
     cr->apply_cyclic_refresh = 0;
     return;
   }
   // Also turn off if actual_num_seg1_blocks & actual_num_seg2_blocks were both
   // 0 for several frames and low motion is small.
-  if (cpi->oxcf.tune_cfg.content != AVM_CONTENT_SCREEN &&
-      cr->actual_num_seg1_blocks == 0 && cr->actual_num_seg2_blocks == 0 &&
-      cr->avg_frame_low_motion < 70 && rc->frames_since_key > 40 &&
-      cr->percent_refresh_adjustment <= 0) {
+  if (!is_screen_content && cr->actual_num_seg1_blocks == 0 &&
+      cr->actual_num_seg2_blocks == 0 && cr->avg_frame_low_motion < 70 &&
+      frames_since_scene_change > 40 && cr->percent_refresh_adjustment <= 0) {
     cr->apply_cyclic_refresh = 0;
     return;
   }
@@ -488,15 +540,35 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
   cr->percent_refresh = 10 + cr->percent_refresh_adjustment;
   cr->max_qdelta_perc = 60;
   cr->time_for_refresh = 0;
+  cr->use_block_sad_scene_det =
+      (!is_screen_content &&
+       (cm->sb_size == BLOCK_64X64 || cm->sb_size == BLOCK_128X128))
+          ? 1
+          : 0;
   cr->motion_thresh = 32;
-  cr->rate_boost_fac =
-      (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) ? 10 : 15;
+  cr->rate_boost_fac = is_screen_content ? 10 : 15;
 
   // Use larger delta-qp (increase rate_ratio_qdelta) for first few (~4)
-  // periods of the refresh cycle, after a key frame.
-  if (cr->percent_refresh > 0 &&
-      rc->frames_since_key < 4 * (100 / cr->percent_refresh)) {
-    cr->rate_ratio_qdelta = 3.0 + cr->rate_ratio_qdelta_adjustment;
+  // periods of the refresh cycle after a key frame or scene change.
+  // For screen content, after a scene change gradually reduce this boost
+  // and suppress it further if either of the previous two frames overshot.
+  if (cr->percent_refresh > 0) {
+    if (!is_screen_content) {
+      if (frames_since_scene_change < 4 * (100 / cr->percent_refresh)) {
+        cr->rate_ratio_qdelta = 3.0 + cr->rate_ratio_qdelta_adjustment;
+      } else {
+        cr->rate_ratio_qdelta = 2.25 + cr->rate_ratio_qdelta_adjustment;
+      }
+    } else {
+      const double distance_from_sc_factor =
+          AVMMIN(0.75, (int)(frames_since_scene_change / 10) * 0.1);
+      cr->rate_ratio_qdelta =
+          3.0 + cr->rate_ratio_qdelta_adjustment - distance_from_sc_factor;
+      if (frames_since_scene_change < 10 &&
+          (rc->rc_1_frame < 0 || rc->rc_2_frame < 0)) {
+        cr->rate_ratio_qdelta -= 0.25;
+      }
+    }
   } else {
     cr->rate_ratio_qdelta = 2.25 + cr->rate_ratio_qdelta_adjustment;
   }
@@ -521,10 +593,6 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
       cr->percent_refresh = 0;
       cr->rate_ratio_qdelta = 1.0;
     }
-  }
-  if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
-    if (cpi->rc.high_source_sad || cr->counter_encode_maxq_scene_change < 10)
-      cr->rate_ratio_qdelta = 2.0;
   }
   cr->percent_refresh = clamp(cr->percent_refresh, 0, 100);
   // Weight for segment prior to encoding: take the average of the target
@@ -572,6 +640,8 @@ void av2_cyclic_refresh_setup(AV2_COMP *const cpi) {
       memset(cr->map, 0, cm->mi_params.mi_rows * cm->mi_params.mi_cols);
       cr->sb_index = 0;
       cr->last_sb_index = 0;
+      cr->actual_num_seg1_blocks = 0;
+      cr->actual_num_seg2_blocks = 0;
       cr->percent_refresh_adjustment = 5;
       cr->rate_ratio_qdelta_adjustment = 0.25;
     }
@@ -643,8 +713,13 @@ void av2_cyclic_refresh_reset_resize(AV2_COMP *const cpi) {
   memset(cr->map, 0, cm->mi_params.mi_rows * cm->mi_params.mi_cols);
   cr->sb_index = 0;
   cr->last_sb_index = 0;
+  cr->actual_num_seg1_blocks = 0;
+  cr->actual_num_seg2_blocks = 0;
   cr->apply_cyclic_refresh = 0;
   cr->counter_encode_maxq_scene_change = 0;
   cr->percent_refresh_adjustment = 5;
   cr->rate_ratio_qdelta_adjustment = 0.25;
+  avm_free(cpi->src_sad_blk_64x64);
+  cpi->src_sad_blk_64x64 = NULL;
+  cpi->src_sad_blk_alloc_size = 0;
 }
