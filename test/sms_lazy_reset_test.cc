@@ -67,8 +67,8 @@ TEST_F(SmsLazyResetTest, FullResetDefersTheClear) {
   EXPECT_EQ(refetched->sms_gen, bufs_->cur_gen);
 }
 
-// A cross-pass reset keeps the reusable motion search results and drops only
-// what must not cross the boundary, above all the two pointer fields.
+// A cross-pass reset keeps the motion search results that can be reused, and
+// clears only the per-pass state, such as the mode_cache pointers.
 TEST_F(SmsLazyResetTest, CrossPassResetKeepsMotionDataAndDropsPassState) {
   SimpleMotionData *entry = Entry();
   ASSERT_NE(entry, nullptr);
@@ -79,10 +79,15 @@ TEST_F(SmsLazyResetTest, CrossPassResetKeepsMotionDataAndDropsPassState) {
   entry->start_mv_list[0].col = -4;
   entry->has_prev_partition = 1;  // must not cross the pass boundary
   entry->prev_partition = PARTITION_SPLIT;
-  // These go dangling when the previous pass's trees are rebuilt. The
-  // sentinels are never dereferenced.
+  // mode_cache must be cleared: it points into the PC_TREEs, which are rebuilt
+  // for each pass.
+  // old_sms must be kept: it points into sms_tree, which is shared by both
+  // passes, and the second pass does not call fill_sms_buf() to set it again.
+  // These pointers are never dereferenced.
   entry->mode_cache[0] = reinterpret_cast<PICK_MODE_CONTEXT *>(0x1);
-  entry->old_sms = reinterpret_cast<SIMPLE_MOTION_DATA_TREE *>(0x2);
+  SIMPLE_MOTION_DATA_TREE *const old_sms =
+      reinterpret_cast<SIMPLE_MOTION_DATA_TREE *>(0x2);
+  entry->old_sms = old_sms;
 
   const uint64_t gen_before = bufs_->cur_gen;
   const uint64_t xgen_before = bufs_->cur_xgen;
@@ -101,7 +106,7 @@ TEST_F(SmsLazyResetTest, CrossPassResetKeepsMotionDataAndDropsPassState) {
   EXPECT_EQ(refetched->has_prev_partition, 0);
   EXPECT_EQ(refetched->prev_partition, PARTITION_NONE);
   EXPECT_EQ(refetched->mode_cache[0], nullptr) << "stale context pointer kept";
-  EXPECT_EQ(refetched->old_sms, nullptr) << "stale sms_tree pointer kept";
+  EXPECT_EQ(refetched->old_sms, old_sms) << "sms_tree pointer dropped";
   EXPECT_EQ(refetched->sms_xgen, bufs_->cur_xgen);
 }
 
