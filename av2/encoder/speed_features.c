@@ -716,6 +716,14 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_bawp_by_gop_usage = 1;
     sf->inter_sf.fast_warp_delta_decoupled_search = 1;
 
+    sf->inter_sf.prune_comp_search_by_single_result = boosted ? 4 : 3;
+    sf->inter_sf.prune_comp_mode_eval_using_est_rd = 2;
+    sf->inter_sf.prune_warp_delta_by_ref_idx = 2;
+    sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
+        cm->current_frame.pyramid_level >= 2 ? 1 : 0;
+    sf->inter_sf.prune_motion_mode_level = boosted ? 2 : 3;
+    sf->inter_sf.prune_inter_modes_if_skippable = 1;
+
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     // TODO(any): prune_comp_using_best_single_mode_ref introduces a large
     // coding loss (> 1%) without enough encoding speed up (5% - 11%).
@@ -775,6 +783,9 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.tip_direct_output_early_term_margin_pct = 0;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     sf->inter_sf.prune_cwp_search = 1;
+    sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
+        boosted ? (cm->current_frame.pyramid_level >= 2 ? 1 : 0) : 1;
+    sf->inter_sf.prune_motion_mode_level = 3;
     // Unconditionally enable the pre-RD gate at speed >= 5: apply to all
     // frame types including boosted (KF/GF/ARF) frames.
     sf->tx_sf.prune_tx_search_by_pre_rd = true;
