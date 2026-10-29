@@ -4476,13 +4476,23 @@ static int64_t get_dist_offset_by_deblock(
     int area_h = bh;
 
     MACROBLOCKD *xd = &x->e_mbd;
+    // Extend the area above and to the left to include the pixels modified by
+    // deblocking the top and left edges of the block. Do not cross the tile
+    // boundary: blocks of another tile may be encoded concurrently by another
+    // thread. This can happen for blocks that are not aligned to their size
+    // (e.g. H partition subblocks), whose top / left edge may be only 4 pixels
+    // away from the tile boundary. Deblocking across tile boundaries is
+    // disabled in partition search, so pixels outside the tile would not
+    // contribute to the distortion difference anyway.
     if (xd->up_available) {
-      int v_offset = bh == 4 ? 4 : 8;
+      const int v_offset =
+          AVMMIN(bh == 4 ? 4 : 8, (mi_row - xd->tile.mi_row_start) * MI_SIZE);
       v_start -= v_offset;
       area_h += v_offset;
     }
     if (xd->left_available) {
-      int h_offset = bw == 4 ? 4 : 8;
+      const int h_offset =
+          AVMMIN(bw == 4 ? 4 : 8, (mi_col - xd->tile.mi_col_start) * MI_SIZE);
       h_start -= h_offset;
       area_w += h_offset;
     }
