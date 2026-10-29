@@ -4455,7 +4455,9 @@ static int64_t get_dist_offset_by_deblock(
   int64_t rec_dist = avm_highbd_get_y_sse_part(src, curr, mi_col * MI_SIZE, bw,
                                                mi_row * MI_SIZE, bh);
 
-  if (x->e_mbd.tree_type != LUMA_PART) {
+  // Only a chroma reference block has its chroma reconstructed and counted in
+  // this_rdc->dist.
+  if (x->e_mbd.tree_type != LUMA_PART && x->e_mbd.is_chroma_ref) {
     const int sub_x = cm->seq_params.subsampling_x;
     const int sub_y = cm->seq_params.subsampling_y;
     rec_dist += avm_highbd_get_u_sse_part(
@@ -6146,6 +6148,16 @@ static AVM_INLINE void update_prev_rd_bound(SimpleMotionData *sms_data,
   sms_data->has_prev_rd_bound = true;
 }
 
+// Index of the 256x256 superblock at (mi_row, mi_col) in sb256_none_prev and
+// sb256_none_cur.
+static AVM_INLINE int get_sb256_map_idx(const AV2_COMP *cpi, int mi_row,
+                                        int mi_col) {
+  const int row = mi_row >> mi_size_high_log2[BLOCK_256X256];
+  const int col = mi_col >> mi_size_wide_log2[BLOCK_256X256];
+  assert(row < cpi->sb256_map_rows && col < cpi->sb256_map_stride);
+  return row * cpi->sb256_map_stride + col;
+}
+
 /*!\brief AV2 block partition search (full search).
  *
  * \ingroup partition_search
@@ -6686,6 +6698,28 @@ BEGIN_PARTITION_SEARCH:
       av2_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
                                pc_tree->partitioning,
                                (int8_t)(1 - pc_tree->region_type));
+    }
+  }
+
+  // 256x256 superblocks of inter frames: the dry pass decides whether the
+  // superblock is static, the final pass records whether it was coded whole
+  // for the next frame.
+  if (cpi->sf.part_sf.wet_static_256_nearmv_only && bsize == BLOCK_256X256 &&
+      !frame_is_intra_only(cm) && xd->tree_type != CHROMA_PART) {
+    const int sb_idx =
+        get_sb256_map_idx(cpi, part_search_state.part_blk_params.mi_row,
+                          part_search_state.part_blk_params.mi_col);
+    const bool is_none = part_search_state.found_best_partition &&
+                         pc_tree->partitioning == PARTITION_NONE;
+    if (multi_pass_mode == SB_DRY_PASS) {
+      // Static superblock: NONE from a predicted MV without residual, and the
+      // previous frame coded it whole as well.
+      const PICK_MODE_CONTEXT *nctx = pc_tree->none[pc_tree->region_type];
+      x->dry_static_256 = is_none && nctx && nctx->skippable &&
+                          nctx->mic.mode == NEARMV &&
+                          cpi->sb256_none_prev[sb_idx];
+    } else {
+      cpi->sb256_none_cur[sb_idx] = is_none;
     }
   }
 

@@ -1909,6 +1909,21 @@ typedef struct {
    * Global Motion multi-threading object.
    */
   AV2GlobalMotionSync gm_sync;
+
+  /*!
+   * TIP frame build multi-threading object (row job queue).
+   */
+  AV2TipSync tip_sync;
+
+  /*!
+   * Per-thread data of the TIP frame build, allocated on first use.
+   */
+  TIPWorkerData *tip_worker_data;
+
+  /*!
+   * Number of elements of tip_worker_data.
+   */
+  int num_tip_worker_data;
 } MultiThreadInfo;
 
 /*!\cond */
@@ -2895,6 +2910,19 @@ typedef struct AV2_COMP {
    * A flag to indicate if intrabc is ever used in current frame.
    */
   int intrabc_used;
+
+  /*!
+   * Per 256x256 superblock, whether the previously encoded frame coded it as
+   * a single block (PARTITION_NONE at 256x256);
+   * Indexed by superblock row * sb256_map_stride + column.
+   */
+  uint8_t *sb256_none_prev;
+  /*! The same map being filled for the current frame. */
+  uint8_t *sb256_none_cur;
+  /*! Number of 256x256 superblock columns of sb256_none_prev/cur. */
+  int sb256_map_stride;
+  /*! Number of 256x256 superblock rows of sb256_none_prev/cur. */
+  int sb256_map_rows;
 
   /*!
    * Loop Restoration context.

@@ -10,6 +10,8 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <string>
+
 #include "config/avm_config.h"
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
@@ -162,19 +164,38 @@ class CyclicRefreshRtTest
       encoder->Control(AV2E_SET_TUNE_CONTENT, tune_content_);
       encoder->Control(AV2E_SET_ROW_MT, 1);
       encoder->Control(AV2E_SET_TILE_COLUMNS, 1);
-      encoder->Control(AV2E_SET_MAX_REFERENCE_FRAMES, 1);
+      if (dpb_size_ > 0) {
+        encoder->SetOption("dpb-size", std::to_string(dpb_size_).c_str());
+      }
+      encoder->Control(AV2E_SET_MAX_REFERENCE_FRAMES, max_reference_frames_);
+      encoder->Control(AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP,
+                       explicit_ref_frame_map_);
     }
   }
 
   int cpu_used_;
   avm_superblock_size_t sb_size_;
   avm_tune_content tune_content_;
+  int max_reference_frames_ = 1;
+  int dpb_size_ = 0;
+  int explicit_ref_frame_map_ = 1;
 };
 
 TEST_P(CyclicRefreshRtTest, TestSuperblockSizesAndContent) {
   ::libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 25);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+}
+
+TEST_P(CyclicRefreshRtTest, TestSuperblockSizesAndContentMultiRef) {
+  max_reference_frames_ = 3;
+  dpb_size_ = 3;
+  for (int explicit_ref_frame_map : { 0, 1 }) {
+    explicit_ref_frame_map_ = explicit_ref_frame_map;
+    ::libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 25);
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  }
 }
 
 // Validate that this delta q mode
