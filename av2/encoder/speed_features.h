@@ -1358,8 +1358,9 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // threads when there are several. 0: single thread.
   int enable_cdef_mt;
 
-  // Run the CCSO filtering on the encoder worker threads when there are
-  // several. 0: single thread.
+  // Run the sample passes of the CCSO search (pickccso.c) and the CCSO
+  // filtering on the encoder worker threads when there are several.
+  // 0: single thread.
   int enable_ccso_mt;
 
   // Prune the QP-model candidates of the GDF frame search in gdf_optimizer().
