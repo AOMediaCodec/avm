@@ -1145,37 +1145,39 @@ static AVM_INLINE void set_tip_filter_length(
     }
   }
 }
-// Apply loop filtering on TIP plane
-AVM_INLINE void loop_filter_tip_plane(AV2_COMMON *cm, const int plane,
-                                      uint16_t *dst, const int dst_stride,
-                                      const int plane_w, const int plane_h) {
+// Returns the size of the TIP units of the TIP frame in luma, and the
+// subsampling of the given plane.
+static AVM_INLINE int get_tip_lf_unit_size(const AV2_COMMON *cm, int plane,
+                                           int *subsampling_x,
+                                           int *subsampling_y) {
+  *subsampling_x = plane > 0 ? cm->seq_params.subsampling_x : 0;
+  *subsampling_y = plane > 0 ? cm->seq_params.subsampling_y : 0;
+  return get_unit_bsize_for_tip_frame(
+             cm->features.tip_frame_mode, cm->tip_interp_filter,
+             cm->seq_params.enable_tip_refinemv) == BLOCK_16X16
+             ? 16
+             : 8;
+}
+
+// Loop filtering of the vertical edges of the rows [row_start, row_end) of a
+// TIP plane. row_start is a multiple of 4.
+void loop_filter_tip_plane_vert_rows(AV2_COMMON *cm, const int plane,
+                                     uint16_t *dst, const int dst_stride,
+                                     const int plane_w, const int row_start,
+                                     const int row_end) {
+  assert((row_start & 3) == 0);
   // retrieve filter parameters
   loop_filter_info_n *const lfi = &cm->lf_info;
-  const uint16_t q_horz = lfi->tip_q_thr[plane][HORZ_EDGE];
-  const uint16_t side_horz = lfi->tip_side_thr[plane][HORZ_EDGE];
   const uint16_t q_vert = lfi->tip_q_thr[plane][VERT_EDGE];
   const uint16_t side_vert = lfi->tip_side_thr[plane][VERT_EDGE];
   const int bit_depth = cm->seq_params.bit_depth;
-  int sub_bw = get_unit_bsize_for_tip_frame(
-                   cm->features.tip_frame_mode, cm->tip_interp_filter,
-                   cm->seq_params.enable_tip_refinemv) == BLOCK_16X16
-                   ? 16
-                   : 8;
-  int sub_bh = sub_bw;
-  int subsampling_x = 0;
-  int subsampling_y = 0;
-  if (plane > 0) {
-    subsampling_x = cm->seq_params.subsampling_x;
-    subsampling_y = cm->seq_params.subsampling_y;
-    sub_bw >>= subsampling_x;
-    sub_bh >>= subsampling_y;
-  }
-
-  // start filtering
-  const int h = plane_h;
+  int subsampling_x, subsampling_y;
+  const int sub_bw =
+      get_tip_lf_unit_size(cm, plane, &subsampling_x, &subsampling_y) >>
+      subsampling_x;
   const int w = plane_w;
 
-  for (int j = 0; j < h; j += 4) {
+  for (int j = row_start; j < row_end; j += 4) {
     uint16_t *p = dst + j * dst_stride;
     for (int i = 0; i < w; i += sub_bw) {
       // filter vertical boundary
@@ -1199,8 +1201,27 @@ AVM_INLINE void loop_filter_tip_plane(AV2_COMMON *cm, const int plane,
       p += sub_bw;
     }
   }
+}
 
-  for (int i = 0; i < w; i += 4) {
+// Loop filtering of the horizontal edges of the columns [col_start, col_end) of
+// a TIP plane. col_start is a multiple of 4.
+void loop_filter_tip_plane_horz_cols(AV2_COMMON *cm, const int plane,
+                                     uint16_t *dst, const int dst_stride,
+                                     const int plane_h, const int col_start,
+                                     const int col_end) {
+  assert((col_start & 3) == 0);
+  // retrieve filter parameters
+  loop_filter_info_n *const lfi = &cm->lf_info;
+  const uint16_t q_horz = lfi->tip_q_thr[plane][HORZ_EDGE];
+  const uint16_t side_horz = lfi->tip_side_thr[plane][HORZ_EDGE];
+  const int bit_depth = cm->seq_params.bit_depth;
+  int subsampling_x, subsampling_y;
+  const int sub_bh =
+      get_tip_lf_unit_size(cm, plane, &subsampling_x, &subsampling_y) >>
+      subsampling_y;
+  const int h = plane_h;
+
+  for (int i = col_start; i < col_end; i += 4) {
     uint16_t *p = dst + i;
     for (int j = 0; j < h; j += sub_bh) {
       // filter horizontal boundary
@@ -1225,6 +1246,16 @@ AVM_INLINE void loop_filter_tip_plane(AV2_COMMON *cm, const int plane,
       p += sub_bh * dst_stride;
     }
   }
+}
+
+// Apply loop filtering on TIP plane
+AVM_INLINE void loop_filter_tip_plane(AV2_COMMON *cm, const int plane,
+                                      uint16_t *dst, const int dst_stride,
+                                      const int plane_w, const int plane_h) {
+  loop_filter_tip_plane_vert_rows(cm, plane, dst, dst_stride, plane_w, 0,
+                                  plane_h);
+  loop_filter_tip_plane_horz_cols(cm, plane, dst, dst_stride, plane_h, 0,
+                                  plane_w);
 }
 
 // setup dst buffer for each color component

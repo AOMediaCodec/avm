@@ -58,6 +58,25 @@ int64_t avm_highbd_get_y_sse_part(const YV12_BUFFER_CONFIG *a,
                                   int width, int vstart, int height);
 int64_t avm_highbd_get_y_sse(const YV12_BUFFER_CONFIG *a,
                              const YV12_BUFFER_CONFIG *b);
+// avm_highbd_get_y_sse() is the sum of these two over the whole plane: the
+// SSE of the right and bottom strips that are not covered by 16x16 blocks, and
+// the SSE of the rows [row16_start, row16_end) of 16x16 blocks. Both are
+// independent of each other, so the second can be split by rows. The edges
+// are the sum of the right strip, which is split by rows, and the bottom strip
+// to the left of it, which is split by columns, [0, width - width % 16).
+int64_t avm_highbd_get_sse_right_edge(const uint16_t *a, int a_stride,
+                                      const uint16_t *b, int b_stride,
+                                      int width, int row_start, int row_end);
+int64_t avm_highbd_get_sse_bottom_edge(const uint16_t *a, int a_stride,
+                                       const uint16_t *b, int b_stride,
+                                       int height, int col_start, int col_end);
+int64_t avm_highbd_get_sse_edges(const uint16_t *a, int a_stride,
+                                 const uint16_t *b, int b_stride, int width,
+                                 int height);
+int64_t avm_highbd_get_sse_block_rows(const uint16_t *a, int a_stride,
+                                      const uint16_t *b, int b_stride,
+                                      int width, int row16_start,
+                                      int row16_end);
 int64_t avm_highbd_get_u_sse_part(const YV12_BUFFER_CONFIG *a,
                                   const YV12_BUFFER_CONFIG *b, int hstart,
                                   int width, int vstart, int height);

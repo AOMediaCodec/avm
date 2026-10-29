@@ -79,6 +79,24 @@ void av2_create_workers(AV2_COMP *cpi, int num_workers);
 int av2_run_workers(AVxWorker *workers, int num_workers, AVxWorkerHook hook,
                     void *data1, void *data2, size_t data2_size);
 
+// Build of the TIP frame, as av2_setup_tip_frame() with the encoder's subpel
+// parameters, on the worker threads of the tile encoding when there are
+// several. The result is the same for any number of threads.
+void av2_enc_build_tip_frame(AV2_COMP *cpi, int copy_refined_mvs);
+
+// Loop filter of the TIP frame, as loop_filter_tip_frame(), on the worker
+// threads when there are several. The result is the same for any number of
+// threads.
+void av2_enc_loop_filter_tip_frame(AV2_COMP *cpi, int plane_start,
+                                   int plane_end);
+
+// SSE of rec against src over the luma plane, and over the chroma planes if
+// include_chroma, as the sum of avm_highbd_get_y_sse() and avm_highbd_sse() of
+// each chroma plane, on the worker threads when there are several. The result
+// is the same for any number of threads.
+int64_t av2_enc_tip_sse(AV2_COMP *cpi, const YV12_BUFFER_CONFIG *src,
+                        const YV12_BUFFER_CONFIG *rec, int include_chroma);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

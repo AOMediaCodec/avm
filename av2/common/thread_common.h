@@ -110,6 +110,7 @@ typedef struct AV2TipSync {
 #endif
   // Job info
   AV2TIPMTInfo *job_queue;
+  int job_queue_size;  // Number of jobs job_queue has room for.
   int jobs_enqueued;
   int jobs_dequeued;
 } AV2TipSync;

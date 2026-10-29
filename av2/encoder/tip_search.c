@@ -21,6 +21,7 @@
 #include "av2/encoder/encodeframe.h"
 #include "av2/encoder/rd.h"
 #include "av2/encoder/tip_search.h"
+#include "av2/encoder/ethread.h"
 
 // With hl_sf.tip_direct_output_rank_band_period, the TIP direct output search
 // ranks its candidates on bands of TIP_RANK_BAND_HEIGHT luma rows. A band holds
@@ -36,14 +37,9 @@ static const int tip_search_dir[8][2] = {
 };
 
 // SSE of the TIP frame against the source over the three planes.
-static int64_t tip_frame_sse(const YV12_BUFFER_CONFIG *src,
+static int64_t tip_frame_sse(AV2_COMP *cpi, const YV12_BUFFER_CONFIG *src,
                              const YV12_BUFFER_CONFIG *tip) {
-  int64_t sse = avm_highbd_get_y_sse(src, tip);
-  sse += avm_highbd_sse(src->u_buffer, src->uv_stride, tip->u_buffer,
-                        tip->uv_stride, src->uv_width, src->uv_height);
-  sse += avm_highbd_sse(src->v_buffer, src->uv_stride, tip->v_buffer,
-                        tip->uv_stride, src->uv_width, src->uv_height);
-  return sse;
+  return av2_enc_tip_sse(cpi, src, tip, 1 /* include_chroma */);
 }
 
 // SSE of the TIP frame against the source on the band of luma rows starting at
@@ -206,11 +202,8 @@ static void tip_rank_offsets(AV2_COMP *cpi, const TipRankBands *rb) {
 // frame, without the loop filter, and returns its SSE.
 static int64_t tip_full_build_sse(AV2_COMP *cpi) {
   AV2_COMMON *const cm = &cpi->common;
-  ThreadData *const td = &cpi->td;
-  av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                      av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
-  );
-  return tip_frame_sse(cpi->source, &cm->tip_ref.tip_frame->buf);
+  av2_enc_build_tip_frame(cpi, 0 /* copy_refined_mvs */);
+  return tip_frame_sse(cpi, cpi->source, &cm->tip_ref.tip_frame->buf);
 }
 
 // Completes the search after tip_rank_offsets(). The offset is kept only if its
@@ -223,7 +216,6 @@ static int64_t tip_full_build_sse(AV2_COMP *cpi) {
 static int64_t tip_rank_pick_filter(AV2_COMP *cpi, int64_t rdmult, int64_t sse0,
                                     int64_t sse0_lf) {
   AV2_COMMON *const cm = &cpi->common;
-  ThreadData *const td = &cpi->td;
   const int bit_depth = cm->seq_params.bit_depth;
   int64_t filter_sse[MULTITAP_SHARP + 1];
   // Filter of the build in the TIP frame buffer, at the final offset.
@@ -257,15 +249,15 @@ static int64_t tip_rank_pick_filter(AV2_COMP *cpi, int64_t rdmult, int64_t sse0,
   if (!cm->seq_params.enable_lf_sub_pu || !cm->features.allow_lf_sub_pu)
     return filter_sse[best];
   if (best != built) tip_full_build_sse(cpi);
-  loop_filter_tip_frame(cm, &td->mb.e_mbd, 0, av2_num_planes(cm));
-  return tip_frame_sse(cpi->source, &cm->tip_ref.tip_frame->buf);
+  av2_enc_loop_filter_tip_frame(cpi, 0, av2_num_planes(cm));
+  return tip_frame_sse(cpi, cpi->source, &cm->tip_ref.tip_frame->buf);
 }
 
-void av2_tip_rank_begin(const AV2_COMP *cpi, int64_t rdmult, int period,
+void av2_tip_rank_begin(AV2_COMP *cpi, int64_t rdmult, int period,
                         TipRankBands *rb) {
   tip_rank_bands_init(cpi, rdmult, period, rb);
   rb->frame_sse0 =
-      tip_frame_sse(cpi->source, &cpi->common.tip_ref.tip_frame->buf);
+      tip_frame_sse(cpi, cpi->source, &cpi->common.tip_ref.tip_frame->buf);
 }
 
 int64_t av2_tip_rank_search(AV2_COMP *cpi, TipRankBands *rb, int64_t sse0_lf) {

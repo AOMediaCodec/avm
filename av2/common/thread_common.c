@@ -789,9 +789,11 @@ static void tip_alloc(AV2TipSync *const tip_sync, AV2_COMMON *cm,
 #endif  // CONFIG_MULTITHREAD
   tip_sync->num_workers = num_workers;
 
-  CHECK_MEM_ERROR(
-      cm, tip_sync->job_queue,
-      avm_malloc(sizeof(*(tip_sync->job_queue)) * (mvs_rows / step)));
+  // One job per row of units, the last one possibly partial.
+  const int num_jobs = (mvs_rows + step - 1) / step;
+  CHECK_MEM_ERROR(cm, tip_sync->job_queue,
+                  avm_malloc(sizeof(*(tip_sync->job_queue)) * num_jobs));
+  tip_sync->job_queue_size = num_jobs;
 }
 
 // Setup TIP frame with multithread support
@@ -810,8 +812,10 @@ void av2_setup_tip_frame_mt(AV2_COMMON *cm,
   const int mvs_rows =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
   const int step = (unit_blk_size >> TMVP_MI_SZ_LOG2);
+  const int num_jobs = (mvs_rows + step - 1) / step;
   if (tip_sync->unit_blk_size != unit_blk_size ||
-      num_workers > tip_sync->num_workers) {
+      num_workers > tip_sync->num_workers ||
+      num_jobs > tip_sync->job_queue_size) {
     av2_tip_dealloc(tip_sync);
     tip_alloc(tip_sync, cm, num_workers, mvs_rows, unit_blk_size, step);
   }
