@@ -946,6 +946,7 @@ static void set_rt_speed_features_framesize_independent(
     if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
       sf->intra_sf.skip_intra_in_interframe = 1;
       sf->rt_sf.prune_intra_mode_in_interframe = 1;
+      sf->rt_sf.prune_intrabc_on_keyframe = 1;
     }
   }
 }
@@ -1323,6 +1324,7 @@ static AVM_INLINE void init_rt_sf(REALTIME_SPEED_FEATURES *rt_sf) {
   rt_sf->check_scene_detection = 0;
   rt_sf->overshoot_detection_cbr = NO_DETECTION;
   rt_sf->estimate_motion_for_var_based_partition = 0;
+  rt_sf->prune_intrabc_on_keyframe = 0;
 }
 
 // Speed >= 6 partition search breakout tuning: left shift applied to the

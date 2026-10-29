@@ -2533,7 +2533,9 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
     // entries above 32x32.
     const int min_alloc_size = block_size_wide[mi_params->mi_alloc_bsize];
     const int max_hash_size =
-        AVMMIN(1 << (cm->mib_size_log2 + MI_SIZE_LOG2), 32);
+        (frame_is_intra_only(cm) && cpi->sf.rt_sf.prune_intrabc_on_keyframe)
+            ? block_size_wide[BLOCK_16X16]
+            : AVMMIN(1 << (cm->mib_size_log2 + MI_SIZE_LOG2), 32);
     int src_idx = 0;
     for (int size = 4; size <= max_hash_size; size *= 2, src_idx = !src_idx) {
       const int dst_idx = !src_idx;
