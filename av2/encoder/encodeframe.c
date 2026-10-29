@@ -2404,7 +2404,10 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
                                       block_hash_values[0], is_block_same[0]);
     // Hash data generated for screen contents is used for intraBC ME
     const int min_alloc_size = block_size_wide[mi_params->mi_alloc_bsize];
-    const int max_sb_size = (1 << (cm->mib_size_log2 + MI_SIZE_LOG2));
+    const int max_sb_size =
+        (frame_is_intra_only(cm) && cpi->sf.rt_sf.prune_intrabc_on_keyframe)
+            ? block_size_wide[BLOCK_16X16]
+            : (1 << (cm->mib_size_log2 + MI_SIZE_LOG2));
     int src_idx = 0;
     for (int size = 4; size <= max_sb_size; size *= 2, src_idx = !src_idx) {
       const int dst_idx = !src_idx;

@@ -7274,6 +7274,10 @@ void av2_rd_pick_intra_mode_sb(const struct AV2_COMP *cpi, ThreadData *td,
       !cached_mode->use_intrabc[xd->tree_type == CHROMA_PART]) {
     skip_ibc_search = 1;
   }
+  if (frame_is_intra_only(cm) && cpi->sf.rt_sf.prune_intrabc_on_keyframe &&
+      !(bsize <= BLOCK_16X16 && x->source_variance > 50)) {
+    skip_ibc_search = 1;
+  }
   if (!skip_ibc_search) {
     if (rd_pick_intrabc_mode_sb(cpi, x, ctx, rd_cost, bsize, best_rd, 0) <
         best_rd) {

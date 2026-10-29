@@ -1430,6 +1430,11 @@ typedef struct REALTIME_SPEED_FEATURES {
   // 0: Disabled (always use zero MV)
   // 1: Use integral projection motion estimation and neighbor MV evaluation
   int estimate_motion_for_var_based_partition;
+
+  // Prune IntraBC evaluation on keyframes (intra-only frames) to blocks with
+  // bsize <= BLOCK_16X16 and source_variance above threshold, and cap
+  // the IntraBC hash table block size to 16x16.
+  int prune_intrabc_on_keyframe;
 } REALTIME_SPEED_FEATURES;
 
 typedef struct LC_DEC_SPEED_FEATURES {
