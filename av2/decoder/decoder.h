@@ -542,6 +542,23 @@ typedef struct AV2Decoder {
    */
   int seen_vcl_obu_in_this_tu;
   /*!
+   * Annex D multistream-atlas composition state (enabled via
+   * AV2D_SET_COMPOSE_ANNEX_D). annex_d_canvas is the reusable composite output
+   * buffer; annex_d_last_frame[] retains the most recent decoded frame per
+   * extended layer so a segment whose stream is absent in a TU can reuse it.
+   */
+  int compose_annex_d;
+  YV12_BUFFER_CONFIG annex_d_canvas;
+  int annex_d_canvas_allocated;
+  RefCntBuffer *annex_d_last_frame[MAX_NUM_XLAYERS];
+  /*!
+   * Most-recently parsed MULTISTREAM_ATLAS or MULTISTREAM_ALPHA_ATLAS record
+   * (carried at GLOBAL_XLAYER_ID), retained across temporal units; points into
+   * pbi->atlas_list[][] (stable storage). NULL until the first such atlas is
+   * seen.
+   */
+  struct AtlasSegmentInfo *active_multistream_atlas;
+  /*!
    * Display order hint of the last OLK encountered. If the OLK is a shown
    * frame (implicit_output_picture=1), this is set to the OLK's own
    * display_order_hint. If the OLK is hidden (implicit_output_picture=0 and

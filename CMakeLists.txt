@@ -855,6 +855,7 @@ if(ENABLE_TOOLS)
     add_executable(
       stream_multiplexer
       "${AVM_GEN_SRC_DIR}/usage_exit.cc"
+      "${AVM_ROOT}/tools/multistream_atlas_json.h"
       "${AVM_ROOT}/tools/stream_mux.h"
       "${AVM_ROOT}/tools/stream_multiplexer.cc"
       $<TARGET_OBJECTS:avm_common_app_util>
