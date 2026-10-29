@@ -428,7 +428,7 @@ typedef struct {
   /*!
    * Selects how the encoder satisfies the AV2 bitstream-conformance
    * requirement constraining BAWP/IBC/OPFL/RefineMV around OBU_SWITCH
-   * frames. Only has an effect when enable_sframe is on.
+   * frames. Only has an effect when enable_sframe is on and sframe_mode is 0.
    */
   int sframe_conformance_option;
 

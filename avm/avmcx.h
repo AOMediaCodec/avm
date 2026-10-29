@@ -1259,7 +1259,7 @@ enum avme_enc_control_id {
   /*!\brief Codec control function to select how the encoder satisfies the
    * bitstream-conformance requirement constraining BAWP/IBC/OPFL/RefineMV
    * around OBU_SWITCH frames, unsigned int parameter. Only has an effect
-   * when S-Frame encoding is enabled.
+   * when S-Frame encoding is enabled and sframe_mode is 0.
    */
   AV2E_SET_SFRAME_CONFORMANCE_OPTION = 187,
 };

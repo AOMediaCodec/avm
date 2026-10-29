@@ -1276,6 +1276,10 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   CompoundTypeCfg *const comp_type_cfg = &oxcf->comp_type_cfg;
 
   KeyFrameCfg *const kf_cfg = &oxcf->kf_cfg;
+  // The conformance options around switch frames apply to restricted switch
+  // frames only, which --enable-sframe with --sframe-mode=0 produces.
+  const bool apply_sframe_conformance =
+      cfg->enable_sframe && cfg->sframe_mode == 0;
 
   DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
 
@@ -1411,7 +1415,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
 
   tool_cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;
   tool_cfg->enable_refinemv = extra_cfg->enable_refinemv;
-  if (cfg->enable_sframe && cfg->sframe_conformance_option == 2) {
+  if (apply_sframe_conformance && cfg->sframe_conformance_option == 2) {
     // Option 3: disable RefineMV sequence-wide, applied at the point
     // tool_cfg->enable_refinemv is derived (matching the enable_opfl_refine
     // override below).
@@ -1470,7 +1474,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   tool_cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
   tool_cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
   tool_cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
-  if (cfg->enable_sframe) {
+  if (apply_sframe_conformance) {
     switch (cfg->sframe_conformance_option) {
       case 1:
         // Option 2: keep the reference-MV bank on sequence-wide.
@@ -1530,7 +1534,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   tool_cfg->enable_high_motion = extra_cfg->enable_high_motion;
 
   tool_cfg->enable_opfl_refine = extra_cfg->enable_opfl_refine;
-  if (cfg->enable_sframe && cfg->sframe_conformance_option == 2) {
+  if (apply_sframe_conformance && cfg->sframe_conformance_option == 2) {
     // Option 3: disable OPFL refinement sequence-wide, applied at the point
     // tool_cfg->enable_opfl_refine is derived (matching the enable_refinemv
     // override above).

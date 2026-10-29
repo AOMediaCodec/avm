@@ -1088,7 +1088,8 @@ typedef struct avm_codec_enc_cfg {
    *
    * Selects how the encoder satisfies the AV2 bitstream-conformance
    * requirement constraining BAWP/IBC/OPFL/RefineMV around OBU_SWITCH
-   * frames. Only has an effect when enable_sframe is on. Values:
+   * frames. Only has an effect when enable_sframe is on and sframe_mode is 0.
+   * Values:
    *   - 0 (default): force enable_refmvbank = 0 sequence-wide, and disable
    *     BAWP for the switch frame and every dependent frame that follows
    *     it.

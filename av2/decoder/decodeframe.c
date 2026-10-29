@@ -8116,7 +8116,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         olk_leading_span_ended) {
       close_switch_risk_windows(cm);
     }
-    if (obu_type == OBU_SWITCH) {
+    if (obu_type == OBU_SWITCH && cm->restricted_prediction_switch) {
       open_switch_risk_window(cm);
     }
 
