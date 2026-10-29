@@ -2402,11 +2402,15 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
     hash_table_created = 1;
     av2_generate_block_2x2_hash_value(intrabc_hash_info, cpi->source,
                                       block_hash_values[0], is_block_same[0]);
-    // Hash data generated for screen contents is used for intraBC ME
+    // Hash data generated for screen contents is used for intraBC ME.
+    // IntraBC is not allowed on 64x64 and larger blocks (av2_allow_intrabc)
+    // and the hash search looks up square blocks only, so the table needs no
+    // entries above 32x32.
     const int min_alloc_size = block_size_wide[mi_params->mi_alloc_bsize];
-    const int max_sb_size = (1 << (cm->mib_size_log2 + MI_SIZE_LOG2));
+    const int max_hash_size =
+        AVMMIN(1 << (cm->mib_size_log2 + MI_SIZE_LOG2), 32);
     int src_idx = 0;
-    for (int size = 4; size <= max_sb_size; size *= 2, src_idx = !src_idx) {
+    for (int size = 4; size <= max_hash_size; size *= 2, src_idx = !src_idx) {
       const int dst_idx = !src_idx;
       av2_generate_block_hash_value(
           intrabc_hash_info, cpi->source, size, block_hash_values[src_idx],
