@@ -675,7 +675,7 @@ void trellis_first_pos(const tcq_param_t *p, int scan_pos, tcq_ctx_t *tcq_ctx,
   tran_low_t orig_qIdx =
       (tran_low_t)(((int64_t)abs(tcoeff[blk_pos]) * quant[scan_pos != 0]) >>
                    shift);
-  pqData.orig_qIdx = orig_qIdx;
+  pqData.orig_qIdx = (int16_t)orig_qIdx;
 
   av2_pre_quant(tcoeff[blk_pos], &pqData, quant, tempdqv, log_scale, scan_pos);
 
@@ -960,7 +960,7 @@ void av2_trellis_loop_diagonal_st8_c(const tcq_param_t *p, int scan_hi,
       tran_low_t orig_qIdx =
           (tran_low_t)(((int64_t)abs(tcoeff[blk_pos]) * quant[scan_pos != 0]) >>
                        shift);
-      pqData.orig_qIdx = orig_qIdx;
+      pqData.orig_qIdx = (int16_t)orig_qIdx;
 
       // Get coeff contexts
       tcq_coeff_ctx_t coeff_ctx;
@@ -1016,7 +1016,7 @@ void av2_trellis_loop_diagonal_st8_c(const tcq_param_t *p, int scan_hi,
       tran_low_t orig_qIdx =
           (tran_low_t)(((int64_t)abs(tcoeff[blk_pos]) * quant[scan_pos != 0]) >>
                        shift);
-      pqData.orig_qIdx = orig_qIdx;
+      pqData.orig_qIdx = (int16_t)orig_qIdx;
 
       // Get coeff contexts
       tcq_coeff_ctx_t coeff_ctx;

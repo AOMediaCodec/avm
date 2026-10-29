@@ -225,30 +225,21 @@ add_proto qw/void av2_resize_and_extend_frame/, "const YV12_BUFFER_CONFIG *src, 
 if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   # trellis quant
   add_proto qw/void av2_decide_states/, "const struct tcq_node_t *prev, const struct tcq_rate_t *rd, const struct prequant_t *pq, int limits, int tru_eob, int64_t rdmult, struct tcq_node_t *decision";
-  specialize qw/av2_decide_states avx2/;
   add_proto qw/void av2_decide_states_q1/, "const struct tcq_node_t *prev, const struct tcq_rate_t *rd, const struct prequant_t *pq, int limits, int tru_eob, int64_t rdmult, struct tcq_node_t *decision";
-  specialize qw/av2_decide_states_q1 avx2 neon/;
+  specialize qw/av2_decide_states_q1 neon/;
   add_proto qw/void av2_pre_quant/, "tran_low_t tqc, struct prequant_t* pqData, const int32_t* quant_ptr, int dqv, int log_scale, int scan_pos";
-  specialize qw/av2_pre_quant avx2/;
   add_proto qw/void av2_pre_quant_q1/, "tran_low_t tqc, struct prequant_t* pqData, const int32_t* quant_ptr, int dqv, int log_scale, int scan_pos";
-  specialize qw/av2_pre_quant_q1 avx2/;
 
   add_proto qw/void av2_get_rate_dist_def_luma/, "const struct tcq_param_t *p, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, struct tcq_rate_t *rd";
-  specialize qw/av2_get_rate_dist_def_luma avx2/;
   add_proto qw/void av2_get_rate_dist_def_luma_q1/, "const struct tcq_param_t *p, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, struct tcq_rate_t *rd";
-  specialize qw/av2_get_rate_dist_def_luma_q1 avx2/;
   add_proto qw/void av2_get_rate_dist_lf_luma/, "const struct tcq_param_t *p, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int coeff_sign, struct tcq_rate_t *rd";
-  specialize qw/av2_get_rate_dist_lf_luma avx2/;
   add_proto qw/void av2_get_rate_dist_lf_luma_q1/, "const struct tcq_param_t *p, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int coeff_sign, struct tcq_rate_t *rd";
-  specialize qw/av2_get_rate_dist_lf_luma_q1 avx2/;
   add_proto qw/void av2_update_states/, "const struct tcq_node_t *decision, int col, struct tcq_ctx_t *tcq_ctx";
-  specialize qw/av2_update_states avx2/;
   add_proto qw/void av2_calc_block_eob_rate/, "struct macroblock *x, int plane, TX_SIZE tx_size, int eob, uint16_t *block_eob_rate";
   specialize qw/av2_calc_block_eob_rate avx2/;
   add_proto qw/int av2_find_best_path/, "const struct tcq_node_t *trellis, const int16_t *scan, const int32_t *dequant, const qm_val_t *iqmatrix, const tran_low_t *tcoeff, int first_scan_pos, int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff, int *min_rate, int64_t *min_cost";
   specialize qw/av2_find_best_path avx2/;
   add_proto qw/void av2_get_coeff_ctx/, "const struct tcq_ctx_t *tcq_ctx, int col, struct tcq_coeff_ctx_t *coeff_ctx";
-  specialize qw/av2_get_coeff_ctx avx2/;
   add_proto qw/void av2_update_nbr_diagonal/, "struct tcq_ctx_t *tcq_ctx, int row, int col, int bwl";
   specialize qw/av2_update_nbr_diagonal avx2/;
   add_proto qw/void av2_trellis_loop_diagonal_st8/, "const struct tcq_param_t *p, int scan_hi, int scan_lo, struct tcq_ctx_t *tcq_ctx, struct tcq_node_t *trellis";

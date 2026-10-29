@@ -1340,152 +1340,6 @@ class TcqLoopDiagonalSt8Test
     }
   }
 
-#if HAVE_AVX2
-  static AVM_FORCE_INLINE int get_diag_ctx_bench(int lf, int blk_pos,
-                                                 int scan_pos, int bwl) {
-    int diag_ctx;
-    if (lf) {
-      diag_ctx = get_nz_map_ctx_from_stats_lf(0, blk_pos, bwl, TX_CLASS_2D);
-      if (scan_pos > 0) diag_ctx += 7 << 8;
-    } else {
-      diag_ctx = get_nz_map_ctx_from_stats(0, blk_pos, bwl, TX_CLASS_2D, 0);
-    }
-    return diag_ctx;
-  }
-
-  static AVM_FORCE_INLINE int get_dqv_bench(const int32_t *dequant,
-                                            int coeff_idx,
-                                            const qm_val_t *iqmatrix) {
-    int dqv = dequant[coeff_idx != 0];
-    if (iqmatrix != NULL) {
-      dqv =
-          (dqv * iqmatrix[coeff_idx] + (1 << (AVM_QM_BITS - 1))) >> AVM_QM_BITS;
-    }
-    return dqv;
-  }
-
-  static void trellis_loop_diagonal_st8_prepatch_baseline_avx2(
-      const tcq_param_t *p, int scan_hi, int scan_lo, tcq_ctx_t *tcq_ctx,
-      tcq_node_t *trellis) {
-    int log_scale = p->log_scale;
-    int try_eob = p->sharpness == 0;
-    int64_t rdmult = p->rdmult;
-    const int16_t *scan = p->scan;
-    const tran_low_t *tcoeff = p->tcoeff;
-    const int32_t *quant = p->quant;
-    const int32_t *dequant = p->dequant;
-    const qm_val_t *iqmatrix = p->iqmatrix;
-    const uint16_t *block_eob_rate = p->block_eob_rate;
-    int bwl = p->bwl;
-    int height = p->txb_height;
-    int dc_coeff_sign = tcoeff[0] < 0;
-    int blk_pos_inc = (1 << bwl) - 1;
-    int blk_pos, row, col;
-    int shift = 16 - log_scale + QUANT_FP_BITS;
-
-    while (scan_hi >= 10) {
-      blk_pos = scan[scan_hi];
-      row = blk_pos >> bwl;
-      col = blk_pos - (row << bwl);
-      int inc = AVMMIN(height - 1 - row, col);
-      scan_lo = scan_hi - inc;
-      int lf = 0;
-      int diag_ctx = get_diag_ctx_bench(lf, blk_pos, scan_lo, bwl);
-
-      for (int scan_pos = scan_hi; scan_pos >= scan_lo; scan_pos--) {
-        tcq_node_t *decision = &trellis[scan_pos << TCQ_N_STATES_LOG];
-        tcq_node_t *prev_decision = &decision[TCQ_N_STATES];
-        prequant_t pqData;
-        int tempdqv = get_dqv_bench(dequant, scan[scan_pos], iqmatrix);
-        tran_low_t orig_qIdx = (tran_low_t)(((int64_t)abs(tcoeff[blk_pos]) *
-                                             quant[scan_pos != 0]) >>
-                                            shift);
-        pqData.orig_qIdx = orig_qIdx;
-
-        tcq_coeff_ctx_t coeff_ctx;
-        av2_get_coeff_ctx_avx2(tcq_ctx, col, &coeff_ctx);
-        coeff_ctx.coef_eob = get_lower_levels_ctx_eob(bwl, height, scan_pos);
-        int eob_rate = block_eob_rate[scan_pos];
-        tcq_rate_t rd;
-
-        if (pqData.orig_qIdx < 2) {
-          av2_pre_quant_q1_avx2(tcoeff[blk_pos], &pqData, quant, tempdqv,
-                                log_scale, scan_pos);
-          av2_get_rate_dist_def_luma_q1_avx2(p, &pqData, &coeff_ctx, blk_pos,
-                                             diag_ctx, eob_rate, &rd);
-          av2_decide_states_q1_avx2(prev_decision, &rd, &pqData, lf, try_eob,
-                                    rdmult, decision);
-        } else {
-          av2_pre_quant_avx2(tcoeff[blk_pos], &pqData, quant, tempdqv,
-                             log_scale, scan_pos);
-          av2_get_rate_dist_def_luma_avx2(p, &pqData, &coeff_ctx, blk_pos,
-                                          diag_ctx, eob_rate, &rd);
-          av2_decide_states_avx2(prev_decision, &rd, &pqData, lf, try_eob,
-                                 rdmult, decision);
-        }
-        av2_update_states_avx2(decision, col, tcq_ctx);
-        blk_pos += blk_pos_inc;
-        col--;
-        row++;
-      }
-      av2_update_nbr_diagonal_avx2(tcq_ctx, row - 1, col + 1, bwl);
-      scan_hi = scan_lo - 1;
-    }
-    while (scan_hi >= 0) {
-      blk_pos = scan[scan_hi];
-      row = blk_pos >> bwl;
-      col = blk_pos - (row << bwl);
-      int inc = AVMMIN(height - 1 - row, col);
-      scan_lo = scan_hi - inc;
-      int lf = 1;
-      int diag_ctx = get_diag_ctx_bench(lf, blk_pos, scan_lo, bwl);
-
-      for (int scan_pos = scan_hi; scan_pos >= scan_lo; scan_pos--) {
-        tcq_node_t *decision = &trellis[scan_pos << TCQ_N_STATES_LOG];
-        tcq_node_t *prev_decision = &decision[TCQ_N_STATES];
-        prequant_t pqData;
-        int tempdqv = get_dqv_bench(dequant, scan[scan_pos], iqmatrix);
-        tran_low_t orig_qIdx = (tran_low_t)(((int64_t)abs(tcoeff[blk_pos]) *
-                                             quant[scan_pos != 0]) >>
-                                            shift);
-        pqData.orig_qIdx = orig_qIdx;
-
-        tcq_coeff_ctx_t coeff_ctx;
-        av2_get_coeff_ctx_avx2(tcq_ctx, col, &coeff_ctx);
-        coeff_ctx.coef_eob = get_lower_levels_ctx_eob(bwl, height, scan_pos);
-        int eob_rate = block_eob_rate[scan_pos];
-        tcq_rate_t rd;
-
-        if (pqData.orig_qIdx < 2) {
-          av2_pre_quant_q1_avx2(tcoeff[blk_pos], &pqData, quant, tempdqv,
-                                log_scale, scan_pos);
-          av2_get_rate_dist_lf_luma_q1_avx2(p, &pqData, &coeff_ctx, blk_pos,
-                                            diag_ctx, eob_rate, dc_coeff_sign,
-                                            &rd);
-          av2_decide_states_q1_avx2(prev_decision, &rd, &pqData, lf, try_eob,
-                                    rdmult, decision);
-        } else {
-          av2_pre_quant_avx2(tcoeff[blk_pos], &pqData, quant, tempdqv,
-                             log_scale, scan_pos);
-          av2_get_rate_dist_lf_luma_avx2(p, &pqData, &coeff_ctx, blk_pos,
-                                         diag_ctx, eob_rate, dc_coeff_sign,
-                                         &rd);
-          av2_decide_states_avx2(prev_decision, &rd, &pqData, lf, try_eob,
-                                 rdmult, decision);
-        }
-        av2_update_states_avx2(decision, col, tcq_ctx);
-        blk_pos += blk_pos_inc;
-        col--;
-        row++;
-      }
-      if (scan_hi != 0) {
-        av2_update_nbr_diagonal_avx2(tcq_ctx, row - 1, col + 1, bwl);
-      }
-      scan_hi = scan_lo - 1;
-    }
-  }
-#endif  // HAVE_AVX2
-
   void RunSpeedTest() {
     static const TX_SIZE kTxSizes[] = { TX_4X4,   TX_8X8,   TX_16X16, TX_32X32,
                                         TX_4X8,   TX_8X4,   TX_8X16,  TX_16X8,
@@ -1496,9 +1350,8 @@ class TcqLoopDiagonalSt8Test
     printf(
         "\n============================ TCQ Diagonal Loop: Direct Speed "
         "Benchmark ============================\n");
-    printf("%-8s %-6s %-12s %-15s %-15s %-16s %-16s\n", "TX Size", "Coeffs",
-           "Pure C (us)", "Base AVX2 (us)", "Patch AVX2 (us)", "vs Base AVX2",
-           "vs Pure C");
+    printf("%-8s %-6s %-12s %-12s %-16s\n", "TX Size", "Coeffs", "C (us)",
+           "SIMD (us)", "vs C");
     printf(
         "----------------------------------------------------------------------"
         "------------------------------\n");
@@ -1527,10 +1380,6 @@ class TcqLoopDiagonalSt8Test
       tcq_ctx_t tcq_ctx_c, tcq_ctx_opt;
       tcq_node_t trellis_c[MAX_TRELLIS * TCQ_MAX_STATES];
       tcq_node_t trellis_opt[MAX_TRELLIS * TCQ_MAX_STATES];
-#if HAVE_AVX2
-      tcq_ctx_t tcq_ctx_base;
-      tcq_node_t trellis_base[MAX_TRELLIS * TCQ_MAX_STATES];
-#endif
 
       int first_scan_pos = num_coeffs - 1;
       int scan_hi = first_scan_pos - 1;
@@ -1544,21 +1393,6 @@ class TcqLoopDiagonalSt8Test
       avm_usec_timer_mark(&timer_c);
       const int64_t elapsed_time_c = avm_usec_timer_elapsed(&timer_c);
 
-#if HAVE_AVX2
-      avm_usec_timer timer_base;
-      avm_usec_timer_start(&timer_base);
-      for (int i = 0; i < kNumTests; ++i) {
-        InitContextAndTrellis(&param, first_scan_pos, &tcq_ctx_base,
-                              trellis_base);
-        trellis_loop_diagonal_st8_prepatch_baseline_avx2(
-            &param, scan_hi, 0, &tcq_ctx_base, trellis_base);
-      }
-      avm_usec_timer_mark(&timer_base);
-      const int64_t elapsed_time_base = avm_usec_timer_elapsed(&timer_base);
-#else
-      const int64_t elapsed_time_base = elapsed_time_c;
-#endif
-
       avm_usec_timer timer_opt;
       avm_usec_timer_start(&timer_opt);
       for (int i = 0; i < kNumTests; ++i) {
@@ -1569,11 +1403,6 @@ class TcqLoopDiagonalSt8Test
       avm_usec_timer_mark(&timer_opt);
       const int64_t elapsed_time_opt = avm_usec_timer_elapsed(&timer_opt);
 
-      const double gain_vs_base =
-          (double)elapsed_time_base / (double)elapsed_time_opt;
-      const double speedup_vs_base =
-          (1.0 - (double)elapsed_time_opt / (double)elapsed_time_base) * 100.0;
-
       const double gain_vs_c =
           (double)elapsed_time_c / (double)elapsed_time_opt;
       const double speedup_vs_c =
@@ -1581,16 +1410,12 @@ class TcqLoopDiagonalSt8Test
 
       char size_str[32];
       snprintf(size_str, sizeof(size_str), "%dx%d", width, height);
-      char vs_base_str[32];
-      snprintf(vs_base_str, sizeof(vs_base_str), "%.2fx (+%.1f%%)",
-               gain_vs_base, speedup_vs_base);
       char vs_c_str[32];
       snprintf(vs_c_str, sizeof(vs_c_str), "%.2fx (+%.1f%%)", gain_vs_c,
                speedup_vs_c);
 
-      printf("%-8s %-6d %-12ld %-15ld %-15ld %-16s %-16s\n", size_str,
-             num_coeffs, (long)elapsed_time_c, (long)elapsed_time_base,
-             (long)elapsed_time_opt, vs_base_str, vs_c_str);
+      printf("%-8s %-6d %-12ld %-12ld %-16s\n", size_str, num_coeffs,
+             (long)elapsed_time_c, (long)elapsed_time_opt, vs_c_str);
     }
     printf(
         "======================================================================"
@@ -1618,6 +1443,7 @@ class TcqLoopDiagonalSt8BlockTest
     kCoeffMax,
     kCoeffConstant,
     kCoeffCheckerboard,
+    kCoeffInt16Wrap,  // some orig_qIdx near 32768 / 65536, wrapped to int16_t
   };
   enum CostMode {
     kCostDefaultCdf,  // av2_fill_coeff_costs() from the default CDFs
@@ -1692,7 +1518,7 @@ class TcqLoopDiagonalSt8BlockTest
     ASSERT_NE(rand_costs_, nullptr);
     memset(rand_costs_, 0, sizeof(*rand_costs_));
     memset(tmp_sign_, 0, sizeof(int32_t) * MAX_TRELLIS);
-    n_q1_ = n_gen_ = n_def_calls_ = n_lf_only_calls_ = 0;
+    n_q1_ = n_gen_ = n_def_calls_ = n_lf_only_calls_ = n_wrap_ = 0;
   }
 
   void TearDown() override {
@@ -1791,14 +1617,16 @@ class TcqLoopDiagonalSt8BlockTest
     }
   }
 
-  int OrigQIdx(int scan_pos) const {
+  // orig_qIdx before the int16_t truncation.
+  int64_t RawQIdx(int scan_pos) const {
     const int shift = 16 - log_scale_ + QUANT_FP_BITS;
-    const tran_low_t v = (tran_low_t)(((int64_t)abs(tcoeff_[scan_[scan_pos]]) *
-                                       quant_[scan_pos != 0]) >>
-                                      shift);
-    prequant_t pq;
-    pq.orig_qIdx = v;  // Same int16_t truncation as the kernel.
-    return pq.orig_qIdx;
+    return ((int64_t)abs(tcoeff_[scan_[scan_pos]]) * quant_[scan_pos != 0]) >>
+           shift;
+  }
+
+  // Same int16_t truncation as the kernel.
+  int OrigQIdx(int scan_pos) const {
+    return static_cast<int16_t>(RawQIdx(scan_pos));
   }
 
   int TargetQIdx(CoeffMode mode, int scan_pos, int const_t) {
@@ -1813,6 +1641,9 @@ class TcqLoopDiagonalSt8BlockTest
       case kCoeffMax: return 30000;
       case kCoeffConstant: return const_t;
       case kCoeffCheckerboard: return (scan_pos & 1) ? 0 : 200 + rng_(300);
+      case kCoeffInt16Wrap:
+        if (rng_(8) != 0) return rng_(2);
+        return (rng_(2) ? 65536 : 32768) - 2 + rng_(4);
       default: return 0;
     }
   }
@@ -1945,6 +1776,7 @@ class TcqLoopDiagonalSt8BlockTest
         n_q1_++;
       else
         n_gen_++;
+      if (RawQIdx(s) >= 32768) n_wrap_++;
     }
     if (scan_hi >= 10) n_def_calls_++;
     if (scan_hi >= 0 && scan_hi < 10) n_lf_only_calls_++;
@@ -2036,7 +1868,7 @@ class TcqLoopDiagonalSt8BlockTest
   int64_t rdmult_ = 0;
   int sharpness_ = 0;
 
-  int64_t n_q1_, n_gen_, n_def_calls_, n_lf_only_calls_;
+  int64_t n_q1_, n_gen_, n_def_calls_, n_lf_only_calls_, n_wrap_;
 
   static CoeffCosts *cdf_costs_[TOKEN_CDF_Q_CTXS];
 };
@@ -2060,12 +1892,12 @@ TEST_P(TcqLoopDiagonalSt8BlockTest, RandomValues) {
   EXPECT_GT(n_lf_only_calls_, 0) << "LF-only calls never exercised";
 }
 
-// bug: update_states unpacking absLevel into too few bits, or orig_qIdx from
-// an overflowing 32-bit product, at the largest levels; no other test catches
-// them.
+// bug: update_states unpacking absLevel into too few bits, orig_qIdx from an
+// overflowing 32-bit product, or orig_qIdx not wrapped to int16_t like C, at
+// the largest levels; no other test catches them.
 TEST_P(TcqLoopDiagonalSt8BlockTest, Extremes) {
   static const CoeffMode kCoeff[] = { kCoeffZero, kCoeffMax, kCoeffCheckerboard,
-                                      kCoeffConstant };
+                                      kCoeffConstant, kCoeffInt16Wrap };
   int iter = 0;
   for (const CoeffMode cm : kCoeff) {
     for (const int q : { 0, MaxQindex() }) {
@@ -2077,6 +1909,10 @@ TEST_P(TcqLoopDiagonalSt8BlockTest, Extremes) {
         if (HasFatalFailure()) return;
       }
     }
+  }
+  // At 12-bit the largest coefficients reach orig_qIdx 32768 at qindex 0.
+  if (bd_ == 12) {
+    EXPECT_GT(n_wrap_, 0) << "int16_t wrap never exercised";
   }
 }
 
@@ -2095,7 +1931,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(av2_trellis_loop_diagonal_st8_c),
                        ::testing::Values(av2_trellis_loop_diagonal_st8_avx2),
                        ::testing::ValuesIn(kSt8TxSizes),
-                       ::testing::Values(8, 10, 12), ::testing::Values(false)));
+                       ::testing::Values(8, 10, 12), ::testing::Values(true)));
 #endif  // HAVE_AVX2
 
 #if HAVE_NEON
@@ -2108,43 +1944,6 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // HAVE_NEON
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(AVX2, TcqDecideStatesTest,
-                         ::testing::Values(TcqDecideStatesTestFuncs(
-                             av2_decide_states_c, av2_decide_states_avx2)));
-
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, TcqDecideStatesQ1Test,
-    ::testing::Values(TcqDecideStatesTestFuncs(av2_decide_states_q1_c,
-                                               av2_decide_states_q1_avx2)));
-
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, PreQuantTest,
-    ::testing::Values(PreQuantTestFuncs(av2_pre_quant_c, av2_pre_quant_avx2)));
-
-INSTANTIATE_TEST_SUITE_P(AVX2, PreQuantQ1Test,
-                         ::testing::Values(PreQuantTestFuncs(
-                             av2_pre_quant_q1_c, av2_pre_quant_q1_avx2)));
-
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, TcqRateLumaTest,
-    ::testing::Values(TcqRateLumaTestFuncs(av2_get_rate_dist_def_luma_c,
-                                           av2_get_rate_dist_def_luma_avx2)));
-
-INSTANTIATE_TEST_SUITE_P(AVX2, TcqRateLumaQ1Test,
-                         ::testing::Values(TcqRateLumaTestFuncs(
-                             av2_get_rate_dist_def_luma_q1_c,
-                             av2_get_rate_dist_def_luma_q1_avx2)));
-
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, TcqRateLfLumaTest,
-    ::testing::Values(TcqRateLfLumaTestFuncs(av2_get_rate_dist_lf_luma_c,
-                                             av2_get_rate_dist_lf_luma_avx2)));
-
-INSTANTIATE_TEST_SUITE_P(AVX2, TcqRateLfLumaQ1Test,
-                         ::testing::Values(TcqRateLfLumaTestFuncs(
-                             av2_get_rate_dist_lf_luma_q1_c,
-                             av2_get_rate_dist_lf_luma_q1_avx2)));
-
 INSTANTIATE_TEST_SUITE_P(AVX2, TcqUpdateNbrDiagonalTest,
                          ::testing::Values(TcqUpdateNbrDiagonalTestFuncs(
                              av2_update_nbr_diagonal_c,

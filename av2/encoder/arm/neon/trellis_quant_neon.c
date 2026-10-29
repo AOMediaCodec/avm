@@ -1351,7 +1351,7 @@ void av2_trellis_loop_diagonal_st8_neon(const struct tcq_param_t *p,
             AVM_QM_BITS;
       }
       pq_data.orig_qIdx =
-          (tran_low_t)(((int64_t)abs(tcoeff[blk_pos]) * quant_ac) >> shift);
+          (int16_t)(((int64_t)abs(tcoeff[blk_pos]) * quant_ac) >> shift);
 
       tcq_coeff_ctx_t coeff_ctx;
 #if !AVM_ARCH_AARCH64
@@ -1463,7 +1463,7 @@ void av2_trellis_loop_diagonal_st8_neon(const struct tcq_param_t *p,
       }
       const int32_t temp_quant = is_ac ? quant_ac : quant_dc;
       pq_data.orig_qIdx =
-          (tran_low_t)(((int64_t)abs(tcoeff[blk_pos]) * temp_quant) >> shift);
+          (int16_t)(((int64_t)abs(tcoeff[blk_pos]) * temp_quant) >> shift);
 
       tcq_coeff_ctx_t coeff_ctx;
       int eob_rate = 0;
