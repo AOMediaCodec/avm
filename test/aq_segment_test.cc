@@ -144,7 +144,7 @@ class CyclicRefreshRtTest
     cfg_.g_usage = AVM_USAGE_REALTIME;
     cfg_.rc_end_usage = AVM_CBR;
     cfg_.g_lag_in_frames = 0;
-    cfg_.kf_max_dist = 30;
+    cfg_.kf_max_dist = 45;
     cfg_.rc_min_quantizer = 20;
     cfg_.rc_max_quantizer = 224;
     cfg_.rc_buf_initial_sz = 500;
@@ -183,7 +183,7 @@ class CyclicRefreshRtTest
 
 TEST_P(CyclicRefreshRtTest, TestSuperblockSizesAndContent) {
   ::libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
-                                       30, 1, 0, 25);
+                                       30, 1, 0, 40);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
