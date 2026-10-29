@@ -3082,7 +3082,9 @@ static AVM_INLINE int evaluate_motion_mode_trial(
       return -1;
     assert(mbmi->motion_mode == INTERINTRA);
   } else if (mbmi->motion_mode == WARP_DELTA) {
-    if (cpi->sf.inter_sf.prune_warp_delta_by_ref_idx && mbmi->ref_frame[0] > 2)
+    if (cpi->sf.inter_sf.prune_warp_delta_by_ref_idx &&
+        mbmi->ref_frame[0] >
+            (cpi->sf.inter_sf.prune_warp_delta_by_ref_idx >= 2 ? 1 : 2))
       return -1;
     if (handle_warp_delta_mode(cpi, x, bsize, mbmi, mbmi_ext, args,
                                *ref_best_rd, orig_dst, ctx->previous_mvs,
@@ -4527,17 +4529,20 @@ static INLINE void push_comp_est_rd(MACROBLOCK *x, const MB_MODE_INFO *mbmi,
 // Prune compound mode evaluation based on top estimated RD costs.
 static INLINE bool prune_comp_eval_using_est_rd(
     MACROBLOCK *const x, MB_MODE_INFO *const mbmi, int64_t tmp_rd,
-    bool prune_comp_mode_eval_using_est_rd) {
+    int prune_comp_mode_eval_using_est_rd) {
   if (!prune_comp_mode_eval_using_est_rd) return false;
 
   // Do not prune for skip mode.
   if (mbmi->skip_mode != 0) return false;
   if (tmp_rd == INT64_MAX) return false;
 
+  const int idx = (prune_comp_mode_eval_using_est_rd >= 2)
+                      ? 0
+                      : (TOP_COMP_EST_RD_COUNT - 1);
   // Do not prune if there is no valid top RD Cost for comparison.
-  if (x->top_comp_est_rd[TOP_COMP_EST_RD_COUNT - 1] == INT64_MAX) return false;
+  if (x->top_comp_est_rd[idx] == INT64_MAX) return false;
 
-  if (tmp_rd > x->top_comp_est_rd[TOP_COMP_EST_RD_COUNT - 1]) return true;
+  if (tmp_rd > x->top_comp_est_rd[idx]) return true;
 
   return false;
 }
