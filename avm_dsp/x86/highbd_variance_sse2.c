@@ -820,11 +820,11 @@ void avm_highbd_comp_avg_upsampled_pred_sse2(
   }
 }
 
-static INLINE void highbd_compute_dist_wtd_comp_avg(__m128i *p0, __m128i *p1,
-                                                    const __m128i *w0,
-                                                    const __m128i *w1,
-                                                    const __m128i *r,
-                                                    void *const result) {
+static INLINE void highbd_compute_comp_wtd_avg(__m128i *p0, __m128i *p1,
+                                               const __m128i *w0,
+                                               const __m128i *w1,
+                                               const __m128i *r,
+                                               void *const result) {
   assert(DIST_PRECISION_BITS <= 4);
   __m128i mult0 = _mm_mullo_epi16(*p0, *w0);
   __m128i mult1 = _mm_mullo_epi16(*p1, *w1);
@@ -835,13 +835,12 @@ static INLINE void highbd_compute_dist_wtd_comp_avg(__m128i *p0, __m128i *p1,
   xx_storeu_128(result, shift);
 }
 
-void avm_highbd_dist_wtd_comp_avg_pred_sse2(
-    uint16_t *comp_pred, const uint16_t *pred, int width, int height,
-    const uint16_t *ref, int ref_stride,
-    const DIST_WTD_COMP_PARAMS *jcp_param) {
+void avm_highbd_cwp_sse2(uint16_t *comp_pred, const uint16_t *pred, int width,
+                         int height, const uint16_t *ref, int ref_stride,
+                         const CWP_PARAMS *cwp_param) {
   int i;
-  const uint16_t wt0 = (uint16_t)jcp_param->fwd_offset;
-  const uint16_t wt1 = (uint16_t)jcp_param->bck_offset;
+  const uint16_t wt0 = (uint16_t)cwp_param->fwd_offset;
+  const uint16_t wt1 = (uint16_t)cwp_param->bck_offset;
   const __m128i w0 = _mm_set_epi16(wt0, wt0, wt0, wt0, wt0, wt0, wt0, wt0);
   const __m128i w1 = _mm_set_epi16(wt1, wt1, wt1, wt1, wt1, wt1, wt1, wt1);
   const uint16_t round = ((1 << DIST_PRECISION_BITS) >> 1);
@@ -857,7 +856,7 @@ void avm_highbd_dist_wtd_comp_avg_pred_sse2(
         __m128i p0 = xx_loadu_128(ref);
         __m128i p1 = xx_loadu_128(pred);
 
-        highbd_compute_dist_wtd_comp_avg(&p0, &p1, &w0, &w1, &r, comp_pred);
+        highbd_compute_comp_wtd_avg(&p0, &p1, &w0, &w1, &r, comp_pred);
 
         comp_pred += 8;
         pred += 8;
@@ -874,7 +873,7 @@ void avm_highbd_dist_wtd_comp_avg_pred_sse2(
       __m128i p0 = _mm_unpacklo_epi64(p0_0, p0_1);
       __m128i p1 = xx_loadu_128(pred);
 
-      highbd_compute_dist_wtd_comp_avg(&p0, &p1, &w0, &w1, &r, comp_pred);
+      highbd_compute_comp_wtd_avg(&p0, &p1, &w0, &w1, &r, comp_pred);
 
       comp_pred += 8;
       pred += 8;
@@ -883,12 +882,12 @@ void avm_highbd_dist_wtd_comp_avg_pred_sse2(
   }
 }
 
-void avm_highbd_dist_wtd_comp_avg_upsampled_pred_sse2(
+void avm_highbd_cwp_upsampled_sse2(
     MACROBLOCKD *xd, const struct AV2Common *const cm, int mi_row, int mi_col,
     const MV *const mv, uint16_t *comp_pred16, const uint16_t *pred, int width,
     int height, int subpel_x_q3, int subpel_y_q3, const uint16_t *ref,
-    int ref_stride, int bd, const DIST_WTD_COMP_PARAMS *jcp_param,
-    int subpel_search, int is_scaled_ref) {
+    int ref_stride, int bd, const CWP_PARAMS *cwp_param, int subpel_search,
+    int is_scaled_ref) {
   int n;
   int i;
   avm_highbd_upsampled_pred(xd, cm, mi_row, mi_col, mv, comp_pred16, width,
@@ -897,8 +896,8 @@ void avm_highbd_dist_wtd_comp_avg_upsampled_pred_sse2(
   assert(!(width * height & 7));
   n = width * height >> 3;
 
-  const uint16_t wt0 = (uint16_t)jcp_param->fwd_offset;
-  const uint16_t wt1 = (uint16_t)jcp_param->bck_offset;
+  const uint16_t wt0 = (uint16_t)cwp_param->fwd_offset;
+  const uint16_t wt1 = (uint16_t)cwp_param->bck_offset;
   const __m128i w0 = _mm_set_epi16(wt0, wt0, wt0, wt0, wt0, wt0, wt0, wt0);
   const __m128i w1 = _mm_set_epi16(wt1, wt1, wt1, wt1, wt1, wt1, wt1, wt1);
   const uint16_t round = ((1 << DIST_PRECISION_BITS) >> 1);
@@ -909,7 +908,7 @@ void avm_highbd_dist_wtd_comp_avg_upsampled_pred_sse2(
     __m128i p0 = xx_loadu_128(comp_pred16);
     __m128i p1 = xx_loadu_128(pred);
 
-    highbd_compute_dist_wtd_comp_avg(&p0, &p1, &w0, &w1, &r, comp_pred16);
+    highbd_compute_comp_wtd_avg(&p0, &p1, &w0, &w1, &r, comp_pred16);
 
     comp_pred16 += 8;
     pred += 8;

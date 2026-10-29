@@ -62,8 +62,6 @@ typedef struct PICK_MODE_CONTEXT {
   int rd_mode_is_ready;  // Flag to indicate whether rd pick mode decision has
                          // been made.
   CHROMA_REF_INFO chroma_ref_info;
-  struct PC_TREE *parent;
-  int index;
 } PICK_MODE_CONTEXT;
 
 typedef struct PC_TREE {
@@ -108,6 +106,11 @@ typedef struct SIMPLE_MOTION_DATA_TREE {
   unsigned int sms_rect_feat[8];
   int sms_none_valid;
   int sms_rect_valid;
+
+  // Unified SMS pre-screener: computed once per block and reused at each
+  // pruning gate.
+  float sms_unified_probs[ALL_PARTITION_TYPES];
+  int sms_unified_valid;
 } SIMPLE_MOTION_DATA_TREE;
 
 PC_TREE *av2_look_for_counterpart_block(PC_TREE *pc_tree);
@@ -136,6 +139,11 @@ PICK_MODE_CONTEXT *av2_alloc_pmc(const AV2_COMMON *cm, TREE_TYPE tree_type,
                                  int subsampling_x, int subsampling_y,
                                  PC_TREE_SHARED_BUFFERS *shared_bufs);
 void av2_free_pmc(PICK_MODE_CONTEXT *ctx, int num_planes);
+/*!\brief Resets the state of a PICK_MODE_CONTEXT node for reuse.
+ *
+ * \param[in,out]  ctx  Pointer to the PICK_MODE_CONTEXT to reset
+ */
+void av2_reset_pmc(PICK_MODE_CONTEXT *ctx);
 void av2_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
                            PICK_MODE_CONTEXT *src_ctx, int num_planes);
 
@@ -147,13 +155,6 @@ void av2_free_sms_bufs(struct ThreadData *td);
 PC_TREE *const *get_child_pc_trees(const PC_TREE *pc_tree,
                                    PARTITION_TYPE partition, REGION_TYPE region,
                                    int *num_sub_parts);
-
-int get_subblock_count(PARTITION_TYPE partition_type);
-
-void get_partition_subblock_layout(PARTITION_TYPE partition_type,
-                                   BLOCK_SIZE bsize, int mi_row, int mi_col,
-                                   BLOCK_SIZE sub_sizes[4], int mi_rows[4],
-                                   int mi_cols[4]);
 
 #ifdef __cplusplus
 }  // extern "C"

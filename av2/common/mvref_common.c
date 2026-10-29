@@ -3815,8 +3815,199 @@ static void fill_id_offset_sample_gap(AV2_COMMON *cm) {
   }
 }
 
+// Add up to 2 past refs and 2 future refs, each temporally nearest to the
+// current frame. A past candidate is only added if it has at least one
+// future reference frame, and vice versa. Between a past and future candidate,
+// priority is given to the one whose pairing reference (which must be on the
+// other side of the current frame) is temporally closer.
+static void add_nearest_past_future_ref(
+    const AV2_COMMON *cm, int nearest_past_sort_idx, const int *sort_ref,
+    int checked_ref[INTER_REFS_PER_FRAME][2],
+    struct ProcessRefTMVP *process_ref, int *process_count) {
+  const int valid_ref_num =
+      cm->ref_frames_info.num_valid_refs_without_restricted_ref;
+  assert(valid_ref_num <= cm->ref_frames_info.num_total_refs);
+
+  for (int group_idx = 0; group_idx < 2; ++group_idx) {
+    int past_ref_sort_idx = nearest_past_sort_idx - group_idx;
+    if (past_ref_sort_idx < 0 ||
+        !has_future_ref(cm, sort_ref[past_ref_sort_idx]))
+      past_ref_sort_idx = -1;
+
+    int future_ref_sort_idx = nearest_past_sort_idx + 1 + group_idx;
+    if (future_ref_sort_idx >= valid_ref_num ||
+        !has_past_ref(cm, sort_ref[future_ref_sort_idx]))
+      future_ref_sort_idx = -1;
+
+    const int past_ref_to_its_ref_dist =
+        past_ref_sort_idx >= 0
+            ? get_dist_to_closest_interp_ref(cm, sort_ref[past_ref_sort_idx], 0)
+            : -1;
+    const int future_ref_to_its_ref_dist =
+        future_ref_sort_idx >= 0 ? get_dist_to_closest_interp_ref(
+                                       cm, sort_ref[future_ref_sort_idx], 1)
+                                 : -1;
+
+    const int future_first =
+        future_ref_to_its_ref_dist < past_ref_to_its_ref_dist;
+    const int first_idx =
+        future_first ? future_ref_sort_idx : past_ref_sort_idx;
+    const int second_idx =
+        future_first ? past_ref_sort_idx : future_ref_sort_idx;
+
+    if (first_idx != -1) {
+      check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, sort_ref[first_idx],
+                                -1, (first_idx == past_ref_sort_idx) ? 1 : 0,
+                                checked_ref, process_ref, process_count);
+    }
+    if (second_idx != -1) {
+      check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, sort_ref[second_idx],
+                                -1, (second_idx == past_ref_sort_idx) ? 1 : 0,
+                                checked_ref, process_ref, process_count);
+    }
+  }
+}
+
+// Sets up temporally closer frames as tip reference frames.
+static bool setup_tip_ref_frames(AV2_COMMON *const cm,
+                                 const int *const sort_ref,
+                                 int cur_frame_sort_idx) {
+  if (cm->has_both_sides_refs) {
+    cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
+    cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx + 1];
+    return true;
+  }
+  if (cm->ref_frames_info.num_past_refs >= 2) {
+    assert(cur_frame_sort_idx > 0);
+    cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
+    cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx - 1];
+    return true;
+  }
+  cm->tip_ref.ref_frame[0] = NONE_FRAME;
+  cm->tip_ref.ref_frame[1] = NONE_FRAME;
+  return false;
+}
+
+// Sets up the TIP reference frames and adds it to the motion field process
+// list. start_frame and target_frame are assigned by comparing their
+// topological stack indices. A higher topological index indicates a more
+// preferred reference. In the projection stage, the projection from the
+// start_frame (higher index) to the target_frame is prioritized.
+static void setup_and_add_tip_ref(AV2_COMMON *cm, int nearest_past_sort_idx,
+                                  const int *sort_ref,
+                                  const int *rf_topo_stack_idx,
+                                  int checked_ref[INTER_REFS_PER_FRAME][2],
+                                  struct ProcessRefTMVP *process_ref,
+                                  int *process_count) {
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  const int *const is_ref_restricted = cm->cur_frame->refs_restricted_status;
+  (void)is_ref_restricted;
+
+  if (!setup_tip_ref_frames(cm, sort_ref, nearest_past_sort_idx)) return;
+
+  MV_REFERENCE_FRAME tip_ref_frame[2] = { cm->tip_ref.ref_frame[0],
+                                          cm->tip_ref.ref_frame[1] };
+  int start_frame, target_frame;
+  if (rf_topo_stack_idx[tip_ref_frame[0]] >
+      rf_topo_stack_idx[tip_ref_frame[1]]) {
+    start_frame = tip_ref_frame[0];
+    target_frame = tip_ref_frame[1];
+  } else {
+    start_frame = tip_ref_frame[1];
+    target_frame = tip_ref_frame[0];
+  }
+  assert(!(is_ref_restricted[start_frame]) &&
+         !(is_ref_restricted[target_frame]));
+  const int dist_diff = get_relative_dist(
+      order_hint_info, get_ref_frame_buf(cm, start_frame)->display_order_hint,
+      get_ref_frame_buf(cm, target_frame)->display_order_hint);
+
+  const int side = dist_diff < 0 ? 1 : 0;
+  check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, start_frame, target_frame,
+                            side, checked_ref, process_ref, process_count);
+}
+
+// Organizes reference frames using different sorting algorithms and updates the
+// necessary indices.
+static int sort_and_update_ref_idx(
+    const AV2_COMMON *cm, int sort_ref[INTER_REFS_PER_FRAME],
+    int *nearest_past_sort_idx, int rf_stack[INTER_REFS_PER_FRAME],
+    int *stack_count, int rf_topo_stack_idx[INTER_REFS_PER_FRAME]) {
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  const int *const is_ref_restricted = cm->cur_frame->refs_restricted_status;
+  const int8_t *const ref_frame_side = cm->ref_frame_side;
+  const int num_total_refs = cm->ref_frames_info.num_total_refs;
+
+  unsigned int disp_order[INTER_REFS_PER_FRAME] = { 0 };
+  bool is_overlay[INTER_REFS_PER_FRAME] = { false };
+
+  for (int rf = 0; rf < num_total_refs; ++rf) {
+    const RefCntBuffer *const buf = get_ref_frame_buf(cm, rf);
+    if (buf == NULL) continue;
+    disp_order[rf] = buf->display_order_hint;
+
+    if (!is_ref_restricted[rf] && is_ref_overlay(cm, rf) &&
+        buf->frame_type != KEY_FRAME) {
+      is_overlay[rf] = true;
+    }
+  }
+
+  // Sort reference frames by their display order hint.
+  for (int i = 0; i < num_total_refs; ++i) {
+    for (int j = i + 1; j < num_total_refs; ++j) {
+      if (!is_ref_restricted[sort_ref[j]] &&
+          get_relative_dist(order_hint_info, disp_order[j], disp_order[i]) <
+              0) {
+        const unsigned int tmp_disp = disp_order[i];
+        disp_order[i] = disp_order[j];
+        disp_order[j] = tmp_disp;
+
+        const int tmp_ref = sort_ref[i];
+        sort_ref[i] = sort_ref[j];
+        sort_ref[j] = tmp_ref;
+      }
+    }
+  }
+  // Find the index of the closest past reference frame in sort_ref[].
+  for (int rf_idx = 0; rf_idx < num_total_refs; ++rf_idx) {
+    if (is_ref_restricted[sort_ref[rf_idx]]) continue;
+
+    if (ref_frame_side[sort_ref[rf_idx]] == 0) {
+      *nearest_past_sort_idx = rf_idx;
+    } else {
+      break;
+    }
+  }
+
+  // Perform a topological sort on reference frames to build dependency stack.
+  int visited[INTER_REFS_PER_FRAME] = { 0 };
+  for (int rf = 0; rf < num_total_refs; ++rf) {
+    if (!is_ref_restricted[rf] && visited[rf] == 0) {
+      recur_topo_sort_refs(cm, is_overlay, rf_stack, visited, stack_count, rf);
+    }
+  }
+
+  if (*stack_count < 2) return 0;
+
+  // Map each reference frame to its index in the topologically sorted
+  // rf_stack[].
+  for (int rf = 0; rf < num_total_refs; ++rf) {
+    rf_topo_stack_idx[rf] = -1;
+    if (is_ref_restricted[rf]) continue;
+    for (int stack_idx = 0; stack_idx < *stack_count; ++stack_idx) {
+      if (rf_stack[stack_idx] == rf) {
+        rf_topo_stack_idx[rf] = stack_idx;
+        break;
+      }
+    }
+  }
+
+  return 1;
+}
+
 void av2_setup_motion_field(AV2_COMMON *cm) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+  const int8_t *const ref_frame_side = cm->ref_frame_side;
 
   if (order_hint_info->order_hint_bits_minus_1 < 0) return;
 
@@ -3835,202 +4026,69 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
                             (cm->ref_frames_info.num_past_refs > 0);
 
   if (cm->seq_params.enable_mv_traj) {
-    for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
-      for (int i = 0; i < mvs_rows * mvs_cols; i++) {
+    for (int rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
+      for (int i = 0; i < mvs_rows * mvs_cols; ++i) {
         cm->id_offset_map[rf][i].as_int = INVALID_MV;
-        for (int k = 0; k < 3; k++) {
+        for (int k = 0; k < 3; ++k) {
           cm->blk_id_map[k][rf][i].as_int = INVALID_MV;
         }
       }
     }
   }
 
-  // Find the sorted map of refs.
+  // Stores reference frame indices sorted by their display_order_hint.
   int sort_ref[INTER_REFS_PER_FRAME] = { 0, 1, 2, 3, 4, 5, 6 };
-  int disp_order[INTER_REFS_PER_FRAME] = { 0 };
-
-  bool is_overlay[INTER_REFS_PER_FRAME] = { false };
-  for (int rf = cm->ref_frames_info.num_total_refs - 1; rf >= 0; rf--) {
-    const RefCntBuffer *const buf = get_ref_frame_buf(cm, rf);
-    if (buf != NULL && buf->is_restricted) {
-      continue;
-    }
-    if (is_ref_overlay(cm, rf) &&
-        get_ref_frame_buf(cm, rf)->frame_type != KEY_FRAME) {
-      is_overlay[rf] = true;
-    }
-  }
-
-  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
-    disp_order[rf] = get_ref_frame_buf(cm, rf)->display_order_hint;
-  }
-  // Sort the points by x.
-  for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
-    for (int j = i + 1; j < cm->ref_frames_info.num_total_refs; j++) {
-      if (!get_ref_frame_buf(cm, sort_ref[j])->is_restricted &&
-          get_relative_dist(order_hint_info, disp_order[j], disp_order[i]) <
-              0) {
-        int tmp = disp_order[i];
-        disp_order[i] = disp_order[j];
-        disp_order[j] = tmp;
-
-        tmp = sort_ref[i];
-        sort_ref[i] = sort_ref[j];
-        sort_ref[j] = tmp;
-      }
-    }
-  }
-  int cur_disp_order = cm->cur_frame->display_order_hint;
-  // The idx of rf in sort_ref that is before current frame, and closest.
-  int cur_frame_sort_idx = -1;
-  for (int rf_idx = 0; rf_idx < cm->ref_frames_info.num_total_refs; rf_idx++) {
-    if (get_ref_frame_buf(cm, sort_ref[rf_idx])->is_restricted) continue;
-
-    if (get_relative_dist(order_hint_info, disp_order[rf_idx], cur_disp_order) <
-        0) {
-      cur_frame_sort_idx = rf_idx;
-    } else {
-      break;
-    }
-  }
-
+  // Index of the nearest past reference frame in sort_ref[].
+  int nearest_past_sort_idx = -1;
+  // Stack of reference frames ordered by their topological dependencies (least
+  // to most dependent).
   int rf_stack[INTER_REFS_PER_FRAME];
-  int visited[INTER_REFS_PER_FRAME] = { 0 };
+  // Total number of valid reference frames in the topologically sorted
+  // rf_stack[].
   int stack_count = 0;
-  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
-    if (get_ref_frame_buf(cm, rf)->is_restricted) continue;
-    if (visited[rf] == 0) {
-      recur_topo_sort_refs(cm, is_overlay, rf_stack, visited, &stack_count, rf);
-    }
-  }
-
-  if (stack_count < 2) return;
-
+  // Index of each reference frame in rf_stack[]
   int rf_topo_stack_idx[INTER_REFS_PER_FRAME];
-  for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
-    rf_topo_stack_idx[rf] = -1;
-    if (get_ref_frame_buf(cm, rf)->is_restricted) continue;
-    for (int stack_idx = 0; stack_idx < stack_count; stack_idx++) {
-      if (rf_stack[stack_idx] == rf) {
-        rf_topo_stack_idx[rf] = stack_idx;
-        break;
-      }
-    }
+  if (!sort_and_update_ref_idx(cm, sort_ref, &nearest_past_sort_idx, rf_stack,
+                               &stack_count, rf_topo_stack_idx)) {
+    return;
   }
 
   struct ProcessRefTMVP process_ref[MFMV_STACK_SIZE];
   int process_count = 0;
-  int checked_ref[INTER_REFS_PER_FRAME][2] = { 0 };
+  int checked_ref[INTER_REFS_PER_FRAME][2] = { { 0 } };
 
-  if (cm->seq_params.enable_tip && cur_frame_sort_idx != -1) {
-    if (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2) {
-      if (cm->has_both_sides_refs) {
-        cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
-        cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx + 1];
-      } else if (cm->ref_frames_info.num_past_refs >= 2) {
-        assert(cur_frame_sort_idx > 0);
-        cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
-        cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx - 1];
-      }
-      int start_frame, target_frame;
-      int side;
-      if (rf_topo_stack_idx[cm->tip_ref.ref_frame[0]] >
-          rf_topo_stack_idx[cm->tip_ref.ref_frame[1]]) {
-        start_frame = cm->tip_ref.ref_frame[0];
-        target_frame = cm->tip_ref.ref_frame[1];
-      } else {
-        start_frame = cm->tip_ref.ref_frame[1];
-        target_frame = cm->tip_ref.ref_frame[0];
-      }
-      assert(!(get_ref_frame_buf(cm, start_frame)->is_restricted) &&
-             !(get_ref_frame_buf(cm, target_frame)->is_restricted));
-      int dist_diff = get_relative_dist(
-          order_hint_info,
-          get_ref_frame_buf(cm, start_frame)->display_order_hint,
-          get_ref_frame_buf(cm, target_frame)->display_order_hint);
-
-      side = dist_diff < 0 ? 1 : 0;
-      check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, start_frame,
-                                target_frame, side, checked_ref, process_ref,
-                                &process_count);
-    } else {
-      cm->tip_ref.ref_frame[0] = NONE_FRAME;
-      cm->tip_ref.ref_frame[1] = NONE_FRAME;
-    }
-  }
-  int valid_ref_num = cm->ref_frames_info.num_total_refs;
-  if (cm->ref_frames_info.num_total_refs >
-      cm->ref_frames_info.num_valid_refs_without_restricted_ref)
-    valid_ref_num = cm->ref_frames_info.num_valid_refs_without_restricted_ref;
-  for (int group_idx = 0; group_idx < 2; ++group_idx) {
-    int past_ref_sort_idx =
-        cur_frame_sort_idx >= group_idx ? cur_frame_sort_idx - group_idx : -1;
-    if (past_ref_sort_idx >= 0 &&
-        !has_future_ref(cm, sort_ref[past_ref_sort_idx]))
-      past_ref_sort_idx = -1;
-
-    int future_ref_sort_idx = cur_frame_sort_idx < valid_ref_num - group_idx - 1
-                                  ? cur_frame_sort_idx + 1 + group_idx
-                                  : -1;
-    if (future_ref_sort_idx >= 0 &&
-        !has_past_ref(cm, sort_ref[future_ref_sort_idx]))
-      future_ref_sort_idx = -1;
-
-    const int past_ref_to_its_ref_dist =
-        past_ref_sort_idx >= 0
-            ? get_dist_to_closest_interp_ref(cm, sort_ref[past_ref_sort_idx], 0)
-            : -1;
-
-    const int future_ref_to_its_ref_dist =
-        future_ref_sort_idx >= 0 ? get_dist_to_closest_interp_ref(
-                                       cm, sort_ref[future_ref_sort_idx], 1)
-                                 : -1;
-
-    if (future_ref_to_its_ref_dist < past_ref_to_its_ref_dist) {
-      if (future_ref_sort_idx != -1) {
-        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
-                                  sort_ref[future_ref_sort_idx], -1, 0,
-                                  checked_ref, process_ref, &process_count);
-      }
-      if (past_ref_sort_idx != -1) {
-        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
-                                  sort_ref[past_ref_sort_idx], -1, 1,
-                                  checked_ref, process_ref, &process_count);
-      }
-    } else {
-      if (past_ref_sort_idx != -1) {
-        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
-                                  sort_ref[past_ref_sort_idx], -1, 1,
-                                  checked_ref, process_ref, &process_count);
-      }
-      if (future_ref_sort_idx != -1) {
-        check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
-                                  sort_ref[future_ref_sort_idx], -1, 0,
-                                  checked_ref, process_ref, &process_count);
-      }
-    }
+  if (cm->seq_params.enable_tip && nearest_past_sort_idx != -1) {
+    setup_and_add_tip_ref(cm, nearest_past_sort_idx, sort_ref,
+                          rf_topo_stack_idx, checked_ref, process_ref,
+                          &process_count);
   }
 
-  if (cur_frame_sort_idx >= 0) {
+  add_nearest_past_future_ref(cm, nearest_past_sort_idx, sort_ref, checked_ref,
+                              process_ref, &process_count);
+
+  // In add_nearest_past_future_ref(), the nearest past reference frames
+  // are added to the motion field projection candidate list with side = 1
+  // (projection to future reference frames). Here, the same frames are added
+  // with side = 0 (projection to past reference frames).
+  if (nearest_past_sort_idx >= 0) {
     check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
-                              sort_ref[cur_frame_sort_idx], -1, 0, checked_ref,
+                              sort_ref[nearest_past_sort_idx],
+                              /* target_frame */ -1, /* side */ 0, checked_ref,
                               process_ref, &process_count);
   }
-  if (cur_frame_sort_idx >= 1) {
+  if (nearest_past_sort_idx >= 1) {
     check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE,
-                              sort_ref[cur_frame_sort_idx - 1], -1, 0,
-                              checked_ref, process_ref, &process_count);
+                              sort_ref[nearest_past_sort_idx - 1],
+                              /* target_frame */ -1, /* side */ 0, checked_ref,
+                              process_ref, &process_count);
   }
 
-  for (int ri = stack_count - 1; ri > 0; ri--) {
-    int side;
-    const int ref_hint =
-        get_ref_frame_buf(cm, rf_stack[ri])->display_order_hint;
-    if (get_relative_dist(order_hint_info, ref_hint, cur_disp_order) < 0) {
-      side = 1;
-    } else {
-      side = 0;
-    }
+  // Iterate through the topologically sorted reference frames (most to least
+  // dependent) and add to motion field projection candidate list if not added
+  // previously.
+  for (int ri = stack_count - 1; ri > 0; --ri) {
+    // Set side to 1 if rf_stack[ri] is a past reference, and 0 otherwise.
+    int side = ref_frame_side[rf_stack[ri]] == 0 ? 1 : 0;
 
     if (!checked_ref[rf_stack[ri]][side]) {
       check_and_add_process_ref(cm, MFMV_STACK_SIZE, rf_stack[ri], -1, side,
@@ -4058,7 +4116,7 @@ void av2_setup_motion_field(AV2_COMMON *cm) {
     // Cap the reference frame combination to 1 for reduced_ref_frame_mvs_mode.
     process_count = AVMMIN(1, process_count);
   }
-  for (int pi = 0; pi < process_count; pi++) {
+  for (int pi = 0; pi < process_count; ++pi) {
     motion_field_projection_side(cm, process_ref[pi].start_frame,
                                  process_ref[pi].target_frame,
                                  process_ref[pi].side);

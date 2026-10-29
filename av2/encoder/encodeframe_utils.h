@@ -26,27 +26,11 @@
 extern "C" {
 #endif
 
-enum {
-  SB_SINGLE_PASS,  // Single pass encoding: all ctxs get updated normally
-  SB_DRY_PASS,     // First pass of multi-pass: does not update the ctxs
-  SB_WET_PASS      // Second pass of multi-pass: finalize and update the ctx
-} UENUM1BYTE(SB_MULTI_PASS_MODE);
-
 typedef struct {
   ENTROPY_CONTEXT a[MAX_MIB_SIZE * MAX_MB_PLANE];
   ENTROPY_CONTEXT l[MAX_MIB_SIZE * MAX_MB_PLANE];
   PARTITION_CONTEXT sa[MAX_MIB_SIZE * MAX_MB_PLANE];
   PARTITION_CONTEXT sl[MAX_MIB_SIZE * MAX_MB_PLANE];
-
-  //! The current level bank, used to restore the level bank in MACROBLOCKD.
-  REF_MV_BANK curr_level_bank;
-  //! The best level bank from the rdopt process.
-  REF_MV_BANK best_level_bank;
-  //! The current warp, level bank, used to restore the warp level bank in
-  //! MACROBLOCKD.
-  WARP_PARAM_BANK curr_level_warp_bank;
-  //! The best warp level bank from the rdopt process.
-  WARP_PARAM_BANK best_level_warp_bank;
 } RD_SEARCH_MACROBLOCK_CONTEXT;
 
 // This struct is used to store the statistics used by sb-level multi-pass
@@ -123,14 +107,8 @@ typedef struct PartitionTimingStats {
 
 // Structure holding state variables for partition search.
 typedef struct PartitionSearchState {
-  // Intra partitioning related info.
-  PartitionSearchInfo *intra_part_info;
-
   // Parameters related to partition block size.
   PartitionBlkParams part_blk_params;
-
-  // Win flags for HORZ and VERT partition evaluations.
-  RD_RECT_PART_WIN_INFO split_part_rect_win[SUB_PARTITIONS_SPLIT];
 
   // RD cost for the current block of given partition type.
   RD_STATS this_rdc;
@@ -160,19 +138,24 @@ typedef struct PartitionSearchState {
 
   // Flags to prune/skip particular partition size evaluation.
   bool terminate_partition_search;
-  bool prune_partition[EXT_PARTITION_TYPES];
-#if CONFIG_ML_PART_SPLIT
-  bool prune_partition_split;
-#endif  // CONFIG_ML_PART_SPLIT
+  bool prune_partition[ALL_PARTITION_TYPES];
 
   // Pointer to an array that traces out the current best partition boundary.
   // Used by prune_part_h_with_partition_boundary and
   // prune_part_4_with_partition_boundary.
-  bool *partition_boundaries;
+  uint8_t *partition_boundaries;
 
   // Chroma subsampling in x and y directions.
   int ss_x;
   int ss_y;
+
+  // Block scale directional structure of the source block, filled in lazily the
+  // first time the orientation based partition pruning needs it.
+  // src_var_rows is the variance of the row mean profile,
+  // src_var_cols that of the column mean profile.
+  uint64_t src_var_rows;
+  uint64_t src_var_cols;
+  bool src_var_valid;
 
   // This flag will be set if best partition is found from the search.
   bool found_best_partition;
@@ -181,6 +164,53 @@ typedef struct PartitionSearchState {
   PartitionTimingStats part_timing_stats;
 #endif  // CONFIG_COLLECT_PARTITION_STATS
 } PartitionSearchState;
+
+// Set the per-block two-pass flags from the SB pass mode. Called before every
+// pick_sb_modes so the flags stay in one place. The block-level dry-pass
+// shortcuts fire only on the fast two-pass level, not the conservative one.
+static AVM_INLINE void av2_set_two_pass_flags(
+    const AV2_COMP *cpi, MACROBLOCK *x, SB_MULTI_PASS_MODE multi_pass_mode,
+    const PartitionSearchState *part_search_state) {
+  const bool fast_two_pass = av2_two_pass_part_is_fast(&cpi->sf.part_sf);
+  x->apply_dry_pass_shortcuts =
+      fast_two_pass && (multi_pass_mode == SB_DRY_PASS);
+  x->may_consume_dry_pass_info =
+      fast_two_pass && (multi_pass_mode == SB_WET_PASS);
+  const bool is_wet_pass_reuse =
+      (fast_two_pass && multi_pass_mode == SB_WET_PASS && part_search_state &&
+       part_search_state->forced_partition != PARTITION_INVALID);
+  if (x->apply_dry_pass_shortcuts) {
+    // Dry pass: rough shape ranking only.
+    x->intra_mode_prune_top = 1;
+    x->inter_mode_prune_top = 2;
+  } else if (is_wet_pass_reuse) {
+    // Wet pass reusing the dry-pass shape.
+    x->intra_mode_prune_top = 2;
+    x->inter_mode_prune_top = 4;
+  } else {
+    // Full pool.
+    x->intra_mode_prune_top = cpi->sf.intra_sf.intra_pruning_with_mlp
+                                  ? cpi->sf.intra_sf.intra_mode_prune_top
+                                  : TOP_INTRA_MODEL_COUNT;
+    x->inter_mode_prune_top = TOP_MOTION_MODE_MODEL_COUNT;
+  }
+}
+
+// True when partition-level ML and fast-pruning heuristics should run.
+//   * FAST dry pass:               false -- dry pass is already fast, and
+//                                   the models expect full-tool RD inputs.
+//   * FAST wet pass, forced shape: false -- shape is fixed by the dry pass,
+//                                   so the model output is discarded.
+//   * FAST wet pass, reopened:     true  -- block is genuinely searched.
+//   * CONSERVATIVE / one-pass:     true  -- both flags stay false here.
+static AVM_INLINE bool av2_partition_ml_pruning_active(
+    const MACROBLOCK *x, PARTITION_TYPE forced_partition) {
+  if (x->apply_dry_pass_shortcuts) return false;
+  if (x->may_consume_dry_pass_info && forced_partition != PARTITION_INVALID) {
+    return false;
+  }
+  return true;
+}
 
 static AVM_INLINE void update_wedge_mode_cdf(FRAME_CONTEXT *fc,
                                              const BLOCK_SIZE bsize,

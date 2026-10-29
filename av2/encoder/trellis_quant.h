@@ -70,6 +70,7 @@ typedef struct prequant_t {
   int32_t absLevel[4];
   int64_t deltaDist[4];
   int16_t qIdx;
+  int16_t orig_qIdx;
 } prequant_t;
 
 typedef struct tcq_rate_t {
@@ -102,7 +103,6 @@ typedef struct tcq_param_t {
   const int32_t *dequant;
   const qm_val_t *iqmatrix;
   const uint16_t *block_eob_rate;
-  const TXB_CTX *txb_ctx;
   const LV_MAP_COEFF_COST *txb_costs;
 } tcq_param_t;
 
@@ -235,8 +235,8 @@ int av2_find_best_path(const struct tcq_node_t *trellis, const int16_t *scan,
  */
 int av2_trellis_quant(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
                       int block, TX_SIZE tx_size, TX_TYPE tx_type,
-                      CctxType cctx_type, const TXB_CTX *const txb_ctx,
-                      int *rate_cost, int sharpness);
+                      const TXB_CTX *const txb_ctx, int *rate_cost,
+                      int sharpness);
 
 #ifdef __cplusplus
 }

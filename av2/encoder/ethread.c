@@ -33,7 +33,7 @@ static AVM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
   td->rd_counts.skip_mode_used_flag |= td_t->rd_counts.skip_mode_used_flag;
 
   for (int i = 0; i < TX_SIZES_ALL; i++) {
-    for (int j = 0; j < TX_TYPES; j++)
+    for (int j = 0; j < PRIMARY_TX_TYPES; j++)
       td->rd_counts.tx_type_used[i][j] += td_t->rd_counts.tx_type_used[i][j];
   }
 
@@ -418,6 +418,9 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     pthread_mutex_unlock(enc_row_mt_mutex_);
 #endif
     set_encoding_done(cpi);
+    av2_free_pc_tree_recursive(thread_data->td->pc_root,
+                               av2_num_planes(&cpi->common), 0, 0);
+    thread_data->td->pc_root = NULL;
     return 0;
   }
   error_info->setjmp = 1;
@@ -426,6 +429,12 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
   int cur_tile_id = enc_row_mt->thread_id_to_tile_id[thread_id];
 
   assert(cur_tile_id != -1);
+
+  if (cpi->sf.rt_sf.use_nonrd_partition) {
+    thread_data->td->pc_root = av2_alloc_pc_tree_node(
+        SHARED_PART, 0, 0, cm->sb_size, cm->sb_size, NULL, PARTITION_NONE, 0, 1,
+        cm->seq_params.subsampling_x, cm->seq_params.subsampling_y);
+  }
 
   int end_of_frame = 0;
   bool row_mt_exit = false;
@@ -491,6 +500,9 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 #endif
   }
 
+  av2_free_pc_tree_recursive(thread_data->td->pc_root, av2_num_planes(cm), 0,
+                             0);
+  thread_data->td->pc_root = NULL;
   error_info->setjmp = 0;
   return 1;
 }
@@ -513,9 +525,18 @@ static int enc_worker_hook(void *arg1, void *arg2) {
   // before it returns.
   if (setjmp(error_info->jmp)) {
     error_info->setjmp = 0;
+    av2_free_pc_tree_recursive(thread_data->td->pc_root, av2_num_planes(cm), 0,
+                               0);
+    thread_data->td->pc_root = NULL;
     return 0;
   }
   error_info->setjmp = 1;
+
+  if (cpi->sf.rt_sf.use_nonrd_partition) {
+    thread_data->td->pc_root = av2_alloc_pc_tree_node(
+        SHARED_PART, 0, 0, cm->sb_size, cm->sb_size, NULL, PARTITION_NONE, 0, 1,
+        cm->seq_params.subsampling_x, cm->seq_params.subsampling_y);
+  }
 
   for (t = thread_data->start; t < tile_rows * tile_cols; t += num_workers) {
     int tile_row = t / tile_cols;
@@ -527,6 +548,9 @@ static int enc_worker_hook(void *arg1, void *arg2) {
     av2_encode_tile(cpi, thread_data->td, tile_row, tile_col);
   }
 
+  av2_free_pc_tree_recursive(thread_data->td->pc_root, av2_num_planes(cm), 0,
+                             0);
+  thread_data->td->pc_root = NULL;
   error_info->setjmp = 0;
   return 1;
 }
@@ -619,12 +643,10 @@ static AVM_INLINE void create_enc_workers(AV2_COMP *cpi, int num_workers) {
           avm_memalign(16, ((MAX_SB_SIZE + 16) + 16) * MAX_SB_SIZE *
                                sizeof(*thread_data->td->upsample_pred)));
 
-      for (int j = 0; j < 2; ++j) {
-        CHECK_MEM_ERROR(
-            cm, thread_data->td->tmp_pred_bufs[j],
-            avm_memalign(32, 2 * MAX_MB_PLANE * MAX_SB_SQUARE *
-                                 sizeof(*thread_data->td->tmp_pred_bufs[j])));
-      }
+      CHECK_MEM_ERROR(
+          cm, thread_data->td->tmp_pred_bufs,
+          avm_memalign(32, MAX_MB_PLANE * MAX_SB_SQUARE *
+                               sizeof(*thread_data->td->tmp_pred_bufs)));
 
       CHECK_MEM_ERROR(
           cm, thread_data->td->mbmi_ext,
@@ -848,12 +870,7 @@ static AVM_INLINE void prepare_enc_workers(AV2_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb.opfl_vxy_bufs = thread_data->td->opfl_vxy_bufs;
       thread_data->td->mb.opfl_gxy_bufs = thread_data->td->opfl_gxy_bufs;
       thread_data->td->mb.opfl_dst_bufs = thread_data->td->opfl_dst_bufs;
-
-      for (int j = 0; j < 2; ++j) {
-        thread_data->td->mb.tmp_pred_bufs[j] =
-            thread_data->td->tmp_pred_bufs[j];
-      }
-
+      thread_data->td->mb.tmp_pred_bufs = thread_data->td->tmp_pred_bufs;
       thread_data->td->mb.e_mbd.tmp_conv_dst = thread_data->td->mb.tmp_conv_dst;
       thread_data->td->mb.e_mbd.tmp_upsample_pred =
           thread_data->td->mb.upsample_pred;

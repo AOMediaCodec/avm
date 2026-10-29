@@ -219,42 +219,6 @@ void av2_intra_mlp_compute_mode_mask(
     uint8_t mlp_mode_mask[INTRA_MODES], int *mlp_fallback,
     uint8_t directional_mode_skip_mask[INTRA_MODES]);
 
-/*!\brief Search for the best forward skip coding mode for intra blocks.
- *
- * \ingroup intra_mode_search
- * \callergraph
- * \callgraph
- * This function searches for the best forward skip coding mode when
- * the current frame is an intra frame.
- *
- * \param[in]    cpi                Top-level encoder structure.
- * \param[in]    x                  Pointer to structure holding all the data
- *                                  for the current macroblock.
- * \param[in]    rate               The total rate needed to predict the current
- *                                  chroma block.
- * \param[in]    rate_tokenonly     The rate without the cost of sending the
- *                                  prediction modes.
- *                                  chroma block.
- *                                  after the reconstruction.
- * \param[in]    distortion         The chroma distortion of the best prediction
- *                                  after the reconstruction.
- * \param[in]    skippable          Whether we can skip txfm process.
- * \param[in]    bsize              Current partition block size.
- * \param[in]    mode_costs         Costs associated with different intra modes.
- * \param[in]    dir_skip_mask      Whether a directional mode is pruned.
- * \param[in]    best_rd            Best RD seen for this block so far.
- * \param[in]    best_model_rd      Best model RD seen for this block so far.
- * \param[in]    ctx                Structure to hold the number of 4x4 blks to
- *                                  copy the tx_type and txfm_skip arrays.
- * \param[in]    best_mbmi          Pointer to structure holding
- *                                  the mode info for the best macroblock.
- */
-void search_fsc_mode(const AV2_COMP *const cpi, MACROBLOCK *x, int *rate,
-                     int *rate_tokenonly, int64_t *distortion, int *skippable,
-                     BLOCK_SIZE bsize, int mode_costs, uint8_t *dir_skip_mask,
-                     int64_t *best_rd, int64_t *best_model_rd,
-                     PICK_MODE_CONTEXT *ctx, MB_MODE_INFO *best_mbmi);
-
 /*!\brief Evaluate luma palette mode for inter frames.
  *
  * \ingroup intra_mode_search
@@ -322,19 +286,20 @@ int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
  *                                  after the reconstruction.
  * \param[in]    skippable          Whether we can skip txfm process.
  * \param[in]    bsize              Current partition block size.
- * \param[in]    best_rd            Best RD seen for this block so far.
+ * \param[in]    best_rd_so_far     Best RD seen for this block so far.
  * \param[in]    ctx                Structure to hold the number of 4x4 blks to
  *                                  copy the tx_type and txfm_skip arrays.
  *
  * \return Returns the rd_cost if this function finds a mode better than
- * best_rd, otherwise returns INT64_MAX. This also updates the mbmi, the rate
- * and distortion, and the tx_type arrays in ctx.
+ * best_rd_so_far, otherwise returns INT64_MAX. This also updates the mbmi, the
+ * rate and distortion, and the tx_type arrays in ctx.
  */
 int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
                                    MACROBLOCK *x, int *rate,
                                    int *rate_tokenonly, int64_t *distortion,
                                    int *skippable, BLOCK_SIZE bsize,
-                                   int64_t best_rd, PICK_MODE_CONTEXT *ctx);
+                                   int64_t best_rd_so_far,
+                                   PICK_MODE_CONTEXT *ctx);
 
 /*!\brief Perform intra-mode search on chroma channels.
  *
@@ -363,7 +328,6 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
  *                                  copy the tx_type and txfm_skip arrays.
  * \param[in]    mode_rd_info_uv    Buffer to hold UV modes RD information.
  * \param[in]    bsize              Current partition block size.
- * \param[in]    max_tx_size        The maximum tx_size available
  *
  * \return Returns the rd_cost of the best uv mode found. This also updates the
  * mbmi, the rate and distortion, distortion.
@@ -372,7 +336,7 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
                                     int *rate, int *rate_tokenonly,
                                     int64_t *distortion, int *skippable,
                                     const PICK_MODE_CONTEXT *ctx,
-                                    BLOCK_SIZE bsize, TX_SIZE max_tx_size,
+                                    BLOCK_SIZE bsize,
                                     ModeRDInfoUV *mode_rd_info_uv);
 
 /*! \brief Return the number of colors in src. Used by palette mode.
@@ -387,11 +351,14 @@ void av2_count_colors_highbd(const uint16_t *src, int stride, int rows,
  *                                  far.
  * \param[in]    top_intra_model_rd Top intra model RD seen for this
  *                                  block so far.
- * \param[in]    k                  Number of top model RD candidates to
- *                                  keep in top_intra_model_rd.
+ * \param[in]    prune_top          Cap on the number of top candidates that
+ *                                  get full RD.
+ * \param[in]    lossless           True if current block is lossless.
+ * \param[in]    use_dpcm_y         True if block is lossless with DPCM mode.
  */
-int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
-                       int64_t top_intra_model_rd[], int k);
+bool prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
+                        int64_t top_intra_model_rd[], int prune_top,
+                        int lossless, uint8_t use_dpcm_y);
 
 #ifdef __cplusplus
 }  // extern "C"

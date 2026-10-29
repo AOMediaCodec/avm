@@ -296,6 +296,56 @@ void av2_alloc_cdef_buffers(AV2_COMMON *const cm,
                       cdef_info->allocated_mi_rows);
 }
 
+void av2_alloc_restoration_line_buffers(AV2_COMMON *const cm,
+                                        RestorationLineBuffers **rlbs_ptr) {
+  if (!*rlbs_ptr) {
+    CHECK_MEM_ERROR(cm, *rlbs_ptr, avm_calloc(1, sizeof(**rlbs_ptr)));
+  }
+
+  RestorationLineBuffers *rlbs = *rlbs_ptr;
+  const int frame_w = cm->mi_params.mi_cols << MI_SIZE_LOG2;
+  for (PLANE_TYPE ptype = PLANE_TYPE_Y;
+       ptype <= (cm->seq_params.monochrome ? PLANE_TYPE_Y : PLANE_TYPE_UV);
+       ++ptype) {
+    // allocate for line buffer width.
+    const int ss_x = ptype && cm->seq_params.subsampling_x;
+    const int plane_w =
+        ((frame_w + ss_x) >> ss_x) + 2 * RESTORATION_BORDER_HORZ;
+    const int stride = ALIGN_POWER_OF_TWO(plane_w, 5);
+
+    if (stride > rlbs->line_stride[ptype]) {
+      for (int i = 0; i < RESTORATION_BORDER_VERT; ++i) {
+        avm_free(rlbs->tmp_save_above[ptype][i]);
+        rlbs->tmp_save_above[ptype][i] = NULL;
+        CHECK_MEM_ERROR(
+            cm, rlbs->tmp_save_above[ptype][i],
+            avm_memalign(32, stride * sizeof(*rlbs->tmp_save_above[ptype][i])));
+
+        avm_free(rlbs->tmp_save_below[ptype][i]);
+        rlbs->tmp_save_below[ptype][i] = NULL;
+        CHECK_MEM_ERROR(
+            cm, rlbs->tmp_save_below[ptype][i],
+            avm_memalign(32, stride * sizeof(*rlbs->tmp_save_below[ptype][i])));
+      }
+      rlbs->line_stride[ptype] = stride;
+    }
+  }
+}
+
+void av2_free_restoration_line_buffers(RestorationLineBuffers *rlbs) {
+  if (rlbs) {
+    for (PLANE_TYPE ptype = PLANE_TYPE_Y; ptype < PLANE_TYPES; ++ptype) {
+      for (int i = 0; i < RESTORATION_BORDER_VERT; ++i) {
+        avm_free(rlbs->tmp_save_above[ptype][i]);
+        rlbs->tmp_save_above[ptype][i] = NULL;
+        avm_free(rlbs->tmp_save_below[ptype][i]);
+        rlbs->tmp_save_below[ptype][i] = NULL;
+      }
+    }
+    avm_free(rlbs);
+  }
+}
+
 // Assumes cm->rst_info[p].restoration_unit_size is already initialized
 void av2_alloc_restoration_buffers(AV2_COMMON *cm) {
   const int num_planes = av2_num_planes(cm);
@@ -307,9 +357,8 @@ void av2_alloc_restoration_buffers(AV2_COMMON *cm) {
     translate_pcwiener_filters_to_wienerns(cm);
   }
 
-  if (cm->rlbs == NULL) {
-    CHECK_MEM_ERROR(cm, cm->rlbs, avm_malloc(sizeof(RestorationLineBuffers)));
-  }
+  av2_alloc_restoration_line_buffers(cm, &cm->rlbs);
+
   if (cm->lru_stripe_buf == NULL) {
     CHECK_MEM_ERROR(
         cm, cm->lru_stripe_buf,
@@ -373,7 +422,7 @@ void av2_free_restoration_buffers(AV2_COMMON *cm) {
   int p;
   for (p = 0; p < MAX_MB_PLANE; ++p)
     av2_free_restoration_struct(&cm->rst_info[p]);
-  avm_free(cm->rlbs);
+  av2_free_restoration_line_buffers(cm->rlbs);
   cm->rlbs = NULL;
   avm_free(cm->lru_stripe_buf);
   cm->lru_stripe_buf = NULL;
@@ -551,9 +600,10 @@ int av2_alloc_superblock_info_buffers(AV2_COMMON *cm) {
   return alloc_sbi(sbi_params);
 }
 
-int av2_alloc_context_buffers(AV2_COMMON *cm, int width, int height) {
+int av2_alloc_context_buffers(AV2_COMMON *cm, int width, int height,
+                              int speed) {
   CommonModeInfoParams *const mi_params = &cm->mi_params;
-  mi_params->set_mb_mi(mi_params, width, height);
+  mi_params->set_mb_mi(mi_params, width, height, speed);
   if (alloc_mi(mi_params, cm, height)) goto fail;
 
   if (av2_alloc_superblock_info_buffers(cm)) goto fail;
@@ -562,7 +612,7 @@ int av2_alloc_context_buffers(AV2_COMMON *cm, int width, int height) {
 
 fail:
   // clear the mi_* values to force a realloc on resync
-  mi_params->set_mb_mi(mi_params, 0, 0);
+  mi_params->set_mb_mi(mi_params, 0, 0, speed);
   av2_free_context_buffers(cm);
   return 1;
 }

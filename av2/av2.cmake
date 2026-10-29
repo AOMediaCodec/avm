@@ -116,9 +116,6 @@ list(APPEND AVM_AV2_COMMON_INTRIN_AVX2
      "${AVM_ROOT}/av2/common/x86/intra_matrix_avx2.c")
 
 if(CONFIG_AV2_ENCODER)
-  list(APPEND AVM_AV2_COMMON_SOURCES "${AVM_ROOT}/av2/encoder/erp_ml.c"
-       "${AVM_ROOT}/av2/encoder/erp_ml.h")
-
   if(CONFIG_TENSORFLOW_LITE)
     list(APPEND AVM_AV2_COMMON_SOURCES
          "${AVM_ROOT}/av2/tflite_models/op_registrations.cc"
@@ -193,8 +190,6 @@ list(
   "${AVM_ROOT}/av2/encoder/bitstream_ci.c"
   "${AVM_ROOT}/av2/encoder/bitstream.h"
   "${AVM_ROOT}/av2/encoder/block.h"
-  "${AVM_ROOT}/av2/encoder/cnn.c"
-  "${AVM_ROOT}/av2/encoder/cnn.h"
   "${AVM_ROOT}/av2/encoder/compound_type.c"
   "${AVM_ROOT}/av2/encoder/compound_type.h"
   "${AVM_ROOT}/av2/encoder/context_tree.c"
@@ -254,6 +249,8 @@ list(
   "${AVM_ROOT}/av2/encoder/partition_search.c"
   "${AVM_ROOT}/av2/encoder/partition_mlp.h"
   "${AVM_ROOT}/av2/encoder/partition_mlp.c"
+  "${AVM_ROOT}/av2/encoder/partition_sms.h"
+  "${AVM_ROOT}/av2/encoder/partition_sms.c"
   "${AVM_ROOT}/av2/encoder/partition_strategy.h"
   "${AVM_ROOT}/av2/encoder/partition_strategy.c"
   "${AVM_ROOT}/av2/encoder/pass2_strategy.h"
@@ -288,6 +285,8 @@ list(
   "${AVM_ROOT}/av2/encoder/tokenize.h"
   "${AVM_ROOT}/av2/encoder/tpl_model.c"
   "${AVM_ROOT}/av2/encoder/tpl_model.h"
+  "${AVM_ROOT}/av2/encoder/tx_cache.c"
+  "${AVM_ROOT}/av2/encoder/tx_cache.h"
   "${AVM_ROOT}/av2/encoder/tx_search.c"
   "${AVM_ROOT}/av2/encoder/tx_search.h"
   "${AVM_ROOT}/av2/encoder/intra_mode_search.c"
@@ -395,6 +394,9 @@ list(
 list(APPEND AVM_AV2_COMMON_INTRIN_AVX2
      "${AVM_ROOT}/av2/common/gdf_block_avx2.c")
 
+list(APPEND AVM_AV2_COMMON_INTRIN_AVX512
+     "${AVM_ROOT}/av2/common/x86/affine_optflow_refine_avx512.c")
+
 list(APPEND AVM_AV2_ENCODER_ASM_SSE2 "${AVM_ROOT}/av2/encoder/x86/dct_sse2.asm")
 
 list(
@@ -431,6 +433,8 @@ list(
   "${AVM_ROOT}/av2/encoder/x86/rdopt_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/pickrst_avx2.c")
 
+list(APPEND AVM_AV2_ENCODER_INTRIN_AVX512)
+
 list(
   APPEND
   AVM_AV2_ENCODER_INTRIN_NEON
@@ -454,6 +458,7 @@ list(
   "${AVM_ROOT}/av2/common/arm/convolve_neon.c"
   "${AVM_ROOT}/av2/common/arm/convolve_neon.h"
   "${AVM_ROOT}/av2/common/arm/highbd_convolve_neon.c"
+  "${AVM_ROOT}/av2/common/arm/highbd_cwp_convolve_neon.c"
   "${AVM_ROOT}/av2/common/arm/highbd_inv_txfm_neon.c"
   "${AVM_ROOT}/av2/common/arm/reconinter_neon.c"
   "${AVM_ROOT}/av2/common/arm/highbd_warp_affine_neon.c"
@@ -586,6 +591,30 @@ function(setup_av2_targets)
     if(CONFIG_AV2_ENCODER)
       add_intrinsics_object_library("-mavx2" "avx2" "avm_av2_encoder"
                                     "AVM_AV2_ENCODER_INTRIN_AVX2")
+    endif()
+  endif()
+
+  if(HAVE_AVX512)
+    set(AVM_AVX512_FLAG "-mavx512f -mavx512dq -mavx512bw -mavx512vl")
+    # Only probe/require the AVX-512 flags once there are sources to build.
+    if(AVM_AV2_COMMON_INTRIN_AVX512 OR (CONFIG_AV2_ENCODER
+                                        AND AVM_AV2_ENCODER_INTRIN_AVX512))
+      require_compiler_flag_nomsvc("-mavx512f" NO)
+      require_compiler_flag_nomsvc("-mavx512dq" NO)
+      require_compiler_flag_nomsvc("-mavx512bw" NO)
+      require_compiler_flag_nomsvc("-mavx512vl" NO)
+    endif()
+
+    if(AVM_AV2_COMMON_INTRIN_AVX512)
+      add_intrinsics_object_library(
+        "${AVM_AVX512_FLAG}" "avx512" "avm_av2_common"
+        "AVM_AV2_COMMON_INTRIN_AVX512")
+    endif()
+
+    if(CONFIG_AV2_ENCODER AND AVM_AV2_ENCODER_INTRIN_AVX512)
+      add_intrinsics_object_library(
+        "${AVM_AVX512_FLAG}" "avx512" "avm_av2_encoder"
+        "AVM_AV2_ENCODER_INTRIN_AVX512")
     endif()
   endif()
 

@@ -27,7 +27,7 @@ extern "C" {
 #define AM_SEGMENT_ID_ACTIVE 0
 
 extern const int av2_default_tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL]
-                                          [TX_TYPES];
+                                          [PRIMARY_TX_TYPES];
 
 extern const int av2_default_warped_probs[FRAME_UPDATE_TYPES];
 
@@ -96,16 +96,28 @@ static AVM_INLINE void enc_free_mi(CommonModeInfoParams *mi_params) {
   av2_dealloc_class_id_array(mi_params);
 }
 
+// The smallest block the encoder's partition search may produce: 8x8 at 4k,
+// and at 1080p from speed 1; 4x4 otherwise. Shared by enc_set_mb_mi(), which
+// sizes the mode-info grid, and set_good_speed_feature_framesize_dependent(),
+// which sets default_min_partition_size -- the two must agree.
+static AVM_INLINE BLOCK_SIZE av2_enc_partition_floor(int speed, int width,
+                                                     int height) {
+  const int min_dim = AVMMIN(width, height);
+  if (min_dim >= 2160) return BLOCK_8X8;
+  if (min_dim >= 1080 && speed >= 1) return BLOCK_8X8;
+  return BLOCK_4X4;
+}
+
 static AVM_INLINE void enc_set_mb_mi(CommonModeInfoParams *mi_params, int width,
-                                     int height) {
-  const int is_4k_or_larger = AVMMIN(width, height) >= 2160;
-  mi_params->mi_alloc_bsize = is_4k_or_larger ? BLOCK_8X8 : BLOCK_4X4;
+                                     int height, int speed) {
+  mi_params->mi_alloc_bsize = av2_enc_partition_floor(speed, width, height);
 
   set_mb_mi(mi_params, width, height);
 }
 
 static AVM_INLINE void stat_stage_set_mb_mi(CommonModeInfoParams *mi_params,
-                                            int width, int height) {
+                                            int width, int height, int speed) {
+  (void)speed;
   mi_params->mi_alloc_bsize = BLOCK_16X16;
 
   set_mb_mi(mi_params, width, height);
@@ -143,16 +155,16 @@ static AVM_INLINE void init_buffer_indices(
   cpi->fn_ptr[BT].jsdaf = JSDAF;                                       \
   cpi->fn_ptr[BT].jsvaf = JSVAF;
 
-#define HIGHBD_BFP_WRAPPER(WIDTH, HEIGHT, BD)                                \
-  HIGHBD_BFP(                                                                \
-      BLOCK_##WIDTH##X##HEIGHT, avm_highbd_sad##WIDTH##x##HEIGHT##_bits##BD, \
-      avm_highbd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,                       \
-      avm_highbd_##BD##_variance##WIDTH##x##HEIGHT,                          \
-      avm_highbd_##BD##_sub_pixel_variance##WIDTH##x##HEIGHT,                \
-      avm_highbd_##BD##_sub_pixel_avg_variance##WIDTH##x##HEIGHT,            \
-      avm_highbd_sad##WIDTH##x##HEIGHT##x4d_bits##BD,                        \
-      avm_highbd_dist_wtd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,              \
-      avm_highbd_##BD##_dist_wtd_sub_pixel_avg_variance##WIDTH##x##HEIGHT)
+#define HIGHBD_BFP_WRAPPER(WIDTH, HEIGHT, BD)                            \
+  HIGHBD_BFP(BLOCK_##WIDTH##X##HEIGHT,                                   \
+             avm_highbd_sad##WIDTH##x##HEIGHT##_bits##BD,                \
+             avm_highbd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,            \
+             avm_highbd_##BD##_variance##WIDTH##x##HEIGHT,               \
+             avm_highbd_##BD##_sub_pixel_variance##WIDTH##x##HEIGHT,     \
+             avm_highbd_##BD##_sub_pixel_avg_variance##WIDTH##x##HEIGHT, \
+             avm_highbd_sad##WIDTH##x##HEIGHT##x4d_bits##BD,             \
+             avm_highbd_cwp_sad##WIDTH##x##HEIGHT##_avg_bits##BD,        \
+             avm_highbd_##BD##_cwp_sub_pixel_avg_variance##WIDTH##x##HEIGHT)
 
 #define MAKE_BFP_SAD_WRAPPER(fnname)                                       \
   static unsigned int fnname##_bits8(                                      \
@@ -215,24 +227,24 @@ static AVM_INLINE void init_buffer_indices(
   static unsigned int fnname##_bits8(                                       \
       const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
       int ref_stride, const uint16_t *second_pred,                          \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
+      const CWP_PARAMS *cwp_param) {                                        \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param);                                               \
+                  cwp_param);                                               \
   }                                                                         \
   static unsigned int fnname##_bits10(                                      \
       const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
       int ref_stride, const uint16_t *second_pred,                          \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
+      const CWP_PARAMS *cwp_param) {                                        \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param) >>                                             \
+                  cwp_param) >>                                             \
            2;                                                               \
   }                                                                         \
   static unsigned int fnname##_bits12(                                      \
       const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
       int ref_stride, const uint16_t *second_pred,                          \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
+      const CWP_PARAMS *cwp_param) {                                        \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param) >>                                             \
+                  cwp_param) >>                                             \
            4;                                                               \
   }
 
@@ -336,38 +348,38 @@ MAKE_BFP_SAD_WRAPPER(avm_highbd_sad4x32)
 MAKE_BFP_SADAVG_WRAPPER(avm_highbd_sad4x32_avg)
 MAKE_BFP_SAD4D_WRAPPER(avm_highbd_sad4x32x4d)
 
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad256x256_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad256x128_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad128x256_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad256x256_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad256x128_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad128x256_avg)
 
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad128x128_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad128x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad64x128_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad32x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad16x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad64x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad32x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad32x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad64x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad16x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad16x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad8x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad8x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad8x4_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad4x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad4x4_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad4x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad16x4_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad8x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad32x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad16x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad64x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad8x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad64x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad4x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad64x4_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad4x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_dist_wtd_sad32x4_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad128x128_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad128x64_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad64x128_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad32x16_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad16x32_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad64x32_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad32x64_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad32x32_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad64x64_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad16x16_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad16x8_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad8x16_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad8x8_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad8x4_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad4x8_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad4x4_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad4x16_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad16x4_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad8x32_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad32x8_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad16x64_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad64x16_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad8x64_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad64x8_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad4x64_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad64x4_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad4x32_avg)
+MAKE_BFP_JSADAVG_WRAPPER(avm_highbd_cwp_sad32x4_avg)
 
 #define HIGHBD_MBFP(BT, MCSDF, MCSVF) \
   cpi->fn_ptr[BT].msdf = MCSDF;       \
@@ -960,6 +972,21 @@ void av2_scale_references(AV2_COMP *cpi, const InterpFilter filter,
                           const int phase, const int use_optimized_scaler);
 
 void av2_setup_frame(AV2_COMP *cpi);
+
+// Config-time part of the TWO_PASS_PART_FAST predicate.
+// TODO(Yeqing): Extend to intra/key frames and drop the all_intra guard.
+static INLINE bool av2_wants_two_pass_partition(const AV2EncoderConfig *oxcf) {
+  const int all_intra =
+      oxcf->kf_cfg.key_freq_max == 0 && oxcf->kf_cfg.key_freq_min == 0;
+  if (oxcf->mode != GOOD || all_intra) return false;
+  if (oxcf->speed >= 3) return true;
+  if (oxcf->speed == 2) {
+    const int is_2160p_or_larger =
+        AVMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) >= 2160;
+    return is_2160p_or_larger;
+  }
+  return false;
+}
 
 BLOCK_SIZE av2_select_sb_size(const AV2_COMP *const cpi);
 void set_ard_active_map(AV2_COMP *cpi);

@@ -88,7 +88,6 @@ if(NOT BUILD_SHARED_LIBS)
     APPEND
     AVM_UNIT_TEST_COMMON_SOURCES
     "${AVM_ROOT}/test/av2_common_int_test.cc"
-    "${AVM_ROOT}/test/av2_inv_stxfm_test.cc"
     "${AVM_ROOT}/test/bawp_test.cc"
     "${AVM_ROOT}/test/bitwriter_buffer_test.cc"
     "${AVM_ROOT}/test/cdef_test.cc"
@@ -124,7 +123,6 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/boolcoder_test.cc"
       "${AVM_ROOT}/test/brt_test.cc"
       "${AVM_ROOT}/test/ci_test.cc"
-      "${AVM_ROOT}/test/cnn_test.cc"
       "${AVM_ROOT}/test/divu_small_test.cc"
       "${AVM_ROOT}/test/dr_prediction_test.cc"
       "${AVM_ROOT}/test/ec_test.cc"
@@ -143,6 +141,7 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/quant_test.cc"
       "${AVM_ROOT}/test/qm_test.cc"
       "${AVM_ROOT}/test/ras_frame_pruning_test.cc"
+      "${AVM_ROOT}/test/rtc_datarate_test.cc"
       "${AVM_ROOT}/test/rtc_test.cc"
       "${AVM_ROOT}/test/sb_multipass_test.cc"
       "${AVM_ROOT}/test/screen_content_test.cc"
@@ -212,12 +211,14 @@ if(NOT BUILD_SHARED_LIBS)
     "${AVM_ROOT}/test/intra_mode_mlp_test.cc"
     "${AVM_ROOT}/test/partition_mlp_test.cc"
     "${AVM_ROOT}/test/av2_wedge_utils_test.cc"
+    "${AVM_ROOT}/test/av2_wienerns_test.cc"
     "${AVM_ROOT}/test/av2_ccso_simd_cmp.cc"
     "${AVM_ROOT}/test/blend_a64_mask_1d_test.cc"
     "${AVM_ROOT}/test/blend_a64_mask_test.cc"
-    "${AVM_ROOT}/test/comp_avg_pred_test.cc"
-    "${AVM_ROOT}/test/comp_avg_pred_test.h"
+    "${AVM_ROOT}/test/comp_avg_test.cc"
     "${AVM_ROOT}/test/comp_mask_variance_test.cc"
+    "${AVM_ROOT}/test/comp_weigh_pred_test.cc"
+    "${AVM_ROOT}/test/comp_weigh_pred_test.h"
     "${AVM_ROOT}/test/edge_detect_test.cc"
     "${AVM_ROOT}/test/encodetxb_test.cc"
     "${AVM_ROOT}/test/error_block_test.cc"
@@ -269,7 +270,7 @@ if(NOT BUILD_SHARED_LIBS)
 
   list(APPEND AVM_UNIT_TEST_ENCODER_SOURCES "${AVM_ROOT}/test/trellis_test.cc")
   list(APPEND AVM_UNIT_TEST_ENCODER_SOURCES
-       "${AVM_ROOT}/test/av2_fwd_txfm2d_test.cc")
+       "${AVM_ROOT}/test/av2_sec_txfm_test.cc")
 
 endif()
 
@@ -402,6 +403,11 @@ function(setup_avm_test_targets)
   if(HAVE_AVX2)
     add_intrinsics_source_to_target("-mavx2" "test_libavm"
                                     "AVM_UNIT_TEST_COMMON_INTRIN_AVX2")
+  endif()
+  if(HAVE_AVX512 AND AVM_UNIT_TEST_COMMON_INTRIN_AVX512)
+    add_intrinsics_source_to_target(
+      "-mavx512f -mavx512dq -mavx512bw -mavx512vl" "test_libavm"
+      "AVM_UNIT_TEST_COMMON_INTRIN_AVX512")
   endif()
   if(HAVE_NEON)
     add_intrinsics_source_to_target("${AVM_NEON_INTRIN_FLAG}" "test_libavm"

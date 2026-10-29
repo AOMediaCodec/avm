@@ -49,6 +49,7 @@
 #include "av2/encoder/speed_features.h"
 #include "av2/encoder/tokenize.h"
 #include "av2/encoder/tpl_model.h"
+#include "av2/encoder/pickccso.h"
 #include "av2/encoder/av2_noise_estimate.h"
 #include "av2/common/banding_metadata.h"
 
@@ -871,8 +872,6 @@ typedef struct {
   bool enable_joint_mvd;
   // Indicates if refineMV mode should be enabled.
   bool enable_refinemv;
-  // Indicates if cfl should be enabled.
-  bool enable_cfl_intra;
   // Indicates if mvd sign derivation should be enabled.
   bool enable_mvd_sign_derive;
   // enable temporal interpolated prediction
@@ -1210,9 +1209,6 @@ typedef struct AV2EncoderConfig {
   // Configuration related to layering information.
   LayerCfg layer_cfg;
 
-  // Number of operating points per OPS, in the range 0 to MAX_OPS_COUNT (7).
-  int operating_points_count;
-
   // Enable the low complexity decode mode.
   unsigned int enable_low_complexity_decode;
   /*!\endcond */
@@ -1241,7 +1237,7 @@ typedef struct {
    * frames. If tx_type_probs[i][j][k] < thresh, then transform search for that
    * type is pruned.
    */
-  int tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL][TX_TYPES];
+  int tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL][PRIMARY_TX_TYPES];
 } FrameProbInfo;
 
 #if CONFIG_ENTROPY_STATS
@@ -1488,8 +1484,8 @@ typedef struct FRAME_COUNTS {
   unsigned int inter_tx_type_offset_1[EOB_TX_CTXS][INTER_TX_TYPE_OFFSET1_COUNT];
   unsigned int inter_tx_type_offset_2[EOB_TX_CTXS][INTER_TX_TYPE_OFFSET2_COUNT];
   unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
-                           [TX_TYPES];
-  unsigned int intra_ext_tx[EXT_TX_SETS_INTRA][EXT_TX_SIZES][TX_TYPES];
+                           [PRIMARY_TX_TYPES];
+  unsigned int intra_ext_tx[EXT_TX_SETS_INTRA][EXT_TX_SIZES][PRIMARY_TX_TYPES];
   unsigned int tx_ext_32[2][2];
   unsigned int intra_ext_tx_short_side[EXT_TX_SIZES][4];
   unsigned int inter_ext_tx_short_side[EOB_TX_CTXS][EXT_TX_SIZES][4];
@@ -1707,7 +1703,7 @@ typedef struct RD_COUNTS {
   int64_t comp_pred_diff[REFERENCE_MODES];
   int compound_ref_used_flag;
   int skip_mode_used_flag;
-  int tx_type_used[TX_SIZES_ALL][TX_TYPES];
+  int tx_type_used[TX_SIZES_ALL][PRIMARY_TX_TYPES];
   int warped_used[2];
 } RD_COUNTS;
 
@@ -1731,7 +1727,7 @@ typedef struct ThreadData {
   // Temporary buffers used to store intermediate prediction data calculated
   // during the OPFL/SMVR.
   uint16_t *opfl_dst_bufs;
-  uint16_t *tmp_pred_bufs[2];
+  uint16_t *tmp_pred_bufs;
   // Buffer used for upsampled prediction.
   uint16_t *upsample_pred;
   int intrabc_used;
@@ -1747,6 +1743,9 @@ typedef struct ThreadData {
   void *partition_model;
 #endif  // CONFIG_ML_PART_SPLIT
   void *dip_pruning_model;
+  // Root node for pre-allocated partition context tree (PC_TREE) reused
+  // across superblocks in real-time non-RD mode.
+  struct PC_TREE *pc_root;
 } ThreadData;
 
 struct EncWorkerData;
@@ -2161,14 +2160,6 @@ typedef struct {
    * True relative distance of reference frames w.r.t. the current frame.
    */
   int ref_relative_dist[INTER_REFS_PER_FRAME];
-  /*!
-   * The nearest reference w.r.t. current frame in the past.
-   */
-  int8_t nearest_past_ref;
-  /*!
-   * The nearest reference w.r.t. current frame in the future.
-   */
-  int8_t nearest_future_ref;
 } RefFrameDistanceInfo;
 
 /*!
@@ -2267,11 +2258,6 @@ typedef struct {
   ExtRefreshFrameFlagsInfo refresh_frame;
 
   /*!
-   * Flag to enable CDF initialization with cross frame contexts at the
-   * beginning of a frame decode.
-   */
-  bool cross_frame_context;
-  /*!
    * Flag to enable temporal MV prediction.
    */
   bool use_ref_frame_mvs;
@@ -2292,7 +2278,6 @@ typedef struct {
 
 typedef struct {
   // Some misc info
-  int high_prec;
   int q;
   int order;
 
@@ -2319,15 +2304,6 @@ typedef struct {
   // Whether the current struct contains valid data
   int valid;
 } MV_STATS;
-
-typedef struct {
-  struct loopfilter lf;
-  CdefInfo cdef_info;
-  YV12_BUFFER_CONFIG copy_buffer;
-  RATE_CONTROL rc;
-  MV_STATS mv_stats;
-  FeatureFlags features;
-} CODING_CONTEXT;
 
 typedef struct {
   int frame_width;
@@ -3130,6 +3106,40 @@ typedef struct AV2_COMP {
    * Flag indicating if banding metadata is available for the current frame
    */
   int band_metadata_present;
+
+  /*!
+   * CCSO search context holding persistent buffers (allocated on first use,
+   * freed at encoder close).
+   */
+  CcsoCtx ccso_ctx;
+  /*!
+   * distortion between source and ccso input at sb level
+   */
+  uint64_t *unfiltered_dist_block;
+  /*!
+   * Allocated size of unfiltered_dist_block in elements.
+   */
+  int unfiltered_dist_block_alloc_sb_count;
+  /*!
+   * Extended luma reconstruction buffer for CCSO search.
+   */
+  uint16_t *ccso_ext_rec_y;
+  /*!
+   * Allocated size of ccso_ext_rec_y in elements.
+   */
+  size_t ccso_ext_rec_y_size;
+  /*!
+   * Per-plane chroma reconstruction buffers for CCSO search.
+   */
+  uint16_t *ccso_rec_uv[CCSO_NUM_COMPONENTS];
+  /*!
+   * Per-plane chroma original sample buffers for CCSO search.
+   */
+  uint16_t *ccso_org_uv[CCSO_NUM_COMPONENTS];
+  /*!
+   * Allocated sizes of ccso_rec_uv / ccso_org_uv in elements.
+   */
+  size_t ccso_uv_size[CCSO_NUM_COMPONENTS];
 } AV2_COMP;
 
 /*!
@@ -3155,7 +3165,6 @@ typedef struct EncodeFrameParams {
   FRAME_TYPE frame_type;
 
   /*!\cond */
-  int primary_ref_frame;
   int order_offset;
 
   /*!\endcond */
@@ -3701,6 +3710,25 @@ static INLINE void check_ref_count_status_enc(AV2_COMP *cpi) {
 static INLINE bool av2_is_shown_keyframe(const AV2_COMP *cpi,
                                          FRAME_TYPE frame_type) {
   return (frame_type == KEY_FRAME) && !cpi->no_show_fwd_kf;
+}
+
+static INLINE void av2_set_seq_lr_tools_mask(SequenceHeader *const seq_params,
+                                             const AV2EncoderConfig *oxcf) {
+  const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
+  seq_params->lr_tools_disable_mask[0] = 0;  // default - no tools disabled
+  seq_params->lr_tools_disable_mask[1] = 0;  // default - no tools disabled
+
+  // Parse oxcf here to disable tools as requested through cmd lines
+  if (!tool_cfg->enable_pc_wiener) {
+    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_PC_WIENER);
+    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_PC_WIENER);
+  }
+  if (!tool_cfg->enable_wiener_nonsep) {
+    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_WIENER_NONSEP);
+    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_WIENER_NONSEP);
+  }
+
+  seq_params->lr_tools_disable_mask[1] |= DEF_UV_LR_TOOLS_DISABLE_MASK;
 }
 
 /*!\endcond */

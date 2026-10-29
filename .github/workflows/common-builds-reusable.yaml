@@ -142,8 +142,7 @@ jobs:
       container-image: ${{ inputs.container-image }}
       show-github-context: true
       extra-env-vars: |
-        # Overwriting the default flags to disable Werror
-        CMAKE_FLAGS=-DENABLE_CCACHE=1 -DENABLE_DOCS=0 -DCONFIG_ML_PART_SPLIT=0 -DCONFIG_DIP_EXT_PRUNING=0 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/arm64-linux-gcc.cmake
+        EXTRA_CMAKE_FLAGS=-DCONFIG_ML_PART_SPLIT=0 -DCONFIG_DIP_EXT_PRUNING=0 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/arm64-linux-gcc.cmake
     strategy:
       matrix:
         avm-build-config:
@@ -168,8 +167,7 @@ jobs:
       container-image: ${{ inputs.container-image }}
       show-github-context: true
       extra-env-vars: |
-        # Overwriting the default flags to disable Werror
-        CMAKE_FLAGS=-DENABLE_CCACHE=1 -DENABLE_DOCS=0 -DCONFIG_ML_PART_SPLIT=0 -DCONFIG_DIP_EXT_PRUNING=0 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/armv7-linux-gcc.cmake
+        EXTRA_CMAKE_FLAGS=-DCONFIG_ML_PART_SPLIT=0 -DCONFIG_DIP_EXT_PRUNING=0 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/armv7-linux-gcc.cmake
     strategy:
       matrix:
         avm-build-config:

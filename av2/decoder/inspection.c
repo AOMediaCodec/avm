@@ -226,7 +226,7 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
       const int tx_type_col = i - i % tx_size_wide_unit[mi->tx_size];
       const int tx_type_map_idx =
           tx_type_row * mi_params->mi_stride + tx_type_col;
-      mi->tx_type = mi_params->tx_type_map[tx_type_map_idx];
+      mi->tx_type = mi_params->tx_type_map[tx_type_map_idx].packed_tx_type;
 
       bool skip = mbmi->tx_skip[av2_get_txk_type_index(bsize, r, c)];
       mi->skip |= skip;

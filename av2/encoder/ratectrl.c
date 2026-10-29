@@ -299,19 +299,14 @@ int av2_rc_get_default_max_gf_interval(double framerate, int min_gf_interval) {
   return AVMMAX(interval, min_gf_interval);
 }
 
-void av2_rc_init(const AV2EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
+void av2_rc_init(const AV2EncoderConfig *oxcf, RATE_CONTROL *rc) {
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   int i;
 
-  if (pass == 0 && rc_cfg->mode == AVM_CBR) {
-    rc->avg_frame_qindex[KEY_FRAME] = rc_cfg->worst_allowed_q;
-    rc->avg_frame_qindex[INTER_FRAME] = rc_cfg->worst_allowed_q;
-  } else {
-    rc->avg_frame_qindex[KEY_FRAME] =
-        (rc_cfg->worst_allowed_q + rc_cfg->best_allowed_q) / 2;
-    rc->avg_frame_qindex[INTER_FRAME] =
-        (rc_cfg->worst_allowed_q + rc_cfg->best_allowed_q) / 2;
-  }
+  rc->avg_frame_qindex[KEY_FRAME] =
+      (rc_cfg->worst_allowed_q + rc_cfg->best_allowed_q) / 2;
+  rc->avg_frame_qindex[INTER_FRAME] =
+      (rc_cfg->worst_allowed_q + rc_cfg->best_allowed_q) / 2;
 
   rc->last_q[KEY_FRAME] = rc_cfg->best_allowed_q;
   rc->last_q[INTER_FRAME] = rc_cfg->worst_allowed_q;
@@ -321,20 +316,15 @@ void av2_rc_init(const AV2EncoderConfig *oxcf, int pass, RATE_CONTROL *rc) {
 
   rc->rolling_target_bits = rc->avg_frame_bandwidth;
   rc->rolling_actual_bits = rc->avg_frame_bandwidth;
-  rc->long_rolling_target_bits = rc->avg_frame_bandwidth;
-  rc->long_rolling_actual_bits = rc->avg_frame_bandwidth;
 
   rc->total_actual_bits = 0;
   rc->total_target_bits = 0;
-  rc->total_target_vs_actual = 0;
 
   rc->frames_since_key = 8;  // Sensible default for first frame.
   rc->this_key_frame_forced = 0;
   rc->next_key_frame_forced = 0;
 
   rc->frames_till_gf_update_due = 0;
-  rc->ni_av_qi = rc_cfg->worst_allowed_q;
-  rc->ni_tot_qi = 0;
   rc->ni_frames = 0;
 
   rc->tot_q = 0.0;
@@ -426,6 +416,9 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
     }
     // Limit the decrease in Q from previous frame.
     if (rc->q_1_frame - q > max_delta) q = rc->q_1_frame - max_delta;
+    if (rc->buffer_level > (rc->optimal_buffer_level >> 3) &&
+        q - rc->q_1_frame > max_delta)
+      q = rc->q_1_frame + max_delta;
   }
   // For single spatial layer: if resolution has increased push q closer
   // to the active_worst to avoid excess overshoot.
@@ -808,8 +801,7 @@ static int calc_active_worst_quality_no_stats_cbr(const AV2_COMP *cpi) {
   active_worst_quality = AVMMIN(rc->worst_quality, ambient_qp * 5 / 4);
   if (rc->buffer_level > rc->optimal_buffer_level) {
     // Adjust down.
-    // Maximum limit for down adjustment, ~30%.
-    int max_adjustment_down = active_worst_quality / 3;
+    int max_adjustment_down = (active_worst_quality - rc->best_quality) / 2;
     if (max_adjustment_down) {
       buff_lvl_step = ((rc->maximum_buffer_size - rc->optimal_buffer_level) /
                        max_adjustment_down);
@@ -823,7 +815,9 @@ static int calc_active_worst_quality_no_stats_cbr(const AV2_COMP *cpi) {
     if (critical_level) {
       buff_lvl_step = (rc->optimal_buffer_level - critical_level);
       if (buff_lvl_step) {
-        adjustment = (int)((rc->worst_quality - ambient_qp) *
+        int max_adjustment_up =
+            AVMMIN(32, (rc->worst_quality - ambient_qp) / 2);
+        adjustment = (int)(max_adjustment_up *
                            (rc->optimal_buffer_level - rc->buffer_level) /
                            buff_lvl_step);
       }
@@ -896,6 +890,19 @@ static int calc_active_best_quality_no_stats_cbr(const AV2_COMP *cpi,
       active_best_quality = rtc_minq[rc->avg_frame_qindex[frame_type]];
     else
       active_best_quality = rtc_minq[active_worst_quality];
+  }
+  if (rc->buffer_level > rc->optimal_buffer_level) {
+    int max_adjustment_down = (active_best_quality - rc->best_quality) / 2;
+    if (max_adjustment_down) {
+      int64_t buff_lvl_step =
+          ((rc->maximum_buffer_size - rc->optimal_buffer_level) /
+           max_adjustment_down);
+      if (buff_lvl_step) {
+        int adjustment = (int)((rc->buffer_level - rc->optimal_buffer_level) /
+                               buff_lvl_step);
+        active_best_quality -= adjustment;
+      }
+    }
   }
   return active_best_quality;
 }
@@ -1771,17 +1778,15 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
     rc->avg_frame_qindex[KEY_FRAME] =
         ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[KEY_FRAME] + qindex, 2);
   } else {
-    if ((!rc->is_src_frame_alt_ref && !(level <= 1 || is_intrnl_arf))) {
+    if (!rc->is_src_frame_alt_ref &&
+        (((cpi->oxcf.mode == REALTIME && cpi->oxcf.gf_cfg.lag_in_frames == 0) ||
+          !(level <= 1 || is_intrnl_arf)))) {
       rc->last_q[INTER_FRAME] = qindex;
       rc->avg_frame_qindex[INTER_FRAME] =
           ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[INTER_FRAME] + qindex, 2);
       rc->ni_frames++;
       rc->tot_q += av2_convert_qindex_to_q(qindex, cm->seq_params.bit_depth);
       rc->avg_q = rc->tot_q / rc->ni_frames;
-      // Calculate the average Q for normal inter frames (not key or GFU
-      // frames).
-      rc->ni_tot_qi += qindex;
-      rc->ni_av_qi = rc->ni_tot_qi / rc->ni_frames;
     }
   }
 
@@ -1811,18 +1816,12 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
         rc->rolling_target_bits * 3 + rc->this_frame_target, 2);
     rc->rolling_actual_bits = (int)ROUND_POWER_OF_TWO_64(
         rc->rolling_actual_bits * 3 + rc->projected_frame_size, 2);
-    rc->long_rolling_target_bits = (int)ROUND_POWER_OF_TWO_64(
-        rc->long_rolling_target_bits * 31 + rc->this_frame_target, 5);
-    rc->long_rolling_actual_bits = (int)ROUND_POWER_OF_TWO_64(
-        rc->long_rolling_actual_bits * 31 + rc->projected_frame_size, 5);
   }
 
   // Actual bits spent
   rc->total_actual_bits += rc->projected_frame_size;
   rc->total_target_bits +=
       cm->immediate_output_picture ? rc->avg_frame_bandwidth : 0;
-
-  rc->total_target_vs_actual = rc->total_actual_bits - rc->total_target_bits;
 
   if (is_altref_enabled(cpi->oxcf.gf_cfg.lag_in_frames,
                         cpi->oxcf.gf_cfg.enable_auto_arf) &&
@@ -2096,7 +2095,7 @@ int av2_calc_pframe_target_size_one_pass_cbr(
     // Increase the target bandwidth for this frame.
     const int pct_high =
         (int)AVMMIN(-diff / one_pct_bits, rc_cfg->over_shoot_pct);
-    target += (target * pct_high) / 200;
+    target += (target * pct_high) / 100;
   }
   if (rc_cfg->max_inter_bitrate_pct) {
     const int max_rate =
@@ -2110,9 +2109,8 @@ int av2_calc_iframe_target_size_one_pass_cbr(const AV2_COMP *cpi) {
   const RATE_CONTROL *rc = &cpi->rc;
   int target;
   if (cpi->common.current_frame.frame_number == 0) {
-    target = ((rc->starting_buffer_level / 2) > INT_MAX)
-                 ? INT_MAX
-                 : (int)(rc->starting_buffer_level / 2);
+    const int64_t initial_target = rc->starting_buffer_level * 7 / 2;
+    target = (initial_target > INT_MAX) ? INT_MAX : (int)initial_target;
   } else {
     int kf_boost = 32;
     double framerate = cpi->framerate;
@@ -2124,4 +2122,58 @@ int av2_calc_iframe_target_size_one_pass_cbr(const AV2_COMP *cpi) {
     target = ((16 + kf_boost) * rc->avg_frame_bandwidth) >> 4;
   }
   return av2_rc_clamp_iframe_target_size(cpi, target);
+}
+
+#define DEFAULT_KF_BOOST_RT 2000
+
+static inline int set_key_frame(AV2_COMP *cpi, unsigned int frame_flags) {
+  RATE_CONTROL *const rc = &cpi->rc;
+  AV2_COMMON *const cm = &cpi->common;
+  // Very first frame has to be key frame.
+  if (cm->current_frame.frame_number == 0) return 1;
+  // Set key frame if forced by frame flags.
+  if (frame_flags & FRAMEFLAGS_KEY) return 1;
+  if (cpi->oxcf.kf_cfg.auto_key && rc->frames_to_key == 0) return 1;
+  return 0;
+}
+
+void av2_get_one_pass_rt_params(AV2_COMP *cpi, FRAME_TYPE *const frame_type,
+                                unsigned int frame_flags) {
+  RATE_CONTROL *const rc = &cpi->rc;
+  AV2_COMMON *const cm = &cpi->common;
+  cpi->gf_group.index = 0;
+  cpi->gf_group.size = 1;
+  GF_GROUP *const gf_group = &cpi->gf_group;
+  int target;
+  // Set frame type.
+  if (set_key_frame(cpi, frame_flags)) {
+    *frame_type = KEY_FRAME;
+    rc->this_key_frame_forced =
+        cm->current_frame.frame_number != 0 && rc->frames_to_key == 0;
+    rc->frames_to_key = cpi->oxcf.kf_cfg.key_freq_max;
+    rc->kf_boost = DEFAULT_KF_BOOST_RT;
+    gf_group->update_type[gf_group->index] = KF_UPDATE;
+  } else {
+    *frame_type = INTER_FRAME;
+    gf_group->update_type[gf_group->index] = LF_UPDATE;
+  }
+  // Set target size.
+  if (cpi->oxcf.rc_cfg.mode == AVM_CBR) {
+    if (*frame_type == KEY_FRAME || *frame_type == INTRA_ONLY_FRAME) {
+      target = av2_calc_iframe_target_size_one_pass_cbr(cpi);
+    } else {
+      target = av2_calc_pframe_target_size_one_pass_cbr(
+          cpi, gf_group->update_type[gf_group->index]);
+    }
+  } else {
+    if (*frame_type == KEY_FRAME || *frame_type == INTRA_ONLY_FRAME) {
+      target = av2_calc_iframe_target_size_one_pass_vbr(cpi);
+    } else {
+      target = av2_calc_pframe_target_size_one_pass_vbr(
+          cpi, gf_group->update_type[gf_group->index]);
+    }
+  }
+  av2_rc_set_frame_target(cpi, target, cm->width, cm->height);
+  rc->base_frame_target = target;
+  cm->current_frame.frame_type = *frame_type;
 }

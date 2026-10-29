@@ -562,7 +562,8 @@ unsigned int av2_refine_warped_mv(MACROBLOCKD *xd, const AV2_COMMON *const cm,
                                   BLOCK_SIZE bsize, const int *pts0,
                                   const int *pts_inref0, int total_samples,
                                   int8_t ref, WARP_SEARCH_METHOD search_method,
-                                  int num_iterations);
+                                  int num_iterations,
+                                  bool warp_mv_refine_early_term);
 uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV2_COMMON *const cm,
                            MACROBLOCK *const x, MB_MODE_INFO *mbmi,
                            BLOCK_SIZE bsize, MV *mv_diffs, MV *ref_mvs,
@@ -571,25 +572,26 @@ uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV2_COMMON *const cm,
                            int *num_nonzero_mvd);
 
 // Returns 1 if able to select a good model, 0 if not
-int av2_pick_warp_delta(const AV2_COMMON *const cm, MACROBLOCKD *xd,
-                        MB_MODE_INFO *mbmi,
-                        const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
-                        const ModeCosts *mode_costs,
-                        warp_mode_info_array *prev_best_models,
-                        WARP_CANDIDATE *warp_param_stack);
+int av2_pick_warp_delta(
+    const AV2_COMMON *const cm, MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
+    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, const ModeCosts *mode_costs,
+    warp_mode_info_array *prev_best_models, WARP_CANDIDATE *warp_param_stack,
+    const int fast_decoupled_search, bool early_term_warp_delta_refine);
 
 int av2_refine_mv_for_base_param_warp_model(
     const AV2_COMMON *const cm, MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
     const MB_MODE_INFO_EXT *mbmi_ext,
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
-    WARP_SEARCH_METHOD search_method, int num_iterations);
+    WARP_SEARCH_METHOD search_method, int num_iterations,
+    bool warp_mv_refine_early_term);
 
 void av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
                                    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                    bool neighbor_is_above, BLOCK_SIZE bsize,
                                    const WarpedMotionParams *neighbor_params,
                                    WARP_SEARCH_METHOD search_method,
-                                   int num_iterations);
+                                   int num_iterations,
+                                   bool warp_mv_refine_early_term);
 
 static INLINE void av2_set_fractional_mv(int_mv *fractional_best_mv) {
   for (int z = 0; z < 3; z++) {

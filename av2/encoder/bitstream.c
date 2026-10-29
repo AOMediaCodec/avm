@@ -627,8 +627,8 @@ static AVM_INLINE void av2_write_coeffs_txb_facade(
   if (code_rest) {
     if (((cm->seq_params.enable_fsc &&
           mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-          get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
-         use_inter_fsc(cm, plane, tx_type, is_inter))) {
+          tx_type.primary_tx == IDTX && plane == PLANE_TYPE_Y) ||
+         use_inter_fsc(cm, plane, tx_type.primary_tx, is_inter))) {
       av2_write_coeffs_txb_skip(cm, x, w, blk_row, blk_col, plane, block,
                                 tx_size);
     } else {
@@ -1038,7 +1038,7 @@ void av2_write_tx_type(const AV2_COMMON *const cm, const MACROBLOCKD *xd,
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (xd->lossless[mbmi->segment_id]) {
     if (is_inter && tx_size == TX_4X4) {
-      int lossless_inter_tx_type = get_primary_tx_type(tx_type) == IDTX;
+      int lossless_inter_tx_type = tx_type.primary_tx == IDTX;
       avm_write_symbol(w, lossless_inter_tx_type,
                        xd->tile_ctx->lossless_inter_tx_type_cdf, 2);
     }
@@ -1063,15 +1063,14 @@ void av2_write_tx_type(const AV2_COMMON *const cm, const MACROBLOCKD *xd,
     assert(eset > 0);
     const int size_info = av2_size_class[tx_size];
     if (!is_inter) {
-      assert(av2_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)]);
+      assert(av2_ext_tx_used[tx_set_type][tx_type.primary_tx]);
     }
 
     if (is_inter) {
       const int eob_tx_ctx = get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), eob);
       if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
           tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
-        int tx_type_idx =
-            av2_ext_tx_ind[tx_set_type][get_primary_tx_type(tx_type)];
+        int tx_type_idx = av2_ext_tx_ind[tx_set_type][tx_type.primary_tx];
         if (eset == 1 || eset == 2) {
           int tx_set = tx_type_idx < INTER_TX_TYPE_INDEX_COUNT ? 0 : 1;
           avm_write_symbol(
@@ -1098,14 +1097,13 @@ void av2_write_tx_type(const AV2_COMMON *const cm, const MACROBLOCKD *xd,
               av2_num_ext_tx_set[tx_set_type]);
         }
       } else {
-        bool is_long_side_dct =
-            is_dct_type(tx_size, get_primary_tx_type(tx_type));
+        bool is_long_side_dct = is_dct_type(tx_size, tx_type.primary_tx);
         if (tx_size_sqr_up == TX_32X32) {
           avm_write_symbol(w, is_long_side_dct, ec_ctx->tx_ext_32_cdf[is_inter],
                            2);
         }
         int tx_type_idx = get_idx_from_txtype_for_large_txfm(
-            tx_set_type, get_primary_tx_type(tx_type),
+            tx_set_type, tx_type.primary_tx,
             is_long_side_dct);  // 0: DCT_DCT, 1: ADST, 2: FLIPADST,
                                 // 3: Identity
 
@@ -1115,15 +1113,15 @@ void av2_write_tx_type(const AV2_COMMON *const cm, const MACROBLOCKD *xd,
       }
     } else {
       if (cm->features.reduced_tx_set_used == 2) {
-        assert(get_primary_tx_type(tx_type) == DCT_DCT);
+        assert(tx_type.primary_tx == DCT_DCT);
         return;
       }
       if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
           tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
         avm_write_symbol(
             w,
-            av2_tx_type_to_idx(get_primary_tx_type(tx_type), tx_set_type,
-                               intra_dir, size_info),
+            av2_tx_type_to_idx(tx_type.primary_tx, tx_set_type, intra_dir,
+                               size_info),
             ec_ctx->intra_ext_tx_cdf[eset +
                                      (features->reduced_tx_set_used ? 1 : 0)]
                                     [square_tx_size],
@@ -1131,15 +1129,14 @@ void av2_write_tx_type(const AV2_COMMON *const cm, const MACROBLOCKD *xd,
                 ? av2_num_reduced_tx_set[features->reduced_tx_set_used - 1]
                 : av2_num_ext_tx_set_intra[tx_set_type]);
       } else {
-        int is_long_side_dct =
-            is_dct_type(tx_size, get_primary_tx_type(tx_type));
+        int is_long_side_dct = is_dct_type(tx_size, tx_type.primary_tx);
         if (tx_size_sqr_up == TX_32X32) {
           avm_write_symbol(w, is_long_side_dct, ec_ctx->tx_ext_32_cdf[is_inter],
                            2);
         }
 
         int tx_type_idx = get_idx_from_txtype_for_large_txfm(
-            tx_set_type, get_primary_tx_type(tx_type),
+            tx_set_type, tx_type.primary_tx,
             is_long_side_dct);  // 0: DCT_DCT, 1: ADST, 2: FLIPADST,
                                 // 3: Identity
         avm_write_symbol(w, tx_type_idx,
@@ -1166,22 +1163,21 @@ void av2_write_cctx_type(const AV2_COMMON *const cm, const MACROBLOCKD *xd,
 static void write_sec_tx_set(FRAME_CONTEXT *ec_ctx, avm_writer *w,
                              MB_MODE_INFO *mbmi, TX_SIZE tx_size,
                              TX_TYPE tx_type) {
-  TX_TYPE stx_set_flag = get_secondary_tx_set(tx_type);
-  if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_SET_SIZE;
+  SEC_TX_SET stx_set_flag = tx_type.sec_set;
+  assert(av2_tx_type_in_range(tx_type.primary_tx, tx_type.sec_tx, stx_set_flag,
+                              tx_size_wide[tx_size], tx_size_high[tx_size]));
+  if (tx_type.primary_tx == ADST_ADST) stx_set_flag -= IST_SET_SIZE;
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
-  if (get_primary_tx_type(tx_type) == ADST_ADST && tx_size_wide[tx_size] >= 8 &&
+  if (tx_type.primary_tx == ADST_ADST && tx_size_wide[tx_size] >= 8 &&
       tx_size_high[tx_size] >= 8) {
     uint8_t stx_set_in_bitstream =
         most_probable_stx_mapping_ADST_ADST[intra_mode][stx_set_flag];
-    assert(stx_set_flag < IST_REDUCED_SET_SIZE);
-    assert(stx_set_in_bitstream < IST_REDUCED_SET_SIZE);
     avm_write_symbol(w, stx_set_in_bitstream,
                      ec_ctx->most_probable_stx_set_cdf_ADST_ADST,
                      IST_REDUCED_SET_SIZE);
   } else {
     uint8_t stx_set_in_bitstream =
         most_probable_stx_mapping[intra_mode][stx_set_flag];
-    assert(stx_set_flag < IST_SET_SIZE);
     avm_write_symbol(w, stx_set_in_bitstream, ec_ctx->most_probable_stx_set_cdf,
                      IST_SET_SIZE);
   }
@@ -1197,14 +1193,17 @@ void av2_write_sec_tx_type(const AV2_COMMON *const cm, const MACROBLOCKD *xd,
   // IST disabled for lossless
   if (xd->lossless[mbmi->segment_id]) return;
 
+  assert(av2_tx_type_in_range(tx_type.primary_tx, tx_type.sec_tx,
+                              tx_type.sec_set, tx_size_wide[tx_size],
+                              tx_size_high[tx_size]));
+
   if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
       !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
-    const TX_TYPE stx_flag = get_secondary_tx_type(tx_type);
-    assert(stx_flag <= STX_TYPES - 1);
-    if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
+    const SEC_TX_TYPE stx_flag = tx_type.sec_tx;
+    if (block_signals_sec_tx_type(xd, tx_size, tx_type.primary_tx, eob)) {
       avm_write_symbol(w, stx_flag, ec_ctx->stx_cdf[is_inter][square_tx_size],
                        STX_TYPES);
       if (stx_flag > 0 && !is_inter) {
@@ -1214,9 +1213,8 @@ void av2_write_sec_tx_type(const AV2_COMMON *const cm, const MACROBLOCKD *xd,
   } else {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
-    TX_TYPE stx_flag = get_secondary_tx_type(tx_type);
-    assert(stx_flag <= STX_TYPES - 1);
-    if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
+    SEC_TX_TYPE stx_flag = tx_type.sec_tx;
+    if (block_signals_sec_tx_type(xd, tx_size, tx_type.primary_tx, eob)) {
       avm_write_symbol(w, stx_flag, ec_ctx->stx_cdf[is_inter][square_tx_size],
                        STX_TYPES);
       if (stx_flag > 0 && !is_inter) {
@@ -1375,8 +1373,7 @@ static AVM_INLINE void write_ccso(const AV2_COMMON *cm, MACROBLOCKD *const xd,
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
-      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(cm);
   const int blk_size_y = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
   const MB_MODE_INFO *mbmi =
@@ -2816,10 +2813,6 @@ static AVM_INLINE void write_modes_sb(
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   assert(bsize < BLOCK_SIZES_ALL);
-  const int hbs_w = mi_size_wide[bsize] / 2;
-  const int hbs_h = mi_size_high[bsize] / 2;
-  const int ebs_w = mi_size_wide[bsize] / 8;
-  const int ebs_h = mi_size_high[bsize] / 8;
   assert(ptree);
 
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) {
@@ -2917,200 +2910,31 @@ static AVM_INLINE void write_modes_sb(
       // if partition tree changes, rebuild recursive tree
       ptree->partition = p;
       partition = p;
-      subsize = get_partition_subsize(bsize, partition);
-      switch (p) {
-        case PARTITION_HORZ_4A:
-        case PARTITION_HORZ_4B:
-        case PARTITION_VERT_4A:
-        case PARTITION_VERT_4B:
-        case PARTITION_SPLIT:
-          ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-          ptree->sub_tree[0]->partition = PARTITION_NONE;
-          ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-          ptree->sub_tree[1]->partition = PARTITION_NONE;
-          ptree->sub_tree[2] = av2_alloc_ptree_node(ptree, 2);
-          ptree->sub_tree[2]->partition = PARTITION_NONE;
-          ptree->sub_tree[3] = av2_alloc_ptree_node(ptree, 3);
-          ptree->sub_tree[3]->partition = PARTITION_NONE;
-          break;
-        case PARTITION_HORZ:
-        case PARTITION_VERT:
-          ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-          ptree->sub_tree[0]->partition = PARTITION_NONE;
-          ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-          ptree->sub_tree[1]->partition = PARTITION_NONE;
-          break;
-        case PARTITION_HORZ_3:
-        case PARTITION_VERT_3:
-          ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-          ptree->sub_tree[0]->partition = PARTITION_NONE;
-          ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-          ptree->sub_tree[1]->partition = PARTITION_NONE;
-          ptree->sub_tree[2] = av2_alloc_ptree_node(ptree, 2);
-          ptree->sub_tree[2]->partition = PARTITION_NONE;
-          ptree->sub_tree[3] = av2_alloc_ptree_node(ptree, 3);
-          ptree->sub_tree[3]->partition = PARTITION_NONE;
-          break;
-        default: break;
+      if (partition != PARTITION_NONE) {
+        const int num_subblocks = get_subblock_count(partition);
+        for (int sub_idx = 0; sub_idx < num_subblocks; ++sub_idx) {
+          ptree->sub_tree[sub_idx] = av2_alloc_ptree_node(ptree, sub_idx);
+          ptree->sub_tree[sub_idx]->partition = PARTITION_NONE;
+        }
       }
     }
   }
-  switch (partition) {
-    case PARTITION_NONE:
-      write_modes_b(
-          cpi, tile, w,
-          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tok_chroma
-                                                              : tok,
-          (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tok_chroma_end
-                                                              : tok_end,
-          mi_row, mi_col);
-      break;
-    case PARTITION_HORZ:
+  if (partition == PARTITION_NONE) {
+    bool use_chroma_tok = intra_sdp_enabled && xd->tree_type == CHROMA_PART;
+    write_modes_b(cpi, tile, w, use_chroma_tok ? tok_chroma : tok,
+                  use_chroma_tok ? tok_chroma_end : tok_end, mi_row, mi_col);
+  } else {
+    BLOCK_SIZE sub_sizes[4];
+    int mi_rows[4], mi_cols[4];
+    get_partition_subblock_layout(partition, bsize, mi_row, mi_col, sub_sizes,
+                                  mi_rows, mi_cols);
+    const int num_subblocks = get_subblock_count(partition);
+    for (int sub_idx = 0; sub_idx < num_subblocks; ++sub_idx) {
       write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row + hbs_h,
-                     mi_col, subsize);
-      break;
-    case PARTITION_VERT:
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row,
-                     mi_col + hbs_w, subsize);
-      break;
-    case PARTITION_HORZ_4A: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row + ebs_h,
-                     mi_col, bsize_med);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[2],
-                     get_partition_subtree_const(ptree_luma, 2),
-                     mi_row + 3 * ebs_h, mi_col, bsize_big);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[3],
-                     get_partition_subtree_const(ptree_luma, 3),
-                     mi_row + 7 * ebs_h, mi_col, subsize);
-      break;
+                     ptree->sub_tree[sub_idx],
+                     get_partition_subtree_const(ptree_luma, sub_idx),
+                     mi_rows[sub_idx], mi_cols[sub_idx], sub_sizes[sub_idx]);
     }
-    case PARTITION_HORZ_4B: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row + ebs_h,
-                     mi_col, bsize_big);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[2],
-                     get_partition_subtree_const(ptree_luma, 2),
-                     mi_row + 5 * ebs_h, mi_col, bsize_med);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[3],
-                     get_partition_subtree_const(ptree_luma, 3),
-                     mi_row + 7 * ebs_h, mi_col, subsize);
-      break;
-    }
-    case PARTITION_VERT_4A: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row,
-                     mi_col + ebs_w, bsize_med);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[2],
-                     get_partition_subtree_const(ptree_luma, 2), mi_row,
-                     mi_col + 3 * ebs_w, bsize_big);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[3],
-                     get_partition_subtree_const(ptree_luma, 3), mi_row,
-                     mi_col + 7 * ebs_w, subsize);
-      break;
-    }
-    case PARTITION_VERT_4B: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row,
-                     mi_col + ebs_w, bsize_big);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[2],
-                     get_partition_subtree_const(ptree_luma, 2), mi_row,
-                     mi_col + 5 * ebs_w, bsize_med);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[3],
-                     get_partition_subtree_const(ptree_luma, 3), mi_row,
-                     mi_col + 7 * ebs_w, subsize);
-      break;
-    }
-    case PARTITION_HORZ_3:
-    case PARTITION_VERT_3:
-      for (int i = 0; i < 4; ++i) {
-        BLOCK_SIZE this_bsize = get_h_partition_subsize(bsize, i, partition);
-        const int offset_r = get_h_partition_offset_mi_row(bsize, i, partition);
-        const int offset_c = get_h_partition_offset_mi_col(bsize, i, partition);
-
-        assert(this_bsize != BLOCK_INVALID);
-        assert(offset_r >= 0 && offset_c >= 0);
-
-        const int this_mi_row = mi_row + offset_r;
-        const int this_mi_col = mi_col + offset_c;
-
-        write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                       ptree->sub_tree[i],
-                       get_partition_subtree_const(ptree_luma, i), this_mi_row,
-                       this_mi_col, this_bsize);
-      }
-      break;
-    case PARTITION_SPLIT:
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row,
-                     mi_col + hbs_w, subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[2],
-                     get_partition_subtree_const(ptree_luma, 2), mi_row + hbs_h,
-                     mi_col, subsize);
-      write_modes_sb(cpi, tile, w, tok, tok_end, tok_chroma, tok_chroma_end,
-                     ptree->sub_tree[3],
-                     get_partition_subtree_const(ptree_luma, 3), mi_row + hbs_h,
-                     mi_col + hbs_w, subsize);
-      break;
-    default: assert(0); break;
   }
   if (!is_sb_root && !frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
       parent && partition && parent->region_type != INTRA_REGION &&
@@ -3251,55 +3075,46 @@ static AVM_INLINE void encode_restoration_mode(
         rsi->frame_restoration_type == RESTORE_SWITCHABLE;
     if (is_wiener_nonsep_possible) {
       rsi->frame_filters_initialized = 0;
-      if (is_frame_filters_enabled(p)) {
-        const int write_frame_filters_on_off = 1;
-        if (write_frame_filters_on_off) {
-          avm_wb_write_literal(wb, rsi->frame_filters_on, 1);
-          if (rsi->frame_filters_on) {
-            const int num_ref_frames =
-                (frame_is_intra_only(cm) || frame_is_sframe(cm))
-                    ? 0
-                    // NOTE: at the encoder num_total_refs may not include
-                    // restricted references
-                    : cm->ref_frames_info.num_valid_refs_with_restricted_ref;
+      avm_wb_write_literal(wb, rsi->frame_filters_on, 1);
+      if (rsi->frame_filters_on) {
+        const int num_ref_frames =
+            (frame_is_intra_only(cm) || frame_is_sframe(cm))
+                ? 0
+                // NOTE: at the encoder num_total_refs may not include
+                // restricted references
+                : cm->ref_frames_info.num_valid_refs_with_restricted_ref;
 
-            if (num_ref_frames > 0)
-              avm_wb_write_bit(wb, rsi->temporal_pred_flag);
-            if (rsi->temporal_pred_flag) {
-              assert(cm->ref_frames_info.num_total_refs > 0);
-            }
-            if (rsi->temporal_pred_flag && num_ref_frames > 1)
-              avm_wb_write_literal(
-                  wb, rsi->rst_ref_pic_idx,
-                  avm_ceil_log2(num_ref_frames));  // write_lr_reference_idx
-          }
-          if (!rsi->temporal_pred_flag) {
-            if (rsi->frame_filters_on && max_num_classes(p) > 1) {
-              avm_wb_write_literal(
-                  wb, encode_num_filter_classes(rsi->num_filter_classes),
-                  NUM_FILTER_CLASSES_BITS);
-            }
-          }
-          if (rsi->frame_filters_on)
-            av2_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
-          if (rsi->temporal_pred_flag) {
-            rsi->frame_filters_initialized = 1;
-            if (!get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
-                     ->rst_info[p]
-                     .frame_filters_on) {
-              // Frame filters are on but no ref for plane p. Must be using
-              // filters from alternate plane.
-              const int alternate_plane = alternate_ref_plane(p);
-              (void)alternate_plane;
-              assert(get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
-                         ->rst_info[alternate_plane]
-                         .frame_filters_on);
-            }
-          }
+        if (num_ref_frames > 0) avm_wb_write_bit(wb, rsi->temporal_pred_flag);
+        if (rsi->temporal_pred_flag) {
+          assert(cm->ref_frames_info.num_total_refs > 0);
         }
-      } else {
-        assert(rsi->frame_filters_on == 0);
-        assert(rsi->num_filter_classes == NUM_WIENERNS_CLASS_INIT_CHROMA);
+        if (rsi->temporal_pred_flag && num_ref_frames > 1)
+          avm_wb_write_literal(
+              wb, rsi->rst_ref_pic_idx,
+              avm_ceil_log2(num_ref_frames));  // write_lr_reference_idx
+      }
+      if (!rsi->temporal_pred_flag) {
+        if (rsi->frame_filters_on && max_num_classes(p) > 1) {
+          avm_wb_write_literal(
+              wb, encode_num_filter_classes(rsi->num_filter_classes),
+              NUM_FILTER_CLASSES_BITS);
+        }
+      }
+      if (rsi->frame_filters_on)
+        av2_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
+      if (rsi->temporal_pred_flag) {
+        rsi->frame_filters_initialized = 1;
+        if (!get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
+                 ->rst_info[p]
+                 .frame_filters_on) {
+          // Frame filters are on but no ref for plane p. Must be using
+          // filters from alternate plane.
+          const int alternate_plane = alternate_ref_plane(p);
+          (void)alternate_plane;
+          assert(get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
+                     ->rst_info[alternate_plane]
+                     .frame_filters_on);
+        }
       }
     } else {
       rsi->temporal_pred_flag = 0;
@@ -3338,8 +3153,7 @@ static AVM_INLINE void encode_restoration_mode(
            cm->rst_info[1].restoration_unit_size);
   }
   for (int p = 0; p < num_planes; ++p) {
-    if (is_frame_filters_enabled(p) &&
-        to_readwrite_framefilters(&cm->rst_info[p], 0, 0)) {
+    if (to_readwrite_framefilters(&cm->rst_info[p], 0, 0)) {
       write_wienerns_framefilters_hdr(cm, p, wb);
     }
   }
@@ -3451,7 +3265,6 @@ static AVM_INLINE void write_wienerns_framefilters_hdr(
 
   rsi->frame_filters.num_ref_filters = *cm->num_ref_filters;
   assert(rsi->frame_filters_on && !rsi->frame_filters_initialized);
-  assert(is_frame_filters_enabled(plane));
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, plane != AVM_PLANE_Y);
   int skip_filter_write_for_class[WIENERNS_MAX_CLASSES] = { 0 };

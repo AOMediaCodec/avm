@@ -144,9 +144,6 @@ typedef struct ThreadData {
   decode_block_visitor_fn_t inverse_tx_inter_block_visit;
   predict_inter_block_visitor_fn_t predict_inter_block_visit;
   predict_inter_block_visitor_fn_t copy_frame_mvs_block_visit;
-
-  REF_MV_BANK ref_mv_bank;
-  WARP_PARAM_BANK warp_param_bank;
 } ThreadData;
 
 typedef struct AV2DecRowMTJobInfo {
@@ -288,14 +285,9 @@ typedef struct {
 typedef struct {
   RefCntBuffer *ref_frame_map_buf[REF_FRAMES];
   int remapped_ref_idx_buf[INTER_REFS_PER_FRAME];
-  struct SequenceHeader seq_list_buf[MAX_SEQ_NUM];
   MultiFrameHeader mfh_params_buf[MAX_MFH_NUM];
   int valid_for_referencing_buf[REF_FRAMES];
-  struct LayerConfigurationRecord lcr_list_buf[MAX_NUM_XLAYERS][MAX_NUM_LCR];
   int lcr_counter_buf;
-  struct AtlasSegmentInfo atlas_list_buf[MAX_NUM_ATLAS_SEG_ID];
-  int atlas_counter_buf;
-  struct OperatingPointSet ops_list_buf[MAX_NUM_OPS_ID];
   int ops_counter_buf;
   struct LayerConfigurationRecord *active_lcr_buf;
   struct LayerConfigurationRecord lcr_params_buf;
@@ -313,7 +305,6 @@ typedef struct {
   int olk_refresh_frame_flags_buf[MAX_NUM_MLAYERS];
   int olk_co_vcl_refresh_frame_flags_buf[MAX_NUM_MLAYERS];
   SequenceHeader seq_params_buf;
-  int seq_header_count_buf;
   bool mfh_valid_buf[MAX_MFH_NUM];
   int decoding_first_frame;
   int last_olk_tu_display_order_hint;
@@ -390,7 +381,6 @@ typedef struct AV2Decoder {
   int reset_decoder_state;
 
   int tile_size_bytes;
-  int tile_col_size_bytes;
 #if CONFIG_ACCOUNTING
   int acct_enabled;
   Accounting accounting;
@@ -569,11 +559,6 @@ typedef struct AV2Decoder {
    * only for determining first clk/olk in the tu.
    */
   int current_tlayer_id;
-  /*!
-   * Indicates order_hint_bits to parse order_hint of the frames in the current
-   * data chunk This is used only for determining first clk/olk in the tu.
-   */
-  int current_order_hint_bits;
 
   /*!
    * Indicates the number of displayable_frame_unit  per layer between layer_id

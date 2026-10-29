@@ -246,7 +246,7 @@ static void update_frame_size(AV2_COMP *cpi) {
 
   // We need to reallocate the context buffers here in case we need more mis or
   // if we need more superblocks.
-  if (av2_alloc_context_buffers(cm, cm->width, cm->height)) {
+  if (av2_alloc_context_buffers(cm, cm->width, cm->height, cpi->oxcf.speed)) {
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");
   }
@@ -1136,7 +1136,11 @@ static void set_max_drl_bits(struct AV2_COMP *cpi) {
     cm->features.max_drl_bits = cm->seq_params.def_max_drl_bits;
   } else {  // Can be changed with logic later
     if (cpi->oxcf.tool_cfg.max_drl_refmvs == 0) {
-      cm->features.max_drl_bits = DEF_MAX_DRL_REFMVS - 1;
+      // Spend one fewer DRL bit on low importance frames
+      const int reduce_drl = cpi->sf.inter_sf.reduce_max_drl_refmvs &&
+                             cm->current_frame.pyramid_level > 2 &&
+                             !frame_is_kf_gf_arf(cpi);
+      cm->features.max_drl_bits = DEF_MAX_DRL_REFMVS - 1 - reduce_drl;
     } else {
       cm->features.max_drl_bits = cpi->oxcf.tool_cfg.max_drl_refmvs - 1;
     }
@@ -1160,25 +1164,6 @@ static void set_max_bvp_drl_bits(struct AV2_COMP *cpi) {
   }
   assert(cm->features.max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
          cm->features.max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
-}
-
-static void set_seq_lr_tools_mask(SequenceHeader *const seq_params,
-                                  const AV2EncoderConfig *oxcf) {
-  const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
-  seq_params->lr_tools_disable_mask[0] = 0;  // default - no tools disabled
-  seq_params->lr_tools_disable_mask[1] = 0;  // default - no tools disabled
-
-  // Parse oxcf here to disable tools as requested through cmd lines
-  if (!tool_cfg->enable_pc_wiener) {
-    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_PC_WIENER);
-    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_PC_WIENER);
-  }
-  if (!tool_cfg->enable_wiener_nonsep) {
-    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_WIENER_NONSEP);
-    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_WIENER_NONSEP);
-  }
-
-  seq_params->lr_tools_disable_mask[1] |= DEF_UV_LR_TOOLS_DISABLE_MASK;
 }
 
 void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
@@ -1290,7 +1275,7 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
 
   // Need to call av2_rc_init() whenever any QP, lossless or related config
   // is changed after compressor creation.
-  av2_rc_init(&cpi->oxcf, 0, rc);
+  av2_rc_init(&cpi->oxcf, rc);
   rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
 
   cm->features.cross_frame_context =
@@ -1346,12 +1331,10 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
     x->e_mbd.opfl_dst_bufs = x->opfl_dst_bufs;
   }
 
-  for (int i = 0; i < 2; ++i) {
-    if (x->tmp_pred_bufs[i] == NULL) {
-      CHECK_MEM_ERROR(cm, x->tmp_pred_bufs[i],
-                      avm_memalign(32, 2 * MAX_MB_PLANE * MAX_SB_SQUARE *
-                                           sizeof(*x->tmp_pred_bufs[i])));
-    }
+  if (x->tmp_pred_bufs == NULL) {
+    CHECK_MEM_ERROR(cm, x->tmp_pred_bufs,
+                    avm_memalign(32, MAX_MB_PLANE * MAX_SB_SQUARE *
+                                         sizeof(*x->tmp_pred_bufs)));
   }
 
   av2_reset_segment_features(cm);
@@ -1428,6 +1411,8 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
       av2_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
       av2_free_sms_tree(&cpi->td);
       av2_free_sms_bufs(&cpi->td);
+      av2_free_pc_tree_recursive(cpi->td.pc_root, av2_num_planes(cm), 0, 0);
+      cpi->td.pc_root = NULL;
 #if CONFIG_ML_PART_SPLIT
       av2_part_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
@@ -1456,7 +1441,6 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   // This should not be called after the first key frame.
   if (!cpi->seq_params_locked) {
     av2_init_seq_coding_tools(cpi, &cm->seq_params, cm, oxcf);
-    if (seq_params->enable_restoration) set_seq_lr_tools_mask(seq_params, oxcf);
   }
 
   // restore the value of lag_in_frame for LAP stage.
@@ -1593,7 +1577,7 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
 
   cpi->frames_left = cpi->oxcf.input_cfg.limit;
 
-  av2_rc_init(&cpi->oxcf, 0, &cpi->rc);
+  av2_rc_init(&cpi->oxcf, &cpi->rc);
 
   // For two pass and lag_in_frames > 33 in LAP.
   cpi->rc.enable_scenecut_detection = ENABLE_SCENECUT_MODE_2;
@@ -1815,9 +1799,7 @@ static AVM_INLINE void free_thread_data(AV2_COMP *cpi) {
     avm_free(thread_data->td->opfl_gxy_bufs);
     avm_free(thread_data->td->opfl_dst_bufs);
     release_compound_type_rd_buffers(&thread_data->td->comp_rd_buffer);
-    for (int j = 0; j < 2; ++j) {
-      avm_free(thread_data->td->tmp_pred_bufs[j]);
-    }
+    avm_free(thread_data->td->tmp_pred_bufs);
     avm_free(thread_data->td->mb.inter_modes_info);
     for (int x = 0; x < 2; x++) {
       for (int y = 0; y < 2; y++) {
@@ -1836,6 +1818,9 @@ static AVM_INLINE void free_thread_data(AV2_COMP *cpi) {
     thread_data->td->vt64x64 = NULL;
     av2_free_sms_tree(thread_data->td);
     av2_free_sms_bufs(thread_data->td);
+    av2_free_pc_tree_recursive(thread_data->td->pc_root, av2_num_planes(cm), 0,
+                               0);
+    thread_data->td->pc_root = NULL;
 #if CONFIG_ML_PART_SPLIT
     av2_part_prune_tflite_close(&(thread_data->td->partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
@@ -2024,6 +2009,8 @@ void av2_remove_compressor(AV2_COMP *cpi) {
   if (cpi->compressor_stage == ENCODE_STAGE) free_tip_ref_frame(cm);
 
   free_bru_info(cm);
+
+  av2_ccso_ctx_free(cpi);
 
   av2_remove_common(cm);
   av2_free_ref_frame_buffers(cm->buffer_pool);
@@ -2362,6 +2349,16 @@ void av2_set_downsample_filter_options(AV2_COMP *cpi) {
 
 void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
   const AV2_COMMON *const cm = &cpi->common;
+  if (cpi->oxcf.mode == REALTIME) {
+    features->allow_screen_content_tools =
+        cm->seq_params.force_screen_content_tools == 2
+            ? (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN)
+            : cm->seq_params.force_screen_content_tools;
+    features->allow_intrabc =
+        features->allow_screen_content_tools && cpi->oxcf.kf_cfg.enable_intrabc;
+    features->is_scc_content_by_detector = features->allow_screen_content_tools;
+    return;
+  }
   // Estimate if the source frame is screen content, based on the portion of
   // blocks that have few luma colors.
   const uint16_t *src = cpi->unfiltered_source->y_buffer;
@@ -2598,6 +2595,8 @@ int av2_set_size_literal(AV2_COMP *cpi, int width, int height) {
       av2_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
       av2_free_sms_tree(&cpi->td);
       av2_free_sms_bufs(&cpi->td);
+      av2_free_pc_tree_recursive(cpi->td.pc_root, av2_num_planes(cm), 0, 0);
+      cpi->td.pc_root = NULL;
 #if CONFIG_ML_PART_SPLIT
       av2_part_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
@@ -3046,7 +3045,7 @@ void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm) {
  */
 void gdf_optimize_frame(AV2_COMP *cpi, AV2_COMMON *cm) {
   init_gdf(cm);
-  alloc_gdf_buffers(&cm->gdf_info);
+  alloc_gdf_buffers(&cm->gdf_info, cm->cur_frame->buf.y_width);
   gdf_optimizer(cpi, cm);
 #if GDF_VERBOSE
   gdf_print_info(cm, "ENC", cm->current_frame.absolute_poc);
@@ -3084,39 +3083,41 @@ static void avm_band_search(AV2_COMP *cpi, AV2_COMMON *cm, MACROBLOCKD *xd) {
 static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
                                    MACROBLOCKD *xd, int use_restoration,
                                    int use_cdef, int use_gdf) {
-  uint16_t *rec_uv[CCSO_NUM_COMPONENTS];
-  uint16_t *org_uv[CCSO_NUM_COMPONENTS];
   uint16_t *ext_rec_y = NULL;
-  uint16_t *ref_buffer;
-  const YV12_BUFFER_CONFIG *ref = cpi->source;
-  int ref_stride;
   const int use_ccso =
       !cm->features.coded_lossless && !cm->bru.frame_inactive_flag &&
       !cm->bridge_frame_info.is_bridge_frame && cm->seq_params.enable_ccso;
   const int num_planes = av2_num_planes(cm);
+
   av2_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                        NULL);
-  const int ccso_stride = xd->plane[0].dst.width;
-  for (int pli = 0; pli < num_planes; pli++) {
-    rec_uv[pli] = avm_malloc(sizeof(*rec_uv[pli]) * xd->plane[0].dst.height *
-                             ccso_stride);
-    org_uv[pli] = avm_malloc(sizeof(*org_uv[pli]) * xd->plane[0].dst.height *
-                             ccso_stride);
-  }
   if (use_ccso) {
+    const int ccso_stride = xd->plane[AVM_PLANE_Y].dst.width;
+    const int ccso_height = xd->plane[AVM_PLANE_Y].dst.height;
+    const int ccso_stride_ext = ccso_stride + (CCSO_PADDING_SIZE << 1);
+    const int ccso_height_ext = ccso_height + (CCSO_PADDING_SIZE << 1);
+    const size_t ext_rec_y_size = (size_t)ccso_stride_ext * ccso_height_ext;
+    if (ext_rec_y_size > cpi->ccso_ext_rec_y_size) {
+      cpi->ccso_ext_rec_y_size = 0;
+      avm_free(cpi->ccso_ext_rec_y);
+      CHECK_MEM_ERROR(
+          cm, cpi->ccso_ext_rec_y,
+          avm_malloc(sizeof(*cpi->ccso_ext_rec_y) * ext_rec_y_size));
+      cpi->ccso_ext_rec_y_size = ext_rec_y_size;
+    }
+    ext_rec_y = cpi->ccso_ext_rec_y;
+
     const int pic_height = cm->cur_frame->buf.y_height;
     const int pic_width = cm->cur_frame->buf.y_width;
     const int dst_stride = cm->cur_frame->buf.y_stride;
-    const uint16_t *rec_y = cm->cur_frame->buf.y_buffer;
-    const int ccso_stride_ext = pic_width + (CCSO_PADDING_SIZE << 1);
-    ext_rec_y = avm_malloc(sizeof(*ext_rec_y) *
-                           (pic_height + (CCSO_PADDING_SIZE << 1)) *
-                           (pic_width + (CCSO_PADDING_SIZE << 1)));
+    uint16_t *rec_y = cm->cur_frame->buf.y_buffer;
+    uint16_t *ext_rec_y_row =
+        ext_rec_y + CCSO_PADDING_SIZE + (CCSO_PADDING_SIZE * ccso_stride_ext);
+
     for (int r = 0; r < pic_height; ++r) {
-      for (int c = 0; c < pic_width; ++c) {
-        ext_rec_y[(r + CCSO_PADDING_SIZE) * ccso_stride_ext + c +
-                  CCSO_PADDING_SIZE] = rec_y[r * dst_stride + c];
-      }
+      av2_copy_array(ext_rec_y_row, rec_y, pic_width);
+      ext_rec_y_row += ccso_stride_ext;
+      rec_y += dst_stride;
     }
     extend_ccso_border(&cm->cur_frame->buf, ext_rec_y, CCSO_PADDING_SIZE);
   }
@@ -3142,7 +3143,8 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
 #if CONFIG_ENTROPY_STATS
                     &cpi->td,
 #endif  // CONFIG_ENTROPY_STATS
-                    cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult);
+                    cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult,
+                    cpi->sf.lc_sf.bias_against_cdef);
 
     // Apply the filter
     if (cm->cdef_info.cdef_frame_enable)
@@ -3159,61 +3161,65 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
     cm->cdef_info.cdef_frame_enable = 0;
     // if not use ccso, need to init
     cm->ccso_info.ccso_frame_flag = false;
-    cm->ccso_info.ccso_enable[0] = cm->ccso_info.ccso_enable[1] =
-        cm->ccso_info.ccso_enable[2] = 0;
-    for (int plane = 0; plane < av2_num_planes(cm); plane++) {
-      cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
+    for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
+      cm->cur_frame->ccso_info.ccso_enable[plane] = false;
+      cm->ccso_info.ccso_enable[plane] = false;
       cm->ccso_info.sb_reuse_ccso[plane] = false;
       cm->ccso_info.reuse_ccso[plane] = false;
     }
   }
+
   if (use_ccso) {
     av2_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                          NULL);
-    // Reading original and reconstructed chroma samples as input
-    for (int pli = 0; pli < num_planes; pli++) {
-      const int pic_height = xd->plane[pli].dst.height;
-      const int pic_width = xd->plane[pli].dst.width;
-      const int dst_stride = xd->plane[pli].dst.stride;
-      switch (pli) {
-        case 0:
-          ref_buffer = ref->y_buffer;
-          ref_stride = ref->y_stride;
-          break;
-        case 1:
-          ref_buffer = ref->u_buffer;
-          ref_stride = ref->uv_stride;
-          break;
-        case 2:
-          ref_buffer = ref->v_buffer;
-          ref_stride = ref->uv_stride;
-          break;
-        default: ref_stride = 0;
+
+    const int ccso_stride = xd->plane[AVM_PLANE_Y].dst.width;
+    for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
+      const size_t plane_size =
+          (size_t)xd->plane[plane].dst.height * ccso_stride;
+      if (plane_size > cpi->ccso_uv_size[plane]) {
+        cpi->ccso_uv_size[plane] = 0;
+        avm_free(cpi->ccso_rec_uv[plane]);
+        CHECK_MEM_ERROR(
+            cm, cpi->ccso_rec_uv[plane],
+            avm_malloc(sizeof(*cpi->ccso_rec_uv[plane]) * plane_size));
+        avm_free(cpi->ccso_org_uv[plane]);
+        CHECK_MEM_ERROR(
+            cm, cpi->ccso_org_uv[plane],
+            avm_malloc(sizeof(*cpi->ccso_org_uv[plane]) * plane_size));
+        cpi->ccso_uv_size[plane] = plane_size;
       }
+
+      // Copy original and reconstructed samples for this plane.
+      const YV12_BUFFER_CONFIG *src = cpi->source;
+      uint16_t *rec_buffer = xd->plane[plane].dst.buf;
+      uint16_t *src_cpy = cpi->ccso_org_uv[plane];
+      uint16_t *rec_cpy = cpi->ccso_rec_uv[plane];
+      const int pic_height = xd->plane[plane].dst.height;
+      const int pic_width = xd->plane[plane].dst.width;
+      const int rec_stride = xd->plane[plane].dst.stride;
+      uint16_t *src_buffer = src->buffers[plane];
+      int src_stride = src->strides[plane == AVM_PLANE_Y ? 0 : 1];
+
       for (int r = 0; r < pic_height; ++r) {
-        for (int c = 0; c < pic_width; ++c) {
-          rec_uv[pli][r * ccso_stride + c] =
-              xd->plane[pli].dst.buf[r * dst_stride + c];
-          org_uv[pli][r * ccso_stride + c] = ref_buffer[r * ref_stride + c];
-        }
+        av2_copy_array(src_cpy, src_buffer, pic_width);
+        src_buffer += src_stride;
+
+        av2_copy_array(rec_cpy, rec_buffer, pic_width);
+        rec_buffer += rec_stride;
+
+        rec_cpy += ccso_stride;
+        src_cpy += ccso_stride;
       }
     }
-    ccso_search(cm, xd, cpi->td.mb.rdmult, ext_rec_y, rec_uv, org_uv,
-                cpi->error_resilient_frame_seen
-#if CONFIG_ENTROPY_STATS
-                ,
-                &cpi->td
-#endif
-    );
+    av2_ccso_search(cpi, ext_rec_y, cpi->ccso_rec_uv, cpi->ccso_org_uv,
+                    cpi->error_resilient_frame_seen,
+                    cpi->sf.lpf_sf.early_terminate_ccso_search_by_cost,
+                    cpi->sf.lpf_sf.ccso_chroma_dep);
     ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
 #if CONFIG_MISMATCH_DEBUG
     mismatch_record_frame(&cm->cur_frame->buf, num_planes, 2);
 #endif
-    avm_free(ext_rec_y);
-  }
-  for (int pli = 0; pli < num_planes; pli++) {
-    avm_free(rec_uv[pli]);
-    avm_free(org_uv[pli]);
   }
 
   if (use_gdf) {
@@ -3462,6 +3468,29 @@ static void set_primary_ref_frame_for_error_resilient(AV2_COMP *cpi) {
   }
 }
 
+// Select the last encoded inter reference frame as primary_ref_frame,
+// falling back to the first valid inter reference frame.
+static int get_last_encoded_inter_ref(const AV2_COMP *cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
+  int first_valid_inter_ref = PRIMARY_REF_NONE;
+  for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
+    const RefFrameMapPair ref_i =
+        cm->ref_frame_map_pairs[get_ref_frame_map_idx(cm, i)];
+    if (ref_i.ref_frame_restricted || ref_i.ref_frame_for_inference == -1 ||
+        ref_i.frame_type != INTER_FRAME ||
+        (cm->bru.enabled && cm->bru.update_ref_idx == i)) {
+      continue;
+    }
+    if (first_valid_inter_ref == PRIMARY_REF_NONE) {
+      first_valid_inter_ref = i;
+    }
+    if (ref_i.disp_order == cpi->last_encoded_frame_order_hint) {
+      return i;
+    }
+  }
+  return first_valid_inter_ref;
+}
+
 /*!\brief Set the primary reference frame before encoding a frame.
  *
  * \ingroup high_level_algo
@@ -3477,6 +3506,13 @@ static void set_primary_ref_frame(AV2_COMP *cpi) {
   // The primary_ref_frame can be set to other refs other than the derived
   // one. If that is needed, disable primary_ref_frame search.
   cm->features.primary_ref_frame = cm->features.derived_primary_ref_frame;
+  if (cpi->sf.rt_sf.disable_primary_ref_frame_search &&
+      cm->features.derived_primary_ref_frame != PRIMARY_REF_NONE) {
+    const int ref = get_last_encoded_inter_ref(cpi);
+    if (ref != PRIMARY_REF_NONE) {
+      cm->features.primary_ref_frame = ref;
+    }
+  }
   if (cpi->ext_flags.use_primary_ref_none) {
     cm->features.primary_ref_frame = PRIMARY_REF_NONE;
   }
@@ -3484,8 +3520,8 @@ static void set_primary_ref_frame(AV2_COMP *cpi) {
   // Set primary reference frame while the error resilience mode is turned on.
   set_primary_ref_frame_for_error_resilient(cpi);
 
-  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE &&
-      cm->features.derived_primary_ref_frame != PRIMARY_REF_NONE) {
+  if (cm->features.primary_ref_frame !=
+      cm->features.derived_primary_ref_frame) {
     cpi->signal_primary_ref_frame = 1;
     choose_primary_secondary_ref_frame(cm, tmp_ref_frame, 1);
     cm->features.derived_primary_ref_frame = tmp_ref_frame[0];
@@ -3919,6 +3955,16 @@ static INLINE bool allow_tip_direct_output(AV2_COMMON *const cm) {
   return false;
 }
 
+// Early termination of the TIP direct output search
+// (hl_sf.early_term_tip_direct_output_search). Once the TIP frame is built with
+// the zero global offset, the rest of the search is skipped if the direct
+// output would not have a lower RD cost than the normally coded frame even with
+// TIP_OUTPUT_MIN_BITS as its rate, about the size of a TIP direct output frame,
+// and its distortion divided by 1 + TIP_OUTPUT_EARLY_TERM_MARGIN_PCT / 100 to
+// allow for the gain of the offset and interpolation filter searches.
+#define TIP_OUTPUT_EARLY_TERM_MARGIN_PCT 20
+#define TIP_OUTPUT_MIN_BITS 40
+
 static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
                                                     uint8_t *dest, size_t *size,
                                                     int64_t *sse, int64_t *rate,
@@ -3926,6 +3972,28 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
   AV2_COMMON *const cm = &cpi->common;
 
   if (allow_tip_direct_output(cm)) {
+    const bool early_term = cpi->sf.hl_sf.early_term_tip_direct_output_search;
+    // Size and distortion of the normally coded frame, for the early
+    // termination.
+    size_t coded_size = 0;
+    int64_t coded_sse = 0;
+    if (early_term) {
+      int coded_largest_tile_id = 0;
+      av2_finalize_encoded_frame(cpi);
+      if (av2_pack_bitstream(cpi, dest, &coded_size, &coded_largest_tile_id) !=
+          AVM_CODEC_OK)
+        return AVM_CODEC_ERROR;
+      coded_sse = avm_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
+      coded_sse += avm_highbd_sse(
+          cpi->source->u_buffer, cpi->source->uv_stride,
+          cm->cur_frame->buf.u_buffer, cm->cur_frame->buf.uv_stride,
+          cpi->source->uv_width, cpi->source->uv_height);
+      coded_sse += avm_highbd_sse(
+          cpi->source->v_buffer, cpi->source->uv_stride,
+          cm->cur_frame->buf.v_buffer, cm->cur_frame->buf.uv_stride,
+          cpi->source->uv_width, cpi->source->uv_height);
+    }
+
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
 
     // These two variables must be false when using TIP_FRAME_AS_OUTPUT.
@@ -3999,6 +4067,25 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
         avm_highbd_sse(cpi->source->v_buffer, cpi->source->uv_stride,
                        tip_frame_buf->v_buffer, tip_frame_buf->uv_stride,
                        cpi->source->uv_width, cpi->source->uv_height);
+
+    if (early_term) {
+      const int64_t coded_bits = (coded_size << 3);
+      const double coded_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+          rdmult, coded_bits << 5, coded_sse, cm->seq_params.bit_depth);
+      const double tip_rdcost_bound = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+          rdmult, TIP_OUTPUT_MIN_BITS << 5,
+          best_sse * 100 / (100 + TIP_OUTPUT_EARLY_TERM_MARGIN_PCT),
+          cm->seq_params.bit_depth);
+      if (tip_rdcost_bound >= coded_rdcost) {
+        *sse = INT64_MAX;
+        *rate = INT64_MAX;
+        cm->features.coded_lossless = backup_coded_lossless;
+        cm->features.all_lossless = backup_all_lossless;
+        cm->features.tip_frame_mode = TIP_FRAME_AS_REF;
+        return AVM_CODEC_OK;
+      }
+    }
+
     int_mv ref_mv;
     ref_mv.as_int = 0;
 
@@ -4398,7 +4485,8 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
                  cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE));
 
   if (cm->features.primary_ref_frame != PRIMARY_REF_NONE &&
-      !cpi->error_resilient_frame_seen) {
+      !cpi->error_resilient_frame_seen &&
+      !cpi->sf.rt_sf.disable_primary_ref_frame_search) {
     const int n_refs = cm->ref_frames_info.num_total_refs;
     //    int frame_size[REF_FRAMES];
     int best_ref_idx = -1;
