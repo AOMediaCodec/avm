@@ -413,12 +413,20 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
        rc->buffer_level < (rc->optimal_buffer_level >> 1) &&
        rc->frames_since_key > 4);
   // Scale maximum Q decrease with previous frame Q so Q drops more gradually
-  // at low Q indices, avoiding sudden bit spikes.
-  const int max_delta_down =
-      (cpi->is_screen_content_type && cm->width * cm->height <= 1280 * 720)
-          ? clamp(rc->q_1_frame / 32, 1, 4)
-          : clamp(rc->q_1_frame / 8, 1, 16);
-  const int max_delta_up = overshoot_buffer_low ? 120 : 16;
+  // at low Q indices, avoiding sudden bit spikes. For non-screen content,
+  // allow a larger max_delta_down and a moderate max_delta_up on low-buffer
+  // overshoot so Q can adapt faster after the keyframe without over-clamping.
+  int max_delta_down;
+  int max_delta_up;
+  if (cpi->is_screen_content_type) {
+    max_delta_down = cm->width * cm->height <= 1280 * 720
+                         ? clamp(rc->q_1_frame / 32, 1, 4)
+                         : clamp(rc->q_1_frame / 8, 1, 16);
+    max_delta_up = overshoot_buffer_low ? 120 : 16;
+  } else {
+    max_delta_down = clamp(rc->q_1_frame / 4, 1, 32);
+    max_delta_up = overshoot_buffer_low ? 48 : 16;
+  }
   const int change_avg_frame_bandwidth =
       abs(rc->avg_frame_bandwidth - rc->prev_avg_frame_bandwidth) >
       0.1 * (rc->avg_frame_bandwidth);
@@ -474,6 +482,14 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
                                            rc->optimal_buffer_level << 1)) {
         q = (3 * q + rc->q_1_frame) >> 2;
       }
+    }
+    // For non-screen content in the early frames after a keyframe, allow Q to
+    // step down faster after an overshoot when motion is low and non-zero, and
+    // not recovering from a high-SAD scene cut.
+    if (rc->avg_source_sad > 0 && rc->frame_source_sad < 10000 &&
+        rc->avg_source_sad < 15000 && rc->rc_1_frame == -1 &&
+        rc->frames_since_key < 60 && !cpi->is_screen_content_type) {
+      q -= 16;
     }
     // Gentle adjustment to Q when cyclic refresh was active on previous frame
     // and blocks were refreshed, and no scene cut or high motion, and buffer
@@ -2281,8 +2297,12 @@ int av2_calc_iframe_target_size_one_pass_cbr(const AV2_COMP *cpi) {
   const RATE_CONTROL *rc = &cpi->rc;
   int target;
   if (cpi->common.current_frame.frame_number == 0) {
+    // In realtime mode, use a smaller initial keyframe target for non-screen
+    // content so less buffer budget is consumed on the first frame.
+    const int factor =
+        (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) ? 7 : 3;
     const int64_t initial_target = (cpi->oxcf.mode == REALTIME)
-                                       ? rc->starting_buffer_level * 7 / 2
+                                       ? rc->starting_buffer_level * factor / 2
                                        : rc->starting_buffer_level / 2;
     target = (initial_target > INT_MAX) ? INT_MAX : (int)initial_target;
   } else {
