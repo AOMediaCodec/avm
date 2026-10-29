@@ -284,6 +284,22 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    * it does not.
    */
   int enable_tip_mt;
+
+  /*!
+   * TIP-first: if > 0, a frame whose pyramid level last ended as TIP direct
+   * output runs the TIP direct output search before its normal encode. It is
+   * coded as TIP direct output without the normal encode if its TIP RD cost is
+   * at least tip_first_margin_pct percent below the normal-coding RD cost of
+   * the last frame of that level whose normal encode ran, if that frame had the
+   * same qindex; both costs use the rdmult of the current frame. At most this
+   * many frames in a row per level skip the normal encode.
+   */
+  int tip_first_max_run;
+
+  /*!
+   * Margin of the TIP-first decision, in percent (see tip_first_max_run).
+   */
+  int tip_first_margin_pct;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!\cond */

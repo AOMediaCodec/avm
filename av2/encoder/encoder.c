@@ -4126,13 +4126,13 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
 
     // Reset the mv_stats in case we are interrupted by an intraframe or an
     // overlay frame.
-    if (cpi->mv_stats.valid) {
+    if (cpi->mv_stats.valid && !cpi->tip_first.skip_normal_encode) {
       av2_zero(cpi->mv_stats);
     }
 
     // Gather the mv_stats for the next frame
     if (cpi->sf.hl_sf.high_precision_mv_usage == LAST_MV_DATA &&
-        av2_frame_allows_smart_mv(cpi)) {
+        av2_frame_allows_smart_mv(cpi) && !cpi->tip_first.skip_normal_encode) {
       av2_collect_mv_stats(cpi, q);
     }
 
@@ -4145,10 +4145,13 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
     // Dummy pack of the bitstream using up to date stats to get an
     // accurate estimate of output frame size to determine if we need
     // to recode.
+    // A frame that skipped its normal encode (TIP-first) has nothing to pack
+    // here and is not recoded.
     const int do_dummy_pack =
-        (cpi->sf.hl_sf.recode_loop >= ALLOW_RECODE_KFARFGF &&
-         oxcf->rc_cfg.mode != AVM_Q) ||
-        oxcf->rc_cfg.min_cr > 0;
+        !cpi->tip_first.skip_normal_encode &&
+        ((cpi->sf.hl_sf.recode_loop >= ALLOW_RECODE_KFARFGF &&
+          oxcf->rc_cfg.mode != AVM_Q) ||
+         oxcf->rc_cfg.min_cr > 0);
     if (do_dummy_pack) {
       av2_finalize_encoded_frame(cpi);
       int largest_tile_id = 0;  // Output from bitstream: unused here
@@ -4166,7 +4169,7 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
       q = cpi->vmaf_info.original_qindex;
     }
 #endif
-    if (allow_recode) {
+    if (allow_recode && !cpi->tip_first.skip_normal_encode) {
       // Update q and decide whether to do a recode loop
       recode_loop_update_q(cpi, &loop, &q, &q_low, &q_high, top_index,
                            bottom_index, &undershoot_seen, &overshoot_seen,
@@ -4196,15 +4199,6 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
   return AVM_CODEC_OK;
 }
 
-static INLINE bool allow_tip_direct_output(AV2_COMMON *const cm) {
-  if (!frame_is_intra_only(cm) && cm->seq_params.enable_tip == 1 &&
-      cm->features.tip_frame_mode && !cm->bru.enabled) {
-    return true;
-  }
-
-  return false;
-}
-
 // Early termination of the TIP direct output search
 // (hl_sf.early_term_tip_direct_output_search). Once the TIP frame is built with
 // the zero global offset, the rest of the search is skipped if the direct
@@ -4220,7 +4214,7 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
                                                     int *largest_tile_id) {
   AV2_COMMON *const cm = &cpi->common;
 
-  if (allow_tip_direct_output(cm)) {
+  if (av2_tip_direct_output_allowed(cm)) {
     const bool early_term = cpi->sf.hl_sf.early_term_tip_direct_output_search;
     // Size and distortion of the normally coded frame, for the early
     // termination.
@@ -4413,6 +4407,17 @@ static INLINE int compute_tip_direct_output_mode_RD(AV2_COMP *cpi,
   return AVM_CODEC_OK;
 }
 
+int av2_tip_first_try(AV2_COMP *cpi) {
+  if (!av2_tip_first_search_begin(cpi)) return 0;
+  int64_t sse = INT64_MAX;
+  int64_t rate = INT64_MAX;
+  int largest_tile_id = 0;
+  compute_tip_direct_output_mode_RD(cpi, cpi->tip_first.dest,
+                                    cpi->tip_first.size, &sse, &rate,
+                                    &largest_tile_id);
+  return av2_tip_first_search_end(cpi, sse, rate);
+}
+
 static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
                                     int64_t *sse, int64_t *rate,
                                     int64_t tip_as_output_sse,
@@ -4439,8 +4444,10 @@ static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
       rdmult, tip_as_ref_rate, tip_as_ref_sse, cm->seq_params.bit_depth);
   const double tip_direct_output_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       rdmult, tip_as_output_rate, tip_as_output_sse, cm->seq_params.bit_depth);
-  if (tip_direct_output_rdcost < normal_coding_rdcost &&
-      (!cm->features.coded_lossless || tip_as_output_sse == 0)) {
+  if (av2_tip_first_finalize(
+          cpi, tip_as_ref_rate, tip_as_ref_sse,
+          tip_direct_output_rdcost < normal_coding_rdcost &&
+              (!cm->features.coded_lossless || tip_as_output_sse == 0))) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
     for (int plane = 0; plane < av2_num_planes(cm); plane++) {
       cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
@@ -4616,6 +4623,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
   int err;
 
   AV2_COMMON *const cm = &cpi->common;
+  av2_tip_first_frame_start(cpi, dest, size);
 
   if (cpi->sf.hl_sf.recode_loop == DISALLOW_RECODE)
     err = encode_without_recode(cpi);
@@ -4675,15 +4683,17 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
   av2_set_lr_tools(master_lr_tools_disable_mask[1], 2, &cm->features);
 
   // Pick the loop filter level for the frame.
-  if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame) {
+  if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame &&
+      !cpi->tip_first.skip_normal_encode) {
     sync_delta_q_for_loop_filter(cpi);
     loopfilter_frame(cpi, cm);
   }
   int64_t tip_as_output_sse = INT64_MAX;
   int64_t tip_as_output_rate = INT64_MAX;
 
-  compute_tip_direct_output_mode_RD(cpi, dest, size, &tip_as_output_sse,
-                                    &tip_as_output_rate, largest_tile_id);
+  if (!av2_tip_first_load_search(cpi, &tip_as_output_sse, &tip_as_output_rate))
+    compute_tip_direct_output_mode_RD(cpi, dest, size, &tip_as_output_sse,
+                                      &tip_as_output_rate, largest_tile_id);
 
   // TODO(debargha): Fix mv search range on encoder side
   // avm_extend_frame_inner_borders(&cm->cur_frame->buf, av2_num_planes(cm));
@@ -4705,7 +4715,8 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
 
   if (cm->features.primary_ref_frame != PRIMARY_REF_NONE &&
       !cpi->error_resilient_frame_seen &&
-      !cpi->sf.rt_sf.disable_primary_ref_frame_search) {
+      !cpi->sf.rt_sf.disable_primary_ref_frame_search &&
+      !cpi->tip_first.skip_normal_encode) {
     const int n_refs = cm->ref_frames_info.num_total_refs;
     //    int frame_size[REF_FRAMES];
     int best_ref_idx = -1;
@@ -4873,12 +4884,17 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
     }
   }
 
-  av2_finalize_encoded_frame(cpi);
+  // A frame that skipped its normal encode is packed as TIP direct output only.
+  if (!cpi->tip_first.skip_normal_encode) {
+    av2_finalize_encoded_frame(cpi);
+  }
   // Build the bitstream
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, av2_pack_bitstream_final_time);
 #endif
-  if (av2_pack_bitstream(cpi, dest, size, largest_tile_id) != AVM_CODEC_OK)
+  if (cpi->tip_first.skip_normal_encode)
+    *size = 0;
+  else if (av2_pack_bitstream(cpi, dest, size, largest_tile_id) != AVM_CODEC_OK)
     return AVM_CODEC_ERROR;
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av2_pack_bitstream_final_time);
@@ -4908,7 +4924,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
     *rate = (bits << 5);  // To match scale.
   }
 
-  if (allow_tip_direct_output(cm)) {
+  if (av2_tip_direct_output_allowed(cm)) {
     finalize_tip_mode(cpi, dest, size, sse, rate, tip_as_output_sse,
                       tip_as_output_rate, largest_tile_id);
   }
