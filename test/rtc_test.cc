@@ -9,6 +9,8 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
+#include <string>
+
 #include "avm/avm_codec.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/codec_factory.h"
@@ -50,7 +52,12 @@ class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
     if (video->frame() == 0) {
       encoder->Control(AV2E_SET_TUNE_CONTENT, tune_content_);
       encoder->Control(AVME_SET_CPUUSED, 6);
-      encoder->Control(AV2E_SET_MAX_REFERENCE_FRAMES, 1);
+      if (dpb_size_ > 0) {
+        encoder->SetOption("dpb-size", std::to_string(dpb_size_).c_str());
+      }
+      encoder->Control(AV2E_SET_MAX_REFERENCE_FRAMES, max_reference_frames_);
+      encoder->Control(AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP,
+                       explicit_ref_frame_map_);
       encoder->Control(AV2E_SET_AQ_MODE, aq_mode_);
     }
   }
@@ -63,9 +70,18 @@ class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
 
   int tune_content_;
   int aq_mode_ = 0;
+  int max_reference_frames_ = 1;
+  int dpb_size_ = 0;
+  int explicit_ref_frame_map_ = 1;
 };
 
 TEST_P(RtcTest, RtcTest) {
+  ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0, 50);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+}
+
+TEST_P(RtcTest, RtcMultiRefTest) {
+  max_reference_frames_ = 3;
   ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0, 50);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
 }
@@ -78,6 +94,21 @@ TEST_P(RtcTest, RtcCyclicRefreshTest) {
   cfg_.rc_target_bitrate = 500;
   ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0, 50);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+}
+
+TEST_P(RtcTest, RtcCyclicRefreshMultiRefTest) {
+  aq_mode_ = 3;
+  max_reference_frames_ = 3;
+  dpb_size_ = 3;
+  cfg_.rc_end_usage = AVM_CBR;
+  cfg_.rc_min_quantizer = 20;
+  cfg_.rc_max_quantizer = 220;
+  cfg_.rc_target_bitrate = 500;
+  for (int explicit_ref_frame_map : { 0, 1 }) {
+    explicit_ref_frame_map_ = explicit_ref_frame_map;
+    ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0, 50);
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+  }
 }
 
 AV2_INSTANTIATE_TEST_SUITE(RtcTest, ::testing::Range(0, 2));

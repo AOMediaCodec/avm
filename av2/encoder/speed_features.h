@@ -270,6 +270,20 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    * 0: every offset and filter is built on the whole frame.
    */
   int tip_direct_output_rank_band_period;
+
+  /*!
+   * Run the full-frame TIP work (the TIP frame build, its loop filter and the
+   * SSE of the TIP searches) on the encoder worker threads when there are
+   * several. The output is the same with or without it.
+   * 0: single thread.
+   * This switch exists only to A/B test the multithreaded path against the
+   * single-threaded one while the encoder baseline is still changing, because
+   * the fixed cost of multithreading can cancel its gain for light stages. Once
+   * av2-enc is stable the multithreaded stage is re-evaluated: the switch is
+   * removed if multithreading helps, and the multithreaded code is removed if
+   * it does not.
+   */
+  int enable_tip_mt;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!\cond */
@@ -479,6 +493,11 @@ typedef struct PARTITION_SPEED_FEATURES {
   // 4: aggressive directional half-pair depth (enabled at speeds >= 5 for
   //    1080p; 4k uses level 1 at speeds >= 5)
   int prune_rect_with_split_depth;
+
+  // Two-pass search: when the dry pass settles a 256x256 superblock as a
+  // NEARMV block without residual and the previous frame coded it whole too,
+  // the wet pass re-evaluates only NEARMV on that block.
+  int wet_static_256_nearmv_only;
 
   // prune inter mode in binary partitions based on none part
   int prune_inter_modes_by_none_part;
@@ -1364,8 +1383,9 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // threads when there are several. 0: single thread.
   int enable_cdef_mt;
 
-  // Run the CCSO filtering on the encoder worker threads when there are
-  // several. 0: single thread.
+  // Run the sample passes of the CCSO search (pickccso.c) and the CCSO
+  // filtering on the encoder worker threads when there are several.
+  // 0: single thread.
   int enable_ccso_mt;
 
   // Prune the QP-model candidates of the GDF frame search in gdf_optimizer().

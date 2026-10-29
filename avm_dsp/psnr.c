@@ -83,30 +83,53 @@ static int64_t highbd_get_sse_shift(const uint16_t *a, int a_stride,
   return total_sse;
 }
 
-static int64_t highbd_get_sse(const uint16_t *a, int a_stride,
-                              const uint16_t *b, int b_stride, int width,
-                              int height) {
-  int64_t total_sse = 0;
-  int x, y;
+int64_t avm_highbd_get_sse_right_edge(const uint16_t *a, int a_stride,
+                                      const uint16_t *b, int b_stride,
+                                      int width, int row_start, int row_end) {
   const int dw = width % 16;
+  unsigned int sse = 0;
+  int sum = 0;
+  if (dw == 0 || row_end <= row_start) return 0;
+  encoder_highbd_8_variance(&a[row_start * a_stride + width - dw], a_stride,
+                            &b[row_start * b_stride + width - dw], b_stride, dw,
+                            row_end - row_start, &sse, &sum);
+  return sse;
+}
+
+int64_t avm_highbd_get_sse_bottom_edge(const uint16_t *a, int a_stride,
+                                       const uint16_t *b, int b_stride,
+                                       int height, int col_start, int col_end) {
   const int dh = height % 16;
   unsigned int sse = 0;
   int sum = 0;
-  if (dw > 0) {
-    encoder_highbd_8_variance(&a[width - dw], a_stride, &b[width - dw],
-                              b_stride, dw, height, &sse, &sum);
-    total_sse += sse;
-  }
-  if (dh > 0) {
-    encoder_highbd_8_variance(&a[(height - dh) * a_stride], a_stride,
-                              &b[(height - dh) * b_stride], b_stride,
-                              width - dw, dh, &sse, &sum);
-    total_sse += sse;
-  }
-  for (y = 0; y < height / 16; ++y) {
+  if (dh == 0 || col_end <= col_start) return 0;
+  encoder_highbd_8_variance(&a[(height - dh) * a_stride + col_start], a_stride,
+                            &b[(height - dh) * b_stride + col_start], b_stride,
+                            col_end - col_start, dh, &sse, &sum);
+  return sse;
+}
+
+int64_t avm_highbd_get_sse_edges(const uint16_t *a, int a_stride,
+                                 const uint16_t *b, int b_stride, int width,
+                                 int height) {
+  return avm_highbd_get_sse_right_edge(a, a_stride, b, b_stride, width, 0,
+                                       height) +
+         avm_highbd_get_sse_bottom_edge(a, a_stride, b, b_stride, height, 0,
+                                        width - width % 16);
+}
+
+int64_t avm_highbd_get_sse_block_rows(const uint16_t *a, int a_stride,
+                                      const uint16_t *b, int b_stride,
+                                      int width, int row16_start,
+                                      int row16_end) {
+  int64_t total_sse = 0;
+  unsigned int sse = 0;
+  a += row16_start * 16 * a_stride;
+  b += row16_start * 16 * b_stride;
+  for (int y = row16_start; y < row16_end; ++y) {
     const uint16_t *pa = a;
     const uint16_t *pb = b;
-    for (x = 0; x < width / 16; ++x) {
+    for (int x = 0; x < width / 16; ++x) {
       avm_highbd_8_mse16x16(pa, a_stride, pb, b_stride, &sse);
       total_sse += sse;
       pa += 16;
@@ -116,6 +139,14 @@ static int64_t highbd_get_sse(const uint16_t *a, int a_stride,
     b += 16 * b_stride;
   }
   return total_sse;
+}
+
+static int64_t highbd_get_sse(const uint16_t *a, int a_stride,
+                              const uint16_t *b, int b_stride, int width,
+                              int height) {
+  return avm_highbd_get_sse_edges(a, a_stride, b, b_stride, width, height) +
+         avm_highbd_get_sse_block_rows(a, a_stride, b, b_stride, width, 0,
+                                       height / 16);
 }
 
 uint64_t avm_highbd_get_y_var(const YV12_BUFFER_CONFIG *a, int hstart,

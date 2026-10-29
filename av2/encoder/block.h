@@ -1568,6 +1568,9 @@ typedef struct macroblock {
   //! Superblock MV derived from int_pro motion estimation in variance
   //! partitioning.
   int_mv sb_me_mv;
+  //! Reference frame selected as predictor for the superblock in
+  //! variance-based partitioning.
+  MV_REFERENCE_FRAME vbp_ref_frame;
   //! SSE of the current predictor.
   unsigned int pred_sse[SINGLE_REF_FRAMES];
   /*! Simple motion search buffers. */
@@ -1597,6 +1600,12 @@ typedef struct macroblock {
   /*! \brief True during the wet pass of the fast SB-level two-pass partition
    * search; a block on this path may consume the dry-pass template. */
   bool may_consume_dry_pass_info;
+
+  /*! \brief For the dry pass when the superblock is a 256x256 and the mode is
+   * NEARMV without residual and the previous frame coded it whole too;
+   * the wet pass then only re-evaluates NEARMV.
+   */
+  bool dry_static_256;
 
   /*! \brief Cap on top intra Y candidates for full RD. */
   int intra_mode_prune_top;

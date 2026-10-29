@@ -46,7 +46,7 @@ typedef struct {
 // Starts the band ranking, with the zero-offset MULTITAP_SHARP build in the TIP
 // frame buffer, before the TIP frame loop filter: selects the bands to rank on
 // and measures them and the whole frame.
-void av2_tip_rank_begin(const AV2_COMP *cpi, int64_t rdmult, int period,
+void av2_tip_rank_begin(AV2_COMP *cpi, int64_t rdmult, int period,
                         TipRankBands *rb);
 
 // The rest of the TIP direct output search, after its early termination: ranks

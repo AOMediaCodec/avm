@@ -10,9 +10,14 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <cstdlib>
+#include <cstring>
 #include <ostream>
 #include <set>
+#include <string>
+#include <utility>
 #include <vector>
+#include "avm_mem/avm_mem.h"
 #include "avm_ports/avm_timer.h"
 #include "config/av2_rtcd.h"
 #include "config/avm_dsp_rtcd.h"
@@ -21,6 +26,7 @@
 #include "test/acm_random.h"
 #pragma GCC diagnostic pop
 #include "test/clear_system_state.h"
+#include "test/register_state_check.h"
 #include "test/util.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
@@ -1793,6 +1799,697 @@ INSTANTIATE_TEST_SUITE_P(
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
     AV2ConvolveDualWithoutsubtract2DHighbdTest);
+
+enum WnsConfigId {
+  kWnsLargeY16,
+  kWnsLargeY13,
+  kWnsConfigY,
+  kWnsUvOnly,
+  kWnsDualUv,
+};
+
+const char *WnsConfigName(int cfg) {
+  switch (cfg) {
+    case kWnsLargeY16: return "large_config_y/16tap";
+    case kWnsLargeY13: return "large_config_y/taps12-15zero";
+    case kWnsConfigY: return "config_y";
+    case kWnsUvOnly: return "config_uv_from_uvonly";
+    case kWnsDualUv: return "uv_from_uv+uv_from_y";
+    default: return "?";
+  }
+}
+
+struct WnsKernel {
+  const char *name;
+  highbd_convolve_nonsep_2d_func ref;
+  highbd_convolve_nonsep_2d_func tst;
+  highbd_convolve_nonsep_dual_2d_func ref_dual;
+  highbd_convolve_nonsep_dual_2d_func tst_dual;
+};
+
+struct WnsParam {
+  WnsKernel kernel;
+  int width;
+  int height;
+  int bd;
+  int cfg;
+  int prec_bits;
+};
+
+std::ostream &operator<<(std::ostream &os, const WnsParam &p) {
+  return os << "WnsParam { " << p.kernel.name << " " << p.width << "x"
+            << p.height << " bd:" << p.bd << " cfg:" << WnsConfigName(p.cfg)
+            << " prec_bits:" << p.prec_bits << " }";
+}
+
+std::vector<WnsParam> WnsParams(const WnsKernel &kernel,
+                                const std::vector<std::pair<int, int>> &sizes,
+                                std::initializer_list<int> cfgs) {
+  std::vector<WnsParam> result;
+  for (const auto &size : sizes) {
+    for (int bd : { 8, 10, 12 }) {
+      for (int cfg : cfgs) {
+        for (int prec_bits : { 7, 12 }) {
+          result.push_back(
+              { kernel, size.first, size.second, bd, cfg, prec_bits });
+        }
+      }
+    }
+  }
+  return result;
+}
+
+// The blk4x4 and dual wrappers pass min(4, remaining) in each dimension.
+std::vector<std::pair<int, int>> WnsSizesUpTo4x4() {
+  std::vector<std::pair<int, int>> sizes;
+  for (int w = 1; w <= 4; ++w) {
+    for (int h = 1; h <= 4; ++h) sizes.push_back({ w, h });
+  }
+  return sizes;
+}
+
+// Plus widths reaching the generic 32/16/8-column NEON paths and scalar tail.
+std::vector<std::pair<int, int>> WnsSizesSym() {
+  std::vector<std::pair<int, int>> sizes = WnsSizesUpTo4x4();
+  for (const auto &s : std::vector<std::pair<int, int>>{
+           { 8, 8 }, { 12, 4 }, { 16, 4 }, { 32, 4 }, { 44, 2 }, { 7, 5 } }) {
+    sizes.push_back(s);
+  }
+  return sizes;
+}
+
+// The single-class wrapper passes min(8, remaining) in each dimension.
+std::vector<std::pair<int, int>> WnsSizesBlk8x8() {
+  return { { 8, 8 }, { 8, 7 }, { 7, 8 }, { 8, 6 }, { 6, 8 }, { 8, 4 },
+           { 4, 8 }, { 8, 2 }, { 2, 8 }, { 8, 1 }, { 1, 8 }, { 7, 7 },
+           { 6, 6 }, { 5, 3 }, { 3, 5 }, { 1, 1 } };
+}
+
+std::vector<std::pair<int, int>> WnsSizesDual() {
+  std::vector<std::pair<int, int>> sizes = WnsSizesUpTo4x4();
+  for (const auto &s : std::vector<std::pair<int, int>>{
+           { 8, 4 }, { 12, 3 }, { 9, 2 }, { 16, 16 } }) {
+    sizes.push_back(s);
+  }
+  return sizes;
+}
+
+struct WnsLayout {
+  int src_stride;
+  int dst_stride;
+  int dual_stride;
+  int src_off;
+  int dst_off;
+  int dual_off;
+  int row_begin;
+  int col_begin;
+  const char *label;
+};
+
+class AV2ConvolveNonSepSymTestBase : public ::testing::TestWithParam<WnsParam> {
+ public:
+  void SetUp() override {
+    p_ = GetParam();
+    rnd_.Reset(libavm_test::ACMRandom::DeterministicSeed());
+    dual_ = p_.kernel.ref_dual != nullptr;
+    mask_ = (1 << p_.bd) - 1;
+    src_ = static_cast<uint16_t *>(avm_memalign(32, kSrcAlloc * sizeof(*src_)));
+    dual_src_ = static_cast<uint16_t *>(
+        avm_memalign(32, kSrcAlloc * sizeof(*dual_src_)));
+    ref_dst_ = static_cast<uint16_t *>(
+        avm_memalign(32, kDstAlloc * sizeof(*ref_dst_)));
+    tst_dst_ = static_cast<uint16_t *>(
+        avm_memalign(32, kDstAlloc * sizeof(*tst_dst_)));
+    ASSERT_NE(src_, nullptr);
+    ASSERT_NE(dual_src_, nullptr);
+    ASSERT_NE(ref_dst_, nullptr);
+    ASSERT_NE(tst_dst_, nullptr);
+    // Only the tap window is read; fill the rest so a stray read is
+    // deterministic.
+    for (int i = 0; i < kSrcAlloc; ++i) {
+      src_[i] = rnd_.Rand16() & mask_;
+      dual_src_[i] = rnd_.Rand16() & mask_;
+    }
+    memset(filter_, 0, sizeof(filter_));
+    InitConfig();
+  }
+
+  void TearDown() override {
+    avm_free(src_);
+    avm_free(dual_src_);
+    avm_free(ref_dst_);
+    avm_free(tst_dst_);
+    libavm_test::ClearSystemState();
+  }
+
+ protected:
+  static constexpr int kMaxW = 44;
+  static constexpr int kMaxH = 16;
+  static constexpr int kMaxBegin = 5;
+  static constexpr int kMaxRadius = 4;
+  static constexpr int kMaxStride = 128;
+  static constexpr int kSrcAlloc =
+      (kMaxBegin + kMaxH + 2 * kMaxRadius + 4) * kMaxStride + 64;
+  static constexpr int kDstAlloc = (kMaxBegin + kMaxH + 1) * kMaxStride + 64;
+  static constexpr int kMaxTaps = 24;
+
+  void SetMainConfig(const int (*config)[3], int num_pixels) {
+    cfg_.config = config;
+    cfg_.num_pixels = num_pixels;
+  }
+
+  void InitConfig() {
+    cfg_ = {};
+    cfg_.prec_bits = p_.prec_bits;
+    switch (p_.cfg) {
+      case kWnsLargeY16:
+      case kWnsLargeY13:
+        SetMainConfig(
+            wienerns_simd_large_config_y,
+            static_cast<int>(sizeof(wienerns_simd_large_config_y) /
+                             sizeof(wienerns_simd_large_config_y[0])));
+        break;
+      case kWnsConfigY:
+        SetMainConfig(wienerns_simd_config_y,
+                      static_cast<int>(sizeof(wienerns_simd_config_y) /
+                                       sizeof(wienerns_simd_config_y[0])));
+        break;
+      case kWnsUvOnly:
+        SetMainConfig(
+            wienerns_simd_config_uv_from_uvonly,
+            static_cast<int>(sizeof(wienerns_simd_config_uv_from_uvonly) /
+                             sizeof(wienerns_simd_config_uv_from_uvonly[0])));
+        break;
+      case kWnsDualUv:
+        SetMainConfig(
+            wienerns_simd_config_uv_from_uv,
+            static_cast<int>(sizeof(wienerns_simd_config_uv_from_uv) /
+                             sizeof(wienerns_simd_config_uv_from_uv[0])));
+        cfg_.config2 = wienerns_simd_config_uv_from_y;
+        cfg_.num_pixels2 =
+            static_cast<int>(sizeof(wienerns_simd_config_uv_from_y) /
+                             sizeof(wienerns_simd_config_uv_from_y[0]));
+        // As the encoder holds it (wienerns_filter_uv): config2 asymmetric.
+        cfg_.asymmetric2 = cfg_.num_pixels2 - 1;
+        break;
+      default: FAIL() << "unknown config " << p_.cfg;
+    }
+    ASSERT_EQ(dual_, p_.cfg == kWnsDualUv) << "config / kernel mismatch";
+    radius_ = 0;
+    n_filter_ = 0;
+    for (int k = 0; k < cfg_.num_pixels; ++k) {
+      radius_ = AVMMAX(radius_, abs(cfg_.config[k][NONSEP_ROW_ID]));
+      radius_ = AVMMAX(radius_, abs(cfg_.config[k][NONSEP_COL_ID]));
+      n_filter_ = AVMMAX(n_filter_, cfg_.config[k][NONSEP_BUF_POS] + 1);
+    }
+    for (int k = 0; k < cfg_.num_pixels2; ++k) {
+      radius_ = AVMMAX(radius_, abs(cfg_.config2[k][NONSEP_ROW_ID]));
+      radius_ = AVMMAX(radius_, abs(cfg_.config2[k][NONSEP_COL_ID]));
+      n_filter_ = AVMMAX(n_filter_, cfg_.config2[k][NONSEP_BUF_POS] + 1);
+    }
+    ASSERT_LE(radius_, kMaxRadius);
+    ASSERT_LE(n_filter_, kMaxTaps);
+    center_ = cfg_.config[cfg_.num_pixels - 1][NONSEP_BUF_POS];
+    center2_ = dual_ ? cfg_.config2[cfg_.num_pixels2 - 1][NONSEP_BUF_POS] : -1;
+  }
+
+  // Private copies make the NEON dispatch match by memcmp, not by pointer.
+  void UseConfigCopies() {
+    memcpy(config_copy_, cfg_.config,
+           cfg_.num_pixels * sizeof(config_copy_[0]));
+    cfg_.config = config_copy_;
+    if (dual_) {
+      memcpy(config2_copy_, cfg_.config2,
+             cfg_.num_pixels2 * sizeof(config2_copy_[0]));
+      cfg_.config2 = config2_copy_;
+    }
+  }
+
+  bool IsCenter(int pos) const { return pos == center_ || pos == center2_; }
+
+  // The prec_bits 7 envelope covers the codec's tap tables: wienerns [-24, 39],
+  // pc-wiener [-48, 127] with center [-208, 6].
+  int EnvMin(int pos) const {
+    if (p_.prec_bits == 7) return IsCenter(pos) ? -512 : -128;
+    return -2048;
+  }
+  int EnvMax(int pos) const {
+    if (p_.prec_bits == 7) return IsCenter(pos) ? 511 : 127;
+    return 2047;
+  }
+
+  const WienernsFilterParameters *CodecTable() const {
+    if (p_.prec_bits != 7) return nullptr;
+    if (p_.cfg == kWnsLargeY16 || p_.cfg == kWnsLargeY13) {
+      return &wienerns_filter_y;
+    }
+    if (p_.cfg == kWnsDualUv) return &wienerns_filter_uv;
+    return nullptr;
+  }
+
+  void CodecRange(int pos, int *lo, int *hi) const {
+    const WienernsFilterParameters *t = CodecTable();
+    if (t != nullptr && pos < t->ncoeffs) {
+      *lo = t->coeffs[pos][WIENERNS_MIN_ID];
+      *hi = *lo + (1 << t->coeffs[pos][WIENERNS_BIT_ID]) - 1;
+    } else {
+      *lo = EnvMin(pos);
+      *hi = EnvMax(pos);
+    }
+  }
+
+  int RandRange(int lo, int hi) { return lo + rnd_.PseudoUniform(hi - lo + 1); }
+
+  // As adjust_filter_to_non_subtract_center() derives them.
+  void DeriveCenters() {
+    int sum = 0;
+    for (int k = 0; k < cfg_.num_pixels - 1; ++k) {
+      sum += filter_[cfg_.config[k][NONSEP_BUF_POS]];
+    }
+    filter_[center_] = static_cast<int16_t>(-sum);
+    if (dual_) {
+      int sum2 = 0;
+      for (int k = 0; k < cfg_.num_pixels2 - 1; ++k) {
+        sum2 += filter_[cfg_.config2[k][NONSEP_BUF_POS]];
+      }
+      filter_[center2_] = static_cast<int16_t>(-sum2);
+    }
+  }
+
+  void FixupTaps() {
+    if (p_.cfg == kWnsLargeY13) {
+      for (int pos = 12; pos < 16; ++pos) filter_[pos] = 0;
+    } else if (p_.cfg == kWnsLargeY16) {
+      if (!filter_[12] && !filter_[13] && !filter_[14] && !filter_[15]) {
+        filter_[12] = 1;
+      }
+    }
+  }
+
+  void RandomTaps(bool codec_range) {
+    const bool use_table = codec_range && CodecTable() != nullptr;
+    for (int pos = 0; pos < n_filter_; ++pos) {
+      int lo, hi;
+      if (use_table) {
+        CodecRange(pos, &lo, &hi);
+      } else {
+        lo = EnvMin(pos);
+        hi = EnvMax(pos);
+      }
+      filter_[pos] = static_cast<int16_t>(RandRange(lo, hi));
+    }
+    FixupTaps();
+    if (use_table) DeriveCenters();
+  }
+
+  int MinSrcStride(int col_begin) const {
+    return col_begin + p_.width + 2 * radius_;
+  }
+
+  static int AlignUp(int v, int a) { return (v + a - 1) / a * a; }
+
+  // The src, dst and dual strides all differ, so a kernel that uses one for
+  // another fails.
+  WnsLayout DefaultLayout(int row_begin = 0, int col_begin = 0) const {
+    const int min_src = MinSrcStride(col_begin);
+    return { AlignUp(min_src, 8) + 8,
+             AlignUp(col_begin + p_.width, 8) + 24,
+             AlignUp(min_src, 8) + 16,
+             0,
+             0,
+             0,
+             row_begin,
+             col_begin,
+             "default" };
+  }
+
+  uint16_t *SrcOrigin(uint16_t *buf, int stride, int off) const {
+    return buf + AlignUp(kMaxRadius * stride + kMaxRadius, 16) + off;
+  }
+  uint16_t *Src(const WnsLayout &l) const {
+    return SrcOrigin(src_, l.src_stride, l.src_off);
+  }
+  uint16_t *Dual(const WnsLayout &l) const {
+    return SrcOrigin(dual_src_, l.dual_stride, l.dual_off);
+  }
+  int DstExtent(const WnsLayout &l) const {
+    return l.dst_off + (l.row_begin + p_.height + 1) * l.dst_stride;
+  }
+
+  void CheckLayout(const WnsLayout &l) const {
+    ASSERT_LE(l.row_begin, kMaxBegin);
+    ASSERT_LE(l.col_begin, kMaxBegin);
+    ASSERT_LE(p_.width, kMaxW);
+    ASSERT_LE(p_.height, kMaxH);
+    ASSERT_GE(l.src_stride, MinSrcStride(l.col_begin));
+    ASSERT_LE(l.src_stride, kMaxStride);
+    ASSERT_GE(l.dst_stride, l.col_begin + p_.width);
+    ASSERT_LE(l.dst_stride, kMaxStride);
+    ASSERT_LE(l.dual_stride, kMaxStride);
+    ASSERT_GE(l.dual_stride, MinSrcStride(l.col_begin));
+    const int last_src = AlignUp(kMaxRadius * kMaxStride + kMaxRadius, 16) + 3 +
+                         (l.row_begin + p_.height + radius_) * kMaxStride +
+                         kMaxStride;
+    ASSERT_LE(last_src, kSrcAlloc);
+    ASSERT_LE(DstExtent(l) + 3, kDstAlloc);
+  }
+
+  template <typename Gen>
+  void FillWindow(uint16_t *origin, int stride, const WnsLayout &l, Gen gen) {
+    for (int r = -radius_; r < l.row_begin + p_.height + radius_; ++r) {
+      for (int c = -radius_; c < l.col_begin + p_.width + radius_; ++c) {
+        origin[r * stride + c] = static_cast<uint16_t>(gen(r, c));
+      }
+    }
+  }
+
+  template <typename Gen>
+  void Fill(const WnsLayout &l, Gen gen) {
+    FillWindow(Src(l), l.src_stride, l, gen);
+    if (dual_) FillWindow(Dual(l), l.dual_stride, l, gen);
+  }
+
+  void FillRandom(const WnsLayout &l) {
+    Fill(l, [this](int, int) { return rnd_.Rand16() & mask_; });
+  }
+
+  void FillConstant(const WnsLayout &l, int v) {
+    Fill(l, [v](int, int) { return v; });
+  }
+
+  void CallRef(const WnsLayout &l, uint16_t *dst) {
+    const int rb = l.row_begin, cb = l.col_begin;
+    if (dual_) {
+      p_.kernel.ref_dual(Src(l), l.src_stride, Dual(l), l.dual_stride, &cfg_,
+                         filter_, dst + l.dst_off, l.dst_stride, p_.bd, rb,
+                         rb + p_.height, cb, cb + p_.width);
+    } else {
+      p_.kernel.ref(Src(l), l.src_stride, &cfg_, filter_, dst + l.dst_off,
+                    l.dst_stride, p_.bd, rb, rb + p_.height, cb, cb + p_.width);
+    }
+  }
+
+  void CallTst(const WnsLayout &l, uint16_t *dst) {
+    const int rb = l.row_begin, cb = l.col_begin;
+    if (dual_) {
+      p_.kernel.tst_dual(Src(l), l.src_stride, Dual(l), l.dual_stride, &cfg_,
+                         filter_, dst + l.dst_off, l.dst_stride, p_.bd, rb,
+                         rb + p_.height, cb, cb + p_.width);
+    } else {
+      p_.kernel.tst(Src(l), l.src_stride, &cfg_, filter_, dst + l.dst_off,
+                    l.dst_stride, p_.bd, rb, rb + p_.height, cb, cb + p_.width);
+    }
+  }
+
+  void RunComparison(const WnsLayout &l, int iter, const char *what) {
+    ASSERT_NO_FATAL_FAILURE(CheckLayout(l));
+    const int extent = DstExtent(l);
+    for (int i = 0; i < extent; ++i) {
+      ref_dst_[i] = tst_dst_[i] = static_cast<uint16_t>(0xA5A5 + i);
+    }
+    CallRef(l, ref_dst_);
+    ASM_REGISTER_STATE_CHECK(CallTst(l, tst_dst_));
+    for (int i = 0; i < extent; ++i) {
+      if (ref_dst_[i] == tst_dst_[i]) continue;
+      const int rel = i - l.dst_off;
+      std::string taps;
+      for (int pos = 0; pos < n_filter_; ++pos) {
+        taps += std::to_string(filter_[pos]) + (pos + 1 < n_filter_ ? "," : "");
+      }
+      ASSERT_EQ(ref_dst_[i], tst_dst_[i])
+          << "mismatch at r=" << (rel >= 0 ? rel / l.dst_stride : -1)
+          << " c=" << (rel >= 0 ? rel % l.dst_stride : rel) << " (block rows "
+          << l.row_begin << ".." << l.row_begin + p_.height << ", cols "
+          << l.col_begin << ".." << l.col_begin + p_.width << ") w=" << p_.width
+          << " h=" << p_.height << " bd=" << p_.bd << " iter=" << iter
+          << " kernel=" << p_.kernel.name << " cfg=" << WnsConfigName(p_.cfg)
+          << " prec_bits=" << p_.prec_bits << " case=" << what
+          << " layout=" << l.label << " src_stride=" << l.src_stride
+          << " dst_stride=" << l.dst_stride << " dual_stride=" << l.dual_stride
+          << " src_off=" << l.src_off << " dst_off=" << l.dst_off
+          << " dual_off=" << l.dual_off << " taps=" << taps;
+    }
+  }
+
+  // The NEON 16-bit path accepts max(pos, neg) x max_pixel <= INT16_MAX. These
+  // filters sit at the largest accepted sum s and just above it, all taps of
+  // one sign. All-max pixels hide a wrapped positive R (it still clips to max),
+  // so the positive cases also lower one center pixel to max_pixel / 4. s + 1
+  // (center tap 1) and s + 2 (pairs only) are the smallest rejected sums.
+  void RunS16AccumulatorBoundary() {
+    const WnsLayout l = DefaultLayout();
+    std::set<int> pair_positions;
+    for (int k = 0; k < cfg_.num_pixels - 1; ++k) {
+      const int pos = cfg_.config[k][NONSEP_BUF_POS];
+      if (p_.cfg == kWnsLargeY13 && pos >= 12 && pos < 16) continue;
+      pair_positions.insert(pos);
+    }
+    // Highest positions first, so the 16-tap config gets taps 12-15 nonzero.
+    const std::vector<int> order(pair_positions.rbegin(),
+                                 pair_positions.rend());
+    const int largest_accepted = INT16_MAX / mask_;
+    auto set_filter = [&](int s, int sign) {
+      memset(filter_, 0, sizeof(filter_));
+      filter_[center_] = static_cast<int16_t>(sign * (s & 1));
+      for (int i = 0; i < s / 2; ++i) {
+        int16_t &tap = filter_[order[i % order.size()]];
+        tap = static_cast<int16_t>(tap + sign);
+      }
+      int sum = 0;
+      for (int k = 0; k < cfg_.num_pixels; ++k) {
+        sum += filter_[cfg_.config[k][NONSEP_BUF_POS]];
+      }
+      ASSERT_EQ(sum, sign * s);
+      if (p_.cfg == kWnsLargeY16) {
+        ASSERT_TRUE(filter_[12] || filter_[13] || filter_[14] || filter_[15]);
+      }
+    };
+    for (int s : { largest_accepted, largest_accepted + 1 }) {
+      for (int sign : { 1, -1 }) {
+        ASSERT_NO_FATAL_FAILURE(set_filter(s, sign));
+        FillConstant(l, mask_);
+        const std::string what =
+            std::string("s16-bound/") +
+            (s == largest_accepted ? "accepted" : "rejected") +
+            (sign > 0 ? "/positive" : "/negative");
+        ASSERT_NO_FATAL_FAILURE(RunComparison(l, s, what.c_str()));
+      }
+    }
+    uint16_t *const o = Src(l) + l.row_begin * l.src_stride + l.col_begin;
+    const int low_at[2] = { 0, (p_.height - 1) * l.src_stride + p_.width - 1 };
+    for (int s :
+         { largest_accepted, largest_accepted + 1, largest_accepted + 2 }) {
+      ASSERT_NO_FATAL_FAILURE(set_filter(s, 1));
+      for (int at : low_at) {
+        FillConstant(l, mask_);
+        o[at] = static_cast<uint16_t>(mask_ >> 2);
+        const std::string what =
+            std::string("s16-bound/") +
+            (s == largest_accepted ? "accepted" : "rejected") +
+            "/positive/low-center" + (s & 1 ? "/center-tap" : "/pairs-only") +
+            (at == 0 ? "/first" : "/last");
+        ASSERT_NO_FATAL_FAILURE(RunComparison(l, s, what.c_str()));
+      }
+    }
+    // One pair position at a time puts a sign's whole weight in one chain, so a
+    // rejected sum overflows a chain whatever the kernel's chain split.
+    for (int pos : order) {
+      for (int extra : { 0, 1, 2 }) {
+        for (int sign : { 1, -1 }) {
+          const int s = largest_accepted + extra;
+          memset(filter_, 0, sizeof(filter_));
+          filter_[center_] = static_cast<int16_t>(sign * (s & 1));
+          filter_[pos] = static_cast<int16_t>(sign * (s / 2));
+          FillConstant(l, mask_);
+          const std::string what = std::string("s16-bound/") +
+                                   (extra == 0 ? "accepted" : "rejected") +
+                                   (sign > 0 ? "/positive" : "/negative") +
+                                   "/one-pair/" + std::to_string(pos) +
+                                   (s & 1 ? "/center-tap" : "/pairs-only");
+          ASSERT_NO_FATAL_FAILURE(RunComparison(l, s, what.c_str()));
+        }
+      }
+    }
+  }
+
+  void RunLayout(const WnsLayout &l, int iters) {
+    for (int i = 0; i < iters; ++i) {
+      FillRandom(l);
+      RandomTaps((i & 1) == 0);
+      ASSERT_NO_FATAL_FAILURE(RunComparison(l, i, "random"));
+    }
+  }
+
+  // As the pc-wiener loop passes them (kernels index by absolute row/column).
+  void RunPartialBlockOffsets() {
+    static const int kBegins[][2] = { { 0, 1 }, { 1, 0 }, { 2, 3 },
+                                      { 3, 5 }, { 5, 2 }, { 4, 4 } };
+    for (const auto &b : kBegins) {
+      WnsLayout l = DefaultLayout(b[0], b[1]);
+      l.label = "begin-offset";
+      ASSERT_NO_FATAL_FAILURE(RunLayout(l, 50));
+    }
+  }
+
+  // Drops the center row: the shortened config is a prefix of the SIMD table,
+  // but C then applies no center tap, so the old center tap must be ignored.
+  void RunNoCenterTap() {
+    for (const bool by_contents : { false, true }) {
+      SCOPED_TRACE(by_contents ? "config by contents" : "config by pointer");
+      ASSERT_NO_FATAL_FAILURE(InitConfig());
+      if (by_contents) UseConfigCopies();
+      --cfg_.num_pixels;
+      if (dual_) --cfg_.num_pixels2;
+      center_ = center2_ = -1;
+      const WnsLayout l = DefaultLayout();
+      for (int i = 0; i < 200; ++i) {
+        FillRandom(l);
+        RandomTaps(false);
+        ASSERT_NO_FATAL_FAILURE(RunComparison(l, i, "no-center-tap"));
+      }
+    }
+  }
+
+  void RunSpeed() {
+    const WnsLayout l = DefaultLayout();
+    FillRandom(l);
+    RandomTaps(true);
+    const int iters = AVMMAX(10000, 4000000 / (p_.width * p_.height));
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
+    for (int i = 0; i < iters; ++i) CallRef(l, ref_dst_);
+    avm_usec_timer_mark(&timer);
+    const double t_ref = static_cast<double>(avm_usec_timer_elapsed(&timer));
+    avm_usec_timer_start(&timer);
+    for (int i = 0; i < iters; ++i) CallTst(l, tst_dst_);
+    avm_usec_timer_mark(&timer);
+    const double t_tst = static_cast<double>(avm_usec_timer_elapsed(&timer));
+    printf(
+        "%s %s prec_bits=%d %dx%d bd=%d: C=%7.1fms SIMD=%7.1fms "
+        "gain=%.2fx\n",
+        p_.kernel.name, WnsConfigName(p_.cfg), p_.prec_bits, p_.width,
+        p_.height, p_.bd, t_ref / 1000.0, t_tst / 1000.0,
+        t_tst > 0 ? t_ref / t_tst : 0.0);
+  }
+
+  WnsParam p_;
+  libavm_test::ACMRandom rnd_;
+  bool dual_ = false;
+  int mask_ = 0;
+  int radius_ = 0;
+  int n_filter_ = 0;
+  int center_ = -1;
+  int center2_ = -1;
+  NonsepFilterConfig cfg_ = {};
+  int config_copy_[33][3];
+  int config2_copy_[13][3];
+  int16_t filter_[kMaxTaps];
+  uint16_t *src_ = nullptr;
+  uint16_t *dual_src_ = nullptr;
+  uint16_t *ref_dst_ = nullptr;
+  uint16_t *tst_dst_ = nullptr;
+};
+
+#define WNS_SYM_TESTS(Suite)                                       \
+  TEST_P(Suite, PartialBlockOffsets) { RunPartialBlockOffsets(); } \
+  TEST_P(Suite, NoCenterTap) { RunNoCenterTap(); }                 \
+  TEST_P(Suite, DISABLED_Speed) { RunSpeed(); }
+
+// Random taps rarely pass the 16-bit check at bd 10 / 12; the bound filters
+// drive both the pointer-matched and the memcmp-matched routes into the 16-bit
+// kernels.
+#define WNS_S16_TEST(Suite)               \
+  TEST_P(Suite, S16AccumulatorBoundary) { \
+    {                                     \
+      SCOPED_TRACE("config by pointer");  \
+      RunS16AccumulatorBoundary();        \
+    }                                     \
+    if (HasFatalFailure()) return;        \
+    SCOPED_TRACE("config by contents");   \
+    UseConfigCopies();                    \
+    RunS16AccumulatorBoundary();          \
+  }
+
+class AV2ConvolveNonSepSymHighbdTest : public AV2ConvolveNonSepSymTestBase {};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2ConvolveNonSepSymHighbdTest);
+WNS_SYM_TESTS(AV2ConvolveNonSepSymHighbdTest)
+WNS_S16_TEST(AV2ConvolveNonSepSymHighbdTest)
+
+class AV2ConvolveNonSepSymBlk8x8HighbdTest
+    : public AV2ConvolveNonSepSymTestBase {};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    AV2ConvolveNonSepSymBlk8x8HighbdTest);
+WNS_SYM_TESTS(AV2ConvolveNonSepSymBlk8x8HighbdTest)
+WNS_S16_TEST(AV2ConvolveNonSepSymBlk8x8HighbdTest)
+
+class AV2ConvolveNonSepSymDualHighbdTest : public AV2ConvolveNonSepSymTestBase {
+};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    AV2ConvolveNonSepSymDualHighbdTest);
+WNS_SYM_TESTS(AV2ConvolveNonSepSymDualHighbdTest)
+
+#undef WNS_S16_TEST
+#undef WNS_SYM_TESTS
+
+#define WNS_SYM_PARAMS(name, ref, tst)                               \
+  ::testing::ValuesIn(                                               \
+      WnsParams({ name, ref, tst, nullptr, nullptr }, WnsSizesSym(), \
+                { kWnsLargeY16, kWnsLargeY13, kWnsConfigY, kWnsUvOnly }))
+#define WNS_BLK8X8_PARAMS(name, ref, tst)                             \
+  ::testing::ValuesIn(WnsParams({ name, ref, tst, nullptr, nullptr }, \
+                                WnsSizesBlk8x8(),                     \
+                                { kWnsLargeY16, kWnsLargeY13, kWnsConfigY }))
+#define WNS_DUAL_PARAMS(name, ref, tst)                               \
+  ::testing::ValuesIn(WnsParams({ name, nullptr, nullptr, ref, tst }, \
+                                WnsSizesDual(), { kWnsDualUv }))
+
+// Harness sanity baseline (C vs C); not SIMD coverage.
+INSTANTIATE_TEST_SUITE_P(C, AV2ConvolveNonSepSymHighbdTest,
+                         WNS_SYM_PARAMS("sym_c",
+                                        av2_convolve_symmetric_highbd_c,
+                                        av2_convolve_symmetric_highbd_c));
+INSTANTIATE_TEST_SUITE_P(
+    C, AV2ConvolveNonSepSymBlk8x8HighbdTest,
+    WNS_BLK8X8_PARAMS("blk8x8_c", av2_convolve_symmetric_blk8x8_highbd_c,
+                      av2_convolve_symmetric_blk8x8_highbd_c));
+INSTANTIATE_TEST_SUITE_P(C, AV2ConvolveNonSepSymDualHighbdTest,
+                         WNS_DUAL_PARAMS("dual_c",
+                                         av2_convolve_symmetric_dual_highbd_c,
+                                         av2_convolve_symmetric_dual_highbd_c));
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, AV2ConvolveNonSepSymHighbdTest,
+                         WNS_SYM_PARAMS("sym_neon",
+                                        av2_convolve_symmetric_highbd_c,
+                                        av2_convolve_symmetric_highbd_neon));
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV2ConvolveNonSepSymBlk8x8HighbdTest,
+    WNS_BLK8X8_PARAMS("blk8x8_neon", av2_convolve_symmetric_blk8x8_highbd_c,
+                      av2_convolve_symmetric_blk8x8_highbd_neon));
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV2ConvolveNonSepSymDualHighbdTest,
+    WNS_DUAL_PARAMS("dual_neon", av2_convolve_symmetric_dual_highbd_c,
+                    av2_convolve_symmetric_dual_highbd_neon));
+#endif  // HAVE_NEON
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveNonSepSymHighbdTest,
+                         WNS_SYM_PARAMS("sym_avx2",
+                                        av2_convolve_symmetric_highbd_c,
+                                        av2_convolve_symmetric_highbd_avx2));
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV2ConvolveNonSepSymBlk8x8HighbdTest,
+    WNS_BLK8X8_PARAMS("blk8x8_avx2", av2_convolve_symmetric_blk8x8_highbd_c,
+                      av2_convolve_symmetric_blk8x8_highbd_avx2));
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV2ConvolveNonSepSymDualHighbdTest,
+    WNS_DUAL_PARAMS("dual_avx2", av2_convolve_symmetric_dual_highbd_c,
+                    av2_convolve_symmetric_dual_highbd_avx2));
+#endif  // HAVE_AVX2
+
+#undef WNS_SYM_PARAMS
+#undef WNS_BLK8X8_PARAMS
+#undef WNS_DUAL_PARAMS
 
 //////////////////////////////////////////////////////////
 // Unit-test corresponds to buffer accumulations to derive filter
