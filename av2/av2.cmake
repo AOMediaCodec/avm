@@ -457,7 +457,8 @@ list(
   "${AVM_ROOT}/av2/encoder/arm/neon/hybrid_fwd_txfm_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/trellis_quant_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/hash_neon.c"
-  "${AVM_ROOT}/av2/encoder/arm/neon/quantize_neon.c")
+  "${AVM_ROOT}/av2/encoder/arm/neon/quantize_neon.c"
+  "${AVM_ROOT}/av2/encoder/arm/neon/wedge_utils_neon.c")
 
 list(
   APPEND

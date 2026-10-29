@@ -305,7 +305,7 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   specialize qw/av2_txb_init_levels sse4_1 avx2 neon/;
 
   add_proto qw/uint64_t av2_wedge_sse_from_residuals/, "const int16_t *r1, const int16_t *d, const uint8_t *m, int N";
-  specialize qw/av2_wedge_sse_from_residuals sse2 avx2/;
+  specialize qw/av2_wedge_sse_from_residuals sse2 avx2 neon/;
   add_proto qw/int8_t av2_wedge_sign_from_residuals/, "const int16_t *ds, const uint8_t *m, int N, int64_t limit";
   specialize qw/av2_wedge_sign_from_residuals sse2 avx2/;
   add_proto qw/void av2_wedge_compute_delta_squares/, "int16_t *d, const int16_t *a, const int16_t *b, int N";
