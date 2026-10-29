@@ -829,7 +829,18 @@ SimpleMotionData *av2_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
   if (idx_col_in_sb == -1) return NULL;
   const int arr_stride = get_sms_count_from_length(mi_wide);
   SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize, region_type);
-  return &sms_arr[idx_row_in_sb * arr_stride + idx_col_in_sb];
+  SimpleMotionData *const entry =
+      &sms_arr[idx_row_in_sb * arr_stride + idx_col_in_sb];
+  // Apply any reset that happened since this entry was last touched.
+  if (entry->sms_gen != sms_bufs->cur_gen) {
+    memset(entry, 0, sizeof(*entry));
+    entry->sms_gen = sms_bufs->cur_gen;
+    entry->sms_xgen = sms_bufs->cur_xgen;
+  } else if (entry->sms_xgen != sms_bufs->cur_xgen) {
+    av2_clear_sms_cross_pass_fields(entry);
+    entry->sms_xgen = sms_bufs->cur_xgen;
+  }
+  return entry;
 }
 
 void av2_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
@@ -837,6 +848,9 @@ void av2_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
                               PARTITION_TYPE partition, int8_t region_type) {
   SimpleMotionData *cur_block = av2_get_sms_data_entry(
       sms_bufs, mi_row, mi_col, bsize, sb_size, region_type);
+  // Only NULL when the coordinates do not align with bsize, a caller bug.
+  assert(cur_block != NULL);
+  if (cur_block == NULL) return;
   cur_block->has_prev_partition = 1;
   cur_block->prev_partition = partition;
 }

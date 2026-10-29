@@ -360,6 +360,7 @@ void av2_rc_init(const AV2EncoderConfig *oxcf, RATE_CONTROL *rc) {
   rc->resize_avg_qp = 0;
   rc->resize_buffer_underflow = 0;
   rc->resize_count = 0;
+  rc->unresized_base_qindex = 0;
 }
 
 int av2_rc_drop_frame(AV2_COMP *cpi) {
@@ -412,12 +413,37 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
        rc->buffer_level < (rc->optimal_buffer_level >> 1) &&
        rc->frames_since_key > 4);
   // Scale maximum Q decrease with previous frame Q so Q drops more gradually
-  // at low Q indices, avoiding sudden bit spikes.
-  const int max_delta_down =
-      (cpi->is_screen_content_type && cm->width * cm->height <= 1280 * 720)
-          ? clamp(rc->q_1_frame / 32, 1, 4)
-          : clamp(rc->q_1_frame / 8, 1, 16);
-  const int max_delta_up = overshoot_buffer_low ? 120 : 16;
+  // at low Q indices, avoiding sudden bit spikes. For non-screen content,
+  // allow a larger max_delta_down and a moderate max_delta_up on low-buffer
+  // overshoot so Q can adapt faster after the keyframe without over-clamping.
+  int max_delta_down;
+  int max_delta_up;
+  if (cpi->is_screen_content_type) {
+    max_delta_up = overshoot_buffer_low ? 120 : 16;
+    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+        cpi->cyclic_refresh->apply_cyclic_refresh) {
+      // For static screen type content limit the Q drop till the start of the
+      // next refresh cycle.
+      if (cpi->cyclic_refresh->sb_index > cpi->cyclic_refresh->last_sb_index) {
+        max_delta_down = clamp(rc->q_1_frame / 32, 1, 8);
+      } else {
+        max_delta_down = clamp(rc->q_1_frame / 8, 1, 16);
+      }
+      // Link max_delta_up to max_delta_down and buffer status.
+      if (rc->buffer_level > rc->optimal_buffer_level) {
+        max_delta_up = AVMMAX(4, max_delta_down);
+      } else if (!overshoot_buffer_low) {
+        max_delta_up = AVMMAX(8, max_delta_down);
+      }
+    } else {
+      max_delta_down = cm->width * cm->height <= 1280 * 720
+                           ? clamp(rc->q_1_frame / 32, 1, 4)
+                           : clamp(rc->q_1_frame / 8, 1, 16);
+    }
+  } else {
+    max_delta_down = clamp(rc->q_1_frame / 4, 1, 32);
+    max_delta_up = overshoot_buffer_low ? 48 : 16;
+  }
   const int change_avg_frame_bandwidth =
       abs(rc->avg_frame_bandwidth - rc->prev_avg_frame_bandwidth) >
       0.1 * (rc->avg_frame_bandwidth);
@@ -473,6 +499,14 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
                                            rc->optimal_buffer_level << 1)) {
         q = (3 * q + rc->q_1_frame) >> 2;
       }
+    }
+    // For non-screen content in the early frames after a keyframe, allow Q to
+    // step down faster after an overshoot when motion is low and non-zero, and
+    // not recovering from a high-SAD scene cut.
+    if (rc->avg_source_sad > 0 && rc->frame_source_sad < 10000 &&
+        rc->avg_source_sad < 15000 && rc->rc_1_frame == -1 &&
+        rc->frames_since_key < 60 && !cpi->is_screen_content_type) {
+      q -= 16;
     }
     // Gentle adjustment to Q when cyclic refresh was active on previous frame
     // and blocks were refreshed, and no scene cut or high motion, and buffer
@@ -1195,6 +1229,22 @@ static int apply_tcq_qp_offset(const AV2_COMP *cpi, int qp_tcq) {
   return clamp(qp_tcq + tcq_qp_offset_shift, 0, max_qp);
 }
 
+// Adjust the coded frame's base_qindex when downscaled by
+// SCALE_NUMERATOR / resize_scale_denom. Clamps lossy frames to >= 1 so a
+// negative offset never inadvertently triggers lossless coding (qindex == 0).
+static int apply_resize_qp_offset(const AV2_COMP *cpi, int q, int *bottom_index,
+                                  int *top_index) {
+  if (q == 0 || is_lossless_requested(&cpi->oxcf.rc_cfg)) return q;
+  if (cpi->resize_scale_denom <= SCALE_NUMERATOR) return q;
+  const int offset =
+      RESIZE_QP_OFFSET_PER_STEP * (cpi->resize_scale_denom - SCALE_NUMERATOR);
+  const int max_qp = MAXQ_FOR_GIVEN_BIT_DEPTH(cpi->common.seq_params.bit_depth);
+  q = clamp(q + offset, 1, max_qp);
+  if (bottom_index != NULL && *bottom_index > q) *bottom_index = q;
+  if (top_index != NULL && *top_index < q) *top_index = q;
+  return q;
+}
+
 /*!\brief Picks q and q bounds given non-CBR rate control params in \c cpi->rc.
  *
  * Handles the special case when using:
@@ -1445,13 +1495,22 @@ static void get_intra_q_and_bounds(const AV2_COMP *cpi, int width, int height,
     int delta_qindex;
     int qindex;
 
-    qindex = rc->last_boosted_qindex;
-    last_boosted_q = av2_convert_qindex_to_q(qindex, bit_depth);
-    delta_qindex = av2_compute_qdelta(
-        rc, last_boosted_q,
-        last_boosted_q * (is_stat_consumption_stage_twopass(cpi) ? 0.75 : 0.50),
-        bit_depth);
-    active_best_quality = AVMMAX(qindex + delta_qindex, rc->best_quality);
+    if (is_stat_consumption_stage_twopass(cpi) &&
+        cpi->twopass.last_kfgroup_zeromotion_pct >= STATIC_MOTION_THRESH) {
+      qindex = AVMMIN(rc->last_kf_qindex, rc->last_boosted_qindex);
+      active_best_quality = qindex;
+      last_boosted_q = av2_convert_qindex_to_q(qindex, bit_depth);
+      delta_qindex = av2_compute_qdelta(rc, last_boosted_q,
+                                        last_boosted_q * 1.25, bit_depth);
+      active_worst_quality =
+          AVMMIN(qindex + delta_qindex, active_worst_quality);
+    } else {
+      qindex = rc->last_boosted_qindex;
+      last_boosted_q = av2_convert_qindex_to_q(qindex, bit_depth);
+      delta_qindex = av2_compute_qdelta(rc, last_boosted_q,
+                                        last_boosted_q * 0.50, bit_depth);
+      active_best_quality = AVMMAX(qindex + delta_qindex, rc->best_quality);
+    }
   } else {
     // Not forced keyframe.
     double q_adj_factor = 1.0;
@@ -1462,6 +1521,11 @@ static void get_intra_q_and_bounds(const AV2_COMP *cpi, int width, int height,
         get_kf_active_quality(rc, active_worst_quality, bit_depth);
     if (cpi->is_screen_content_type) {
       active_best_quality /= 2;
+    }
+
+    if (is_stat_consumption_stage_twopass(cpi) &&
+        cpi->twopass.kf_zeromotion_pct >= STATIC_KF_GROUP_THRESH) {
+      active_best_quality /= 3;
     }
 
     // Allow somewhat lower kf minq with small image formats.
@@ -1521,8 +1585,11 @@ static void adjust_active_best_and_worst_quality(const AV2_COMP *cpi,
   }
 #endif
 
-  // Modify active_best_quality for downscaled normal frames.
-  if (av2_frame_scaled(cm) && !frame_is_kf_gf_arf(cpi)) {
+  // Modify active_best_quality for downscaled normal frames in rate-regulated
+  // modes. Skip in AVM_Q mode so apply_resize_qp_offset() applies a consistent
+  // per-step offset directly to the unresized baseline qindex.
+  if (cpi->oxcf.rc_cfg.mode != AVM_Q && av2_frame_scaled(cm) &&
+      !frame_is_kf_gf_arf(cpi)) {
     int qdelta = av2_compute_qdelta_by_rate(
         rc, cm->current_frame.frame_type, active_best_quality, 2.0,
         cpi->is_screen_content_type, bit_depth);
@@ -1781,33 +1848,49 @@ int av2_rc_pick_q_and_bounds(const AV2_COMP *cpi, RATE_CONTROL *rc, int width,
   // TODO(sarahparker) merge no-stats vbr and altref q computation
   // with rc_pick_q_and_bounds().
   const GF_GROUP *gf_group = &cpi->gf_group;
+  // In AVM_Q mode, evaluate the baseline qindex using the unresized sequence
+  // dimensions so the base QP matches no-resize coding before applying the
+  // per-step resize QP offset below.
+  const int rc_width =
+      cpi->oxcf.rc_cfg.mode == AVM_Q ? cpi->oxcf.frm_dim_cfg.width : width;
+  const int rc_height =
+      cpi->oxcf.rc_cfg.mode == AVM_Q ? cpi->oxcf.frm_dim_cfg.height : height;
   if ((cpi->oxcf.rc_cfg.mode != AVM_Q ||
        gf_group->update_type[gf_index] == ARF_UPDATE ||
        gf_group->update_type[gf_index] == KFFLT_UPDATE) &&
       has_no_stats_stage(cpi)) {
     if (cpi->oxcf.rc_cfg.mode == AVM_CBR) {
-      q = rc_pick_q_and_bounds_no_stats_cbr(cpi, width, height, bottom_index,
-                                            top_index);
+      q = rc_pick_q_and_bounds_no_stats_cbr(cpi, rc_width, rc_height,
+                                            bottom_index, top_index);
 #if USE_UNRESTRICTED_Q_IN_CQ_MODE
     } else if (cpi->oxcf.rc_cfg.mode == AVM_CQ) {
-      q = rc_pick_q_and_bounds_no_stats_cq(cpi, width, height, bottom_index,
-                                           top_index);
+      q = rc_pick_q_and_bounds_no_stats_cq(cpi, rc_width, rc_height,
+                                           bottom_index, top_index);
 #endif  // USE_UNRESTRICTED_Q_IN_CQ_MODE
     } else {
-      q = rc_pick_q_and_bounds_no_stats(cpi, width, height, gf_index,
+      q = rc_pick_q_and_bounds_no_stats(cpi, rc_width, rc_height, gf_index,
                                         bottom_index, top_index);
     }
   } else {
-    q = rc_pick_q_and_bounds(cpi, width, height, gf_index, bottom_index,
+    q = rc_pick_q_and_bounds(cpi, rc_width, rc_height, gf_index, bottom_index,
                              top_index, &rc->level1_qp);
   }
 
+  // Save the unresized qindex for pyramid reference (level1_qp) and AVM_Q
+  // post-encode history before applying the current frame's resize QP offset.
   if (gf_group->update_type[gf_index] == ARF_UPDATE ||
       gf_group->update_type[gf_index] == KFFLT_UPDATE)
     rc->level1_qp = q;
+  rc->unresized_base_qindex = q;
   if ((cpi->common.bru.enabled && cpi->common.bru.frame_inactive_flag) ||
       cpi->common.bridge_frame_info.is_bridge_frame) {
     q = cpi->common.quant_params.base_qindex;
+  } else if (width != cpi->oxcf.frm_dim_cfg.width ||
+             height != cpi->oxcf.frm_dim_cfg.height) {
+    // Only apply the resize QP offset when picking q for a downscaled frame
+    // (full-resolution queries such as temporal filtering or dynamic-resize
+    // scale selection pass frm_dim_cfg dimensions and receive unresized q).
+    q = apply_resize_qp_offset(cpi, q, bottom_index, top_index);
   }
   return q;
 }
@@ -1878,6 +1961,15 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
       gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE;
 
   const int qindex = cm->quant_params.base_qindex;
+  // In AVM_Q mode, update ambient Q history with the unresized baseline qindex
+  // so downscaling the current frame does not shift future frames' base QPs.
+  const int rc_qindex = (cpi->oxcf.rc_cfg.mode == AVM_Q &&
+                         av2_frame_scaled(cm) && rc->unresized_base_qindex > 0)
+                            ? rc->unresized_base_qindex
+                            : qindex;
+  // Reset per-frame resize denominator so pre-frame queries on the next frame
+  // default to no resize (SCALE_NUMERATOR).
+  cpi->resize_scale_denom = SCALE_NUMERATOR;
 
   // Update rate control heuristics
   rc->projected_frame_size = (int)(bytes_used << 3);
@@ -1887,18 +1979,18 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
 
   // Keep a record of last Q and ambient average Q.
   if (current_frame->frame_type == KEY_FRAME) {
-    rc->last_q[KEY_FRAME] = qindex;
+    rc->last_q[KEY_FRAME] = rc_qindex;
     rc->avg_frame_qindex[KEY_FRAME] =
-        ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[KEY_FRAME] + qindex, 2);
+        ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[KEY_FRAME] + rc_qindex, 2);
   } else {
     if (!rc->is_src_frame_alt_ref &&
         (((cpi->oxcf.mode == REALTIME && cpi->oxcf.gf_cfg.lag_in_frames == 0) ||
           !(level <= 1 || is_intrnl_arf)))) {
-      rc->last_q[INTER_FRAME] = qindex;
-      rc->avg_frame_qindex[INTER_FRAME] =
-          ROUND_POWER_OF_TWO(3 * rc->avg_frame_qindex[INTER_FRAME] + qindex, 2);
+      rc->last_q[INTER_FRAME] = rc_qindex;
+      rc->avg_frame_qindex[INTER_FRAME] = ROUND_POWER_OF_TWO(
+          3 * rc->avg_frame_qindex[INTER_FRAME] + rc_qindex, 2);
       rc->ni_frames++;
-      rc->tot_q += av2_convert_qindex_to_q(qindex, cm->seq_params.bit_depth);
+      rc->tot_q += av2_convert_qindex_to_q(rc_qindex, cm->seq_params.bit_depth);
       rc->avg_q = rc->tot_q / rc->ni_frames;
     }
   }
@@ -1908,12 +2000,12 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
   // If all mbs in this group are skipped only update if the Q value is
   // better than that already stored.
   // This is used to help set quality in forced key frames to reduce popping
-  if ((qindex < rc->last_boosted_qindex) ||
+  if ((rc_qindex < rc->last_boosted_qindex) ||
       (current_frame->frame_type == KEY_FRAME) ||
       (!rc->constrained_gf_group && (level <= 1 || is_intrnl_arf))) {
-    rc->last_boosted_qindex = qindex;
+    rc->last_boosted_qindex = rc_qindex;
   }
-  if (current_frame->frame_type == KEY_FRAME) rc->last_kf_qindex = qindex;
+  if (current_frame->frame_type == KEY_FRAME) rc->last_kf_qindex = rc_qindex;
 
   update_buffer_level(cpi, rc->projected_frame_size);
   rc->prev_avg_frame_bandwidth = rc->avg_frame_bandwidth;
@@ -2222,8 +2314,12 @@ int av2_calc_iframe_target_size_one_pass_cbr(const AV2_COMP *cpi) {
   const RATE_CONTROL *rc = &cpi->rc;
   int target;
   if (cpi->common.current_frame.frame_number == 0) {
+    // In realtime mode, use a smaller initial keyframe target for non-screen
+    // content so less buffer budget is consumed on the first frame.
+    const int factor =
+        (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) ? 7 : 3;
     const int64_t initial_target = (cpi->oxcf.mode == REALTIME)
-                                       ? rc->starting_buffer_level * 7 / 2
+                                       ? rc->starting_buffer_level * factor / 2
                                        : rc->starting_buffer_level / 2;
     target = (initial_target > INT_MAX) ? INT_MAX : (int)initial_target;
   } else {
@@ -2258,17 +2354,27 @@ static inline int set_key_frame(AV2_COMP *cpi, unsigned int frame_flags) {
 // real-time CBR rate control.
 void av2_rc_scene_detection_onepass_rt(AV2_COMP *cpi,
                                        const EncodeFrameInput *frame_input) {
-  const AV2_COMMON *const cm = &cpi->common;
+  AV2_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   rc->high_source_sad = 0;
+  rc->frame_source_sad = 0;
   const YV12_BUFFER_CONFIG *const unscaled_src = frame_input->source;
   const YV12_BUFFER_CONFIG *const unscaled_last_src = frame_input->last_source;
-  if (unscaled_src == NULL || unscaled_last_src == NULL) return;
+  if (unscaled_src == NULL || unscaled_last_src == NULL) {
+    avm_free(cpi->src_sad_blk_64x64);
+    cpi->src_sad_blk_64x64 = NULL;
+    cpi->src_sad_blk_alloc_size = 0;
+    return;
+  }
   const int src_width = unscaled_src->y_width;
   const int src_height = unscaled_src->y_height;
   const int last_src_width = unscaled_last_src->y_width;
   const int last_src_height = unscaled_last_src->y_height;
-  if (src_width != last_src_width || src_height != last_src_height) {
+  if (src_width != last_src_width || src_height != last_src_height ||
+      src_width != cm->width || src_height != cm->height) {
+    avm_free(cpi->src_sad_blk_64x64);
+    cpi->src_sad_blk_64x64 = NULL;
+    cpi->src_sad_blk_alloc_size = 0;
     return;
   }
   const uint16_t *src_y = unscaled_src->y_buffer;
@@ -2293,12 +2399,30 @@ void av2_rc_scene_detection_onepass_rt(AV2_COMP *cpi,
 
   const int sb_cols = cm->width >> 6;
   const int sb_rows = cm->height >> 6;
-  if (sb_cols == 0 || sb_rows == 0) return;
+  if (sb_cols == 0 || sb_rows == 0) {
+    avm_free(cpi->src_sad_blk_64x64);
+    cpi->src_sad_blk_64x64 = NULL;
+    cpi->src_sad_blk_alloc_size = 0;
+    return;
+  }
+
+  if (cpi->src_sad_blk_alloc_size != sb_cols * sb_rows) {
+    avm_free(cpi->src_sad_blk_64x64);
+    cpi->src_sad_blk_64x64 = NULL;
+    cpi->src_sad_blk_alloc_size = 0;
+    CHECK_MEM_ERROR(cm, cpi->src_sad_blk_64x64,
+                    (uint64_t *)avm_calloc(sb_cols * sb_rows,
+                                           sizeof(*cpi->src_sad_blk_64x64)));
+    cpi->src_sad_blk_alloc_size = sb_cols * sb_rows;
+  }
 
   for (int sbi_row = 0; sbi_row < sb_rows; ++sbi_row) {
     for (int sbi_col = 0; sbi_col < sb_cols; ++sbi_col) {
       tmp_sad = cpi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
                                        last_src_stride);
+      if (cpi->src_sad_blk_64x64 != NULL) {
+        cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols] = tmp_sad;
+      }
       avg_sad += tmp_sad;
       num_samples++;
       if (tmp_sad == 0) num_zero_temp_sad++;
@@ -2337,6 +2461,7 @@ void av2_get_one_pass_rt_params(AV2_COMP *cpi, FRAME_TYPE *const frame_type,
   GF_GROUP *const gf_group = &cpi->gf_group;
   int target;
   rc->high_source_sad = 0;
+  rc->frame_source_sad = 0;
   // Set frame type.
   if (set_key_frame(cpi, frame_flags)) {
     *frame_type = KEY_FRAME;
@@ -2345,12 +2470,19 @@ void av2_get_one_pass_rt_params(AV2_COMP *cpi, FRAME_TYPE *const frame_type,
     rc->frames_to_key = cpi->oxcf.kf_cfg.key_freq_max;
     rc->kf_boost = DEFAULT_KF_BOOST_RT;
     gf_group->update_type[gf_group->index] = KF_UPDATE;
+    avm_free(cpi->src_sad_blk_64x64);
+    cpi->src_sad_blk_64x64 = NULL;
+    cpi->src_sad_blk_alloc_size = 0;
   } else {
     *frame_type = INTER_FRAME;
     gf_group->update_type[gf_group->index] = LF_UPDATE;
     if (cpi->oxcf.rc_cfg.mode == AVM_CBR &&
         cpi->sf.rt_sf.check_scene_detection) {
       av2_rc_scene_detection_onepass_rt(cpi, frame_input);
+    } else {
+      avm_free(cpi->src_sad_blk_64x64);
+      cpi->src_sad_blk_64x64 = NULL;
+      cpi->src_sad_blk_alloc_size = 0;
     }
   }
   // Set target size.
@@ -2402,6 +2534,7 @@ int av2_encodedframe_overshoot_cbr(AV2_COMP *cpi, int *q) {
   if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
     av2_cyclic_refresh_set_golden_update(cpi);
     cpi->cyclic_refresh->apply_cyclic_refresh = 0;
+    cpi->cyclic_refresh->counter_encode_maxq_scene_change = 0;
     cpi->cyclic_refresh->percent_refresh_adjustment = 5;
     cpi->cyclic_refresh->rate_ratio_qdelta_adjustment = 0.25;
   }

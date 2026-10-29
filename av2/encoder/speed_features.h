@@ -270,6 +270,20 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    * 0: every offset and filter is built on the whole frame.
    */
   int tip_direct_output_rank_band_period;
+
+  /*!
+   * Run the full-frame TIP work (the TIP frame build, its loop filter and the
+   * SSE of the TIP searches) on the encoder worker threads when there are
+   * several. The output is the same with or without it.
+   * 0: single thread.
+   * This switch exists only to A/B test the multithreaded path against the
+   * single-threaded one while the encoder baseline is still changing, because
+   * the fixed cost of multithreading can cancel its gain for light stages. Once
+   * av2-enc is stable the multithreaded stage is re-evaluated: the switch is
+   * removed if multithreading helps, and the multithreaded code is removed if
+   * it does not.
+   */
+  int enable_tip_mt;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!\cond */
@@ -479,6 +493,11 @@ typedef struct PARTITION_SPEED_FEATURES {
   // 4: aggressive directional half-pair depth (enabled at speeds >= 5 for
   //    1080p; 4k uses level 1 at speeds >= 5)
   int prune_rect_with_split_depth;
+
+  // Two-pass search: when the dry pass settles a 256x256 superblock as a
+  // NEARMV block without residual and the previous frame coded it whole too,
+  // the wet pass re-evaluates only NEARMV on that block.
+  int wet_static_256_nearmv_only;
 
   // prune inter mode in binary partitions based on none part
   int prune_inter_modes_by_none_part;
@@ -766,6 +785,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Dry pass: top-1 MV precision on non-boosted frames at pyramid level >= 2.
   int dry_pass_mv_prec_from_top;
 
+  // Leave skip mode to the wet pass: the dry pass of the two-pass partition
+  // search does not run rd_pick_skip_mode().
+  bool disable_skip_mode_in_dry_pass;
+
   // Prune reference frames for ALTREF
   int alt_ref_search_fp;
 
@@ -990,7 +1013,7 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Prune further evaluation of compound mode using estimated RD Cost of best
   // compound type chosen.
-  bool prune_comp_mode_eval_using_est_rd;
+  int prune_comp_mode_eval_using_est_rd;
 
   // Prune the evaluation of ref_mv_idx > 0 for WARP_NEWMV modes based on RD
   // Cost of ref_mv_idx = 0 and best mode so far.
@@ -1015,6 +1038,12 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Maximum number of ref_mv_idx candidates searched for single-reference
   // modes (excluding WARPMV) in the full (non-dry) pass. 0: no cap.
   int limit_single_ref_mv_idx;
+
+  // Skip the AMVD (use_amvd = 1) loop iteration in the partition-search dry
+  // pass. Evaluated only when apply_dry_pass_shortcuts is also true.
+  // Both conditions must hold for the skip to take effect (see
+  // get_num_amvd_modes()). Enabled for speed >= 3.
+  bool skip_amvd_search_in_dry_pass;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
@@ -1336,6 +1365,23 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
 
   // bypass ccso luma plane check
   int ccso_chroma_dep;
+
+  // Switches for the multithreaded CDEF and CCSO encoder stages. They exist
+  // only to A/B test each multithreaded path against its single-threaded path
+  // while the encoder baseline is still changing, because the fixed cost of
+  // multithreading can cancel its gain for light stages. Once av2-enc is stable
+  // each multithreaded stage is re-evaluated: the switch is removed where
+  // multithreading helps, and the multithreaded code of the stage is removed
+  // where it does not. The output is the same with or without them.
+
+  // Run the CDEF strength search and the CDEF filtering on the encoder worker
+  // threads when there are several. 0: single thread.
+  int enable_cdef_mt;
+
+  // Run the sample passes of the CCSO search (pickccso.c) and the CCSO
+  // filtering on the encoder worker threads when there are several.
+  // 0: single thread.
+  int enable_ccso_mt;
 
   // Prune the QP-model candidates of the GDF frame search in gdf_optimizer().
   // 0: search all GDF_RDO_QP_NUM candidates; 1: search only the two

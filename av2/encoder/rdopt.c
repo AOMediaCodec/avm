@@ -3082,7 +3082,9 @@ static AVM_INLINE int evaluate_motion_mode_trial(
       return -1;
     assert(mbmi->motion_mode == INTERINTRA);
   } else if (mbmi->motion_mode == WARP_DELTA) {
-    if (cpi->sf.inter_sf.prune_warp_delta_by_ref_idx && mbmi->ref_frame[0] > 2)
+    if (cpi->sf.inter_sf.prune_warp_delta_by_ref_idx &&
+        mbmi->ref_frame[0] >
+            (cpi->sf.inter_sf.prune_warp_delta_by_ref_idx >= 2 ? 1 : 2))
       return -1;
     if (handle_warp_delta_mode(cpi, x, bsize, mbmi, mbmi_ext, args,
                                *ref_best_rd, orig_dst, ctx->previous_mvs,
@@ -4527,17 +4529,20 @@ static INLINE void push_comp_est_rd(MACROBLOCK *x, const MB_MODE_INFO *mbmi,
 // Prune compound mode evaluation based on top estimated RD costs.
 static INLINE bool prune_comp_eval_using_est_rd(
     MACROBLOCK *const x, MB_MODE_INFO *const mbmi, int64_t tmp_rd,
-    bool prune_comp_mode_eval_using_est_rd) {
+    int prune_comp_mode_eval_using_est_rd) {
   if (!prune_comp_mode_eval_using_est_rd) return false;
 
   // Do not prune for skip mode.
   if (mbmi->skip_mode != 0) return false;
   if (tmp_rd == INT64_MAX) return false;
 
+  const int idx = (prune_comp_mode_eval_using_est_rd >= 2)
+                      ? 0
+                      : (TOP_COMP_EST_RD_COUNT - 1);
   // Do not prune if there is no valid top RD Cost for comparison.
-  if (x->top_comp_est_rd[TOP_COMP_EST_RD_COUNT - 1] == INT64_MAX) return false;
+  if (x->top_comp_est_rd[idx] == INT64_MAX) return false;
 
-  if (tmp_rd > x->top_comp_est_rd[TOP_COMP_EST_RD_COUNT - 1]) return true;
+  if (tmp_rd > x->top_comp_est_rd[idx]) return true;
 
   return false;
 }
@@ -9634,6 +9639,23 @@ static void try_intrabc_after_inter_search(
   ctx->rd_stats.skip_txfm = mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
 }
 
+// Returns the number of AMVD (Adaptive MV Delta) loop iterations to evaluate
+//   1 -> only use_amvd = 0 (standard MV)
+//   2 -> both use_amvd = 0 and use_amvd = 1 (standard + AMVD-coded MV)
+static AVM_INLINE int get_num_amvd_modes(int enable_adaptive_mvd,
+                                         int prune_amvd,
+                                         PREDICTION_MODE this_mode,
+                                         bool apply_dry_pass_shortcuts,
+                                         bool skip_amvd_search_in_dry_pass) {
+  if (!enable_adaptive_mvd || !allow_amvd_mode(this_mode)) return 1;
+  if (apply_dry_pass_shortcuts && skip_amvd_search_in_dry_pass) return 1;
+  const bool amvd_suppressed_for_mode =
+      prune_amvd &&
+      (this_mode == NEAR_NEWMV || this_mode == NEAR_NEWMV_OPTFLOW ||
+       this_mode == NEW_NEARMV || this_mode == NEW_NEARMV_OPTFLOW);
+  return 1 + !amvd_suppressed_for_mode;
+}
+
 // TODO(chiyotsai@google.com): See the todo for av2_rd_pick_intra_mode_sb.
 void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                struct TileDataEnc *tile_data,
@@ -9771,8 +9793,13 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         picked_ref_frames_mask =
             fetch_picked_ref_frames_mask(x, cm->sb_size, cm->mib_size);
         if (picked_ref_frames_mask) {
-          // Always ensure the primary reference (ref 0) is tested.
+          // Always ensure the primary reference (ref 0) and the reference
+          // selected for superblock variance partitioning are tested.
           picked_ref_frames_mask |= (1ULL << 0);
+          if (is_inter_ref_frame(x->vbp_ref_frame) &&
+              !is_tip_ref_frame(x->vbp_ref_frame)) {
+            picked_ref_frames_mask |= (1ULL << x->vbp_ref_frame);
+          }
         }
       }
     } else {
@@ -10017,6 +10044,13 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       continue;
     if (skip_inter_modes_by_none_part && is_intermode_selected(this_mode))
       continue;
+    // Static 256x256 superblock (see dry_static_256): the wet pass only
+    // re-evaluates NEARMV; the dry pass already rejected everything else on
+    // a block that carries no residual.
+    if (cpi->sf.part_sf.wet_static_256_nearmv_only &&
+        x->may_consume_dry_pass_info && x->dry_static_256 &&
+        bsize == BLOCK_256X256 && this_mode != NEARMV)
+      continue;
     if (this_mode == WARPMV && !warpmv_allowed) continue;
     if (this_mode == WARP_NEWMV && (!warpmv_allowed || !warp_newmv_allowed))
       continue;
@@ -10104,15 +10138,11 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     args.single_comp_cost = real_compmode_cost;
     args.ref_frame_cost = ref_frame_cost;
 
-    const bool amvd_suppressed_for_mode =
-        inter_sf->prune_amvd &&
-        (this_mode == NEAR_NEWMV || this_mode == NEAR_NEWMV_OPTFLOW ||
-         this_mode == NEW_NEARMV || this_mode == NEW_NEARMV_OPTFLOW);
-    const int num_amvd_modes =
-        1 + (enable_adaptive_mvd && allow_amvd_mode(this_mode) &&
-             !amvd_suppressed_for_mode);
-    const int amvd_inverted = is_amvd_inverted_mode(this_mode);
+    const int num_amvd_modes = get_num_amvd_modes(
+        enable_adaptive_mvd, inter_sf->prune_amvd, this_mode,
+        apply_dry_pass_shortcuts, inter_sf->skip_amvd_search_in_dry_pass);
 
+    const int amvd_inverted = is_amvd_inverted_mode(this_mode);
     // Normally, NEAR_NEWMV* and NEW_NEARMV* (amvd_inverted) test use_amvd = 1
     // first and skip use_amvd = 0 if use_amvd = 1 did not win. However, if
     // use_amvd = 1 was not tested (either suppressed by num_amvd_modes == 1 or
@@ -10333,7 +10363,11 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       is_intra_mode_allowed);
 
   search_state.best_mbmode.skip_mode = 0;
-  if (is_skip_mode_allowed(cm, xd)) {
+  // The dry pass only picks a partition shape; the wet pass re-searches every
+  // mode, so skip mode's full RD can be left to it.
+  if (is_skip_mode_allowed(cm, xd) &&
+      !(x->apply_dry_pass_shortcuts &&
+        cpi->sf.inter_sf.disable_skip_mode_in_dry_pass)) {
     rd_pick_skip_mode(&search_state, cpi, x, bsize, yv12_mb, ctx, rd_cost);
   }
 

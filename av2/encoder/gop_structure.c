@@ -433,7 +433,8 @@ void av2_gop_setup_structure(AV2_COMP *cpi) {
   gf_group->size = construct_multi_layer_gf_structure(
       cpi, twopass, gf_group, rc, frame_info, rc->baseline_gf_interval,
       first_frame_update_type);
-  cpi->rc.level1_qp = -1;  // Set to uninitialized.
+  cpi->rc.level1_qp = -1;        // Set to uninitialized.
+  cpi->resize_subgop_denom = 0;  // Reset subgop resize scale for new GF group.
 
 #if CHECK_GF_PARAMETER
   check_frame_params(gf_group, rc->baseline_gf_interval);

@@ -10,9 +10,23 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <string.h>
+
+#include "av2/common/resize.h"
 #include "av2/encoder/encoder_alloc.h"
 #include "av2/encoder/random.h"
+#include "av2/encoder/ratectrl.h"
 #include "av2/encoder/scale.h"
+#include "avm_dsp/psnr.h"
+#include "avm_ports/system_state.h"
+
+// Preliminary thresholds on (Luma resampling MSE / Qstep^2) for
+// RESIZE_DYNAMIC and RESIZE_DYNAMIC_SUBGOP denominator selection on
+// key/intra-only frames, per-frame inter frames, and subgops. Intended for
+// further tuning.
+#define RESIZE_DYNAMIC_THRESH_KF 0.0125
+#define RESIZE_DYNAMIC_THRESH 0.025
+#define RESIZE_DYNAMIC_SUBGOP_THRESH 0.03
 
 // This function is used to compute the resolution for low delay mode
 static uint8_t get_resolution_ratio_pattern1(const int display_order_hint) {
@@ -61,7 +75,351 @@ static uint8_t get_resolution_bridge_frame_pattern(const int frame_count) {
   return new_denom;
 }
 
-static uint8_t calculate_next_resize_scale(const AV2_COMP *cpi) {
+static int dimension_is_ok(int orig_dim, int resized_dim, int denom) {
+  return (resized_dim * SCALE_NUMERATOR >= orig_dim * denom / 2);
+}
+
+// Preliminary dynamic resize scale decision for RESIZE_DYNAMIC:
+// Evaluates candidate denominators d = 9..16 (downscale factor 8/d) in order.
+// For each d, downsamples the source Luma plane by 8/d and upsamples it back
+// to the original dimensions by d/8, then compares MSE / Qstep^2(d) (where
+// Qstep(d) includes the candidate resize QP offset
+// RESIZE_QP_OFFSET_PER_STEP * (d - 8) on top of the frame's full-resolution
+// base_qindex) against a frame-type-dependent threshold
+// (RESIZE_DYNAMIC_THRESH_KF for key/intra-only frames, RESIZE_DYNAMIC_THRESH
+// otherwise). Continues while the ratio is below the threshold and stops at
+// the first d that meets or exceeds it, accepting d - 1.
+static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
+  AV2_COMMON *const cm = &cpi->common;
+  const AV2EncoderConfig *const oxcf = &cpi->oxcf;
+  const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
+  const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
+  const YV12_BUFFER_CONFIG *const unscaled = cpi->unscaled_source;
+
+  // Never downscale if the unscaled source is unavailable or lossless coding
+  // is requested.
+  if (unscaled == NULL || is_lossless_requested(rc_cfg)) {
+    return SCALE_NUMERATOR;
+  }
+
+  // av2_setup_frame_size() runs before av2_set_size_dependent_vars(). Query
+  // the frame's baseline qindex assuming full resolution, saving and restoring
+  // frame dimensions and rate-control fields so subsequent frame-size and Q
+  // setup see unmodified state.
+  const int saved_cm_width = cm->width;
+  const int saved_cm_height = cm->height;
+  const int saved_this_frame_target = cpi->rc.this_frame_target;
+  const int saved_sb64_target_rate = cpi->rc.sb64_target_rate;
+  const int saved_level1_qp = cpi->rc.level1_qp;
+  const int saved_unresized_base_qindex = cpi->rc.unresized_base_qindex;
+  cm->width = frm_dim_cfg->width;
+  cm->height = frm_dim_cfg->height;
+  if (is_stat_consumption_stage(cpi) &&
+      (rc_cfg->mode == AVM_VBR || rc_cfg->mode == AVM_CQ)) {
+    av2_set_target_rate(cpi, frm_dim_cfg->width, frm_dim_cfg->height);
+  }
+  int bottom_index = 0, top_index = 0;
+  const int qindex =
+      cm->bridge_frame_info.is_bridge_frame
+          ? cm->quant_params.base_qindex
+          : av2_rc_pick_q_and_bounds(cpi, &cpi->rc, frm_dim_cfg->width,
+                                     frm_dim_cfg->height, cpi->gf_group.index,
+                                     &bottom_index, &top_index);
+  cm->width = saved_cm_width;
+  cm->height = saved_cm_height;
+  cpi->rc.this_frame_target = saved_this_frame_target;
+  cpi->rc.sb64_target_rate = saved_sb64_target_rate;
+  cpi->rc.level1_qp = saved_level1_qp;
+  cpi->rc.unresized_base_qindex = saved_unresized_base_qindex;
+
+  // Keep full resolution if the selected qindex corresponds to lossless (0).
+  if (qindex == 0) {
+    return SCALE_NUMERATOR;
+  }
+
+  const avm_bit_depth_t bit_depth = cm->seq_params.bit_depth;
+  const int max_qp = MAXQ_FOR_GIVEN_BIT_DEPTH(bit_depth);
+
+  const int orig_w = unscaled->y_crop_width;
+  const int orig_h = unscaled->y_crop_height;
+  uint16_t *const downscaled_y =
+      (uint16_t *)avm_malloc((size_t)orig_w * orig_h * sizeof(*downscaled_y));
+  uint16_t *const upscaled_y =
+      (uint16_t *)avm_malloc((size_t)orig_w * orig_h * sizeof(*upscaled_y));
+  if (downscaled_y == NULL || upscaled_y == NULL) {
+    avm_free(downscaled_y);
+    avm_free(upscaled_y);
+    avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
+                       "Failed to allocate buffers for dynamic resize");
+  }
+
+  // Try denominators d = 9..16 in order. Accept the largest contiguous d
+  // whose round-trip Luma resampling MSE satisfies MSE / Qstep^2(d) < thresh.
+  const double thresh = frame_is_intra_only(cm) ? RESIZE_DYNAMIC_THRESH_KF
+                                                : RESIZE_DYNAMIC_THRESH;
+  uint8_t best_denom = SCALE_NUMERATOR;
+  for (int d = SCALE_NUMERATOR + 1; d <= SCALE_NUMERATOR * 2; ++d) {
+    int scaled_w = orig_w;
+    int scaled_h = orig_h;
+    av2_calculate_scaled_size(&scaled_w, &scaled_h, d);
+    if (!dimension_is_ok(orig_w, scaled_w, SCALE_NUMERATOR) ||
+        !dimension_is_ok(orig_h, scaled_h, SCALE_NUMERATOR)) {
+      break;
+    }
+
+    // Apply the candidate scale's QP offset on top of the frame's baseline
+    // full-resolution qindex. av2_convert_qindex_to_q() normalizes Qstep to
+    // 8-bit scale; scale by 2^(bit_depth - 8) so Qstep matches the native
+    // pixel domain of unscaled, making MSE / Qstep^2 bit-depth invariant.
+    const int qindex_d = clamp(
+        qindex + RESIZE_QP_OFFSET_PER_STEP * (d - SCALE_NUMERATOR), 1, max_qp);
+    avm_clear_system_state();
+    const double qstep = av2_convert_qindex_to_q(qindex_d, bit_depth) *
+                         (1 << (bit_depth - AVM_BITS_8));
+    const double qstep_sq = qstep * qstep;
+
+    // Downsample original Luma by 8/d, then upsample back to (orig_w, orig_h).
+    av2_highbd_resize_plane(unscaled->y_buffer, orig_h, orig_w,
+                            unscaled->y_stride, downscaled_y, scaled_h,
+                            scaled_w, scaled_w, (int)bit_depth);
+    av2_highbd_resize_plane(downscaled_y, scaled_h, scaled_w, scaled_w,
+                            upscaled_y, orig_h, orig_w, orig_w, (int)bit_depth);
+
+    YV12_BUFFER_CONFIG upscaled_buf;
+    memset(&upscaled_buf, 0, sizeof(upscaled_buf));
+    upscaled_buf.y_buffer = upscaled_y;
+    upscaled_buf.y_stride = orig_w;
+    upscaled_buf.y_crop_width = orig_w;
+    upscaled_buf.y_crop_height = orig_h;
+
+    const int64_t sse = avm_highbd_get_y_sse(unscaled, &upscaled_buf);
+    avm_clear_system_state();
+    const double mse = (double)sse / ((double)orig_w * (double)orig_h);
+    if (mse / qstep_sq < thresh) {
+      best_denom = (uint8_t)d;
+    } else {
+      // Threshold exceeded at d; stop and keep d - 1 (stored in best_denom).
+      break;
+    }
+  }
+
+  avm_free(downscaled_y);
+  avm_free(upscaled_y);
+  return best_denom;
+}
+
+// Preliminary dynamic resize scale decision for a subgop in
+// RESIZE_DYNAMIC_SUBGOP:
+// Evaluates candidate denominators d = 9..16 (downscale factor 8/d) in order.
+// For each d, computes the round-trip Luma resampling MSE / Qstep^2(d) for
+// every frame in the current subgop (where Qstep(d) adds the candidate resize
+// QP offset RESIZE_QP_OFFSET_PER_STEP * (d - 8) on top of each frame's
+// full-resolution pyramid-level base_qindex) and averages those ratios across
+// the subgop. Continues while the average ratio is below
+// RESIZE_DYNAMIC_SUBGOP_THRESH and stops at the first d that meets or exceeds
+// it, accepting d - 1.
+static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
+  AV2_COMMON *const cm = &cpi->common;
+  const AV2EncoderConfig *const oxcf = &cpi->oxcf;
+  const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
+  const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
+  const YV12_BUFFER_CONFIG *const unscaled = cpi->unscaled_source;
+  GF_GROUP *const gf_group = &cpi->gf_group;
+
+  // Never downscale if the unscaled source is unavailable or lossless coding
+  // is requested.
+  if (unscaled == NULL || is_lossless_requested(rc_cfg)) {
+    return SCALE_NUMERATOR;
+  }
+
+  const YV12_BUFFER_CONFIG *subgop_srcs[MAX_STATIC_GF_GROUP_LENGTH];
+  int subgop_qindex[MAX_STATIC_GF_GROUP_LENGTH];
+  int num_subgop_frames = 0;
+
+  // Save encoder and rate-control state before querying baseline full-res
+  // qindex values across the frames in the current subgop.
+  const int cur_gf_index = gf_group->index;
+  const int base_disp_idx = gf_group->cur_frame_idx[cur_gf_index] +
+                            (cm->immediate_output_picture != 0);
+  const int saved_cm_width = cm->width;
+  const int saved_cm_height = cm->height;
+  const FRAME_TYPE saved_frame_type = cm->current_frame.frame_type;
+  const int saved_pyramid_level = cm->current_frame.pyramid_level;
+  const int saved_this_frame_target = cpi->rc.this_frame_target;
+  const int saved_sb64_target_rate = cpi->rc.sb64_target_rate;
+  const int saved_level1_qp = cpi->rc.level1_qp;
+  const int saved_unresized_base_qindex = cpi->rc.unresized_base_qindex;
+  const int saved_is_src_frame_alt_ref = cpi->rc.is_src_frame_alt_ref;
+  int saved_active_best_quality[MAX_ARF_LAYERS + 1];
+  memcpy(saved_active_best_quality, cpi->rc.active_best_quality,
+         sizeof(saved_active_best_quality));
+
+  cm->width = frm_dim_cfg->width;
+  cm->height = frm_dim_cfg->height;
+  const avm_bit_depth_t bit_depth = cm->seq_params.bit_depth;
+  const int max_qp = MAXQ_FOR_GIVEN_BIT_DEPTH(bit_depth);
+  int has_lossless_frame = 0;
+
+  // Collect each coded frame in the current subgop along with its intended
+  // full-resolution pyramid-level base_qindex.
+  for (int gf_idx = cur_gf_index; gf_idx < gf_group->size; ++gf_idx) {
+    // Skip pure overlay updates since they do not code a new source picture.
+    const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_idx];
+    if (update_type == OVERLAY_UPDATE || update_type == INTNL_OVERLAY_UPDATE ||
+        update_type == KFFLT_OVERLAY_UPDATE) {
+      continue;
+    }
+
+    // Locate the frame's unscaled source buffer: use cpi->unscaled_source for
+    // the frame currently being encoded, and peek into the lookahead buffer
+    // for the remaining frames in the subgop.
+    const YV12_BUFFER_CONFIG *frame_src = NULL;
+    if (gf_idx == cur_gf_index) {
+      frame_src = unscaled;
+    } else {
+      const int frame_display_index =
+          gf_group->cur_frame_idx[gf_idx] + gf_group->arf_src_offset[gf_idx];
+      const int lookahead_idx = frame_display_index - base_disp_idx;
+      const struct lookahead_entry *const entry = av2_lookahead_peek(
+          cpi->lookahead, lookahead_idx, cpi->compressor_stage);
+      if (entry != NULL) {
+        frame_src = &entry->img;
+      }
+    }
+    if (frame_src == NULL) {
+      continue;
+    }
+
+    // Configure pyramid level and rate-control target for gf_idx at full
+    // resolution, then query its baseline unresized qindex.
+    gf_group->index = gf_idx;
+    cm->current_frame.frame_type = INTER_FRAME;
+    cm->current_frame.pyramid_level = get_true_pyr_level(
+        gf_group->layer_depth[gf_idx], 0, gf_group->max_layer_depth, 0);
+    cpi->rc.is_src_frame_alt_ref = 0;
+    av2_rc_set_frame_target(cpi, gf_group->bit_allocation[gf_idx],
+                            frm_dim_cfg->width, frm_dim_cfg->height);
+    if (is_stat_consumption_stage(cpi) &&
+        (rc_cfg->mode == AVM_VBR || rc_cfg->mode == AVM_CQ)) {
+      av2_set_target_rate(cpi, frm_dim_cfg->width, frm_dim_cfg->height);
+    }
+
+    int bottom_index = 0, top_index = 0;
+    const int qindex = av2_rc_pick_q_and_bounds(
+        cpi, &cpi->rc, frm_dim_cfg->width, frm_dim_cfg->height, gf_idx,
+        &bottom_index, &top_index);
+    if (qindex == 0) {
+      has_lossless_frame = 1;
+      break;
+    }
+
+    // Propagate active_best_quality across deeper pyramid layers so subsequent
+    // frames in the subgop see the same hierarchical Q bounds as during actual
+    // encoding.
+    for (int i = gf_group->layer_depth[gf_idx]; i <= MAX_ARF_LAYERS; ++i) {
+      cpi->rc.active_best_quality[i] = qindex;
+    }
+
+    subgop_srcs[num_subgop_frames] = frame_src;
+    subgop_qindex[num_subgop_frames] = qindex;
+    ++num_subgop_frames;
+  }
+
+  // Restore encoder and rate-control state to their pre-query values.
+  gf_group->index = cur_gf_index;
+  cm->width = saved_cm_width;
+  cm->height = saved_cm_height;
+  cm->current_frame.frame_type = saved_frame_type;
+  cm->current_frame.pyramid_level = saved_pyramid_level;
+  cpi->rc.this_frame_target = saved_this_frame_target;
+  cpi->rc.sb64_target_rate = saved_sb64_target_rate;
+  cpi->rc.level1_qp = saved_level1_qp;
+  cpi->rc.unresized_base_qindex = saved_unresized_base_qindex;
+  cpi->rc.is_src_frame_alt_ref = saved_is_src_frame_alt_ref;
+  memcpy(cpi->rc.active_best_quality, saved_active_best_quality,
+         sizeof(saved_active_best_quality));
+
+  // Keep full resolution if any frame in the subgop is lossless (qindex == 0).
+  if (has_lossless_frame) {
+    return SCALE_NUMERATOR;
+  }
+  if (num_subgop_frames == 0) {
+    return calculate_dynamic_resize_scale(cpi);
+  }
+
+  const int orig_w = unscaled->y_crop_width;
+  const int orig_h = unscaled->y_crop_height;
+  uint16_t *const downscaled_y =
+      (uint16_t *)avm_malloc((size_t)orig_w * orig_h * sizeof(*downscaled_y));
+  uint16_t *const upscaled_y =
+      (uint16_t *)avm_malloc((size_t)orig_w * orig_h * sizeof(*upscaled_y));
+  if (downscaled_y == NULL || upscaled_y == NULL) {
+    avm_free(downscaled_y);
+    avm_free(upscaled_y);
+    avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
+                       "Failed to allocate buffers for dynamic subgop resize");
+  }
+
+  // Try denominators d = 9..16 in order. Accept the largest contiguous d whose
+  // subgop-average (MSE / Qstep^2(d)) is below RESIZE_DYNAMIC_SUBGOP_THRESH.
+  uint8_t best_denom = SCALE_NUMERATOR;
+  for (int d = SCALE_NUMERATOR + 1; d <= SCALE_NUMERATOR * 2; ++d) {
+    int scaled_w = orig_w;
+    int scaled_h = orig_h;
+    av2_calculate_scaled_size(&scaled_w, &scaled_h, d);
+    if (!dimension_is_ok(orig_w, scaled_w, SCALE_NUMERATOR) ||
+        !dimension_is_ok(orig_h, scaled_h, SCALE_NUMERATOR)) {
+      break;
+    }
+
+    YV12_BUFFER_CONFIG upscaled_buf;
+    memset(&upscaled_buf, 0, sizeof(upscaled_buf));
+    upscaled_buf.y_buffer = upscaled_y;
+    upscaled_buf.y_stride = orig_w;
+    upscaled_buf.y_crop_width = orig_w;
+    upscaled_buf.y_crop_height = orig_h;
+
+    double sum_ratio = 0.0;
+    for (int f = 0; f < num_subgop_frames; ++f) {
+      // Downsample frame f's Luma plane by 8/d and upsample back to
+      // (orig_w, orig_h) to measure round-trip resampling MSE.
+      const YV12_BUFFER_CONFIG *const src = subgop_srcs[f];
+      av2_highbd_resize_plane(src->y_buffer, orig_h, orig_w, src->y_stride,
+                              downscaled_y, scaled_h, scaled_w, scaled_w,
+                              (int)bit_depth);
+      av2_highbd_resize_plane(downscaled_y, scaled_h, scaled_w, scaled_w,
+                              upscaled_y, orig_h, orig_w, orig_w,
+                              (int)bit_depth);
+
+      const int64_t sse = avm_highbd_get_y_sse(src, &upscaled_buf);
+      avm_clear_system_state();
+      // Apply the candidate scale's QP offset on top of frame f's baseline
+      // pyramid-level qindex and convert to native-bit-depth Qstep(d).
+      const int qindex_d = clamp(
+          subgop_qindex[f] + RESIZE_QP_OFFSET_PER_STEP * (d - SCALE_NUMERATOR),
+          1, max_qp);
+      const double qstep = av2_convert_qindex_to_q(qindex_d, bit_depth) *
+                           (1 << (bit_depth - AVM_BITS_8));
+      const double qstep_sq = qstep * qstep;
+      const double mse = (double)sse / ((double)orig_w * (double)orig_h);
+      sum_ratio += mse / qstep_sq;
+    }
+
+    const double avg_ratio = sum_ratio / (double)num_subgop_frames;
+    if (avg_ratio < RESIZE_DYNAMIC_SUBGOP_THRESH) {
+      best_denom = (uint8_t)d;
+    } else {
+      // Threshold exceeded at d; stop and keep d - 1 (stored in best_denom).
+      break;
+    }
+  }
+
+  avm_free(downscaled_y);
+  avm_free(upscaled_y);
+  return best_denom;
+}
+
+static uint8_t calculate_next_resize_scale(AV2_COMP *cpi) {
   // Choose an arbitrary random number
   static unsigned int seed = 56789;
   const ResizeCfg *resize_cfg = &cpi->oxcf.resize_cfg;
@@ -80,6 +438,35 @@ static uint8_t calculate_next_resize_scale(const AV2_COMP *cpi) {
         new_denom = resize_cfg->resize_scale_denominator;
       break;
     case RESIZE_RANDOM: new_denom = lcg_rand16(&seed) % 9 + 8; break;
+    case RESIZE_RANDOM_SUBGOP:
+      // Keyframes pick an independent random scale like RESIZE_RANDOM; for
+      // each subgop, pick a random scale once on its first non-keyframe and
+      // reuse it across all frames in that subgop.
+      if (cpi->common.current_frame.frame_type == KEY_FRAME) {
+        new_denom = lcg_rand16(&seed) % 9 + 8;
+        cpi->resize_subgop_denom = 0;
+      } else {
+        if (cpi->resize_subgop_denom == 0) {
+          cpi->resize_subgop_denom = lcg_rand16(&seed) % 9 + 8;
+        }
+        new_denom = cpi->resize_subgop_denom;
+      }
+      break;
+    case RESIZE_DYNAMIC: new_denom = calculate_dynamic_resize_scale(cpi); break;
+    case RESIZE_DYNAMIC_SUBGOP:
+      // Keyframes pick a dynamic scale using calculate_dynamic_resize_scale();
+      // for each subgop, compute the subgop dynamic scale once on its first
+      // non-keyframe and reuse it across all frames in that subgop.
+      if (cpi->common.current_frame.frame_type == KEY_FRAME) {
+        new_denom = calculate_dynamic_resize_scale(cpi);
+        cpi->resize_subgop_denom = 0;
+      } else {
+        if (cpi->resize_subgop_denom == 0) {
+          cpi->resize_subgop_denom = calculate_dynamic_subgop_resize_scale(cpi);
+        }
+        new_denom = cpi->resize_subgop_denom;
+      }
+      break;
     case RESIZE_PATTERN:
       new_denom = is_low_delay_enc
                       ? get_resolution_ratio_pattern1(display_order_hint)
@@ -97,11 +484,8 @@ static uint8_t calculate_next_resize_scale(const AV2_COMP *cpi) {
 typedef struct {
   int resize_width;
   int resize_height;
+  uint8_t resize_denom;
 } size_params_type;
-
-static int dimension_is_ok(int orig_dim, int resized_dim, int denom) {
-  return (resized_dim * SCALE_NUMERATOR >= orig_dim * denom / 2);
-}
 
 static int dimensions_are_ok(int owidth, int oheight, size_params_type *rsz) {
   // Only need to check the width, as scaling is horizontal only.
@@ -114,7 +498,9 @@ static int validate_size_scales(RESIZE_MODE resize_mode, int owidth,
   if (dimensions_are_ok(owidth, oheight, rsz)) {  // Nothing to do.
     return 1;
   }
-  if ((resize_mode == RESIZE_RANDOM || resize_mode == RESIZE_PATTERN)) {
+  if (resize_mode == RESIZE_RANDOM || resize_mode == RESIZE_RANDOM_SUBGOP ||
+      resize_mode == RESIZE_DYNAMIC || resize_mode == RESIZE_DYNAMIC_SUBGOP ||
+      resize_mode == RESIZE_PATTERN) {
     // Alter resize scale as needed to enforce conformity.
     int resize_denom =
         (2 * SCALE_NUMERATOR * SCALE_NUMERATOR) / SCALE_NUMERATOR;
@@ -131,6 +517,7 @@ static int validate_size_scales(RESIZE_MODE resize_mode, int owidth,
                                   resize_denom);
       }
     }
+    rsz->resize_denom = (uint8_t)resize_denom;
   } else {  // We are not allowed to alter resize scale.
     return 0;
   }
@@ -142,16 +529,29 @@ static size_params_type calculate_next_size_params(AV2_COMP *cpi) {
   const AV2EncoderConfig *oxcf = &cpi->oxcf;
   ResizePendingParams *resize_pending_params = &cpi->resize_pending_params;
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
-  size_params_type rsz = { frm_dim_cfg->width, frm_dim_cfg->height };
+  // Reset to SCALE_NUMERATOR (no resize) before computing the next scale so
+  // any full-resolution qindex query inside calculate_next_resize_scale()
+  // does not inherit the previous frame's resize QP offset.
+  cpi->resize_scale_denom = SCALE_NUMERATOR;
+  size_params_type rsz = { frm_dim_cfg->width, frm_dim_cfg->height,
+                           SCALE_NUMERATOR };
   int resize_denom = SCALE_NUMERATOR;
   if (is_stat_generation_stage(cpi)) return rsz;
   if (resize_pending_params->width && resize_pending_params->height) {
     rsz.resize_width = resize_pending_params->width;
     rsz.resize_height = resize_pending_params->height;
+    // Approximate the effective denominator for externally triggered resizes.
+    if (rsz.resize_width < frm_dim_cfg->width) {
+      rsz.resize_denom = (uint8_t)clamp(
+          (frm_dim_cfg->width * SCALE_NUMERATOR + (rsz.resize_width >> 1)) /
+              rsz.resize_width,
+          SCALE_NUMERATOR, 2 * SCALE_NUMERATOR);
+    }
     resize_pending_params->width = resize_pending_params->height = 0;
     return rsz;
   } else {
     resize_denom = calculate_next_resize_scale(cpi);
+    rsz.resize_denom = (uint8_t)resize_denom;
     rsz.resize_width = frm_dim_cfg->width;
     rsz.resize_height = frm_dim_cfg->height;
     av2_calculate_scaled_size(&rsz.resize_width, &rsz.resize_height,
@@ -168,6 +568,9 @@ static void setup_frame_size_from_params(AV2_COMP *cpi,
                                          const size_params_type *rsz) {
   int encode_width = rsz->resize_width;
   int encode_height = rsz->resize_height;
+  // Record the chosen resize denominator on cpi so rate control can apply the
+  // corresponding per-step QP offset when picking the coded frame's qindex.
+  cpi->resize_scale_denom = rsz->resize_denom;
   av2_set_frame_size(cpi, encode_width, encode_height);
 }
 

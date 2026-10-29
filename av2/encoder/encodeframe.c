@@ -479,7 +479,10 @@ static void fill_sms_buf(SimpleMotionDataBufs *data_buf,
   SimpleMotionData *sms_data = av2_get_sms_data_entry(data_buf, mi_row, mi_col,
                                                       bsize, sb_size, sdp_flag);
   sms_data->old_sms = sms_node;
-  if (bsize >= BLOCK_8X8 && bsize != BLOCK_INVALID) {
+
+  // SMS Data is only checked on blocks of size 8x8 or larger by current speed
+  // features, therefore only blocks of size 16x16 or up need to be split here.
+  if (bsize >= BLOCK_16X16 && bsize != BLOCK_INVALID) {
     const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
     for (int r_idx = 0; r_idx < SUB_PARTITIONS_SPLIT; r_idx++) {
       assert(bsize < BLOCK_SIZES_ALL);
@@ -552,10 +555,21 @@ static INLINE void init_encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
     } else {
       av2_init_sms_data_bufs(data_bufs);
     }
-    fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
-                 0);
-    fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size,
-                 1);
+
+    // The wet pass of the fast two-pass search keeps every old_sms pointer from
+    // the dry pass, so there is nothing to refill.
+    // Inter frames only read the INTRA_REGION ones when inter SDP is searched,
+    // so fill each region only when it can actually be read.
+    if (!preserve_sms_cache) {
+      if (frame_is_intra_only(cm) || cm->seq_params.enable_extended_sdp) {
+        fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size,
+                     cm->sb_size, INTRA_REGION);
+      }
+      if (!frame_is_intra_only(cm)) {
+        fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size,
+                     cm->sb_size, MIXED_INTER_INTRA_REGION);
+      }
+    }
   }
   if (x->e_mbd.tree_type == CHROMA_PART) {
     assert(is_bsize_square(x->sb_enc.min_partition_size));
@@ -900,6 +914,7 @@ static AVM_INLINE void perform_two_pass_partition_search(
   // Drop the previous superblock's dry-pass rd records. The recorded rdcosts
   // are in the dry pass's rdmult units, which the wet pass must not recompute.
   if (fast_two_pass) av2_zero(x->unit_dry_rd);
+  x->dry_static_256 = false;
   perform_one_partition_pass(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
                              SB_DRY_PASS, NULL, 0);
   PARTITION_TREE *part_ref = xd->sbi->ptree_root[0];
@@ -2027,7 +2042,6 @@ static AVM_INLINE int could_tip_mode_be_selected(AV2_COMP *const cpi) {
 }
 
 static AVM_INLINE void decide_tip_setting_and_setup_tip_frame(AV2_COMP *cpi) {
-  ThreadData *const td = &cpi->td;
   AV2_COMMON *const cm = &cpi->common;
   if (cm->features.tip_frame_mode) {
     if (is_unequal_weighted_tip_allowed(cm)) {
@@ -2036,19 +2050,10 @@ static AVM_INLINE void decide_tip_setting_and_setup_tip_frame(AV2_COMP *cpi) {
       YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
       for (int8_t wtd_index = 0; wtd_index < MAX_TIP_WTD_NUM; wtd_index++) {
         cm->tip_global_wtd_index = wtd_index;
-        av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                            av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
-        );
+        av2_enc_build_tip_frame(cpi, 0 /* copy_refined_mvs */);
 
-        int64_t this_sse = avm_highbd_get_y_sse(cpi->source, tip_frame_buf);
-        this_sse +=
-            avm_highbd_sse(cpi->source->u_buffer, cpi->source->uv_stride,
-                           tip_frame_buf->u_buffer, tip_frame_buf->uv_stride,
-                           cpi->source->uv_width, cpi->source->uv_height);
-        this_sse +=
-            avm_highbd_sse(cpi->source->v_buffer, cpi->source->uv_stride,
-                           tip_frame_buf->v_buffer, tip_frame_buf->uv_stride,
-                           cpi->source->uv_width, cpi->source->uv_height);
+        const int64_t this_sse = av2_enc_tip_sse(
+            cpi, cpi->source, tip_frame_buf, 1 /* include_chroma */);
         if (this_sse < best_sse) {
           best_wtd_index = wtd_index;
           best_sse = this_sse;
@@ -2059,9 +2064,7 @@ static AVM_INLINE void decide_tip_setting_and_setup_tip_frame(AV2_COMP *cpi) {
       cm->tip_global_wtd_index = 0;
     }
 
-    av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                        av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
-    );
+    av2_enc_build_tip_frame(cpi, 0 /* copy_refined_mvs */);
   }
 }
 
@@ -2309,6 +2312,7 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
   av2_zero(rdc->comp_pred_diff);
   av2_zero(rdc->tx_type_used);
   av2_zero(rdc->warped_used);
+  av2_zero(rdc->seg_tmp_pred_cost);
   rdc->bawp_eligible_area = 0;
   rdc->bawp_used_area = 0;
 
@@ -2321,6 +2325,14 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
 
   // Reset the flag.
   cpi->intrabc_used = 0;
+
+  // The previous frame's 256x256 NONE map serves this frame; start a fresh
+  // one for the next.
+  uint8_t *const sb256_none_map = cpi->sb256_none_prev;
+  cpi->sb256_none_prev = cpi->sb256_none_cur;
+  cpi->sb256_none_cur = sb256_none_map;
+  memset(cpi->sb256_none_cur, 0,
+         (size_t)cpi->sb256_map_rows * cpi->sb256_map_stride);
 
   features->allow_intrabc &= (oxcf->kf_cfg.enable_intrabc);
   if (!frame_is_intra_only(cm) &&
@@ -2566,6 +2578,17 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
   }
   if (cm->delta_q_info.delta_q_present_flag && cpi->deltaq_used == 0) {
     cm->delta_q_info.delta_q_present_flag = 0;
+  }
+
+  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cm->seg.enabled &&
+      cm->seg.update_map) {
+    cm->seg.temporal_update =
+        (!frame_is_intra_only(cm) && cm->current_frame.frame_type != S_FRAME &&
+         cm->features.primary_ref_frame != PRIMARY_REF_NONE &&
+         cm->last_frame_seg_map != NULL &&
+         rdc->seg_tmp_pred_cost[1] < rdc->seg_tmp_pred_cost[0])
+            ? 1
+            : 0;
   }
 
   // Set the transform size appropriately before bitstream creation

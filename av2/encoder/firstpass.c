@@ -48,7 +48,9 @@
 
 #define OUTPUT_FPF 0
 
-#define FIRST_PASS_Q 10.0
+// First pass quantizer, in units of the unitary normalized quantization step
+// size returned by av2_convert_qindex_to_q().
+#define FIRST_PASS_Q 5.0
 #define INTRA_MODE_PENALTY 1024
 #define NEW_MV_MODE_PENALTY 32
 #define DARK_THRESH 64
@@ -360,8 +362,24 @@ static int firstpass_intra_prediction(
   xd->mi[0]->mode = DC_PRED;
   xd->mi[0]->tx_size =
       use_dc_pred ? (bsize >= fp_block_size ? TX_16X16 : TX_8X8) : TX_4X4;
+  xd->mi[0]->tx_partition_type[0] = TX_PARTITION_NONE;
+  xd->mi[0]->txb_idx = 0;
 
-  av2_encode_intra_block_plane(cpi, x, bsize, 0, DRY_RUN_NORMAL, 0);
+  // Predict and code the luma block in units of mbmi->tx_size, in raster
+  // order. Note that av2_encode_intra_block_plane() derives the luma transform
+  // blocks from mbmi->tx_partition_type instead of mbmi->tx_size, which would
+  // predict the whole block with a single DC predictor and inflate the intra
+  // error considerably.
+  {
+    ENTROPY_CONTEXT ta[MAX_MIB_SIZE] = { 0 };
+    ENTROPY_CONTEXT tl[MAX_MIB_SIZE] = { 0 };
+    int8_t *skip_txfm = &xd->mi[0]->skip_txfm[xd->tree_type == CHROMA_PART];
+    struct encode_b_args arg = {
+      cpi, x, skip_txfm, ta, tl, DRY_RUN_NORMAL, NO_TRELLIS_OPT
+    };
+    av2_foreach_transformed_block_in_plane(xd, bsize, AVM_PLANE_Y,
+                                           av2_encode_block_intra, &arg);
+  }
   int this_intra_error = avm_get_mb_ss(x->plane[0].src_diff);
   switch (seq_params->bit_depth) {
     case AVM_BITS_8: break;

@@ -146,6 +146,8 @@ enum {
   RESIZE_DYNAMIC = 3,  // Frames coded at lower scale based on rate control.
   RESIZE_PATTERN = 4,  // Fixed pattern for resize-mode common test conditions
   RESIZE_BRIDGE_FRAME_PATTERN = 5,  // Fixed pattern for Bridge Frame unit test
+  RESIZE_RANDOM_SUBGOP = 6,   // Keyframes and each subgop use a random scale.
+  RESIZE_DYNAMIC_SUBGOP = 7,  // Keyframes and each subgop use a dynamic scale.
   RESIZE_MODES
 } UENUM1BYTE(RESIZE_MODE);
 
@@ -1719,6 +1721,7 @@ typedef struct RD_COUNTS {
   // of those that use it. Used by sf->inter_sf.prune_bawp_by_gop_usage.
   int64_t bawp_eligible_area;
   int64_t bawp_used_area;
+  uint64_t seg_tmp_pred_cost[2];
 } RD_COUNTS;
 
 typedef struct ThreadData {
@@ -1888,9 +1891,39 @@ typedef struct {
   AV2LrSync lr_row_sync;
 
   /*!
+   * CDEF multi-threading object.
+   */
+  AV2CdefSync cdef_sync;
+
+  /*!
+   * CDEF per-worker buffers.
+   */
+  AV2CdefWorkerData *cdef_worker;
+
+  /*!
+   * CCSO multi-threading object.
+   */
+  AV2CcsoSync ccso_sync;
+
+  /*!
    * Global Motion multi-threading object.
    */
   AV2GlobalMotionSync gm_sync;
+
+  /*!
+   * TIP frame build multi-threading object (row job queue).
+   */
+  AV2TipSync tip_sync;
+
+  /*!
+   * Per-thread data of the TIP frame build, allocated on first use.
+   */
+  TIPWorkerData *tip_worker_data;
+
+  /*!
+   * Number of elements of tip_worker_data.
+   */
+  int num_tip_worker_data;
 } MultiThreadInfo;
 
 /*!\cond */
@@ -2670,6 +2703,16 @@ typedef struct AV2_COMP {
    * Parameters related to cyclic refresh aq-mode.
    */
   CYCLIC_REFRESH *cyclic_refresh;
+
+  /*!
+   * 64x64 block source SADs computed during 1-pass RT scene detection.
+   */
+  uint64_t *src_sad_blk_64x64;
+
+  /*!
+   * Number of 64x64 block entries allocated in \c src_sad_blk_64x64.
+   */
+  int src_sad_blk_alloc_size;
   /*!
    * Parameters related to active map. Active maps indicate
    * if there is any activity on a 4x4 block basis.
@@ -2809,6 +2852,19 @@ typedef struct AV2_COMP {
   ResizePendingParams resize_pending_params;
 
   /*!
+   * Resize scale denominator chosen for the current frame (numerator is
+   * SCALE_NUMERATOR = 8).
+   */
+  uint8_t resize_scale_denom;
+
+  /*!
+   * Resize scale denominator chosen for the current subgop in
+   * RESIZE_RANDOM_SUBGOP and RESIZE_DYNAMIC_SUBGOP modes (0 if not yet chosen
+   * for the current subgop).
+   */
+  uint8_t resize_subgop_denom;
+
+  /*!
    * Pointer to struct holding adaptive data/contexts/models for the tile during
    * encoding.
    */
@@ -2864,6 +2920,19 @@ typedef struct AV2_COMP {
    * A flag to indicate if intrabc is ever used in current frame.
    */
   int intrabc_used;
+
+  /*!
+   * Per 256x256 superblock, whether the previously encoded frame coded it as
+   * a single block (PARTITION_NONE at 256x256);
+   * Indexed by superblock row * sb256_map_stride + column.
+   */
+  uint8_t *sb256_none_prev;
+  /*! The same map being filled for the current frame. */
+  uint8_t *sb256_none_cur;
+  /*! Number of 256x256 superblock columns of sb256_none_prev/cur. */
+  int sb256_map_stride;
+  /*! Number of 256x256 superblock rows of sb256_none_prev/cur. */
+  int sb256_map_rows;
 
   /*!
    * Loop Restoration context.

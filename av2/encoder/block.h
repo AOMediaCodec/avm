@@ -506,36 +506,45 @@ typedef struct {
 /*! \brief Contains data for simple motion
  */
 typedef struct SimpleMotionData {
-  MV fullmv;                         /*!< mv full */
-  MV submv;                          /*!< mv subpel */
-  unsigned int sse;                  /*!< sse */
-  unsigned int var;                  /*!< variance */
-  int64_t dist;                      /*!< distortion */
-  int rate;                          /*!< rate */
-  int64_t rdcost;                    /*!< rdcost */
-  int valid;                         /*!< whether valid */
-  BLOCK_SIZE bsize;                  /*!< blocksize */
-  int mi_row;                        /*!< row position in mi units */
-  int mi_col;                        /*!< col position in mi units */
-  int errorperbit;                   /*!< error per bit */
-  MV start_mv_list[kSMSMaxStartMVs]; /*!< start mv list */
-  int num_start_mvs;                 /*!< number of start mvs */
-  int has_prev_partition;            /*!< has previous partition */
-  PARTITION_TYPE prev_partition;     /*!< previous partition */
-  bool has_prev_rd_bound;            /*!< has rd bound of earlier search */
-  bool prev_rd_bound_is_found;       /*!< whether bound is found */
-  int64_t prev_rd_bound;             /*!< rd bound of earlier search */
+  // The first 64 bytes hold the generation stamps and the hot motion data, so
+  // a lookup touches a single cache line.
+  //! Full-reset generation this entry was last cleared in.
+  uint64_t sms_gen;
+  //! Cross-pass reset generation this entry was last cleared in.
+  uint64_t sms_xgen;
+  int64_t dist;     /*!< distortion */
+  int64_t rdcost;   /*!< rdcost */
+  MV fullmv;        /*!< mv full */
+  MV submv;         /*!< mv subpel */
+  unsigned int sse; /*!< sse */
+  unsigned int var; /*!< variance */
+  int rate;         /*!< rate */
+  int valid;        /*!< whether valid */
+
+  int64_t prev_rd_bound; /*!< rd bound of earlier search */
   struct PICK_MODE_CONTEXT
       *mode_cache[NUMBER_OF_CACHED_MODES]; /*!< mode cache */
   struct SIMPLE_MOTION_DATA_TREE *old_sms; /*!< old sms */
+  MV start_mv_list[kSMSMaxStartMVs];       /*!< start mv list */
+  int mi_row;                              /*!< row position in mi units */
+  int mi_col;                              /*!< col position in mi units */
+  int errorperbit;                         /*!< error per bit */
+  int num_start_mvs;                       /*!< number of start mvs */
+  int has_prev_partition;                  /*!< has previous partition */
+  int ref_frame;                           /*!< ref frame used */
+  int rdmult;                              /*!< rd_mult for the block */
+#if CONFIG_ML_PART_SPLIT
+  //! Residual stats used by ML models.
+  ResidualStats residual_stats;
+#endif  // CONFIG_ML_PART_SPLIT
 
-  int ref_frame; /*!< ref frame used */
-  int rdmult;    /*!< rd_mult for the block */
+  BLOCK_SIZE bsize;              /*!< blocksize */
+  PARTITION_TYPE prev_partition; /*!< previous partition */
+  bool has_prev_rd_bound;        /*!< has rd bound of earlier search */
+  bool prev_rd_bound_is_found;   /*!< whether bound is found */
 #if CONFIG_ML_PART_SPLIT
   //! Has residual stats been computed, this is controlled by the flag.
   bool residual_stats_valid;
-  //! Residual stats used by ML models.
-  ResidualStats residual_stats;
 #endif  // CONFIG_ML_PART_SPLIT
 } SimpleMotionData;
 
@@ -642,6 +651,10 @@ typedef struct SimpleMotionDataBufs {
   // 8:1 blocks
   MAKE_SM_DATA_BUF(64, 8, 1);
   MAKE_SM_DATA_BUF(32, 4, 1);
+
+  // Lazy reset counters, 64-bit so they cannot wrap.
+  uint64_t cur_gen;
+  uint64_t cur_xgen;
   /*!\endcond */
 } SimpleMotionDataBufs;
 
@@ -1555,6 +1568,9 @@ typedef struct macroblock {
   //! Superblock MV derived from int_pro motion estimation in variance
   //! partitioning.
   int_mv sb_me_mv;
+  //! Reference frame selected as predictor for the superblock in
+  //! variance-based partitioning.
+  MV_REFERENCE_FRAME vbp_ref_frame;
   //! SSE of the current predictor.
   unsigned int pred_sse[SINGLE_REF_FRAMES];
   /*! Simple motion search buffers. */
@@ -1584,6 +1600,12 @@ typedef struct macroblock {
   /*! \brief True during the wet pass of the fast SB-level two-pass partition
    * search; a block on this path may consume the dry-pass template. */
   bool may_consume_dry_pass_info;
+
+  /*! \brief For the dry pass when the superblock is a 256x256 and the mode is
+   * NEARMV without residual and the previous frame coded it whole too;
+   * the wet pass then only re-evaluates NEARMV.
+   */
+  bool dry_static_256;
 
   /*! \brief Cap on top intra Y candidates for full RD. */
   int intra_mode_prune_top;

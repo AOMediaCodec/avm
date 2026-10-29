@@ -159,9 +159,12 @@ if(NOT BUILD_SHARED_LIBS)
       "${AVM_ROOT}/test/tile_independence_test.cc")
 
     if(CONFIG_MULTITHREAD)
-      list(APPEND AVM_UNIT_TEST_COMMON_SOURCES
-           "${AVM_ROOT}/test/decode_multithreaded_test.cc"
-           "${AVM_ROOT}/test/ethread_test.cc")
+      list(
+        APPEND
+        AVM_UNIT_TEST_COMMON_SOURCES
+        "${AVM_ROOT}/test/decode_multithreaded_test.cc"
+        "${AVM_ROOT}/test/encoder_frame_mt_test.cc"
+        "${AVM_ROOT}/test/ethread_test.cc")
     endif()
   endif()
 
@@ -213,6 +216,7 @@ if(NOT BUILD_SHARED_LIBS)
     "${AVM_ROOT}/test/av2_intra_mlp_layer_test.cc"
     "${AVM_ROOT}/test/intra_mode_mlp_test.cc"
     "${AVM_ROOT}/test/partition_mlp_test.cc"
+    "${AVM_ROOT}/test/sms_lazy_reset_test.cc"
     "${AVM_ROOT}/test/av2_wedge_utils_test.cc"
     "${AVM_ROOT}/test/av2_wienerns_test.cc"
     "${AVM_ROOT}/test/av2_ccso_simd_cmp.cc"

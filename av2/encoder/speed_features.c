@@ -227,7 +227,9 @@ static void set_good_speed_feature_framesize_dependent(
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
     }
 
-    if (is_4k_or_larger) {
+    // Speed 6 turns this pruning off in the framesize-independent pass, which
+    // runs before this one; do not turn it back on there.
+    if (is_4k_or_larger && speed < 6) {
       sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
     }
 
@@ -644,6 +646,7 @@ static void set_good_speed_features_framesize_independent(
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
     sf->inter_sf.enable_four_param_warp_in_winner_mode = 1;
     sf->inter_sf.prune_opfl = 1;
+    sf->inter_sf.skip_amvd_search_in_dry_pass = true;
 
     // TODO(any): disable_smooth_intra does not have speed up while introducing
     // coding loss. Disable  it before it is improved.
@@ -713,6 +716,14 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_bawp_by_gop_usage = 1;
     sf->inter_sf.fast_warp_delta_decoupled_search = 1;
 
+    sf->inter_sf.prune_comp_search_by_single_result = boosted ? 4 : 3;
+    sf->inter_sf.prune_comp_mode_eval_using_est_rd = 2;
+    sf->inter_sf.prune_warp_delta_by_ref_idx = 2;
+    sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
+        cm->current_frame.pyramid_level >= 2 ? 1 : 0;
+    sf->inter_sf.prune_motion_mode_level = boosted ? 2 : 3;
+    sf->inter_sf.prune_inter_modes_if_skippable = 1;
+
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     // TODO(any): prune_comp_using_best_single_mode_ref introduces a large
     // coding loss (> 1%) without enough encoding speed up (5% - 11%).
@@ -772,6 +783,9 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.tip_direct_output_early_term_margin_pct = 0;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     sf->inter_sf.prune_cwp_search = 1;
+    sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
+        boosted ? (cm->current_frame.pyramid_level >= 2 ? 1 : 0) : 1;
+    sf->inter_sf.prune_motion_mode_level = 3;
     // Unconditionally enable the pre-RD gate at speed >= 5: apply to all
     // frame types including boosted (KF/GF/ARF) frames.
     sf->tx_sf.prune_tx_search_by_pre_rd = true;
@@ -799,6 +813,8 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 6) {
+    sf->part_sf.wet_static_256_nearmv_only = 1;
+    sf->inter_sf.disable_skip_mode_in_dry_pass = true;
     sf->inter_sf.dry_pass_skip_warp_min_pyr_level =
         DRY_PASS_SKIP_WARP_MIN_PYR_LEVEL;
     sf->part_sf.prune_inter_modes_by_none_part = 1;
@@ -945,6 +961,7 @@ static AVM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->early_term_tip_direct_output_search = false;
   hl_sf->tip_direct_output_early_term_margin_pct = 20;
   hl_sf->tip_direct_output_rank_band_period = 0;
+  hl_sf->enable_tip_mt = 1;
 }
 
 static AVM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
@@ -1005,6 +1022,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->ext_recur_depth_level = 0;
   part_sf->uneven_4way_recur_depth_level = 0;
   part_sf->prune_rect_with_split_depth = 0;
+  part_sf->wet_static_256_nearmv_only = 0;
   part_sf->prune_part_h_with_partition_boundary = 0;
   part_sf->inter_sdp_fast_method_level = 0;
   part_sf->prune_part_with_neighbor_boundaries = 0;
@@ -1085,6 +1103,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->reduce_comp_refs = 0;
   inter_sf->reduce_max_drl_refmvs = 0;
   inter_sf->dry_pass_mv_prec_from_top = 0;
+  inter_sf->disable_skip_mode_in_dry_pass = false;
   inter_sf->selective_ref_frame = 0;
   inter_sf->prune_newmv_modes_using_prior_rd = 0;
   inter_sf->share_motion_mode_prune_pool = 0;
@@ -1139,6 +1158,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_bawp_by_gop_usage = 0;
   inter_sf->limit_max_ref_mv_idx = false;
   inter_sf->limit_single_ref_mv_idx = 0;
+  inter_sf->skip_amvd_search_in_dry_pass = false;
 }
 
 static AVM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
@@ -1257,6 +1277,8 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->wienerns_stat_merge_eval = 0;
   lpf_sf->reduce_lr_unit_size_drop_high_level = 3;
   lpf_sf->ccso_chroma_dep = 0;
+  lpf_sf->enable_cdef_mt = 1;
+  lpf_sf->enable_ccso_mt = 1;
   lpf_sf->gdf_prune_qp_cands = 0;
   lpf_sf->ccso_max_band_candidates = 0;
   lpf_sf->ccso_reuse_bo_class_stats = 0;

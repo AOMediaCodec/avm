@@ -140,7 +140,8 @@ list(APPEND AVM_AV2_ENCODER_SOURCES
 list(APPEND AVM_AV2_ENCODER_SOURCES "${AVM_ROOT}/av2/encoder/trellis_quant.c"
      "${AVM_ROOT}/av2/encoder/trellis_quant.h")
 list(APPEND AVM_AV2_ENCODER_INTRIN_AVX2
-     "${AVM_ROOT}/av2/encoder/x86/trellis_quant_avx2.c")
+     "${AVM_ROOT}/av2/encoder/x86/trellis_quant_avx2.c"
+     "${AVM_ROOT}/av2/encoder/x86/trellis_quant_avx2.h")
 
 list(
   APPEND
@@ -459,10 +460,6 @@ list(
   "${AVM_ROOT}/av2/encoder/arm/neon/hash_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/quantize_neon.c")
 
-list(APPEND AVM_AV2_ENCODER_INTRIN_MSA
-     "${AVM_ROOT}/av2/encoder/mips/msa/fdct4x4_msa.c"
-     "${AVM_ROOT}/av2/encoder/mips/msa/temporal_filter_msa.c")
-
 list(
   APPEND
   AVM_AV2_COMMON_INTRIN_NEON
@@ -474,7 +471,8 @@ list(
   "${AVM_ROOT}/av2/common/arm/highbd_inv_txfm_neon.c"
   "${AVM_ROOT}/av2/common/arm/reconinter_neon.c"
   "${AVM_ROOT}/av2/common/arm/highbd_warp_affine_neon.c"
-  "${AVM_ROOT}/av2/common/cdef_block_neon.c")
+  "${AVM_ROOT}/av2/common/cdef_block_neon.c"
+  "${AVM_ROOT}/av2/common/arm/highbd_wiener_convolve_neon.c")
 
 list(APPEND AVM_AV2_ENCODER_INTRIN_SSE4_2
      "${AVM_ROOT}/av2/encoder/x86/hash_sse42.c")
@@ -650,11 +648,6 @@ function(setup_av2_targets)
       add_intrinsics_object_library("-mvsx -maltivec" "vsx" "avm_av2_common"
                                     "AVM_AV2_COMMON_INTRIN_VSX")
     endif()
-  endif()
-
-  if(HAVE_MSA)
-    add_intrinsics_object_library("" "msa" "avm_av2_encoder"
-                                  "AVM_AV2_ENCODER_INTRIN_MSA")
   endif()
 
   # Pass the new lib targets up to the parent scope instance of

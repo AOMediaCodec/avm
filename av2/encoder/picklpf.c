@@ -27,6 +27,7 @@
 
 #include "av2/encoder/av2_quantize.h"
 #include "av2/encoder/encoder.h"
+#include "av2/encoder/ethread.h"
 #include "av2/encoder/picklpf.h"
 
 static void yv12_copy_plane(const YV12_BUFFER_CONFIG *src_bc,
@@ -520,11 +521,13 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
 }
 
 static AVM_INLINE double get_tip_frame_filter_cost(
-    const YV12_BUFFER_CONFIG *sd, const YV12_BUFFER_CONFIG *tip, int bits,
-    int rdmult, int bit_depth, int num_planes) {
-  int64_t filter_sse = 0;
+    AV2_COMP *const cpi, const YV12_BUFFER_CONFIG *sd,
+    const YV12_BUFFER_CONFIG *tip, int bits, int rdmult, int bit_depth,
+    int num_planes) {
+  // The SSE of the luma plane, as avm_get_sse_plane().
+  int64_t filter_sse = av2_enc_tip_sse(cpi, sd, tip, 0 /* include_chroma */);
 
-  for (int plane = AVM_PLANE_Y; plane < num_planes; ++plane) {
+  for (int plane = AVM_PLANE_U; plane < num_planes; ++plane) {
     filter_sse += avm_get_sse_plane(sd, tip, plane);
   }
   const int rate = av2_cost_literal(bits) >> 4;
@@ -543,10 +546,10 @@ static double try_filter_tip_frame(AV2_COMP *const cpi, int tip_delta,
   cm->lf.apply_deblocking_filter_tip = 1;
   cm->lf.tip_delta = tip_delta;
   init_tip_lf_parameter(cm, AVM_PLANE_Y, num_planes);
-  loop_filter_tip_frame(cm, &td->mb.e_mbd, AVM_PLANE_Y, num_planes);
+  av2_enc_loop_filter_tip_frame(cpi, AVM_PLANE_Y, num_planes);
 
   double filter_cost = get_tip_frame_filter_cost(
-      cpi->source, tip_frame_buf, /*bits=*/3, td->mb.rdmult,
+      cpi, cpi->source, tip_frame_buf, /*bits=*/3, td->mb.rdmult,
       cm->seq_params.bit_depth, num_planes);
 
   // Re-instate the unfiltered frame
@@ -569,7 +572,7 @@ void search_tip_filter_level(AV2_COMP *cpi, struct AV2Common *cm) {
 
   // unfiltered cost
   double unfilter_cost = get_tip_frame_filter_cost(
-      cpi->source, tip_frame_buf, /*bits=*/1, cpi->td.mb.rdmult,
+      cpi, cpi->source, tip_frame_buf, /*bits=*/1, cpi->td.mb.rdmult,
       cm->seq_params.bit_depth, num_planes);
 
   // filtered cost
