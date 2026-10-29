@@ -2028,7 +2028,6 @@ static AVM_INLINE int could_tip_mode_be_selected(AV2_COMP *const cpi) {
 }
 
 static AVM_INLINE void decide_tip_setting_and_setup_tip_frame(AV2_COMP *cpi) {
-  ThreadData *const td = &cpi->td;
   AV2_COMMON *const cm = &cpi->common;
   if (cm->features.tip_frame_mode) {
     if (is_unequal_weighted_tip_allowed(cm)) {
@@ -2037,19 +2036,10 @@ static AVM_INLINE void decide_tip_setting_and_setup_tip_frame(AV2_COMP *cpi) {
       YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
       for (int8_t wtd_index = 0; wtd_index < MAX_TIP_WTD_NUM; wtd_index++) {
         cm->tip_global_wtd_index = wtd_index;
-        av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                            av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
-        );
+        av2_enc_build_tip_frame(cpi, 0 /* copy_refined_mvs */);
 
-        int64_t this_sse = avm_highbd_get_y_sse(cpi->source, tip_frame_buf);
-        this_sse +=
-            avm_highbd_sse(cpi->source->u_buffer, cpi->source->uv_stride,
-                           tip_frame_buf->u_buffer, tip_frame_buf->uv_stride,
-                           cpi->source->uv_width, cpi->source->uv_height);
-        this_sse +=
-            avm_highbd_sse(cpi->source->v_buffer, cpi->source->uv_stride,
-                           tip_frame_buf->v_buffer, tip_frame_buf->uv_stride,
-                           cpi->source->uv_width, cpi->source->uv_height);
+        const int64_t this_sse = av2_enc_tip_sse(
+            cpi, cpi->source, tip_frame_buf, 1 /* include_chroma */);
         if (this_sse < best_sse) {
           best_wtd_index = wtd_index;
           best_sse = this_sse;
@@ -2060,9 +2050,7 @@ static AVM_INLINE void decide_tip_setting_and_setup_tip_frame(AV2_COMP *cpi) {
       cm->tip_global_wtd_index = 0;
     }
 
-    av2_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                        av2_enc_calc_subpel_params, 0 /* copy_refined_mvs */
-    );
+    av2_enc_build_tip_frame(cpi, 0 /* copy_refined_mvs */);
   }
 }
 
