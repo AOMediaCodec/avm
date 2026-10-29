@@ -15,6 +15,7 @@
 
 #include "av2/common/ccso.h"
 #include "av2/encoder/speed_features.h"
+#include "avm_util/avm_thread.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -120,6 +121,11 @@ typedef struct {
   // True once bo_fine_class_err/cnt hold this plane's band-offset statistics
   // at the finest band count.
   bool bo_fine_stats_ready;
+
+  // Tile worker threads of the encoder, which run the row based passes of
+  // the search (ccso_run_rows). Set for every frame by derive_ccso_filter.
+  AVxWorker *workers;
+  int num_workers;
 
   // Persistent fields — survive across frames; ccso_ctx_reset zeros everything
   // above this boundary via offsetof(CcsoCtx, class_err_slab).
