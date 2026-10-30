@@ -314,6 +314,11 @@ else()
   # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1112585
   add_compiler_flag_if_supported("-Wa,--gsframe=no")
 
+  # Do not fuse floating-point a * b + c into FMA instructions. Clang and GCC
+  # contract by default when FMA is available (e.g. arm64), so the same commit
+  # made different encoder decisions on arm64 and x86-64.
+  add_compiler_flag_if_supported("-ffp-contract=off")
+
   if(CMAKE_C_COMPILER_ID MATCHES "GNU")
     add_c_flag_if_supported("-Wstack-usage=960000")
     add_cxx_flag_if_supported("-Wstack-usage=960000")
