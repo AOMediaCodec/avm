@@ -534,7 +534,6 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
 
     sf->part_sf.disable_uneven_4way_partitions = true;
-    sf->part_sf.disable_ext_partitions = true;
     sf->part_sf.disable_extended_sdp = true;
 
     if (cpi->is_screen_content_type) {
@@ -590,6 +589,7 @@ static void set_good_speed_features_framesize_independent(
     sf->interp_sf.use_interp_filter = 1;
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
     sf->rd_sf.disable_tcq = 0;
+    sf->part_sf.disable_ext_partitions = true;
     // --- End ---
 
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
@@ -1021,6 +1021,7 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_rect_with_split_depth = 0;
   part_sf->wet_static_256_nearmv_only = 0;
   part_sf->prune_part_h_with_partition_boundary = 0;
+  part_sf->ext_part_h_subblock_rd_early_term = 0;
   part_sf->inter_sdp_fast_method_level = 0;
   part_sf->prune_part_with_neighbor_boundaries = 0;
   part_sf->skip_revisit_by_rd_bound = 0;
@@ -1535,8 +1536,21 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
   }
 
   if (cpi->speed >= 2) {
-    sf->part_sf.ext_recur_depth_level = 2;
+    if (frame_is_intra_only(cm) || av2_wants_two_pass_partition(&cpi->oxcf)) {
+      sf->part_sf.ext_recur_depth_level = 2;
+    }
+    if (sf->part_sf.prune_ext_part_with_part_none) {
+      sf->part_sf.prune_ext_part_with_part_none = 2;
+    }
+    if (sf->part_sf.prune_ext_part_with_part_rect) {
+      sf->part_sf.prune_ext_part_with_part_rect = 2;
+    }
+    if (sf->part_sf.prune_part_h_with_partition_boundary) {
+      sf->part_sf.prune_part_h_with_partition_boundary = 2;
+    }
+    sf->part_sf.ext_part_h_subblock_rd_early_term = 1;
   }
+
   if (cpi->speed >= 3) {
     sf->part_sf.simple_motion_search_split = 1;
     sf->part_sf.simple_motion_search_early_term_none = 1;
