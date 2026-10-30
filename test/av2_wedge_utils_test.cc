@@ -360,4 +360,11 @@ INSTANTIATE_TEST_SUITE_P(
                                    av2_wedge_compute_delta_squares_avx2)));
 #endif  // HAVE_AVX2
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, WedgeUtilsSSEOptTest,
+    ::testing::Values(TestFuncsFSSE(av2_wedge_sse_from_residuals_c,
+                                    av2_wedge_sse_from_residuals_neon)));
+#endif  // HAVE_NEON
+
 }  // namespace
