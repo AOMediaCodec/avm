@@ -1720,6 +1720,23 @@ static AVM_INLINE void restore_palette_color_map(MACROBLOCKD *xd,
   }
 }
 
+// Luma mode cost of a winner being refined, priced the way the mode evaluation
+// loop priced it. Palette and DIP winners are DC_PRED and keep the caller's
+// cost, which those searches were priced with.
+static int refine_winner_mode_cost(const AV2_COMP *cpi, MACROBLOCKD *xd,
+                                   const ModeCosts *mode_costs,
+                                   const MB_MODE_INFO *winner,
+                                   int default_cost) {
+  if (winner->use_intra_dip ||
+      winner->palette_mode_info.palette_size[PLANE_TYPE_Y] > 0)
+    return default_cost;
+  MB_MODE_INFO tmp = *winner;
+  return get_intra_mode_cost_y(
+      xd, &tmp, mode_costs, tmp.y_mode_idx, get_y_mode_idx_ctx(xd),
+      xd->lossless[tmp.segment_id], cpi->common.seq_params.enable_mrls,
+      tmp.fsc_mode[PLANE_TYPE_Y]);
+}
+
 // If multi-winner mode processing is enabled, this function iterates over the
 // top N candidate intra modes saved during mode evaluation and performs a
 // detailed transform search(with Rate - Distortion Optimized Quantization RDOQ
@@ -1754,7 +1771,9 @@ static AVM_INLINE void refine_winner_intra_mode_tx(
         set_mode_eval_params(cpi, x, WINNER_MODE_EVAL);
 
         // Winner mode processing.
-        if (intra_block_yrd(cpi, x, bsize, mode_cost, best_rd_so_far, rate,
+        const int winner_cost =
+            refine_winner_mode_cost(cpi, xd, &x->mode_costs, mbmi, mode_cost);
+        if (intra_block_yrd(cpi, x, bsize, winner_cost, best_rd_so_far, rate,
                             rate_tokenonly, distortion, skippable, best_mbmi,
                             ctx))
           best_mode_idx = mode_idx;
@@ -1769,7 +1788,9 @@ static AVM_INLINE void refine_winner_intra_mode_tx(
       // Set params for winner mode evaluation.
       set_mode_eval_params(cpi, x, WINNER_MODE_EVAL);
       *mbmi = *best_mbmi;
-      intra_block_yrd(cpi, x, bsize, mode_cost, best_rd_so_far, rate,
+      const int winner_cost = refine_winner_mode_cost(cpi, xd, &x->mode_costs,
+                                                      best_mbmi, mode_cost);
+      intra_block_yrd(cpi, x, bsize, winner_cost, best_rd_so_far, rate,
                       rate_tokenonly, distortion, skippable, best_mbmi, ctx);
     }
   }
