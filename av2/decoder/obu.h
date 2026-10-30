@@ -58,8 +58,20 @@ typedef enum {
   TU_STATE_TEMPORAL_DELIMITER,  // Optional temporal delimiter processed
   TU_STATE_GLOBAL_INFO,  // Processing global information OBUs (xlayer_id =
                          // 0x1F)
-  TU_STATE_LOCAL_INFO,  // Processing local information OBUs (xlayer_id != 0x1F)
-  TU_STATE_SEQUENCE_HEADER,  // Processing sequence header OBUs
+  // Processing local information OBUs (xlayer_id != 0x1F) that may belong to a
+  // per-extended-layer high level syntax OBU group
+  TU_STATE_HLS_GROUP_LOCAL_INFO,
+  // Processing sequence header OBUs that may belong to a per-extended-layer
+  // high level syntax OBU group
+  TU_STATE_HLS_GROUP_SEQUENCE_HEADER,
+  // Processing content interpretation OBUs that may belong to a
+  // per-extended-layer high level syntax OBU group
+  TU_STATE_HLS_GROUP_CONTENT_INTERPRETATION,
+  // Processing local information OBUs (xlayer_id != 0x1F) that belong to a
+  // coded extended layer unit
+  TU_STATE_LOCAL_INFO,
+  // Processing sequence header OBUs that belong to a coded extended layer unit
+  TU_STATE_SEQUENCE_HEADER,
   TU_STATE_FRAME_UINT_DATA,  // Processing frame/coded picture data, CI, FGM,
                              // QM, MFH, BRT
 } temporal_unit_state_t;

@@ -1751,9 +1751,14 @@ static int is_coded_frame(OBU_TYPE obu_type) {
 // Note: The caller is responsible for filtering out padding OBUs and reserved
 // OBUs before calling this function.
 //
-// After the global information phase, all remaining OBUs are grouped by
-// xlayer_id in strictly increasing order. Within each xlayer group the full
-// phase progression is enforced:
+// After the global information phase, there is an optional grouped high level
+// syntax block phase. During this phase, high level syntax OBUs are grouped by
+// xlayer_id in strictly increasing order. Within each per-extended-layer high
+// level syntax OBU group, the following order is enforced:
+//   local config (LCR -> OPS -> Atlas) -> SH
+//
+// Afterwards, all remaining OBUs are grouped by xlayer_id in strictly
+// order. Within each xlayer group the full phase progression is enforced:
 //   local config (LCR -> OPS -> Atlas) -> SH -> frame unit data
 // When the xlayer_id increases, the state resets to TU_STATE_LOCAL_INFO so
 // the new xlayer group may begin with local config, SH, or frame unit data.
@@ -1766,14 +1771,27 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
   if (!state) return 0;
 
   // After the global phase, an xlayer_id change starts a fresh per-xlayer
-  // group. No increasing-xlayer constraint: a TU may group all per-xlayer
-  // config ahead of all frame data.
-  // TODO(avm issue #5582): This is more permissive and allows certain OBU
-  // orders not allowed by the AV2 spec.
-  if (*state == TU_STATE_LOCAL_INFO || *state == TU_STATE_SEQUENCE_HEADER ||
-      *state == TU_STATE_FRAME_UINT_DATA) {
+  // HLS OBU group or a fresh coded extended layer unit.
+  if (*state == TU_STATE_HLS_GROUP_LOCAL_INFO ||
+      *state == TU_STATE_HLS_GROUP_SEQUENCE_HEADER ||
+      *state == TU_STATE_HLS_GROUP_CONTENT_INTERPRETATION) {
     if (xlayer_id != GLOBAL_XLAYER_ID && prev_xlayer_id != GLOBAL_XLAYER_ID &&
         xlayer_id != prev_xlayer_id) {
+      if (xlayer_id < prev_xlayer_id) {
+        // No increasing-xlayer constraint: a TU may group all per-xlayer config
+        // ahead of all frame data.
+        *state = TU_STATE_LOCAL_INFO;
+      } else {
+        // New xlayer group: reset to HLS group local info phase.
+        *state = TU_STATE_HLS_GROUP_LOCAL_INFO;
+      }
+    }
+  } else if (*state == TU_STATE_LOCAL_INFO ||
+             *state == TU_STATE_SEQUENCE_HEADER ||
+             *state == TU_STATE_FRAME_UINT_DATA) {
+    if (xlayer_id != GLOBAL_XLAYER_ID && prev_xlayer_id != GLOBAL_XLAYER_ID &&
+        xlayer_id != prev_xlayer_id) {
+      if (xlayer_id < prev_xlayer_id) return 0;  // Must be increasing
       // New xlayer group: reset to local info phase.
       *state = TU_STATE_LOCAL_INFO;
     }
@@ -1793,10 +1811,10 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
         return 1;
       } else if (is_local_config_obu(obu_type,
                                      xlayer_id)) {  // First OBU: local config
-        *state = TU_STATE_LOCAL_INFO;
+        *state = TU_STATE_HLS_GROUP_LOCAL_INFO;
         return 1;
       } else if (obu_type == OBU_SEQUENCE_HEADER) {
-        *state = TU_STATE_SEQUENCE_HEADER;
+        *state = TU_STATE_HLS_GROUP_SEQUENCE_HEADER;
         return 1;
       } else if (is_frame_unit(obu_type, xlayer_id)) {
         *state = TU_STATE_FRAME_UINT_DATA;
@@ -1831,10 +1849,11 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
         } else
           return 1;
       } else if (is_local_config_obu(obu_type, xlayer_id)) {
-        *state = TU_STATE_LOCAL_INFO;  // Transition from global to local
+        *state =
+            TU_STATE_HLS_GROUP_LOCAL_INFO;  // Transition from global to local
         return 1;
       } else if (obu_type == OBU_SEQUENCE_HEADER) {
-        *state = TU_STATE_SEQUENCE_HEADER;
+        *state = TU_STATE_HLS_GROUP_SEQUENCE_HEADER;
         return 1;
       } else if (is_frame_unit(obu_type, xlayer_id)) {
         *state = TU_STATE_FRAME_UINT_DATA;
@@ -1844,6 +1863,7 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
         return 0;
       }
 
+    case TU_STATE_HLS_GROUP_LOCAL_INFO:
     case TU_STATE_LOCAL_INFO:
       if (is_local_config_obu(obu_type, xlayer_id)) {
         // Within the same xlayer group: LCR -> OPS -> Atlas (no going back).
@@ -1859,7 +1879,13 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
         // First OBU in a new xlayer group: any local config type is valid.
         return 1;
       } else if (obu_type == OBU_SEQUENCE_HEADER) {
-        *state = TU_STATE_SEQUENCE_HEADER;
+        *state = (*state == TU_STATE_HLS_GROUP_LOCAL_INFO)
+                     ? TU_STATE_HLS_GROUP_SEQUENCE_HEADER
+                     : TU_STATE_SEQUENCE_HEADER;
+        return 1;
+      } else if (*state == TU_STATE_HLS_GROUP_LOCAL_INFO &&
+                 obu_type == OBU_CONTENT_INTERPRETATION) {
+        *state = TU_STATE_HLS_GROUP_CONTENT_INTERPRETATION;
         return 1;
       } else if (is_frame_unit(obu_type, xlayer_id)) {
         *state = TU_STATE_FRAME_UINT_DATA;
@@ -1869,8 +1895,13 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
                    // phase
       }
 
+    case TU_STATE_HLS_GROUP_SEQUENCE_HEADER:
     case TU_STATE_SEQUENCE_HEADER:
       if (obu_type == OBU_SEQUENCE_HEADER) {
+        return 1;
+      } else if (*state == TU_STATE_HLS_GROUP_SEQUENCE_HEADER &&
+                 obu_type == OBU_CONTENT_INTERPRETATION) {
+        *state = TU_STATE_HLS_GROUP_CONTENT_INTERPRETATION;
         return 1;
       } else if (is_frame_unit(obu_type, xlayer_id)) {
         *state = TU_STATE_FRAME_UINT_DATA;
@@ -1878,6 +1909,17 @@ int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
       } else {
         return 0;  // Invalid OBU type(such as global obus) during sequence
                    // header phase
+      }
+
+    case TU_STATE_HLS_GROUP_CONTENT_INTERPRETATION:
+      if (obu_type == OBU_CONTENT_INTERPRETATION) {
+        return 1;
+      } else if (is_frame_unit(obu_type, xlayer_id)) {
+        *state = TU_STATE_FRAME_UINT_DATA;
+        return 1;
+      } else {
+        return 0;  // Invalid OBU type(such as global obus) during content
+                   // interpretation OBU phase
       }
 
     case TU_STATE_FRAME_UINT_DATA:
