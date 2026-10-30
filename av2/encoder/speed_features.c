@@ -723,6 +723,7 @@ static void set_good_speed_features_framesize_independent(
         cm->current_frame.pyramid_level >= 2 ? 1 : 0;
     sf->inter_sf.prune_motion_mode_level = boosted ? 2 : 3;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
+    sf->inter_sf.skip_mode_drl_tx_prune = 1;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     // TODO(any): prune_comp_using_best_single_mode_ref introduces a large
@@ -1153,6 +1154,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->enable_fast_bawp = 0;
   inter_sf->prune_bawp_by_gop_usage = 0;
   inter_sf->limit_max_ref_mv_idx = false;
+  inter_sf->skip_mode_drl_tx_prune = 0;
   inter_sf->limit_single_ref_mv_idx = 0;
   inter_sf->skip_amvd_search_in_dry_pass = false;
 }

@@ -1029,6 +1029,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // applied on key/golden/arf frames.
   bool limit_max_ref_mv_idx;
 
+  // In skip mode, pre-select DRL candidates with a model-RD estimate and
+  // run the full transform search only on the kept candidates.
+  int skip_mode_drl_tx_prune;
+
   // Maximum number of ref_mv_idx candidates searched for single-reference
   // modes (excluding WARPMV) in the full (non-dry) pass. 0: no cap.
   int limit_single_ref_mv_idx;

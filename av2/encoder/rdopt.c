@@ -7348,6 +7348,60 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
 }
 
+// Prepare a skip-mode DRL candidate at `ref_mv_idx` for RD evaluation: set
+// per-candidate mbmi fields, build the inter predictor, and snapshot the
+// pre-prediction destination buffers into `orig_dst`. Returns 0 when the
+// candidate is unavailable (BRU conflict or build_cur_mv() failure).
+static int setup_skip_mode_candidate(
+    const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
+    struct buf_2d yv12_mb[SINGLE_REF_FRAMES][MAX_MB_PLANE], int mi_row,
+    int mi_col, int num_planes, int ref_mv_idx, BUFFER_SET *orig_dst) {
+  const AV2_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+
+  mbmi->ref_mv_idx[0] = ref_mv_idx;
+
+  if (cm->bru.enabled) {
+    if ((mbmi->ref_frame[0] != INVALID_IDX) &&
+        mbmi->ref_frame[0] == cm->bru.update_ref_idx) {
+      return 0;
+    }
+    if ((mbmi->ref_frame[1] != INVALID_IDX) &&
+        mbmi->ref_frame[1] == cm->bru.update_ref_idx) {
+      return 0;
+    }
+  }
+  // Infer the index of compound weighted prediction from DRL list
+  mbmi->cwp_idx =
+      xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx[0]].cwp_idx;
+
+  mbmi->refinemv_flag =
+      (mbmi->cwp_idx == CWP_EQUAL && is_refinemv_allowed_skip_mode(cm, mbmi))
+          ? 1
+          : 0;
+
+  if (!build_cur_mv(mbmi->mv, mbmi->mode, cm, x, 0)) {
+    assert(av2_check_newmv_joint_nonzero(cm, x));
+    return 0;
+  }
+
+  set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+  for (int i = 0; i < num_planes; i++) {
+    xd->plane[i].pre[0] = yv12_mb[COMPACT_INDEX0_NRS(mbmi->ref_frame[0])][i];
+    xd->plane[i].pre[1] = yv12_mb[COMPACT_INDEX0_NRS(mbmi->ref_frame[1])][i];
+  }
+
+  for (int i = 0; i < num_planes; i++) {
+    orig_dst->plane[i] = xd->plane[i].dst.buf;
+    orig_dst->stride[i] = xd->plane[i].dst.stride;
+  }
+
+  av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize, 0,
+                                av2_num_planes(cm) - 1, x->tip_unit_hooks);
+  return 1;
+}
+
 /*!\brief Search for the best skip mode
  *
  * \ingroup inter_mode_search
@@ -7438,47 +7492,39 @@ static AVM_INLINE void rd_pick_skip_mode(
   int ref_set = get_drl_refmv_count(cm->features.max_drl_bits, x,
                                     mbmi->ref_frame, this_mode, 0);
 
-  for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ref_mv_idx++) {
-    mbmi->ref_mv_idx[0] = ref_mv_idx;
-
-    if (cm->bru.enabled) {
-      if ((mbmi->ref_frame[0] != INVALID_IDX) &&
-          mbmi->ref_frame[0] == cm->bru.update_ref_idx) {
-        continue;
-      }
-      if ((mbmi->ref_frame[1] != INVALID_IDX) &&
-          mbmi->ref_frame[1] == cm->bru.update_ref_idx) {
-        continue;
-      }
-    }
-    // Infer the index of compound weighted prediction from DRL list
-    mbmi->cwp_idx =
-        xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx[0]].cwp_idx;
-
-    mbmi->refinemv_flag =
-        (mbmi->cwp_idx == CWP_EQUAL && is_refinemv_allowed_skip_mode(cm, mbmi))
-            ? 1
-            : 0;
-
-    if (!build_cur_mv(mbmi->mv, mbmi->mode, cm, x, 0)) {
-      assert(av2_check_newmv_joint_nonzero(cm, x));
+  // Pre-select DRL candidates by model RD; run the full search only on those
+  // within 1/16 of the best estimate (all of them if none is available).
+  int64_t est_rd[MAX_REF_MV_STACK_SIZE];
+  int64_t best_est_rd = INT64_MAX;
+  for (int i = 0; i < ref_set; i++) {
+    est_rd[i] = INT64_MAX;
+    BUFFER_SET pre_orig_dst;
+    if (!cpi->sf.inter_sf.skip_mode_drl_tx_prune || ref_set < 2 ||
+        !setup_skip_mode_candidate(cpi, x, bsize, yv12_mb, mi_row, mi_col,
+                                   num_planes, i, &pre_orig_dst))
       continue;
-    }
 
-    set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
-    for (int i = 0; i < num_planes; i++) {
-      xd->plane[i].pre[0] = yv12_mb[COMPACT_INDEX0_NRS(mbmi->ref_frame[0])][i];
-      xd->plane[i].pre[1] = yv12_mb[COMPACT_INDEX0_NRS(mbmi->ref_frame[1])][i];
-    }
+    int est_rate = 0;
+    int64_t est_dist = 0, curr_sse = 0;
+    model_rd_sb_fn[MODELRD_TYPE_MOTION_MODE_RD](
+        cpi, bsize, x, xd, 0, num_planes - 1, &est_rate, &est_dist, NULL,
+        &curr_sse, NULL, NULL, NULL);
+    const int drl_cost_i =
+        get_skip_drl_cost(cm->features.max_drl_bits, mbmi, x);
+    const int rate0 = mode_costs->skip_mode_cost[skip_mode_ctx][1] + drl_cost_i;
+    est_rd[i] = RDCOST(x->rdmult, rate0 + est_rate, est_dist);
+    best_est_rd = AVMMIN(best_est_rd, est_rd[i]);
+  }
+
+  for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ref_mv_idx++) {
+    if (best_est_rd != INT64_MAX &&
+        est_rd[ref_mv_idx] > best_est_rd + (best_est_rd >> 4))
+      continue;
 
     BUFFER_SET orig_dst;
-    for (int i = 0; i < num_planes; i++) {
-      orig_dst.plane[i] = xd->plane[i].dst.buf;
-      orig_dst.stride[i] = xd->plane[i].dst.stride;
-    }
-
-    av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, &orig_dst, bsize, 0,
-                                  av2_num_planes(cm) - 1, x->tip_unit_hooks);
+    if (!setup_skip_mode_candidate(cpi, x, bsize, yv12_mb, mi_row, mi_col,
+                                   num_planes, ref_mv_idx, &orig_dst))
+      continue;
 
     RD_STATS skip_mode_rd_stats, skip_mode_rd_stats_y, skip_mode_rd_stats_uv;
     av2_invalid_rd_stats(&skip_mode_rd_stats);
