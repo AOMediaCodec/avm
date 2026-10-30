@@ -2440,9 +2440,14 @@ static AVM_INLINE int handle_simple_translation_mode(
     int start_signaled_mvd_idx = 0;
     int num_nonzero_mvd = 0;
     int th_for_num_nonzero = get_derive_sign_nzero_th(mbmi);
+    // The dry pass only ranks partitions and never writes the bitstream, so
+    // it keeps the unadjusted MV and only takes the sign cost refund below.
+    const int skip_adjust = cpi->sf.inter_sf.mvd_sign_derive_prune_level >= 1 &&
+                            x->apply_dry_pass_shortcuts;
     if (need_mv_adjustment(xd, cm, x, mbmi, bsize, mv_diff, ref_mvs,
                            mbmi->pb_mv_precision, &num_signaled_mvd,
-                           &start_signaled_mvd_idx, &num_nonzero_mvd)) {
+                           &start_signaled_mvd_idx, &num_nonzero_mvd) &&
+        !skip_adjust) {
       if (!av2_adjust_mvs_for_derive_sign(
               cpi, x, bsize, orig_dst, start_signaled_mvd_idx, num_signaled_mvd,
               mv_diff, ref_mvs, rate2_nocoeff, rate_mv0, tmp_rate_mv))
@@ -3015,6 +3020,58 @@ typedef struct {
   warp_mode_info_array *prev_best_models;
 } MotionModeTrialCtx;
 
+// Returns 1 if a SIMPLE_TRANSLATION candidate whose MV needs a parity
+// adjustment for MVD sign derivation is clearly worse than the motion mode
+// model rds seen so far, so that the adjustment search can be skipped. The
+// unadjusted predictor must be in the destination buffer. This repeats the
+// ranking test of prune_motion_mode() without updating the pool.
+static AVM_INLINE int prune_mvd_sign_adjust_by_model_rd(
+    const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, MB_MODE_INFO *mbmi,
+    const MotionModeTrialCtx *ctx, const int64_t top_motion_mode_model_rd[]) {
+  const AV2_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  if (!is_mvd_sign_derive_allowed(cm, xd, mbmi) ||
+      motion_mode_is_prune_exempt(cm, xd, bsize))
+    return 0;
+
+  MV mv_diff[2] = { kZeroMv, kZeroMv };
+  MV ref_mvs[2] = { kZeroMv, kZeroMv };
+  int num_signaled_mvd = 0;
+  int start_signaled_mvd_idx = 0;
+  int num_nonzero_mvd = 0;
+  if (!need_mv_adjustment(xd, cm, x, mbmi, bsize, mv_diff, ref_mvs,
+                          mbmi->pb_mv_precision, &num_signaled_mvd,
+                          &start_signaled_mvd_idx, &num_nonzero_mvd))
+    return 0;
+
+  // Rate as it would be after the adjustment: the derived sign is not coded.
+  RD_STATS rate_stats;
+  rate_stats.rate =
+      ctx->rate2_nocoeff -
+      get_last_sign_cost(x, enable_adaptive_mvd_resolution(cm, mbmi), mv_diff,
+                         start_signaled_mvd_idx, num_signaled_mvd);
+  compute_motion_mode_cost(cm, x, xd, mbmi, x->mbmi_ext, bsize,
+                           ctx->allowed_motion_modes, &rate_stats, xd->mi_row,
+                           xd->mi_col);
+
+  int est_residue_cost = 0;
+  int64_t est_dist = 0;
+  int64_t curr_sse = -1;
+  model_rd_sb_fn[MODELRD_TYPE_MOTION_MODE_RD](
+      cpi, bsize, x, xd, 0, av2_num_planes(cm) - 1, &est_residue_cost,
+      &est_dist, NULL, &curr_sse, NULL, NULL, NULL);
+  const int64_t est_rd =
+      RDCOST(x->rdmult, rate_stats.rate + est_residue_cost, est_dist);
+
+  const int threshold_slot =
+      AVMMIN(x->inter_mode_prune_top, TOP_MOTION_MODE_MODEL_COUNT) - 1;
+  // Lower the model rd by the margin to account for the MV change of the
+  // parity adjustment. The margin may be negative, which raises the model rd.
+  const int64_t margin =
+      est_rd / 100 * cpi->sf.inter_sf.mvd_sign_derive_prune_margin_pct;
+  return est_rd - margin >= top_motion_mode_model_rd[threshold_slot];
+}
+
 // Evaluate a single motion mode trial: restore mbmi, dispatch to the
 // appropriate motion mode handler, compute costs, run TX search, and
 // update best state if this trial is better.
@@ -3064,6 +3121,11 @@ static AVM_INLINE int evaluate_motion_mode_trial(
 
   // Dispatch to per-motion-mode handler
   if (mbmi->motion_mode == SIMPLE_TRANSLATION) {
+    if (cpi->sf.inter_sf.mvd_sign_derive_prune_level >= 2 &&
+        ctx->enable_tx_prune && !x->apply_dry_pass_shortcuts &&
+        prune_mvd_sign_adjust_by_model_rd(cpi, x, bsize, mbmi, ctx,
+                                          top_motion_mode_model_rd))
+      return -1;
     if (handle_simple_translation_mode(cpi, x, bsize, mbmi, orig_dst,
                                        ctx->rate2_nocoeff, ctx->rate_mv0,
                                        &tmp_rate_mv, &tmp_rate2) < 0)
