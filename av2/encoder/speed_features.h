@@ -1098,6 +1098,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // applied on key/golden/arf frames.
   bool limit_max_ref_mv_idx;
 
+  // Search only one DRL candidate per mode: the one with the lowest
+  // simple-translation RD cost when that cost is computed, otherwise the
+  // lowest-index candidate left after the early breakout.
+  int prune_simple_translation_drl_to_one;
+
   // Maximum number of ref_mv_idx candidates searched for single-reference
   // modes (excluding WARPMV) in the full (non-dry) pass. 0: no cap.
   int limit_single_ref_mv_idx;
