@@ -1771,6 +1771,7 @@ typedef struct ThreadData {
 } ThreadData;
 
 struct EncWorkerData;
+struct TipFirst;
 
 /*!\endcond */
 
@@ -2566,6 +2567,12 @@ typedef struct AV2_COMP {
    * sf->inter_sf.prune_bawp_by_gop_usage.
    */
   double bawp_gop_usage[2];
+
+  /*!
+   * State of TIP-first (hl_sf.tip_first_max_run): TipFirst in tip_search.h,
+   * allocated by av2_create_compressor().
+   */
+  struct TipFirst *tip_first;
 
   /*!
    * Parameters related to tpl.
