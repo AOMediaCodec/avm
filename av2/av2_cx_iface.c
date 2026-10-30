@@ -126,18 +126,18 @@ struct av2_extracfg {
                                       // for sequence
   int max_partition_aspect_ratio;
   int disable_ml_transform_speed_features;  // disable all ml transform speedups
-  int enable_sdp;           // enable semi-decoupled partitioning
-  int enable_extended_sdp;  // enable inter semi-decoupled partitioning
-  int enable_mrls;          // enable multiple reference line selection
-  int enable_tip;           // enable temporal interpolated prediction
-  int enable_tip_refinemv;  // enable RefineMv and OPFL for TIP
-  int enable_mv_traj;       // enable MV trajectory tracking
-  int enable_high_motion;   // Enable a large motion search window
+  int enable_sdp;             // enable semi-decoupled partitioning
+  int enable_extended_sdp;    // enable inter semi-decoupled partitioning
+  int enable_mrls;            // enable multiple reference line selection
+  int enable_tip;             // enable temporal interpolated prediction
+  int enable_tip_refinemv;    // enable RefineMv and OPFL for TIP
+  int enable_mv_traj;         // enable MV trajectory tracking
+  int enable_high_motion;     // Enable a large motion search window
   int enable_opfl_mv_search;  // optical flow MV search: 0 off, 1 all, 2 SC
                               // (default)
-  int enable_bawp;          // enable block adaptive weighted prediction
-  int enable_cwp;           // enable compound weighted prediction
-  int enable_imp_msk_bld;   // enable implicit masked blending
+  int enable_bawp;            // enable block adaptive weighted prediction
+  int enable_cwp;             // enable compound weighted prediction
+  int enable_imp_msk_bld;     // enable implicit masked blending
 
   int enable_fsc;             // enable forward skip coding
   int enable_idtx_intra;      // enable idtx for intra
