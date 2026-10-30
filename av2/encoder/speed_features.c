@@ -1843,6 +1843,18 @@ static AVM_INLINE void set_post_none_early_term_level(AV2_COMP *cpi,
       cpi->oxcf.mode == GOOD ? thresh_by_speed[AVMMIN(speed, 6)] : 0;
 }
 
+// The SMS-based split decision (simple_motion_search_split) runs a simple
+// motion search and a model before PARTITION_NONE, and can remove NONE from
+// the search of the node. At speed 3 and higher it costs BD-rate and saves
+// little or no time, so it is off there in GOOD mode. This also turns off its
+// use in the dry pass (dry_pass_simple_motion_search_split). Set after the ERP
+// and qindex overrides, which can enable it again.
+static AVM_INLINE void set_sms_split_level(AV2_COMP *cpi, int speed) {
+  if (cpi->oxcf.mode == GOOD && speed >= 3) {
+    cpi->sf.part_sf.simple_motion_search_split = 0;
+  }
+}
+
 // Override some speed features based on qindex
 void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   AV2_COMMON *const cm = &cpi->common;
@@ -1961,6 +1973,7 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
 
   set_two_pass_partition_level(cpi);
   set_post_none_early_term_level(cpi, speed);
+  set_sms_split_level(cpi, speed);
 
   // Set the predict_dc level to { 2, 2, 0 } at speed 2 for high qindex frames.
   if (speed == 2 && sf->winner_mode_sf.dc_blk_pred_level == 0) {
