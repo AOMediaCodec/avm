@@ -3747,12 +3747,24 @@ static AVM_INLINE void compute_source_profile_variance(
     const MACROBLOCK *x, BLOCK_SIZE bsize,
     PartitionSearchState *part_search_state) {
   const struct buf_2d *const src = &x->plane[AVM_PLANE_Y].src;
+  if (!src->buf) {
+    part_search_state->src_var_rows = 0;
+    part_search_state->src_var_cols = 0;
+    part_search_state->src_var_valid = true;
+    return;
+  }
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const int step_x = AVMMAX(1, bw / PART_PROFILE_SAMPLES);
   const int step_y = AVMMAX(1, bh / PART_PROFILE_SAMPLES);
   const int num_x = AVMMIN(PART_PROFILE_SAMPLES, bw / step_x);
   const int num_y = AVMMIN(PART_PROFILE_SAMPLES, bh / step_y);
+  if (num_x <= 0 || num_y <= 0) {
+    part_search_state->src_var_rows = 0;
+    part_search_state->src_var_cols = 0;
+    part_search_state->src_var_valid = true;
+    return;
+  }
   const int stride = src->stride;
 
   int64_t row_sum[PART_PROFILE_SAMPLES] = { 0 };
@@ -5138,14 +5150,22 @@ static AVM_INLINE void prune_ext_partitions_3way(
   // variance dominance (only evaluate the dominant direction; prune both on
   // isotropic content).
   if (cpi->is_screen_content_type && cpi->speed >= 2 &&
-      part_search_state->forced_partition == PARTITION_INVALID) {
+      part_search_state->forced_partition == PARTITION_INVALID &&
+      !x->must_find_valid_partition &&
+      (part_search_state->partition_allowed[PARTITION_HORZ_3] ||
+       part_search_state->partition_allowed[PARTITION_VERT_3])) {
     if (part_search_state->found_best_partition &&
         pc_tree->partitioning == PARTITION_NONE && pc_tree->skippable) {
       part_search_state->prune_partition[PARTITION_HORZ_3] = true;
       part_search_state->prune_partition[PARTITION_VERT_3] = true;
     }
-    const BLOCK_SIZE bsize = part_search_state->part_blk_params.bsize;
-    if (block_size_wide[bsize] >= 16 && block_size_high[bsize] >= 16) {
+    const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
+    const BLOCK_SIZE bsize = blk_params->bsize;
+    const bool is_inside_frame =
+        (blk_params->mi_row + mi_size_high[bsize] <= cm->mi_params.mi_rows) &&
+        (blk_params->mi_col + mi_size_wide[bsize] <= cm->mi_params.mi_cols);
+    if (is_inside_frame && block_size_wide[bsize] >= 16 &&
+        block_size_high[bsize] >= 16) {
       if (!part_search_state->src_var_valid) {
         compute_source_profile_variance(x, bsize, part_search_state);
       }

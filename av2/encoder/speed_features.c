@@ -589,7 +589,9 @@ static void set_good_speed_features_framesize_independent(
     sf->interp_sf.use_interp_filter = 1;
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
     sf->rd_sf.disable_tcq = 0;
-    sf->part_sf.disable_ext_partitions = !cpi->is_screen_content_type;
+    sf->part_sf.disable_ext_partitions =
+        !cpi->is_screen_content_type ||
+        !cpi->oxcf.part_cfg.enable_ext_partitions;
     // --- End ---
 
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
@@ -1659,7 +1661,8 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     if (is_scc) {
       cpi->common.seq_params.enable_ext_partitions =
           oxcf->part_cfg.enable_ext_partitions;
-      sf->part_sf.disable_ext_partitions = false;
+      sf->part_sf.disable_ext_partitions =
+          !oxcf->part_cfg.enable_ext_partitions;
     } else {
       cpi->common.seq_params.enable_ext_partitions &=
           !sf->part_sf.disable_ext_partitions;
@@ -1926,7 +1929,9 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   sf->tx_sf.use_tx_result_cache = cpi->oxcf.mode == GOOD && speed >= 1;
 
   if (cpi->oxcf.mode == GOOD && speed >= 3) {
-    sf->part_sf.disable_ext_partitions = !cpi->is_screen_content_type;
+    sf->part_sf.disable_ext_partitions =
+        !cpi->is_screen_content_type ||
+        !cpi->oxcf.part_cfg.enable_ext_partitions;
   }
 
   if (cpi->oxcf.mode == GOOD && speed == 0) {
