@@ -12,7 +12,9 @@
 #include "av2/common/pred_common.h"
 #include "av2/common/quant_common.h"
 #include "av2/encoder/ml.h"
+#include "avm_ports/avm_once.h"
 #include "avm_ports/system_state.h"
+#include "config/av2_rtcd.h"
 
 #include <assert.h>
 
@@ -270,6 +272,50 @@ static const NN_CONFIG sms_nn_configs[SMS_N_BSIZE_SLOTS] = {
     { sms_b1_8, sms_b2_8, sms_b3_8 } },
 };
 
+/* Input-major copies of the hidden-layer weights above, so those layers can run
+ * through av2_intra_mlp_layer(). That sums each output in the order
+ * av2_nn_predict() does (bias, then inputs in order), so the outputs are
+ * identical. */
+static float sms_w1_t[SMS_N_BSIZE_SLOTS]
+                     [SMS_UNIFIED_IN_DIM * SMS_UNIFIED_H1_DIM];
+static float sms_w2_t[SMS_N_BSIZE_SLOTS]
+                     [SMS_UNIFIED_H1_DIM * SMS_UNIFIED_H2_DIM];
+
+static void transpose_weights(const float *w, int num_out, int num_in,
+                              float *w_t) {
+  for (int o = 0; o < num_out; o++)
+    for (int i = 0; i < num_in; i++) w_t[i * num_out + o] = w[o * num_in + i];
+}
+
+static void init_sms_nn_weights_t(void) {
+  for (int s = 0; s < SMS_N_BSIZE_SLOTS; s++) {
+    const NN_CONFIG *cfg = &sms_nn_configs[s];
+    transpose_weights(cfg->weights[0], SMS_UNIFIED_H1_DIM, SMS_UNIFIED_IN_DIM,
+                      sms_w1_t[s]);
+    transpose_weights(cfg->weights[1], SMS_UNIFIED_H2_DIM, SMS_UNIFIED_H1_DIM,
+                      sms_w2_t[s]);
+  }
+}
+
+// Same result as av2_nn_predict(feat, &sms_nn_configs[slot], 1, out).
+static void sms_nn_predict(int slot, const float *feat, float *out) {
+  avm_once(init_sms_nn_weights_t);
+  const NN_CONFIG *cfg = &sms_nn_configs[slot];
+  float h1[SMS_UNIFIED_H1_DIM], h2[SMS_UNIFIED_H2_DIM];
+  av2_intra_mlp_layer(feat, SMS_UNIFIED_IN_DIM, sms_w1_t[slot], cfg->bias[0],
+                      h1, SMS_UNIFIED_H1_DIM, 1);
+  av2_intra_mlp_layer(h1, SMS_UNIFIED_H1_DIM, sms_w2_t[slot], cfg->bias[1], h2,
+                      SMS_UNIFIED_H2_DIM, 1);
+  // 10 outputs: not a multiple of the SIMD widths of av2_intra_mlp_layer().
+  for (int o = 0; o < SMS_UNIFIED_N_CLASSES; o++) {
+    float sum = cfg->bias[2][o];
+    for (int i = 0; i < SMS_UNIFIED_H2_DIM; i++)
+      sum += h2[i] * cfg->weights[2][o * SMS_UNIFIED_H2_DIM + i];
+    out[o] = sum;
+  }
+  av2_nn_output_prec_reduce(out, SMS_UNIFIED_N_CLASSES);
+}
+
 /* -------------------------------------------------------------------
  * Public API — Step 1: compute and cache MLP output
  * ------------------------------------------------------------------- */
@@ -285,12 +331,10 @@ void av2_sms_unified_compute(AV2_COMP *const cpi, MACROBLOCK *x,
 
   const int slot = sms_bsize_slot(bsize);
   if (slot < 0) return;
-  const NN_CONFIG *nn_config = &sms_nn_configs[slot];
-
   float feat[SMS_UNIFIED_IN_DIM];
   extract_sms_features(cpi, x, sms_tree, mi_row, mi_col, bsize, feat);
 
-  av2_nn_predict(feat, nn_config, 1, sms_tree->sms_unified_probs);
+  sms_nn_predict(slot, feat, sms_tree->sms_unified_probs);
   av2_nn_softmax(sms_tree->sms_unified_probs, sms_tree->sms_unified_probs,
                  SMS_UNIFIED_N_CLASSES);
   sms_tree->sms_unified_valid = 1;

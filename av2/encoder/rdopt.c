@@ -9730,38 +9730,31 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES,
     INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES
   };
-  HandleInterModeArgs args = {
-    search_state.single_newmv,
-    search_state.single_newmv_rate,
-    search_state.single_newmv_valid,
-    search_state.modelled_rd,
-    INT_MAX,
-    INT_MAX,
-    search_state.simple_rd,
-    inter_sf->prune_newmv_modes_using_prior_rd ? search_state.single_inter_rd
-                                               : NULL,
-    0,
-    interintra_modes,
-    { { 0, { { 0 } }, { 0 }, 0, { 0 }, 0, 0, 0 } },
-    0,
-    { { 0 } },
-    0,
-    { { 0 } },
-    0,
-    { { 0 } },
-    0,
-    { { 0 } },
-    0,
-    { { 0 } },
-    0,
-    { { 0 } },
-    0,
-    { { 0 } },
-    0,
-    { { 0 } },
-    0,
-    apply_dry_pass_shortcuts ? &dry_pass_cfg : NULL,
-  };
+  // The stats arrays are only read below their counters, so they are not
+  // zeroed.
+  HandleInterModeArgs args;
+  args.single_newmv = search_state.single_newmv;
+  args.single_newmv_rate = search_state.single_newmv_rate;
+  args.single_newmv_valid = search_state.single_newmv_valid;
+  args.modelled_rd = search_state.modelled_rd;
+  args.ref_frame_cost = INT_MAX;
+  args.single_comp_cost = INT_MAX;
+  args.simple_rd = search_state.simple_rd;
+  args.single_inter_rd = inter_sf->prune_newmv_modes_using_prior_rd
+                             ? search_state.single_inter_rd
+                             : NULL;
+  args.skip_motion_mode = 0;
+  args.inter_intra_mode = interintra_modes;
+  args.interp_filter_stats_idx = 0;
+  args.new_newmv_stats_idx = 0;
+  args.near_newmv_stats_idx = 0;
+  args.new_nearmv_stats_idx = 0;
+  args.joint_newmv_stats_idx = 0;
+  args.joint_amvdnewmv_stats_idx = 0;
+  args.new_newmv_amvd_stats_idx = 0;
+  args.new_nearmv_amvd_stats_idx = 0;
+  args.near_newmv_amvd_stats_idx = 0;
+  args.dry_pass_cfg = apply_dry_pass_shortcuts ? &dry_pass_cfg : NULL;
 
   // Indicates the appropriate number of simple translation winner modes for
   // exhaustive motion mode evaluation.
