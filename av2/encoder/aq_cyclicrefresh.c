@@ -404,8 +404,8 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
     if (cr->use_block_sad_scene_det && cpi->rc.frames_since_key > 30 &&
         cr->counter_encode_maxq_scene_change > 30 &&
         cpi->src_sad_blk_64x64 != NULL && cpi->unscaled_source != NULL &&
-        cm->width == cpi->unscaled_source->y_width &&
-        cm->height == cpi->unscaled_source->y_height) {
+        cm->width == cpi->unscaled_source->y_crop_width &&
+        cm->height == cpi->unscaled_source->y_crop_height) {
       const int num_64x64_cols = cm->width >> 6;
       const int num_64x64_rows = cm->height >> 6;
       if (num_64x64_cols * num_64x64_rows == cpi->src_sad_blk_alloc_size) {

@@ -2366,10 +2366,10 @@ void av2_rc_scene_detection_onepass_rt(AV2_COMP *cpi,
     cpi->src_sad_blk_alloc_size = 0;
     return;
   }
-  const int src_width = unscaled_src->y_width;
-  const int src_height = unscaled_src->y_height;
-  const int last_src_width = unscaled_last_src->y_width;
-  const int last_src_height = unscaled_last_src->y_height;
+  const int src_width = unscaled_src->y_crop_width;
+  const int src_height = unscaled_src->y_crop_height;
+  const int last_src_width = unscaled_last_src->y_crop_width;
+  const int last_src_height = unscaled_last_src->y_crop_height;
   if (src_width != last_src_width || src_height != last_src_height ||
       src_width != cm->width || src_height != cm->height) {
     avm_free(cpi->src_sad_blk_64x64);
