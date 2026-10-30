@@ -570,6 +570,8 @@ static AVM_INLINE int dry_pass_rd_slot(BLOCK_SIZE sb_size, int mi_row,
                              block_size_high[bsize] >= TWO_PASS_DRY_RD_MIN_1D));
   assert(size_idx < TWO_PASS_DRY_RD_BSIZES);
   if (size_idx < 0) return -1;
+  const int align_mask = (1 << TWO_PASS_DRY_RD_UNIT_LOG2) - 1;
+  if ((mi_row | mi_col) & align_mask) return -1;
   const int gr =
       (mi_row & (mi_size_high[sb_size] - 1)) >> TWO_PASS_DRY_RD_UNIT_LOG2;
   const int gc =
@@ -4474,13 +4476,23 @@ static int64_t get_dist_offset_by_deblock(
     int area_h = bh;
 
     MACROBLOCKD *xd = &x->e_mbd;
+    // Extend the area above and to the left to include the pixels modified by
+    // deblocking the top and left edges of the block. Do not cross the tile
+    // boundary: blocks of another tile may be encoded concurrently by another
+    // thread. This can happen for blocks that are not aligned to their size
+    // (e.g. H partition subblocks), whose top / left edge may be only 4 pixels
+    // away from the tile boundary. Deblocking across tile boundaries is
+    // disabled in partition search, so pixels outside the tile would not
+    // contribute to the distortion difference anyway.
     if (xd->up_available) {
-      int v_offset = bh == 4 ? 4 : 8;
+      const int v_offset =
+          AVMMIN(bh == 4 ? 4 : 8, (mi_row - xd->tile.mi_row_start) * MI_SIZE);
       v_start -= v_offset;
       area_h += v_offset;
     }
     if (xd->left_available) {
-      int h_offset = bw == 4 ? 4 : 8;
+      const int h_offset =
+          AVMMIN(bw == 4 ? 4 : 8, (mi_col - xd->tile.mi_col_start) * MI_SIZE);
       h_start -= h_offset;
       area_w += h_offset;
     }
@@ -4506,6 +4518,8 @@ static int64_t get_dist_offset_by_deblock(
 
     const int64_t filtered_y_dist = avm_highbd_get_y_sse_part(
         src, filtered, h_start, area_w, v_start, area_h);
+
+    av2_setup_dst_planes(pd, curr, mi_row, mi_col, plane, plane + 1, NULL);
 
     if (bit_depth <= 10) {
       return dist_normal * (filtered_y_dist - unfiltered_y_dist);
@@ -4996,7 +5010,7 @@ static AVM_INLINE bool is_boundary_bit_set_in_col(
  * */
 static AVM_INLINE void prune_part_3_with_partition_boundary(
     PartitionSearchState *part_search_state, BLOCK_SIZE bsize, int mi_row,
-    int mi_col, bool can_search_horz, bool can_search_vert) {
+    int mi_col, bool can_search_horz, bool can_search_vert, int prune_level) {
   const int mi_width = mi_size_wide[bsize];
   const int mi_height = mi_size_high[bsize];
   const int masked_mi_row = mi_row & MAX_MIB_MASK;
@@ -5010,9 +5024,10 @@ static AVM_INLINE void prune_part_3_with_partition_boundary(
         is_boundary_bit_set_in_row(partition_boundaries,
                                    masked_mi_row + 3 * mi_height / 4 - 1,
                                    masked_mi_col, mi_width, 1 << HORZ) ||
-        is_boundary_bit_set_in_col(
-            partition_boundaries, masked_mi_row + mi_height / 4,
-            masked_mi_col + mi_width / 2 - 1, mi_height / 2, 1 << VERT);
+        (prune_level < 2 &&
+         is_boundary_bit_set_in_col(
+             partition_boundaries, masked_mi_row + mi_height / 4,
+             masked_mi_col + mi_width / 2 - 1, mi_height / 2, 1 << VERT));
     part_search_state->prune_partition[PARTITION_HORZ_3] |= !keep_horz_3;
   }
   if (can_search_vert) {
@@ -5023,9 +5038,10 @@ static AVM_INLINE void prune_part_3_with_partition_boundary(
         is_boundary_bit_set_in_col(partition_boundaries, masked_mi_row,
                                    masked_mi_col + 3 * mi_width / 4 - 1,
                                    mi_height, 1 << VERT) ||
-        is_boundary_bit_set_in_row(
-            partition_boundaries, masked_mi_row + mi_height / 2 - 1,
-            masked_mi_col + mi_width / 4, mi_width / 2, 1 << HORZ);
+        (prune_level < 2 &&
+         is_boundary_bit_set_in_row(
+             partition_boundaries, masked_mi_row + mi_height / 2 - 1,
+             masked_mi_col + mi_width / 4, mi_width / 2, 1 << HORZ));
     part_search_state->prune_partition[PARTITION_VERT_3] |= !keep_vert_3;
   }
 }
@@ -5113,15 +5129,17 @@ static AVM_INLINE void prune_ext_partitions_3way(
         x, part_search_state, horz3, vert3, 1, EXT_PART_ANISOTROPY, cpi);
   }
 
+  const int min_prune_level = frame_is_intra_only(cm) ? 2 : 1;
+
   // Prune horz 3 with speed features
   if (part_search_state->partition_allowed[PARTITION_HORZ_3] &&
-      !frame_is_intra_only(cm) && forced_partition != PARTITION_HORZ_3) {
-    if (part_sf->prune_ext_part_with_part_none &&
+      forced_partition != PARTITION_HORZ_3) {
+    if (part_sf->prune_ext_part_with_part_none >= min_prune_level &&
         pc_tree->partitioning == PARTITION_NONE) {
       // Prune if the best partition does not split
       part_search_state->prune_partition[PARTITION_HORZ_3] = true;
     }
-    if (part_sf->prune_ext_part_with_part_rect) {
+    if (part_sf->prune_ext_part_with_part_rect >= min_prune_level) {
       // Prune if the best partition is rect but the subtrees did not further
       // split in horz
       if (pc_tree->partitioning == PARTITION_HORZ &&
@@ -5142,13 +5160,13 @@ static AVM_INLINE void prune_ext_partitions_3way(
   }
 
   if (part_search_state->partition_allowed[PARTITION_VERT_3] &&
-      !frame_is_intra_only(cm) && forced_partition != PARTITION_VERT_3) {
-    if (part_sf->prune_ext_part_with_part_none &&
+      forced_partition != PARTITION_VERT_3) {
+    if (part_sf->prune_ext_part_with_part_none >= min_prune_level &&
         pc_tree->partitioning == PARTITION_NONE) {
       // Prune if the best partition does not split
       part_search_state->prune_partition[PARTITION_VERT_3] = true;
     }
-    if (part_sf->prune_ext_part_with_part_rect) {
+    if (part_sf->prune_ext_part_with_part_rect >= min_prune_level) {
       // Prune if the best partition is rect but the subtrees did not further
       // split in vert
       if (pc_tree->partitioning == PARTITION_VERT &&
@@ -5185,9 +5203,9 @@ static AVM_INLINE void prune_ext_partitions_3way(
       trace_partition_boundary(partition_boundaries, pc_tree, mi_row, mi_col,
                                bsize);
     }
-    prune_part_3_with_partition_boundary(part_search_state, bsize, mi_row,
-                                         mi_col, can_search_horz,
-                                         can_search_vert);
+    prune_part_3_with_partition_boundary(
+        part_search_state, bsize, mi_row, mi_col, can_search_horz,
+        can_search_vert, part_sf->prune_part_h_with_partition_boundary);
   }
 }
 
@@ -5671,7 +5689,9 @@ static void search_extended_partition(
       child_nodes[sub_idx],
       track_ptree_luma ? get_partition_subtree_const(ptree_luma, sub_idx)
                        : NULL,
-      get_partition_subtree_const(template_tree, sub_idx),
+      (template_tree && template_tree->partition == partition_type)
+          ? get_partition_subtree_const(template_tree, sub_idx)
+          : NULL,
       this_mi_row,
       this_mi_col,
       subblock_sizes[sub_idx],
@@ -5688,6 +5708,16 @@ static void search_extended_partition(
                                    )) {
       av2_invalid_rd_stats(&sum_rdc);
       break;
+    }
+    if (cpi->sf.part_sf.ext_part_h_subblock_rd_early_term && is_h_partition &&
+        !x->must_find_valid_partition && best_rdc->rdcost < INT64_MAX / 16) {
+      av2_rd_cost_update(x->rdmult, &sum_rdc);
+      if ((sub_idx == 0 && sum_rdc.rdcost > (best_rdc->rdcost * 13) >> 4) ||
+          (sub_idx == 1 && sum_rdc.rdcost > (best_rdc->rdcost * 7) >> 3) ||
+          (sub_idx == 2 && sum_rdc.rdcost > (best_rdc->rdcost * 31) >> 5)) {
+        av2_invalid_rd_stats(&sum_rdc);
+        break;
+      }
     }
   }
 
@@ -5921,6 +5951,56 @@ static AVM_INLINE void set_sms_tree_partitioning(
 static AVM_INLINE bool is_intra_child_of_mixed_region(const PC_TREE *pc_tree) {
   return pc_tree->parent && pc_tree->region_type == INTRA_REGION &&
          pc_tree->parent->region_type == MIXED_INTER_INTRA_REGION;
+}
+
+static AVM_INLINE void unlock_wet_pass_h_partitions(
+    AV2_COMP *const cpi, const TileInfo *const tile_info, MACROBLOCK *const x,
+    PC_TREE *pc_tree, const PARTITION_TREE *ptree_luma,
+    const PARTITION_TREE *template_tree,
+    PartitionSearchState *part_search_state, SB_MULTI_PASS_MODE multi_pass_mode,
+    int mi_row, int mi_col, BLOCK_SIZE bsize) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  if (multi_pass_mode != SB_WET_PASS || frame_is_intra_only(cm) ||
+      cpi->sf.part_sf.two_pass_partition_search != TWO_PASS_PART_FAST) {
+    return;
+  }
+  if (x->must_find_valid_partition ||
+      !part_search_state->found_best_partition || !template_tree ||
+      template_tree->partition == PARTITION_INVALID) {
+    return;
+  }
+  const PARTITION_TYPE dry_part = part_search_state->forced_partition;
+  if (dry_part != PARTITION_HORZ && dry_part != PARTITION_VERT &&
+      dry_part != PARTITION_SPLIT) {
+    return;
+  }
+  if (!is_bsize_geq(x->sb_enc.max_partition_size, bsize)) {
+    return;
+  }
+  const bool can_search_h =
+      (part_search_state->partition_allowed[PARTITION_HORZ_3] &&
+       !part_search_state->prune_partition[PARTITION_HORZ_3]) ||
+      (part_search_state->partition_allowed[PARTITION_VERT_3] &&
+       !part_search_state->prune_partition[PARTITION_VERT_3]);
+  if (!can_search_h ||
+      av2_get_normative_forced_partition_type(
+          &cm->mi_params, xd->tree_type, cm->seq_params.subsampling_x,
+          cm->seq_params.subsampling_y, mi_row, mi_col, bsize,
+          ptree_luma) != PARTITION_INVALID) {
+    return;
+  }
+  av2_set_offsets_without_segment_id(cpi, tile_info, x, mi_row, mi_col, bsize,
+                                     &pc_tree->chroma_ref_info);
+  part_search_state->forced_partition = PARTITION_INVALID;
+  for (PARTITION_TYPE p = PARTITION_HORZ_4A; p <= PARTITION_VERT_4B; ++p) {
+    part_search_state->prune_partition[p] = true;
+  }
+  if (dry_part == PARTITION_HORZ) {
+    part_search_state->prune_partition[PARTITION_VERT_3] = true;
+  } else if (dry_part == PARTITION_VERT) {
+    part_search_state->prune_partition[PARTITION_HORZ_3] = true;
+  }
 }
 
 static AVM_INLINE int get_ext_partitions_recur_depth(
@@ -6247,6 +6327,12 @@ bool av2_rd_pick_partition(
   init_partition_search_state_params(
       x, cpi, &part_search_state, pc_tree, ptree_luma, template_tree,
       eff_max_recursion_depth, mi_row, mi_col, bsize);
+
+  if (multi_pass_mode == SB_DRY_PASS && !frame_is_intra_only(cm) &&
+      cpi->sf.part_sf.two_pass_partition_search == TWO_PASS_PART_FAST) {
+    part_search_state.prune_partition[PARTITION_HORZ_3] = true;
+    part_search_state.prune_partition[PARTITION_VERT_3] = true;
+  }
 
   // Intra-frame wet pass: the reduced-tool dry pass over-splits large blocks
   // (it misses tools such as FSC/MRL/DIP/IntraBC that make big blocks cheap).
@@ -6582,6 +6668,10 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // Search extended partitions.
+  unlock_wet_pass_h_partitions(cpi, tile_info, x, pc_tree, ptree_luma,
+                               template_tree, &part_search_state,
+                               multi_pass_mode, mi_row, mi_col, bsize);
+
   const int ext_recur_depth = get_ext_partitions_recur_depth(
       &cpi->sf.part_sf, bsize, eff_max_recursion_depth, false);
   // Bitmask of (1 << HORZ) | (1 << VERT); must not be bool, which would fold

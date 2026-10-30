@@ -429,10 +429,16 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Prunes extended partitions if PARTITION_NONE is used instead of
   // PARTITION_HORZ|VERT.
+  // 0: disabled
+  // 1: enabled on inter frames for H partitions (and all frames for 4-way)
+  // 2: enabled on all frames (including intra-only/keyframes)
   int prune_ext_part_with_part_none;
 
   // Prunes extended partitions if rect sub-partitions don't further split in
   // the same direction.
+  // 0: disabled
+  // 1: enabled on inter frames for H partitions (and all frames for 4-way)
+  // 2: enabled on all frames (including intra-only/keyframes)
   int prune_ext_part_with_part_rect;
 
   // Prunes PARTITION_HORZ_4A/4B if vertical is the best partition, and
@@ -508,7 +514,15 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Prune h partition types if their resulting boundary does not agree with
   // the current best partition's boundary after searching NONE, HORZ, and VERT.
+  // 0: disabled
+  // 1: keep HORZ_3/VERT_3 if 1/4, 3/4, or center 1/2 orthogonal boundary aligns
+  // 2: keep HORZ_3/VERT_3 only if 1/4 or 3/4 boundary aligns
   int prune_part_h_with_partition_boundary;
+
+  // Early terminate H partition search after evaluating each subblock if
+  // the partial cumulative RD cost already exceeds a subblock-dependent
+  // fraction of the best RD cost found so far.
+  int ext_part_h_subblock_rd_early_term;
 
   // Prune r-way partition types if their resulting boundary does not agree with
   // the current best partition's boundary after searching NONE, HORZ, VERT, and
