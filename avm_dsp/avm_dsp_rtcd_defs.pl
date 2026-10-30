@@ -101,6 +101,14 @@ specialize qw/avm_highbd_v_predictor_16x32 sse2/;
 specialize qw/avm_highbd_v_predictor_32x16 sse2/;
 specialize qw/avm_highbd_v_predictor_32x32 sse2/;
 
+foreach (@tx_sizes) {
+  ($w, $h) = @$_;
+  next if ($w < 4 || $h < 4);
+  foreach $pred_name (qw/smooth smooth_v smooth_h/) {
+    specialize "avm_highbd_${pred_name}_predictor_${w}x${h}", qw/avx2/;
+  }
+}
+
 # TODO(yunqingwang): optimize rectangular DC_PRED to replace division
 # by multiply and shift.
 specialize qw/avm_highbd_dc_predictor_4x4 sse2 neon/;

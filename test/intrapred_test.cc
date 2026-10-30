@@ -84,7 +84,7 @@ class AV2IntraPredTest
           above_row_[x] = rnd.Rand16() & mask_;
         }
       }
-      for (int y = 0; y < block_height; y++) {
+      for (int y = 0; y <= block_height * 2; y++) {
         if (i == 0) {
           left_col_[y] = mask_;
         } else {
@@ -219,7 +219,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(HighbdIntraPredTest);
 // this can be restored.
 TEST_P(HighbdIntraPredTest, Bitexact) {
   // max block size is 64
-  DECLARE_ALIGNED(16, uint16_t, left_col[2 * 64]);
+  DECLARE_ALIGNED(16, uint16_t, left_col[2 * 64 + 1]);
   DECLARE_ALIGNED(16, uint16_t, above_data[2 * 64 + 64]);
   DECLARE_ALIGNED(16, uint16_t, dst[3 * 64 * 64]);
   DECLARE_ALIGNED(16, uint16_t, ref_dst[3 * 64 * 64]);
@@ -267,6 +267,22 @@ INSTANTIATE_TEST_SUITE_P(NEON, HighbdIntraPredTest,
 
 #endif  // HAVE_NEON
 
+#define highbd_intrapred_4_to_64(type, opt, bd)                                \
+  highbd_entry(type, 4, 4, opt, bd), highbd_entry(type, 4, 8, opt, bd),        \
+      highbd_entry(type, 4, 16, opt, bd), highbd_entry(type, 4, 32, opt, bd),  \
+      highbd_entry(type, 4, 64, opt, bd), highbd_entry(type, 8, 4, opt, bd),   \
+      highbd_entry(type, 8, 8, opt, bd), highbd_entry(type, 8, 16, opt, bd),   \
+      highbd_entry(type, 8, 32, opt, bd), highbd_entry(type, 8, 64, opt, bd),  \
+      highbd_entry(type, 16, 4, opt, bd), highbd_entry(type, 16, 8, opt, bd),  \
+      highbd_entry(type, 16, 16, opt, bd),                                     \
+      highbd_entry(type, 16, 32, opt, bd),                                     \
+      highbd_entry(type, 16, 64, opt, bd), highbd_entry(type, 32, 4, opt, bd), \
+      highbd_entry(type, 32, 8, opt, bd), highbd_entry(type, 32, 16, opt, bd), \
+      highbd_entry(type, 32, 32, opt, bd),                                     \
+      highbd_entry(type, 32, 64, opt, bd), highbd_entry(type, 64, 4, opt, bd), \
+      highbd_entry(type, 64, 8, opt, bd), highbd_entry(type, 64, 16, opt, bd), \
+      highbd_entry(type, 64, 32, opt, bd), highbd_entry(type, 64, 64, opt, bd)
+
 #if HAVE_SSE2
 const IntraPredFunc<HighbdIntraPred> HighbdIntraPredTestVectorSse2[] = {
   highbd_intrapred(dc, sse2, 8),       highbd_intrapred(dc, sse2, 10),
@@ -283,6 +299,140 @@ const IntraPredFunc<HighbdIntraPred> HighbdIntraPredTestVectorSse2[] = {
 INSTANTIATE_TEST_SUITE_P(SSE2, HighbdIntraPredTest,
                          ::testing::ValuesIn(HighbdIntraPredTestVectorSse2));
 #endif  // HAVE_SSE2
+
+typedef void (*HighbdIbpDrPred)(
+    const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
+    int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t *second_pred,
+    ptrdiff_t second_stride, int bw, int bh);
+// The C reference and the function to test.
+typedef std::tuple<HighbdIbpDrPred, HighbdIbpDrPred> HighbdIbpDrPredParam;
+
+class HighbdIbpDrPredTest
+    : public ::testing::TestWithParam<HighbdIbpDrPredParam> {};
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(HighbdIbpDrPredTest);
+
+TEST_P(HighbdIbpDrPredTest, Bitexact) {
+  const HighbdIbpDrPred ref_fn = std::get<0>(GetParam());
+  const HighbdIbpDrPred pred_fn = std::get<1>(GetParam());
+  static IbpWeightsType weights[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE]
+                               [DIR_MODES_0_90];
+  init_ibp_info(weights);
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  const int stride = 80;
+  const int second_stride = 64;
+  DECLARE_ALIGNED(32, uint16_t, ref_dst[64 * 80]);
+  DECLARE_ALIGNED(32, uint16_t, dst[64 * 80]);
+  DECLARE_ALIGNED(32, uint16_t, second_pred[64 * 64]);
+  const int kBlockDims[5] = { 4, 8, 16, 32, 64 };
+  for (int bd = 8; bd <= 12; bd += 2) {
+    const int mask = (1 << bd) - 1;
+    for (int w_idx = 0; w_idx < 5; ++w_idx) {
+      for (int h_idx = 0; h_idx < 5; ++h_idx) {
+        const int bw = kBlockDims[w_idx];
+        const int bh = kBlockDims[h_idx];
+        for (int mode_idx = 0; mode_idx < DIR_MODES_0_90; ++mode_idx) {
+          for (int saturated = 0; saturated < 2; ++saturated) {
+            for (int i = 0; i < 64 * 80; ++i) {
+              ref_dst[i] = dst[i] = saturated ? mask : rnd.Rand16() & mask;
+            }
+            for (int i = 0; i < 64 * 64; ++i) {
+              second_pred[i] = saturated ? mask : rnd.Rand16() & mask;
+            }
+            ref_fn(weights, mode_idx, ref_dst, stride, second_pred,
+                   second_stride, bw, bh);
+            pred_fn(weights, mode_idx, dst, stride, second_pred, second_stride,
+                    bw, bh);
+            for (int i = 0; i < 64 * 80; ++i) {
+              ASSERT_EQ(ref_dst[i], dst[i])
+                  << "bd " << bd << " " << bw << "x" << bh << " mode "
+                  << mode_idx << " saturated " << saturated << " at " << i;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+TEST_P(HighbdIbpDrPredTest, DISABLED_Speed) {
+  const HighbdIbpDrPred ref_fn = std::get<0>(GetParam());
+  const HighbdIbpDrPred pred_fn = std::get<1>(GetParam());
+  static IbpWeightsType weights[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE]
+                               [DIR_MODES_0_90];
+  init_ibp_info(weights);
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  const int stride = 80;
+  const int second_stride = 64;
+  DECLARE_ALIGNED(32, uint16_t, ref_dst[64 * 80]);
+  DECLARE_ALIGNED(32, uint16_t, dst[64 * 80]);
+  DECLARE_ALIGNED(32, uint16_t, second_pred[64 * 64]);
+  const int kBlockDims[5] = { 4, 8, 16, 32, 64 };
+  const int mask = (1 << 10) - 1;
+  for (int w_idx = 0; w_idx < 5; ++w_idx) {
+    for (int h_idx = 0; h_idx < 5; ++h_idx) {
+      const int bw = kBlockDims[w_idx];
+      const int bh = kBlockDims[h_idx];
+      const int num_iter = (1 << 24) / (bw * bh);
+      for (int i = 0; i < 64 * 80; ++i) {
+        ref_dst[i] = dst[i] = rnd.Rand16() & mask;
+      }
+      for (int i = 0; i < 64 * 64; ++i) second_pred[i] = rnd.Rand16() & mask;
+
+      avm_usec_timer c_timer;
+      avm_usec_timer_start(&c_timer);
+      for (int i = 0; i < num_iter; ++i) {
+        ref_fn(weights, i % DIR_MODES_0_90, ref_dst, stride, second_pred,
+               second_stride, bw, bh);
+      }
+      avm_usec_timer_mark(&c_timer);
+
+      avm_usec_timer simd_timer;
+      avm_usec_timer_start(&simd_timer);
+      for (int i = 0; i < num_iter; ++i) {
+        pred_fn(weights, i % DIR_MODES_0_90, dst, stride, second_pred,
+                second_stride, bw, bh);
+      }
+      avm_usec_timer_mark(&simd_timer);
+
+      const int c_time = static_cast<int>(avm_usec_timer_elapsed(&c_timer));
+      const int simd_time =
+          static_cast<int>(avm_usec_timer_elapsed(&simd_timer));
+      printf(
+          "blockWxH = %d x %d c_time = %d \t simd_time = %d \t Gain = %4.2f \n",
+          bw, bh, c_time, simd_time,
+          static_cast<float>(c_time) / static_cast<float>(simd_time));
+      for (int i = 0; i < 64 * 80; ++i) {
+        ASSERT_EQ(ref_dst[i], dst[i]) << bw << "x" << bh << " at " << i;
+      }
+    }
+  }
+}
+
+#if HAVE_AVX2
+const IntraPredFunc<HighbdIntraPred> HighbdIntraPredTestVectorAvx2[] = {
+  highbd_intrapred_4_to_64(smooth, avx2, 8),
+  highbd_intrapred_4_to_64(smooth, avx2, 10),
+  highbd_intrapred_4_to_64(smooth, avx2, 12),
+  highbd_intrapred_4_to_64(smooth_v, avx2, 8),
+  highbd_intrapred_4_to_64(smooth_v, avx2, 10),
+  highbd_intrapred_4_to_64(smooth_v, avx2, 12),
+  highbd_intrapred_4_to_64(smooth_h, avx2, 8),
+  highbd_intrapred_4_to_64(smooth_h, avx2, 10),
+  highbd_intrapred_4_to_64(smooth_h, avx2, 12),
+};
+
+INSTANTIATE_TEST_SUITE_P(AVX2, HighbdIntraPredTest,
+                         ::testing::ValuesIn(HighbdIntraPredTestVectorAvx2));
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, HighbdIbpDrPredTest,
+    ::testing::Values(
+        HighbdIbpDrPredParam(av2_highbd_ibp_dr_prediction_z1_c,
+                             av2_highbd_ibp_dr_prediction_z1_avx2),
+        HighbdIbpDrPredParam(av2_highbd_ibp_dr_prediction_z3_c,
+                             av2_highbd_ibp_dr_prediction_z3_avx2)));
+#endif  // HAVE_AVX2
 
 const int kAngleDelta[3] = { -3, 0, 3 };
 const int kAngleMultiplier = 3;
