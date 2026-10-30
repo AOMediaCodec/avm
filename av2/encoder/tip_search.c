@@ -267,3 +267,156 @@ int64_t av2_tip_rank_search(AV2_COMP *cpi, TipRankBands *rb, int64_t sse0_lf) {
   rb->band_y0 = NULL;
   return tip_rank_pick_filter(cpi, rb->rdmult, rb->frame_sse0, sse0_lf);
 }
+
+int av2_tip_direct_output_allowed(const AV2_COMMON *cm) {
+  return !frame_is_intra_only(cm) && cm->seq_params.enable_tip == 1 &&
+         cm->features.tip_frame_mode && !cm->bru.enabled;
+}
+
+static int tip_first_level(const AV2_COMMON *cm) {
+  return AVMMIN((int)cm->current_frame.pyramid_level, TIP_FIRST_LEVELS - 1);
+}
+
+void av2_tip_first_frame_start(AV2_COMP *cpi, uint8_t *dest, size_t *size) {
+  cpi->tip_first->dest = dest;
+  cpi->tip_first->size = size;
+  cpi->tip_first->skip_normal_encode = 0;
+  cpi->tip_first->searched = 0;
+  cpi->tip_first->ref_deferred = 0;
+}
+
+// Whether TIP-first searches the current frame before its normal encode.
+static int tip_first_will_try(const AV2_COMP *cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const int max_run = cpi->sf.hl_sf.tip_first_max_run;
+  // A lossless frame keeps TIP direct output only when it is exact, which the
+  // decision before the normal encode does not check. Banding metadata is
+  // measured on the reconstruction of the normal encode.
+  if (max_run <= 0 || !av2_tip_direct_output_allowed(cm) ||
+      !cpi->tip_first->dest || cm->features.coded_lossless ||
+      cm->seq_params.enable_band_metadata)
+    return 0;
+  const int level = tip_first_level(cm);
+  // The normal-coding cost of the level is compared only between frames of
+  // the same qindex.
+  return cpi->tip_first->last_tip[level] && cpi->tip_first->valid[level] &&
+         cpi->tip_first->run[level] < max_run &&
+         cpi->tip_first->normal_qindex[level] == cm->quant_params.base_qindex;
+}
+
+int av2_tip_first_defer_ref(AV2_COMP *cpi) {
+  cpi->tip_first->ref_deferred = tip_first_will_try(cpi);
+  return cpi->tip_first->ref_deferred;
+}
+
+int av2_tip_first_search_begin(AV2_COMP *cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
+  cpi->tip_first->searched = 0;
+  if (cpi->sf.hl_sf.tip_first_max_run <= 0) return 0;
+  if (frame_is_intra_only(cm)) {
+    av2_zero(cpi->tip_first->last_tip);
+    av2_zero(cpi->tip_first->run);
+    av2_zero(cpi->tip_first->valid);
+    return 0;
+  }
+  // Keep the statistics that the normal encode updates, so that a frame that
+  // ends as TIP direct output leaves none (av2_tip_first_finalize()). Only a
+  // frame that allows TIP direct output can end as one.
+  if (!av2_tip_direct_output_allowed(cm)) return 0;
+  cpi->tip_first->frame_probs = cpi->frame_probs;
+  cpi->tip_first->mv_stats = cpi->mv_stats;
+  cpi->tip_first->bawp_gop_usage[0] = cpi->bawp_gop_usage[0];
+  cpi->tip_first->bawp_gop_usage[1] = cpi->bawp_gop_usage[1];
+  cpi->tip_first->max_mv_magnitude = cpi->mv_search_params.max_mv_magnitude;
+  // The TIP frame setup left the TIP reference frame unbuilt exactly when the
+  // search is to run (av2_tip_first_defer_ref()).
+  if (!cpi->tip_first->ref_deferred) return 0;
+  cpi->tip_first->ref_deferred = 0;
+  // There is no coded frame yet for the early termination to stop against.
+  cpi->tip_first->early_term =
+      cpi->sf.hl_sf.early_term_tip_direct_output_search;
+  cpi->sf.hl_sf.early_term_tip_direct_output_search = false;
+  // search_tip_filter_level() reads td.mb.rdmult, which the frame loop filter
+  // search sets to the frame's rdmult and which still holds the previous
+  // frame's value here.
+  cpi->td.mb.rdmult = cpi->rd.RDMULT;
+  return 1;
+}
+
+int av2_tip_first_search_end(AV2_COMP *cpi, int64_t sse, int64_t rate) {
+  AV2_COMMON *const cm = &cpi->common;
+  cpi->sf.hl_sf.early_term_tip_direct_output_search =
+      cpi->tip_first->early_term;
+  if (sse != INT64_MAX) {
+    cpi->tip_first->searched = 1;
+    cpi->tip_first->sse = sse;
+    cpi->tip_first->rate = rate;
+    cpi->tip_first->gm = cm->tip_global_motion;
+    cpi->tip_first->filter = cm->tip_interp_filter;
+    cpi->tip_first->lf_tip = cm->lf.apply_deblocking_filter_tip;
+    cpi->tip_first->tip_delta = cm->lf.tip_delta;
+    // Both costs at the rdmult of this frame: the rdmult of a frame of the
+    // same level and qindex can differ (gfu_boost).
+    const int level = tip_first_level(cm);
+    const int64_t rdmult =
+        av2_compute_rd_mult(cpi, cm->quant_params.base_qindex);
+    const double tip_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+        rdmult, rate, sse, cm->seq_params.bit_depth);
+    const double normal_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+        rdmult, cpi->tip_first->normal_rate[level],
+        cpi->tip_first->normal_sse[level], cm->seq_params.bit_depth);
+    if (tip_cost * 100 <=
+        (100 - cpi->sf.hl_sf.tip_first_margin_pct) * normal_cost)
+      return 1;
+  }
+  // The normal encode follows: build the TIP reference frame.
+  cm->tip_global_motion.as_int = 0;
+  cm->tip_interp_filter = MULTITAP_SHARP;
+  av2_enc_build_tip_frame(cpi, 0 /* copy_refined_mvs */);
+  return 0;
+}
+
+int av2_tip_first_load_search(AV2_COMP *cpi, int64_t *sse, int64_t *rate) {
+  if (!cpi->tip_first->searched) return 0;
+  AV2_COMMON *const cm = &cpi->common;
+  *sse = cpi->tip_first->sse;
+  *rate = cpi->tip_first->rate;
+  cm->tip_global_motion = cpi->tip_first->gm;
+  cm->tip_interp_filter = cpi->tip_first->filter;
+  cm->lf.apply_deblocking_filter_tip = cpi->tip_first->lf_tip;
+  cm->lf.tip_delta = cpi->tip_first->tip_delta;
+  return 1;
+}
+
+int av2_tip_first_finalize(AV2_COMP *cpi, int64_t normal_rate,
+                           int64_t normal_sse, int tip_wins) {
+  if (cpi->sf.hl_sf.tip_first_max_run <= 0) return tip_wins;
+  const int tip_output = cpi->tip_first->skip_normal_encode || tip_wins;
+  const int level = tip_first_level(&cpi->common);
+  if (cpi->tip_first->skip_normal_encode) {
+    cpi->tip_first->last_tip[level] = 1;
+    ++cpi->tip_first->run[level];
+  } else {
+    cpi->tip_first->normal_rate[level] = normal_rate;
+    cpi->tip_first->normal_sse[level] = normal_sse;
+    cpi->tip_first->normal_qindex[level] = cpi->common.quant_params.base_qindex;
+    cpi->tip_first->valid[level] = 1;
+    cpi->tip_first->last_tip[level] = tip_output;
+    cpi->tip_first->run[level] = 0;
+  }
+  if (tip_output) {
+    // A TIP direct output frame leaves no statistics of a normal encode.
+    cpi->frame_probs = cpi->tip_first->frame_probs;
+    cpi->mv_stats = cpi->tip_first->mv_stats;
+    cpi->bawp_gop_usage[0] = cpi->tip_first->bawp_gop_usage[0];
+    cpi->bawp_gop_usage[1] = cpi->tip_first->bawp_gop_usage[1];
+    cpi->mv_search_params.max_mv_magnitude = cpi->tip_first->max_mv_magnitude;
+    // Undo the swap of the 256x256 NONE maps in encode_frame_internal(), so
+    // that the next frame reads the map of the last frame whose normal encode
+    // ran (sf->part_sf.wet_static_256_nearmv_only).
+    uint8_t *const sb256_none_map = cpi->sb256_none_prev;
+    cpi->sb256_none_prev = cpi->sb256_none_cur;
+    cpi->sb256_none_cur = sb256_none_map;
+  }
+  return tip_output;
+}
