@@ -933,10 +933,8 @@ static AVM_INLINE void perform_two_pass_partition_search(
                           cpi->sf.part_sf.wet_pass_keep_skip_none_min_side);
 
   // Second pass. Fast reuses the dry pass's simple motion searches;
-  // conservative starts clean.
-  RD_STATS dummy_rdc;
-  init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col, 0,
-                    fast_two_pass);
+  // conservative starts clean. The wet pass runs init_encode_rd_sb() at its
+  // start, so the superblock state is not reset here.
   av2_reset_mbmi(&cm->mi_params, sb_size, mi_row, mi_col);
   av2_reset_simple_motion_tree_partition(sms_root, sb_size);
 
@@ -982,8 +980,19 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
 
   x->sms_bufs = td->sms_bufs;
   x->reuse_inter_mode_cache_type = cpi->sf.inter_sf.reuse_erp_mode_flag;
-  init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col, 1,
-                    0);
+  // The recursive partition search below runs init_encode_rd_sb() at the start
+  // of each pass. Before that, only the max partition prediction reads what it
+  // sets: the delta q quantizer, used by its motion search and features.
+  const int rd_partition_search =
+      sf->part_sf.partition_search_type != FIXED_PARTITION && !seg_skip &&
+      !cpi->partition_search_skippable_frame &&
+      sf->part_sf.partition_search_type != VAR_BASED_PARTITION;
+  if (!rd_partition_search ||
+      (cm->delta_q_info.delta_q_present_flag &&
+       use_auto_max_partition(cpi, sb_size, mi_row, mi_col))) {
+    init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
+                      1, 0);
+  }
   const int intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
 
   // Encode the superblock

@@ -92,11 +92,25 @@ void intra_mode_mlp_prepare_features(
   for (int i = 0; i < 32; i++) hog[i] /= hog_total;
 }
 
-// Scalar reference implementation of one fully-connected layer.
+// Scalar reference implementation of one fully-connected layer. Eight outputs
+// are accumulated side by side; each keeps the order bias, input 0, input 1,
+// ..., so the results do not depend on how many are done at once.
 void av2_intra_mlp_layer_c(const float *input, int in_dim, const float *weights,
                            const float *bias, float *output, int out_dim,
                            int apply_relu) {
-  for (int i = 0; i < out_dim; i++) {
+  int i = 0;
+  for (; i + 8 <= out_dim; i += 8) {
+    float sum[8];
+    for (int k = 0; k < 8; k++) sum[k] = bias[i + k];
+    for (int j = 0; j < in_dim; j++) {
+      const float in = input[j];
+      const float *w = &weights[j * out_dim + i];
+      for (int k = 0; k < 8; k++) sum[k] += in * w[k];
+    }
+    for (int k = 0; k < 8; k++)
+      output[i + k] = apply_relu ? AVMMAX(sum[k], 0.0f) : sum[k];
+  }
+  for (; i < out_dim; i++) {
     float sum = bias[i];
     for (int j = 0; j < in_dim; j++) sum += input[j] * weights[j * out_dim + i];
     output[i] = apply_relu ? AVMMAX(sum, 0.0f) : sum;
