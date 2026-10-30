@@ -2487,7 +2487,7 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
   av2_enc_setup_tip_frame(cpi);
 
   // TIP-first: decide whether the normal encode runs at all.
-  cpi->tip_first.skip_normal_encode = av2_tip_first_try(cpi);
+  cpi->tip_first->skip_normal_encode = av2_tip_first_try(cpi);
 
   cm->lf.apply_deblocking_filter[0] = cpi->oxcf.tool_cfg.enable_deblocking;
   if (cm->lf.apply_deblocking_filter[0]) av2_loop_filter_frame_init(cm, 0, 1);
@@ -2496,7 +2496,7 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
       check_skip_mode_enabled(cpi) && cpi->oxcf.tool_cfg.enable_skip_mode;
 
   // Coded as TIP direct output: no tile encode and no statistics update.
-  if (cpi->tip_first.skip_normal_encode) return;
+  if (cpi->tip_first->skip_normal_encode) return;
 
   // The hash table is built only for a frame that runs its normal encode.
   int hash_table_created = 0;

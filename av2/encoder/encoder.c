@@ -1739,6 +1739,7 @@ AV2_COMP *av2_create_compressor(AV2EncoderConfig *oxcf, BufferPool *const pool,
   CHECK_MEM_ERROR(cm, cpi->consec_zero_mv,
                   avm_calloc((mi_params->mi_rows * mi_params->mi_cols) >> 2,
                              sizeof(*cpi->consec_zero_mv)));
+  CHECK_MEM_ERROR(cm, cpi->tip_first, avm_calloc(1, sizeof(*cpi->tip_first)));
   cpi->palette_pixel_num = 0;
   {
     const BLOCK_SIZE bsize = BLOCK_16X16;
@@ -2085,6 +2086,7 @@ void av2_remove_compressor(AV2_COMP *cpi) {
 
   avm_free(cpi->subgop_config_str);
   avm_free(cpi->subgop_config_path);
+  avm_free(cpi->tip_first);
   avm_free(cpi);
 
 #ifdef OUTPUT_YUV_REC
@@ -4126,13 +4128,13 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
 
     // Reset the mv_stats in case we are interrupted by an intraframe or an
     // overlay frame.
-    if (cpi->mv_stats.valid && !cpi->tip_first.skip_normal_encode) {
+    if (cpi->mv_stats.valid && !cpi->tip_first->skip_normal_encode) {
       av2_zero(cpi->mv_stats);
     }
 
     // Gather the mv_stats for the next frame
     if (cpi->sf.hl_sf.high_precision_mv_usage == LAST_MV_DATA &&
-        av2_frame_allows_smart_mv(cpi) && !cpi->tip_first.skip_normal_encode) {
+        av2_frame_allows_smart_mv(cpi) && !cpi->tip_first->skip_normal_encode) {
       av2_collect_mv_stats(cpi, q);
     }
 
@@ -4148,7 +4150,7 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
     // A frame that skipped its normal encode (TIP-first) has nothing to pack
     // here and is not recoded.
     const int do_dummy_pack =
-        !cpi->tip_first.skip_normal_encode &&
+        !cpi->tip_first->skip_normal_encode &&
         ((cpi->sf.hl_sf.recode_loop >= ALLOW_RECODE_KFARFGF &&
           oxcf->rc_cfg.mode != AVM_Q) ||
          oxcf->rc_cfg.min_cr > 0);
@@ -4169,7 +4171,7 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
       q = cpi->vmaf_info.original_qindex;
     }
 #endif
-    if (allow_recode && !cpi->tip_first.skip_normal_encode) {
+    if (allow_recode && !cpi->tip_first->skip_normal_encode) {
       // Update q and decide whether to do a recode loop
       recode_loop_update_q(cpi, &loop, &q, &q_low, &q_high, top_index,
                            bottom_index, &undershoot_seen, &overshoot_seen,
@@ -4412,8 +4414,8 @@ int av2_tip_first_try(AV2_COMP *cpi) {
   int64_t sse = INT64_MAX;
   int64_t rate = INT64_MAX;
   int largest_tile_id = 0;
-  compute_tip_direct_output_mode_RD(cpi, cpi->tip_first.dest,
-                                    cpi->tip_first.size, &sse, &rate,
+  compute_tip_direct_output_mode_RD(cpi, cpi->tip_first->dest,
+                                    cpi->tip_first->size, &sse, &rate,
                                     &largest_tile_id);
   return av2_tip_first_search_end(cpi, sse, rate);
 }
@@ -4684,7 +4686,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
 
   // Pick the loop filter level for the frame.
   if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame &&
-      !cpi->tip_first.skip_normal_encode) {
+      !cpi->tip_first->skip_normal_encode) {
     sync_delta_q_for_loop_filter(cpi);
     loopfilter_frame(cpi, cm);
   }
@@ -4716,7 +4718,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
   if (cm->features.primary_ref_frame != PRIMARY_REF_NONE &&
       !cpi->error_resilient_frame_seen &&
       !cpi->sf.rt_sf.disable_primary_ref_frame_search &&
-      !cpi->tip_first.skip_normal_encode) {
+      !cpi->tip_first->skip_normal_encode) {
     const int n_refs = cm->ref_frames_info.num_total_refs;
     //    int frame_size[REF_FRAMES];
     int best_ref_idx = -1;
@@ -4885,14 +4887,14 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
   }
 
   // A frame that skipped its normal encode is packed as TIP direct output only.
-  if (!cpi->tip_first.skip_normal_encode) {
+  if (!cpi->tip_first->skip_normal_encode) {
     av2_finalize_encoded_frame(cpi);
   }
   // Build the bitstream
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, av2_pack_bitstream_final_time);
 #endif
-  if (cpi->tip_first.skip_normal_encode)
+  if (cpi->tip_first->skip_normal_encode)
     *size = 0;
   else if (av2_pack_bitstream(cpi, dest, size, largest_tile_id) != AVM_CODEC_OK)
     return AVM_CODEC_ERROR;

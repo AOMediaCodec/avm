@@ -1771,6 +1771,7 @@ typedef struct ThreadData {
 } ThreadData;
 
 struct EncWorkerData;
+struct TipFirst;
 
 /*!\endcond */
 
@@ -2447,10 +2448,6 @@ static const int enc_txsize_to_bsize[TX_SIZES_ALL] = {
   BLOCK_64X4,   // TX_64X4
 };
 
-// TIP-first keeps its state per pyramid level, for the levels 0 to
-// MAX_ARF_LAYERS; a deeper level would share the last entry.
-#define TIP_FIRST_LEVELS (MAX_ARF_LAYERS + 1)
-
 /*!\endcond */
 
 /*!
@@ -2572,62 +2569,10 @@ typedef struct AV2_COMP {
   double bawp_gop_usage[2];
 
   /*!
-   * State of TIP-first (hl_sf.tip_first_max_run).
+   * State of TIP-first (hl_sf.tip_first_max_run): TipFirst in tip_search.h,
+   * allocated by av2_create_compressor().
    */
-  struct {
-    /*! Per pyramid level: the last frame of the level ended as TIP output. */
-    int last_tip[TIP_FIRST_LEVELS];
-    /*! Per pyramid level: frames in a row that skipped the normal encode. */
-    int run[TIP_FIRST_LEVELS];
-    /*! Per pyramid level: the three below are set, by a frame whose normal
-     * encode ran. */
-    int valid[TIP_FIRST_LEVELS];
-    /*! Per pyramid level: rate of the normal encode of the last frame of the
-     * level whose normal encode ran. */
-    int64_t normal_rate[TIP_FIRST_LEVELS];
-    /*! Per pyramid level: SSE of that normal encode. */
-    int64_t normal_sse[TIP_FIRST_LEVELS];
-    /*! Per pyramid level: qindex of that frame. */
-    int normal_qindex[TIP_FIRST_LEVELS];
-    /*! The current frame skips its normal encode (and is coded as TIP direct
-     * output). */
-    int skip_normal_encode;
-    /*! The TIP direct output search of the current frame ran before its
-     * normal encode, and its results below are kept. */
-    int searched;
-    /*! Value of hl_sf.early_term_tip_direct_output_search outside the search
-     * before the normal encode, which has no coded frame to stop against. */
-    bool early_term;
-    /*! The TIP reference frame is not built yet: av2_tip_first_try() builds
-     * it after its search, and only if the normal encode follows. */
-    int ref_deferred;
-    /*! SSE of the TIP direct output found by that search. */
-    int64_t sse;
-    /*! Its rate. */
-    int64_t rate;
-    /*! Its global offset. */
-    int_mv gm;
-    /*! Its interpolation filter. */
-    InterpFilter filter;
-    /*! Its TIP loop filter flag. */
-    int lf_tip;
-    /*! Its TIP loop filter delta. */
-    int tip_delta;
-    /*! Bitstream buffer of the frame being encoded. */
-    uint8_t *dest;
-    /*! Size of that bitstream. */
-    size_t *size;
-    /*! Tool pruning probabilities before the normal encode. A frame that ends
-     * as TIP direct output restores them and the three below, so that it
-     * leaves no statistics of a normal encode. */
-    FrameProbInfo frame_probs;
-    /*! MV statistics before the normal encode. */
-    MV_STATS mv_stats;
-    /*! BAWP GOP usage before the normal encode. */
-    double bawp_gop_usage[2];
-    /*! Largest MV magnitude before the normal encode. */
-    int max_mv_magnitude;
-  } tip_first;
+  struct TipFirst *tip_first;
 
   /*!
    * Parameters related to tpl.
