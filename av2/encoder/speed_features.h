@@ -912,6 +912,12 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 0: off
   int dry_pass_skip_warp_min_pyr_level;
 
+  // Early-terminate the partition search when the dry-pass inter search
+  // finishes with a simple best mode (< NEARMV) and the current block is
+  // already at (or smaller than) one step above the dry-pass minimum
+  // partition size.
+  int early_terminate_search_by_best_mode;
+
   // Only enable wedge search if the variance is above this threshold.
   unsigned int disable_wedge_search_var_thresh;
 

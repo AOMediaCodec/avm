@@ -644,6 +644,11 @@ static AVM_INLINE int64_t dry_pass_rd_bound(const MACROBLOCK *x,
  * \param[in]    skip_inter_modes_by_none_part Skip the inter modes selected by
  *                                             is_intermode_selected() for
  *                                             prune_inter_modes_by_none_part.
+ * \param[in]    early_terminate_partition_by_best_mode Pointer to a boolean
+ *                                                     that indicates whether to
+ *                                                     early terminate the
+ *                                                     partitioning process
+ * based on the best mode found so far.
  *
  * Nothing is returned. Instead, the chosen modes and contexts necessary
  * for reconstruction are stored in ctx, the rate-distortion stats are stored in
@@ -658,7 +663,8 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
                           PICK_MODE_CONTEXT *ctx, RD_STATS best_rd,
                           SB_MULTI_PASS_MODE multi_pass_mode,
                           const PartitionSearchState *part_search_state,
-                          bool skip_inter_modes_by_none_part) {
+                          bool skip_inter_modes_by_none_part,
+                          bool *early_terminate_partition_by_best_mode) {
   if (best_rd.rdcost < 0) {
     ctx->rd_stats.rdcost = INT64_MAX;
     ctx->rd_stats.skip_txfm = 0;
@@ -808,11 +814,12 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
       av2_rd_pick_inter_mode_sb(
           cpi, tile_data, x, rd_cost, bsize, ctx,
           warmstart_applied ? warmstart_bound : best_rd.rdcost,
-          skip_inter_modes_by_none_part);
+          skip_inter_modes_by_none_part,
+          early_terminate_partition_by_best_mode);
       if (warmstart_applied && rd_cost->rate == INT_MAX) {
         av2_rd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx,
-                                  best_rd.rdcost,
-                                  skip_inter_modes_by_none_part);
+                                  best_rd.rdcost, skip_inter_modes_by_none_part,
+                                  early_terminate_partition_by_best_mode);
       }
     }
     // Dry pass: record the rd it achieved, to bound the wet pass on this block.
@@ -2678,7 +2685,7 @@ void av2_nonrd_use_partition(AV2_COMP *cpi, ThreadData *td,
       pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &this_rdc,
                     pc_tree->region_type, pc_tree->sb_root_partition_info,
                     bsize, ctx_none, best_rdc, SB_SINGLE_PASS, NULL,
-                    /*skip_inter_modes_by_none_part=*/false);
+                    /*skip_inter_modes_by_none_part=*/false, NULL);
       encode_b(cpi, tile_data, td, tp, mi_row, mi_col, OUTPUT_ENABLED, subsize,
                partition, ctx_none, &rate);
       // Record picked ref frame in the superblock mask to allow subsequent
@@ -2911,7 +2918,7 @@ void av2_rd_use_partition(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &last_part_rdc,
                     pc_tree->region_type, pc_tree->sb_root_partition_info,
                     bsize, ctx_none, invalid_rdc, SB_SINGLE_PASS, NULL,
-                    /*skip_inter_modes_by_none_part=*/false);
+                    /*skip_inter_modes_by_none_part=*/false, NULL);
       break;
     case PARTITION_HORZ:
       pc_tree->horizontal[cur_region_type][0] = av2_alloc_pc_tree_node(
@@ -4319,11 +4326,10 @@ static void rectangular_partition_search(
 }
 
 // Skip other partitions based on PARTITION_NONE rd cost.
-static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
-                                        SIMPLE_MOTION_DATA_TREE *sms_tree,
-                                        PICK_MODE_CONTEXT *ctx_none,
-                                        PartitionSearchState *part_search_state,
-                                        RD_STATS *best_rdc) {
+static void prune_partitions_after_none(
+    AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
+    PICK_MODE_CONTEXT *ctx_none, PartitionSearchState *part_search_state,
+    RD_STATS *best_rdc, const bool early_terminate_partition_by_best_mode) {
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
@@ -4381,6 +4387,11 @@ static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
     av2_simple_motion_search_early_term_none(
         cpi, x, sms_tree, blk_params->mi_row, blk_params->mi_col, bsize,
         this_rdc, &part_search_state->terminate_partition_search);
+  }
+
+  if (early_terminate_partition_by_best_mode) {
+    part_search_state->terminate_partition_search = true;
+    assert(x->apply_dry_pass_shortcuts);
   }
   // force early terminate after successful none in not active
   if ((!bru_is_sb_active(cm, blk_params->mi_col, blk_params->mi_row)) ||
@@ -4639,7 +4650,9 @@ static void none_partition_search(
 
   SimpleMotionData *sms_data = av2_get_sms_data_entry(
       x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size, (int8_t)region_type);
-
+  // terminate partition search by best mode in dry pass for specific block
+  // sizes
+  bool early_terminate_partition_by_best_mode = false;
   // Skip the SMS mode cache when retrying partition search
   // (must_find_valid_partition). The first pass may have cached
   // PICK_MODE_CONTEXT pointers that become dangling when partition subtrees are
@@ -4652,7 +4665,8 @@ static void none_partition_search(
   pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, this_rdc, region_type,
                 pc_tree->sb_root_partition_info, bsize, *ctx_none,
                 best_remain_rdcost, multi_pass_mode, part_search_state,
-                skip_inter_modes_by_parent_none(cpi, pc_tree));
+                skip_inter_modes_by_parent_none(cpi, pc_tree),
+                &early_terminate_partition_by_best_mode);
 
   for (int k = 0; k < NUMBER_OF_CACHED_MODES; k++) {
     x->inter_mode_cache[k] = NULL;
@@ -4698,7 +4712,8 @@ static void none_partition_search(
         // Disable split and rectangular partition search based on
         // PARTITION_NONE cost.
         prune_partitions_after_none(cpi, x, sms_tree, *ctx_none,
-                                    part_search_state, best_rdc);
+                                    part_search_state, best_rdc,
+                                    early_terminate_partition_by_best_mode);
       }
     }
     // Record picked ref frame to prune ref frames for other partition types.
