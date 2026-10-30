@@ -965,6 +965,17 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 1: search only the top weight, and no CWP weights (CWP_EQUAL only) for
   //    JOINT_NEWMV modes or for candidates with a non-zero ref_mv_idx.
   int prune_cwp_search;
+
+  // Enable two pass warp search for tranlsation mv refinemnt
+  // In first pass mv refinment is only performed for the warp mode specified
+  // by initial_motion_mode_for_two_search_warp. Depending on the cost, it will
+  // be decided whether to perform mv refinment for remaining warp modes or not
+  // in the second warp pass
+  int enable_two_pass_warp_search;
+
+  // Initial motion mode for two pass warp search
+  MOTION_MODE initial_motion_mode_for_two_search_warp;
+
   // Reuse compound type rd decision when exact match is found
   // 0: No reuse
   // 1: Reuse the compound type rd data

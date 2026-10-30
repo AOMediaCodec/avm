@@ -818,6 +818,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.dry_pass_skip_warp_min_pyr_level =
         DRY_PASS_SKIP_WARP_MIN_PYR_LEVEL;
     sf->part_sf.prune_inter_modes_by_none_part = 1;
+    sf->inter_sf.enable_two_pass_warp_search = 1;
+    sf->inter_sf.initial_motion_mode_for_two_search_warp = WARP_CAUSAL;
     // Dry pass MV precision cap; ranks partitions only.
     sf->inter_sf.dry_pass_mv_prec_from_top =
         (!boosted && !allow_screen_content_tools &&
@@ -1093,6 +1095,8 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_temporary_pred_for_opfl = 0;
   inter_sf->prune_opfl = 0;
   inter_sf->enable_warp_inter_intra_in_winner = 0;
+  inter_sf->enable_two_pass_warp_search = 0;
+  inter_sf->initial_motion_mode_for_two_search_warp = SIMPLE_TRANSLATION;
   inter_sf->prune_cwp_search = 0;
   inter_sf->alt_ref_search_fp = 0;
   inter_sf->disable_switchable_refinemv = 0;
