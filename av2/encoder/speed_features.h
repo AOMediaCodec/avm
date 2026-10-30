@@ -707,6 +707,12 @@ typedef struct MV_SPEED_FEATURES {
   // Use faster motion search settings for partition blocks with at least one
   // dimension that's >= 256
   int fast_motion_estimation_on_block_256;
+
+  // Use fast motion vector search algorithms for allowed mv precisions.
+  // Subpel mvs can use diamond search. Full pel mvs can use existing
+  // fast search algorithms if they are called through
+  // av2_single_motion_search() funtion
+  int fast_mv_search;
 } MV_SPEED_FEATURES;
 
 typedef struct INTER_MODE_SPEED_FEATURES {
