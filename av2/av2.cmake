@@ -140,7 +140,8 @@ list(APPEND AVM_AV2_ENCODER_SOURCES
 list(APPEND AVM_AV2_ENCODER_SOURCES "${AVM_ROOT}/av2/encoder/trellis_quant.c"
      "${AVM_ROOT}/av2/encoder/trellis_quant.h")
 list(APPEND AVM_AV2_ENCODER_INTRIN_AVX2
-     "${AVM_ROOT}/av2/encoder/x86/trellis_quant_avx2.c")
+     "${AVM_ROOT}/av2/encoder/x86/trellis_quant_avx2.c"
+     "${AVM_ROOT}/av2/encoder/x86/trellis_quant_avx2.h")
 
 list(
   APPEND

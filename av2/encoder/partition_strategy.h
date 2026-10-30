@@ -215,7 +215,6 @@ PARTITION_TYPE av2_get_prev_partition(MACROBLOCK *x, int mi_row, int mi_col,
 // two passes of the fast two-pass partition search.
 static INLINE void av2_clear_sms_cross_pass_fields(SimpleMotionData *entry) {
   av2_zero(entry->mode_cache);
-  entry->old_sms = NULL;
   entry->has_prev_partition = 0;
   entry->prev_partition = (PARTITION_TYPE)0;
   entry->has_prev_rd_bound = false;

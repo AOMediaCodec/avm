@@ -118,6 +118,7 @@ struct CYCLIC_REFRESH {
   int qindex_delta[3];
   double weight_segment;
   int apply_cyclic_refresh;
+  int use_block_sad_scene_det;
   int cnt_zeromv;
   double avg_frame_low_motion;
   int counter_encode_maxq_scene_change;
