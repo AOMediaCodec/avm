@@ -1937,6 +1937,15 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
       }
     }
 
+    // Speed 5 and deep pyramid levels, except for 4K: prune MV precisions by
+    // the best precision so far regardless of qindex.
+    if (speed == 5 && !cm->features.allow_screen_content_tools &&
+        !is_2160p_or_larger && !frame_is_kf_gf_arf(cpi) &&
+        cm->current_frame.pyramid_level >= 3) {
+      sf->flexmv_sf.prune_mv_prec_using_best_mv_prec_so_far = 1;
+      sf->flexmv_sf.prune_non_one_pel_mv_using_best_mv_prec = 0;
+    }
+
     // For speed >= 1, raise the threshold for non-4K content so more frames
     // use this pruning; 4K (A1-like, where extended TX partitions matter) and
     // speed 0 keep the baseline threshold.
