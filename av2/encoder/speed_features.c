@@ -1869,6 +1869,16 @@ static AVM_INLINE void set_sms_split_level(AV2_COMP *cpi, int speed) {
   }
 }
 
+// The SMS-based early termination after PARTITION_NONE does not have
+// a good tradeoff att 1080p and above, at speed 4 and higher.
+static AVM_INLINE void set_sms_term_none_level(AV2_COMP *cpi, int speed) {
+  const AV2_COMMON *const cm = &cpi->common;
+  if (cpi->oxcf.mode == GOOD && speed >= 4 &&
+      AVMMIN(cm->width, cm->height) >= 1080) {
+    cpi->sf.part_sf.simple_motion_search_early_term_none = 0;
+  }
+}
+
 // Override some speed features based on qindex
 void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   AV2_COMMON *const cm = &cpi->common;
@@ -1997,6 +2007,7 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   set_two_pass_partition_level(cpi);
   set_post_none_early_term_level(cpi, speed);
   set_sms_split_level(cpi, speed);
+  set_sms_term_none_level(cpi, speed);
 
   // Set the predict_dc level to { 2, 2, 0 } at speed 2 for high qindex frames.
   if (speed == 2 && sf->winner_mode_sf.dc_blk_pred_level == 0) {
