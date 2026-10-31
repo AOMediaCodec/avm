@@ -4747,12 +4747,18 @@ static int process_compound_inter_mode(
   // candidate in av2_compound_type_rd, which means it used the dst_buf
   // rather than the tmp_buf.
   if (mbmi->interinter_comp.type == COMPOUND_AVERAGE && is_luma_interp_done) {
-    if (num_planes > 1) {
+    const int skip_uv_build = cpi->sf.interp_sf.skip_model_rd_uv ||
+                              (cpi->sf.inter_sf.skip_temporary_pred_for_opfl &&
+                               opfl_allowed_cur_pred_mode(cm, xd, mbmi));
+    // Skip building chroma predictors in the conditions that they are not used.
+    if (num_planes > 1 && !skip_uv_build) {
       av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                     AVM_PLANE_U, num_planes - 1,
                                     x->tip_unit_hooks);
     }
-    *skip_build_pred = INTERP_SKIP_LUMA_SKIP_CHROMA;
+    *skip_build_pred = (num_planes > 1 && skip_uv_build)
+                           ? INTERP_SKIP_LUMA_EVAL_CHROMA
+                           : INTERP_SKIP_LUMA_SKIP_CHROMA;
   }
   return 0;
 }
