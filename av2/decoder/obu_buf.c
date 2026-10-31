@@ -24,6 +24,7 @@
 #include "av2/common/timing.h"
 #include "av2/decoder/decoder.h"
 #include "av2/decoder/decodeframe.h"
+#include "av2/decoder/decoder_model.h"
 #include "av2/decoder/obu.h"
 
 uint32_t av2_read_buffer_removal_timing_obu(struct AV2Decoder *pbi,
@@ -85,6 +86,9 @@ uint32_t av2_read_buffer_removal_timing_obu(struct AV2Decoder *pbi,
   if (av2_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
     return 0;
+  }
+  if (pbi->decoder_model_verifier != NULL) {
+    av2_decoder_model_verifier_on_buffer_removal_timing(pbi, xlayer_id);
   }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }

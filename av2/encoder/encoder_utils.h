@@ -883,6 +883,8 @@ static AVM_INLINE void release_scaled_references(AV2_COMP *cpi) {
 // Refresh reference frame buffers according to refresh_frame_flags.
 static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
   AV2_COMMON *const cm = &cpi->common;
+  const bool observe_decoder_model =
+      cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi);
 
   // Don't clear is_restricted for bridge frames - they should maintain
   // the restricted status inherited from their reference frame
@@ -900,6 +902,10 @@ static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
     for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
          ref_frame++) {
       if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
+        if (observe_decoder_model) {
+          av2_decoder_model_observe_displaced_output_for_operating_points(
+              cpi, ref_frame);
+        }
         if (av2_skip_reference_buffer_update(clear_multiple_insert_in_one,
                                              ref_frame, first_ref_index) &&
             marked) {
@@ -911,11 +917,29 @@ static AVM_INLINE void refresh_reference_frames(AV2_COMP *cpi) {
           assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
           marked = 1;
         }
+        if (observe_decoder_model) {
+          av2_decoder_model_mirror_ref_buffer_for_operating_points(cpi,
+                                                                   ref_frame);
+        }
+      }
+    }
+  } else if (observe_decoder_model) {
+    // bru_swap_common() has already replaced the encoder buffer in place.
+    // The model's VBI and private presentation descriptor still identify the
+    // displaced decoded generation, so observe its output before mirroring the
+    // reference update into the model below.
+    for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
+         ++ref_frame) {
+      if ((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) {
+        av2_decoder_model_observe_displaced_output_for_operating_points(
+            cpi, ref_frame);
+        av2_decoder_model_mirror_ref_buffer_for_operating_points(cpi,
+                                                                 ref_frame);
       }
     }
   }
 
-  if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
+  if (observe_decoder_model) {
     av2_decoder_model_update_buffer_and_finish_frame_decode_for_operating_points(
         cpi);
   }

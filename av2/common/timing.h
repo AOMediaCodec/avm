@@ -50,4 +50,9 @@ void av2_set_resource_availability_parameters(
 int64_t av2_max_level_bitrate(BITSTREAM_PROFILE seq_profile_idc,
                               int seq_level_idx, int seq_tier);
 
+// Returns the Annex A base bitrate in kbps before applying a profile factor.
+// Only defined level indices 0..SEQ_LEVELS-1 and tiers 0 or 1 are accepted.
+int av2_get_level_base_bitrate_kbps(int seq_level_idx, int seq_tier,
+                                    uint32_t *bitrate_kbps);
+
 #endif  // AVM_AV2_COMMON_TIMING_H_
