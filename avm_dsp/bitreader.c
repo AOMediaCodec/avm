@@ -18,6 +18,8 @@ int avm_reader_init(avm_reader *r, const uint8_t *buffer, size_t size) {
   }
   r->buffer_end = buffer + size;
   r->buffer = buffer;
+  r->count_frame_symbols = 1;
+  r->frame_symbol_count = 0;
   avm_od_ec_dec_init(&r->ec, buffer, (uint32_t)size);
 #if CONFIG_ACCOUNTING
   r->accounting = NULL;

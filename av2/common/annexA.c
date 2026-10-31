@@ -375,6 +375,46 @@ int get_profile_factor_table_row_index(int seq_profile_idc) {
   return 0;
 }
 
+static const AV2ProfileLevelFactors profile_level_factors[] = {
+  { 15, 1, 1 },       { 15, 1, 1 }, { 15, 1, 1 },
+  { 20, 1667, 1000 }, { 30, 5, 2 }, { 36, 3, 1 },
+};
+
+_Static_assert(sizeof(profile_level_factors) /
+                       sizeof(profile_level_factors[0]) ==
+                   6,
+               "Annex A profile factor table must cover profiles 0 through 5");
+
+bool av2_get_profile_level_factors(int seq_profile_idc,
+                                   AV2ProfileLevelFactors *factors) {
+  if (factors == NULL || seq_profile_idc < 0 ||
+      seq_profile_idc >= (int)(sizeof(profile_level_factors) /
+                               sizeof(profile_level_factors[0]))) {
+    return false;
+  }
+  *factors = profile_level_factors[seq_profile_idc];
+  return true;
+}
+
+bool av2_obu_counts_toward_compressed_size(OBU_TYPE obu_type) {
+  switch (obu_type) {
+    case OBU_CLOSED_LOOP_KEY:
+    case OBU_OPEN_LOOP_KEY:
+    case OBU_LEADING_TILE_GROUP:
+    case OBU_REGULAR_TILE_GROUP:
+    case OBU_METADATA_SHORT:
+    case OBU_METADATA_GROUP:
+    case OBU_SWITCH:
+    case OBU_LEADING_SEF:
+    case OBU_REGULAR_SEF:
+    case OBU_LEADING_TIP:
+    case OBU_REGULAR_TIP:
+    case OBU_BRIDGE_FRAME:
+    case OBU_RAS_FRAME: return true;
+    default: return false;
+  }
+}
+
 // BitrateProfileFactor and PicSizeProfileFactor from Table A.2, indexed by the
 // row returned by get_profile_factor_table_row_index().
 static const double bitrate_profile_factor_table[] = { 1.0, 1.667, 2.5, 3.0 };

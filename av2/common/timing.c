@@ -54,16 +54,42 @@ static int32_t high_kbps[1 << LEVEL_BITS] = {
 // supported".
 int64_t av2_max_level_bitrate(BITSTREAM_PROFILE seq_profile, int seq_level_idx,
                               int seq_tier) {
-  const int profile_factor_row =
-      get_profile_factor_table_row_index(seq_profile);
-  const double bitrate_profile_factor =
-      get_bitrate_profile_factor(profile_factor_row);
-  const int32_t bitrate_kbps =
+  if (seq_level_idx < 0 || seq_level_idx >= (1 << LEVEL_BITS) || seq_tier < 0 ||
+      seq_tier > 1) {
+    return 0;
+  }
+  AV2ProfileLevelFactors factors;
+  bool supported_profile = av2_get_profile_level_factors(seq_profile, &factors);
+  supported_profile &= seq_profile < RESERVED_PROFILES_START;
+  // Preserve the pre-existing sequence-header setup behavior for the legal
+  // Configurable profile. Its actual factors require configuration syntax, so
+  // decoder-model callers must reject it when those factors are unavailable.
+  if (seq_profile == CONFIGURABLE) {
+    supported_profile =
+        av2_get_profile_level_factors(MAIN_420_10_IP0, &factors);
+  }
+  if (!supported_profile) return 0;
+
+  const int64_t bitrate_kbps =
       seq_tier ? high_kbps[seq_level_idx] : main_kbps[seq_level_idx];
+  if (bitrate_kbps == INVALID_RATE) return 0;
+  const int64_t numerator = factors.bitrate_factor_numerator;
+  const int64_t denominator = factors.bitrate_factor_denominator;
+  if (bitrate_kbps > INT64_MAX / 1000 / numerator) return 0;
+  return bitrate_kbps * 1000 * numerator / denominator;
+}
 
-  const int64_t bitrate = (int64_t)(bitrate_kbps * bitrate_profile_factor);
-
-  return bitrate * 1000;
+int av2_get_level_base_bitrate_kbps(int seq_level_idx, int seq_tier,
+                                    uint32_t *bitrate_kbps) {
+  if (bitrate_kbps == NULL || seq_level_idx < 0 ||
+      seq_level_idx >= SEQ_LEVELS || seq_tier < 0 || seq_tier > 1) {
+    return 0;
+  }
+  const int32_t bitrate =
+      seq_tier == 0 ? main_kbps[seq_level_idx] : high_kbps[seq_level_idx];
+  if (bitrate <= 0 || bitrate == UNDEFINED_RATE) return 0;
+  *bitrate_kbps = (uint32_t)bitrate;
+  return 1;
 }
 
 void av2_set_avm_dec_model_info(avm_dec_model_info_t *decoder_model) {

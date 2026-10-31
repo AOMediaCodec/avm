@@ -173,6 +173,16 @@ typedef struct av2_ext_ref_frame {
   int num;
 } av2_ext_ref_frame_t;
 
+/*!\enum avm_decoder_model_check_mode
+ * \brief Decoder-model conformance verification mode.
+ */
+typedef enum avm_decoder_model_check_mode {
+  AVM_DECODER_MODEL_CHECK_OFF = 0,
+  AVM_DECODER_MODEL_CHECK_FATAL,
+  AVM_DECODER_MODEL_CHECK_WARN,
+} avm_decoder_model_check_mode_t; /**< alias for enum
+                                     avm_decoder_model_check_mode */
+
 /*!\enum avm_dec_control_id
  * \brief AVM decoder control functions
  *
@@ -399,6 +409,22 @@ enum avm_dec_control_id {
   /*!\brief Codec control function to advance output_frames_offset by given step
    */
   AVMD_INCR_OUTPUT_FRAMES_OFFSET,
+
+  /*!\brief Codec control function to set decoder-model conformance checking,
+   * avm_decoder_model_check_mode_t parameter.
+   *
+   * The default is AVM_DECODER_MODEL_CHECK_OFF. The mode must be set before
+   * compressed input is submitted.
+   */
+  AV2D_SET_DECODER_MODEL_CHECK_MODE,
+
+  /*!\brief Codec control function to select whether decoder-model conformance
+   * checking covers every random access point, int parameter.
+   *
+   * Valid values are 0 and 1. The default is 1. The value must be set before
+   * compressed input is submitted.
+   */
+  AV2D_SET_DECODER_MODEL_CHECK_EVERY_RAP,
 };
 
 /*!\cond */
@@ -509,6 +535,13 @@ AVM_CTRL_USE_TYPE(AV2D_SET_SELECTED_LOCAL_OPS, int *)
 
 AVM_CTRL_USE_TYPE(AV2D_SET_OUTPUT_ALL_LAYERS, int)
 #define AVM_CTRL_AV2D_SET_OUTPUT_ALL_LAYERS
+
+AVM_CTRL_USE_TYPE(AV2D_SET_DECODER_MODEL_CHECK_MODE,
+                  avm_decoder_model_check_mode_t)
+#define AVM_CTRL_AV2D_SET_DECODER_MODEL_CHECK_MODE
+
+AVM_CTRL_USE_TYPE(AV2D_SET_DECODER_MODEL_CHECK_EVERY_RAP, int)
+#define AVM_CTRL_AV2D_SET_DECODER_MODEL_CHECK_EVERY_RAP
 
 AVM_CTRL_USE_TYPE(AV2_SET_INSPECTION_CALLBACK, avm_inspect_init *)
 #define AVM_CTRL_AV2_SET_INSPECTION_CALLBACK
