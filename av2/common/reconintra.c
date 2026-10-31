@@ -1380,9 +1380,9 @@ void av2_build_intra_predictors_high(
                                          above_row_1st, left_col_1st, p_angle,
                                          xd->bd);
             }
-            av2_highbd_ibp_dr_prediction_z1_c(ibp_weights, mode_index, dst,
-                                              dst_stride, second_pred, txwpx,
-                                              txwpx, txhpx);
+            av2_highbd_ibp_dr_prediction_z1(ibp_weights, mode_index, dst,
+                                            dst_stride, second_pred, txwpx,
+                                            txwpx, txhpx);
           }
         }
         if (p_angle > 180 && p_angle < 270) {
@@ -1397,9 +1397,9 @@ void av2_build_intra_predictors_high(
                                          above_row_1st, left_col_1st, p_angle,
                                          xd->bd);
             }
-            av2_highbd_ibp_dr_prediction_z3_c(ibp_weights, mode_index, dst,
-                                              dst_stride, second_pred, txwpx,
-                                              txwpx, txhpx);
+            av2_highbd_ibp_dr_prediction_z3(ibp_weights, mode_index, dst,
+                                            dst_stride, second_pred, txwpx,
+                                            txwpx, txhpx);
           }
         }
       }
@@ -1651,9 +1651,9 @@ void av2_build_intra_predictors_high_default(
                                        above_row_1st, left_col_1st, p_angle,
                                        xd->bd);
           }
-          av2_highbd_ibp_dr_prediction_z1_c(ibp_weights, mode_index, dst,
-                                            dst_stride, second_pred, txwpx,
-                                            txwpx, txhpx);
+          av2_highbd_ibp_dr_prediction_z1(ibp_weights, mode_index, dst,
+                                          dst_stride, second_pred, txwpx, txwpx,
+                                          txhpx);
         }
       }
       if (p_angle > 180 && p_angle < 270) {
@@ -1668,9 +1668,9 @@ void av2_build_intra_predictors_high_default(
                                        above_row_1st, left_col_1st, p_angle,
                                        xd->bd);
           }
-          av2_highbd_ibp_dr_prediction_z3_c(ibp_weights, mode_index, dst,
-                                            dst_stride, second_pred, txwpx,
-                                            txwpx, txhpx);
+          av2_highbd_ibp_dr_prediction_z3(ibp_weights, mode_index, dst,
+                                          dst_stride, second_pred, txwpx, txwpx,
+                                          txhpx);
         }
       }
     }
