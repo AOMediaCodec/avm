@@ -12,10 +12,12 @@
 
 #include <immintrin.h>
 
+#include "config/av2_rtcd.h"
 #include "config/avm_dsp_rtcd.h"
 #include "avm_dsp/x86/intrapred_x86.h"
 #include "avm_dsp/x86/lpf_common_sse2.h"
 #include "avm_dsp/x86/synonyms.h"
+#include "avm_ports/bitops.h"
 #include "av2/common/reconintra.h"
 
 static DECLARE_ALIGNED(16, uint8_t, HighbdLoadMaskx[8][16]) = {
@@ -4895,3 +4897,356 @@ void av2_highbd_dr_prediction_z3_idif_avx2(uint16_t *dst, ptrdiff_t stride,
   }
   return;
 }
+
+static INLINE __m256i highbd_smooth_dist_weights_avx2(__m256i idx, int size) {
+  return _mm256_or_si256(
+      _mm256_sub_epi32(_mm256_set1_epi32(size - 1), idx),
+      _mm256_slli_epi32(_mm256_add_epi32(idx, _mm256_set1_epi32(1)), 16));
+}
+
+static INLINE __m256i highbd_smooth_blend_weights_avx2(__m256i idx,
+                                                       __m128i scale) {
+  const __m256i shift = _mm256_min_epi32(
+      _mm256_sra_epi32(_mm256_slli_epi32(idx, 1), scale), _mm256_set1_epi32(6));
+  const __m256i weight = _mm256_srlv_epi32(_mm256_set1_epi32(32), shift);
+  return _mm256_or_si256(_mm256_sub_epi32(_mm256_set1_epi32(64), weight),
+                         _mm256_slli_epi32(weight, 16));
+}
+
+static AVM_FORCE_INLINE __m256i highbd_smooth_pred_avx2(
+    PREDICTION_MODE mode, __m256i top_bl, __m256i top_hi, __m256i weights_v,
+    __m256i s_top, __m256i left_tr, __m256i left_hi, __m256i weights_h,
+    __m256i s_left, int bh_log2, int bw_log2) {
+  const __m256i round_const = _mm256_set1_epi32(32);
+  __m256i predv = _mm256_setzero_si256();
+  __m256i predh = _mm256_setzero_si256();
+  if (mode != SMOOTH_H_PRED) {
+    predv = _mm256_madd_epi16(top_bl, weights_v);
+    predv = _mm256_srai_epi32(
+        _mm256_add_epi32(predv, _mm256_set1_epi32(1 << (bh_log2 - 1))),
+        bh_log2);
+    predv = _mm256_madd_epi16(_mm256_or_si256(predv, top_hi), s_top);
+    predv = _mm256_srai_epi32(_mm256_add_epi32(predv, round_const), 6);
+  }
+
+  if (mode != SMOOTH_V_PRED) {
+    predh = _mm256_madd_epi16(left_tr, weights_h);
+    predh = _mm256_srai_epi32(
+        _mm256_add_epi32(predh, _mm256_set1_epi32(1 << (bw_log2 - 1))),
+        bw_log2);
+    predh = _mm256_madd_epi16(_mm256_or_si256(predh, left_hi), s_left);
+    predh = _mm256_srai_epi32(_mm256_add_epi32(predh, round_const), 6);
+  }
+
+  if (mode == SMOOTH_V_PRED) return predv;
+  if (mode == SMOOTH_H_PRED) return predh;
+
+  return _mm256_srai_epi32(
+      _mm256_add_epi32(_mm256_add_epi32(predv, predh), _mm256_set1_epi32(1)),
+      1);
+}
+
+static AVM_FORCE_INLINE void highbd_smooth_predictor_avx2(
+    uint16_t *dst, ptrdiff_t stride, int bw, int bh, const uint16_t *above,
+    const uint16_t *left, PREDICTION_MODE mode) {
+  const int bw_log2 = get_msb(bw);
+  const int bh_log2 = get_msb(bh);
+  const __m128i scale =
+      _mm_cvtsi32_si128(ROUND_POWER_OF_TWO(bh_log2 - 2 + bw_log2 - 2, 2));
+  const int bl = left[bh];   // estimated by bottom-left pixel
+  const int tr = above[bw];  // estimated by top-right pixel
+  const __m256i bl_hi = _mm256_slli_epi32(_mm256_set1_epi32(bl), 16);
+  const __m256i tr_hi = _mm256_slli_epi32(_mm256_set1_epi32(tr), 16);
+  const __m256i idx = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+
+  if (bw == 4) {
+    const __m256i col = _mm256_and_si256(idx, _mm256_set1_epi32(3));
+    const __m128i above4 = _mm_loadl_epi64((const __m128i *)above);
+    const __m256i top =
+        _mm256_cvtepu16_epi32(_mm_unpacklo_epi64(above4, above4));
+    const __m256i top_bl = _mm256_or_si256(top, bl_hi);
+    const __m256i top_hi = _mm256_slli_epi32(top, 16);
+    const __m256i weights_h = highbd_smooth_dist_weights_avx2(col, bw);
+    const __m256i s_left = highbd_smooth_blend_weights_avx2(col, scale);
+    __m256i row = _mm256_srli_epi32(idx, 2);
+    for (int r = 0; r < bh; r += 2) {
+      __m128i left2 = xx_loadl_32(left + r);
+      left2 = _mm_unpacklo_epi16(left2, left2);
+      left2 = _mm_unpacklo_epi32(left2, left2);
+      const __m256i left_row = _mm256_cvtepu16_epi32(left2);
+      const __m256i pred = highbd_smooth_pred_avx2(
+          mode, top_bl, top_hi, highbd_smooth_dist_weights_avx2(row, bh),
+          highbd_smooth_blend_weights_avx2(row, scale),
+          _mm256_or_si256(left_row, tr_hi), _mm256_slli_epi32(left_row, 16),
+          weights_h, s_left, bh_log2, bw_log2);
+      const __m128i pred16 = _mm_packus_epi32(
+          _mm256_castsi256_si128(pred), _mm256_extracti128_si256(pred, 1));
+      _mm_storel_epi64((__m128i *)dst, pred16);
+      _mm_storeh_pd((double *)(dst + stride), _mm_castsi128_pd(pred16));
+      row = _mm256_add_epi32(row, _mm256_set1_epi32(2));
+      dst += 2 * stride;
+    }
+    return;
+  }
+
+  DECLARE_ALIGNED(32, int32_t, weights_v_tab[64]);
+  DECLARE_ALIGNED(32, int32_t, s_top_tab[64]);
+  DECLARE_ALIGNED(32, int32_t, left_tr_tab[64]);
+  DECLARE_ALIGNED(32, int32_t, left_hi_tab[64]);
+  for (int r = 0; r < bh; r += 8) {
+    const __m256i row = _mm256_add_epi32(_mm256_set1_epi32(r), idx);
+    if (mode != SMOOTH_H_PRED) {
+      _mm256_store_si256((__m256i *)(weights_v_tab + r),
+                         highbd_smooth_dist_weights_avx2(row, bh));
+      _mm256_store_si256((__m256i *)(s_top_tab + r),
+                         highbd_smooth_blend_weights_avx2(row, scale));
+    }
+    if (mode != SMOOTH_V_PRED) {
+      const __m256i left_row = _mm256_cvtepu16_epi32(
+          bh == 4 ? _mm_loadl_epi64((const __m128i *)left)
+                  : _mm_loadu_si128((const __m128i *)(left + r)));
+      _mm256_store_si256((__m256i *)(left_tr_tab + r),
+                         _mm256_or_si256(left_row, tr_hi));
+      _mm256_store_si256((__m256i *)(left_hi_tab + r),
+                         _mm256_slli_epi32(left_row, 16));
+    }
+  }
+
+  const __m256i zero = _mm256_setzero_si256();
+  const int has_v = mode != SMOOTH_H_PRED;
+  const int has_h = mode != SMOOTH_V_PRED;
+  for (int c = 0; c < bw; c += 8) {
+    const __m256i col = _mm256_add_epi32(_mm256_set1_epi32(c), idx);
+    const __m256i top =
+        _mm256_cvtepu16_epi32(_mm_loadu_si128((const __m128i *)(above + c)));
+    const __m256i top_bl = _mm256_or_si256(top, bl_hi);
+    const __m256i top_hi = _mm256_slli_epi32(top, 16);
+    const __m256i weights_h = highbd_smooth_dist_weights_avx2(col, bw);
+    const __m256i s_left = highbd_smooth_blend_weights_avx2(col, scale);
+    uint16_t *dst_col = dst + c;
+    for (int r = 0; r < bh; ++r) {
+      const __m256i pred = highbd_smooth_pred_avx2(
+          mode, top_bl, top_hi,
+          has_v ? _mm256_set1_epi32(weights_v_tab[r]) : zero,
+          has_v ? _mm256_set1_epi32(s_top_tab[r]) : zero,
+          has_h ? _mm256_set1_epi32(left_tr_tab[r]) : zero,
+          has_h ? _mm256_set1_epi32(left_hi_tab[r]) : zero, weights_h, s_left,
+          bh_log2, bw_log2);
+      _mm_storeu_si128((__m128i *)dst_col,
+                       _mm_packus_epi32(_mm256_castsi256_si128(pred),
+                                        _mm256_extracti128_si256(pred, 1)));
+      dst_col += stride;
+    }
+  }
+}
+
+#define HIGHBD_SMOOTH_PRED_AVX2(type, mode, w, h)                       \
+  void avm_highbd_##type##_predictor_##w##x##h##_avx2(                  \
+      uint16_t *dst, ptrdiff_t stride, const uint16_t *above,           \
+      const uint16_t *left, int bd) {                                   \
+    (void)bd;                                                           \
+    highbd_smooth_predictor_avx2(dst, stride, w, h, above, left, mode); \
+  }
+
+#define HIGHBD_SMOOTH_PRED_AVX2_ALL_SIZES(type, mode) \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 4, 4)           \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 4, 8)           \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 4, 16)          \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 4, 32)          \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 4, 64)          \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 8, 4)           \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 8, 8)           \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 8, 16)          \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 8, 32)          \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 8, 64)          \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 16, 4)          \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 16, 8)          \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 16, 16)         \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 16, 32)         \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 16, 64)         \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 32, 4)          \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 32, 8)          \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 32, 16)         \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 32, 32)         \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 32, 64)         \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 64, 4)          \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 64, 8)          \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 64, 16)         \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 64, 32)         \
+  HIGHBD_SMOOTH_PRED_AVX2(type, mode, 64, 64)
+
+HIGHBD_SMOOTH_PRED_AVX2_ALL_SIZES(smooth, SMOOTH_PRED)
+HIGHBD_SMOOTH_PRED_AVX2_ALL_SIZES(smooth_v, SMOOTH_V_PRED)
+HIGHBD_SMOOTH_PRED_AVX2_ALL_SIZES(smooth_h, SMOOTH_H_PRED)
+
+#undef HIGHBD_SMOOTH_PRED_AVX2_ALL_SIZES
+#undef HIGHBD_SMOOTH_PRED_AVX2
+
+static INLINE __m256i highbd_ibp_weight_pairs_avx2(__m256i weights) {
+  return _mm256_or_si256(
+      weights,
+      _mm256_slli_epi32(
+          _mm256_sub_epi32(_mm256_set1_epi32(IBP_WEIGHT_MAX), weights), 16));
+}
+
+static AVM_FORCE_INLINE void highbd_ibp_blend_16_avx2(
+    uint16_t *dst, const uint16_t *second_pred, __m256i weights_lo,
+    __m256i weights_hi) {
+  const __m256i round_const = _mm256_set1_epi32(1 << (IBP_WEIGHT_SHIFT - 1));
+  const __m256i dst_vec = _mm256_loadu_si256((const __m256i *)dst);
+  const __m256i second_vec = _mm256_loadu_si256((const __m256i *)second_pred);
+  __m256i lo =
+      _mm256_madd_epi16(_mm256_unpacklo_epi16(dst_vec, second_vec), weights_lo);
+  __m256i hi =
+      _mm256_madd_epi16(_mm256_unpackhi_epi16(dst_vec, second_vec), weights_hi);
+  lo = _mm256_srai_epi32(_mm256_add_epi32(lo, round_const), IBP_WEIGHT_SHIFT);
+  hi = _mm256_srai_epi32(_mm256_add_epi32(hi, round_const), IBP_WEIGHT_SHIFT);
+  _mm256_storeu_si256((__m256i *)dst, _mm256_packus_epi32(lo, hi));
+}
+
+static AVM_FORCE_INLINE __m128i highbd_ibp_blend_4_avx2(__m128i dst_second,
+                                                        __m128i weights) {
+  return _mm_srai_epi32(
+      _mm_add_epi32(_mm_madd_epi16(dst_second, weights),
+                    _mm_set1_epi32(1 << (IBP_WEIGHT_SHIFT - 1))),
+      IBP_WEIGHT_SHIFT);
+}
+
+static AVM_FORCE_INLINE void highbd_ibp_dr_prediction_avx2(
+    const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
+    int mode_idx, uint16_t *dst, ptrdiff_t stride, const uint16_t *second_pred,
+    ptrdiff_t second_stride, int bw, int bh, int is_z3) {
+  assert(bw >= 4 && bw <= 64 && bh >= 4 && bh <= 64);
+  const int row_shift = bh >> (IBP_WEIGHT_SIZE_LOG2 + 1);
+  const ptrdiff_t col_step =
+      is_z3 ? IBP_WEIGHT_SIZE * DIR_MODES_0_90 : DIR_MODES_0_90;
+  const ptrdiff_t row_step =
+      is_z3 ? DIR_MODES_0_90 : IBP_WEIGHT_SIZE * DIR_MODES_0_90;
+  const IbpWeightsType *weight_row = &weights[0][0][mode_idx];
+  __m256i weight_pairs[8];
+  __m128i weight_pairs_128[2];
+
+  for (int r = 0; r < bh; ++r) {
+    if ((r & ((1 << row_shift) - 1)) == 0) {
+#define IBP_WEIGHT(i) ((uint8_t)weight_row[(i) * col_step])
+      if (bw == 4) {
+        weight_pairs_128[0] =
+            _mm256_castsi256_si128(highbd_ibp_weight_pairs_avx2(
+                _mm256_setr_epi32(IBP_WEIGHT(0), IBP_WEIGHT(1), IBP_WEIGHT(2),
+                                  IBP_WEIGHT(3), 0, 0, 0, 0)));
+      } else if (bw == 8) {
+        const __m256i pairs = highbd_ibp_weight_pairs_avx2(_mm256_setr_epi32(
+            IBP_WEIGHT(0), IBP_WEIGHT(1), IBP_WEIGHT(2), IBP_WEIGHT(3),
+            IBP_WEIGHT(4), IBP_WEIGHT(5), IBP_WEIGHT(6), IBP_WEIGHT(7)));
+        weight_pairs_128[0] = _mm256_castsi256_si128(pairs);
+        weight_pairs_128[1] = _mm256_extracti128_si256(pairs, 1);
+      } else if (bw == 16) {
+        weight_pairs[0] = highbd_ibp_weight_pairs_avx2(_mm256_setr_epi32(
+            IBP_WEIGHT(0), IBP_WEIGHT(1), IBP_WEIGHT(2), IBP_WEIGHT(3),
+            IBP_WEIGHT(8), IBP_WEIGHT(9), IBP_WEIGHT(10), IBP_WEIGHT(11)));
+        weight_pairs[1] = highbd_ibp_weight_pairs_avx2(_mm256_setr_epi32(
+            IBP_WEIGHT(4), IBP_WEIGHT(5), IBP_WEIGHT(6), IBP_WEIGHT(7),
+            IBP_WEIGHT(12), IBP_WEIGHT(13), IBP_WEIGHT(14), IBP_WEIGHT(15)));
+      } else {
+        const __m256i pairs_lo = highbd_ibp_weight_pairs_avx2(_mm256_setr_epi32(
+            IBP_WEIGHT(0), IBP_WEIGHT(1), IBP_WEIGHT(2), IBP_WEIGHT(3),
+            IBP_WEIGHT(4), IBP_WEIGHT(5), IBP_WEIGHT(6), IBP_WEIGHT(7)));
+        const __m256i pairs_hi = highbd_ibp_weight_pairs_avx2(_mm256_setr_epi32(
+            IBP_WEIGHT(8), IBP_WEIGHT(9), IBP_WEIGHT(10), IBP_WEIGHT(11),
+            IBP_WEIGHT(12), IBP_WEIGHT(13), IBP_WEIGHT(14), IBP_WEIGHT(15)));
+        if (bw == 32) {
+          // Column c uses weight c >> 1.
+          weight_pairs[0] = _mm256_unpacklo_epi32(pairs_lo, pairs_lo);
+          weight_pairs[1] = _mm256_unpackhi_epi32(pairs_lo, pairs_lo);
+          weight_pairs[2] = _mm256_unpacklo_epi32(pairs_hi, pairs_hi);
+          weight_pairs[3] = _mm256_unpackhi_epi32(pairs_hi, pairs_hi);
+        } else {
+          // Column c uses weight c >> 2.
+          const __m256i idx_lo = _mm256_setr_epi32(0, 0, 0, 0, 2, 2, 2, 2);
+          const __m256i idx_hi = _mm256_setr_epi32(1, 1, 1, 1, 3, 3, 3, 3);
+          const __m256i four = _mm256_set1_epi32(4);
+          weight_pairs[0] = _mm256_permutevar8x32_epi32(pairs_lo, idx_lo);
+          weight_pairs[1] = _mm256_permutevar8x32_epi32(pairs_lo, idx_hi);
+          weight_pairs[2] = _mm256_permutevar8x32_epi32(
+              pairs_lo, _mm256_add_epi32(idx_lo, four));
+          weight_pairs[3] = _mm256_permutevar8x32_epi32(
+              pairs_lo, _mm256_add_epi32(idx_hi, four));
+          weight_pairs[4] = _mm256_permutevar8x32_epi32(pairs_hi, idx_lo);
+          weight_pairs[5] = _mm256_permutevar8x32_epi32(pairs_hi, idx_hi);
+          weight_pairs[6] = _mm256_permutevar8x32_epi32(
+              pairs_hi, _mm256_add_epi32(idx_lo, four));
+          weight_pairs[7] = _mm256_permutevar8x32_epi32(
+              pairs_hi, _mm256_add_epi32(idx_hi, four));
+        }
+      }
+#undef IBP_WEIGHT
+      weight_row += row_step;
+    }
+    if (bw >= 16) {
+      for (int i = 0; i < bw / 16; ++i) {
+        highbd_ibp_blend_16_avx2(dst + 16 * i, second_pred + 16 * i,
+                                 weight_pairs[2 * i], weight_pairs[2 * i + 1]);
+      }
+    } else if (bw == 8) {
+      const __m128i dst_vec = _mm_loadu_si128((const __m128i *)dst);
+      const __m128i second_vec = _mm_loadu_si128((const __m128i *)second_pred);
+      const __m128i lo = highbd_ibp_blend_4_avx2(
+          _mm_unpacklo_epi16(dst_vec, second_vec), weight_pairs_128[0]);
+      const __m128i hi = highbd_ibp_blend_4_avx2(
+          _mm_unpackhi_epi16(dst_vec, second_vec), weight_pairs_128[1]);
+      _mm_storeu_si128((__m128i *)dst, _mm_packus_epi32(lo, hi));
+    } else {
+      const __m128i dst_vec = _mm_loadl_epi64((const __m128i *)dst);
+      const __m128i second_vec = _mm_loadl_epi64((const __m128i *)second_pred);
+      const __m128i lo = highbd_ibp_blend_4_avx2(
+          _mm_unpacklo_epi16(dst_vec, second_vec), weight_pairs_128[0]);
+      _mm_storel_epi64((__m128i *)dst, _mm_packus_epi32(lo, lo));
+    }
+    dst += stride;
+    second_pred += second_stride;
+  }
+}
+
+#define HIGHBD_IBP_DR_PREDICTION_AVX2(is_z3)                                   \
+  switch (bw) {                                                                \
+    case 4:                                                                    \
+      highbd_ibp_dr_prediction_avx2(weights, mode_idx, dst, stride,            \
+                                    second_pred, second_stride, 4, bh, is_z3); \
+      break;                                                                   \
+    case 8:                                                                    \
+      highbd_ibp_dr_prediction_avx2(weights, mode_idx, dst, stride,            \
+                                    second_pred, second_stride, 8, bh, is_z3); \
+      break;                                                                   \
+    case 16:                                                                   \
+      highbd_ibp_dr_prediction_avx2(weights, mode_idx, dst, stride,            \
+                                    second_pred, second_stride, 16, bh,        \
+                                    is_z3);                                    \
+      break;                                                                   \
+    case 32:                                                                   \
+      highbd_ibp_dr_prediction_avx2(weights, mode_idx, dst, stride,            \
+                                    second_pred, second_stride, 32, bh,        \
+                                    is_z3);                                    \
+      break;                                                                   \
+    default:                                                                   \
+      assert(bw == 64);                                                        \
+      highbd_ibp_dr_prediction_avx2(weights, mode_idx, dst, stride,            \
+                                    second_pred, second_stride, 64, bh,        \
+                                    is_z3);                                    \
+      break;                                                                   \
+  }
+
+void av2_highbd_ibp_dr_prediction_z1_avx2(
+    const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
+    int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t *second_pred,
+    ptrdiff_t second_stride, int bw, int bh) {
+  HIGHBD_IBP_DR_PREDICTION_AVX2(/*is_z3=*/0)
+}
+
+void av2_highbd_ibp_dr_prediction_z3_avx2(
+    const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
+    int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t *second_pred,
+    ptrdiff_t second_stride, int bw, int bh) {
+  HIGHBD_IBP_DR_PREDICTION_AVX2(/*is_z3=*/1)
+}
+
+#undef HIGHBD_IBP_DR_PREDICTION_AVX2

@@ -192,6 +192,8 @@ add_proto qw / void av2_highbd_ibp_dr_prediction_z1 /,
     "const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
 add_proto qw / void av2_highbd_ibp_dr_prediction_z3 /,
     "const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
+specialize qw/av2_highbd_ibp_dr_prediction_z1 avx2/;
+specialize qw/av2_highbd_ibp_dr_prediction_z3 avx2/;
 
 # Data-driven intra prediction (DIP)
 add_proto qw/void av2_dip_matrix_multiplication/, "const uint16_t *A, const uint16_t *B, uint16_t *C, int bd";
