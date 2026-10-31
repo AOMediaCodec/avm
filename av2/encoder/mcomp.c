@@ -244,9 +244,13 @@ void av2_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv,
 
 // Obtain number of iterations for optical flow based MV search.
 int get_opfl_mv_iterations(const AV2_COMP *cpi, const MB_MODE_INFO *mbmi) {
-  // Allowed only for screen content
+  // 0: off, 1: all content, 2: screen content only (default).
+  const int opfl_mv_search = cpi->oxcf.tool_cfg.enable_opfl_mv_search;
+  if (opfl_mv_search == 0) return 0;
+
+  // Screen content only mode (default)
   const AV2_COMMON *cm = &cpi->common;
-  if (!cm->features.allow_screen_content_tools) return 0;
+  if (opfl_mv_search == 2 && !cm->features.allow_screen_content_tools) return 0;
 
   if (mbmi->ref_frame[0] == NONE_FRAME) return 0;
 
@@ -278,13 +282,6 @@ int opfl_refine_fullpel_mv_one_sided(
   const struct buf_2d *const pred = ms_params->ms_buffers.ref;
   const struct buf_2d *const src = ms_params->ms_buffers.src;
   uint16_t *pred_ptr = &pred->buf[smv->row * pred->stride + smv->col];
-
-#if OMVS_EARLY_TERM
-  // Early termination based on SAD
-  // int sad = ms_params->vfp->sdf(dst0, bw, dst1, bw);
-  int sad = ms_params->vfp->sdf(src->buf, src->stride, pred_ptr, pred->stride);
-  if (sad < bw * bh * OMVS_SAD_THR) return 1;
-#endif
 
   int vx0, vx1, vy0, vy1;
   int16_t *gx0, *gy0;

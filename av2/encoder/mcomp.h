@@ -314,8 +314,6 @@ void av2_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv,
 #define OMVS_AVG_POOLING 1
 #define OMVS_RANGE_THR 2
 #define OMVS_BIG_STEP 4
-#define OMVS_EARLY_TERM 1
-#define OMVS_SAD_THR 8
 
 // Obtain the bits of upshift for the MVD derived by optical flow based MV
 // search. The purpose for upscaling the MVD is to increase the search range and

@@ -589,7 +589,9 @@ static void set_good_speed_features_framesize_independent(
     sf->interp_sf.use_interp_filter = 1;
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
     sf->rd_sf.disable_tcq = 0;
-    sf->part_sf.disable_ext_partitions = true;
+    sf->part_sf.disable_ext_partitions =
+        !cpi->is_screen_content_type ||
+        !cpi->oxcf.part_cfg.enable_ext_partitions;
     // --- End ---
 
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
@@ -689,7 +691,6 @@ static void set_good_speed_features_framesize_independent(
     // TODO(any): evaluate if these lpf features can be moved to speed 2.
     // For screen content, "prune_sgr_based_on_wiener = 2" cause large quality
     // loss.
-    sf->lpf_sf.disable_loop_restoration_chroma = boosted ? 0 : 1;
     sf->winner_mode_sf.dc_blk_pred_level = 2;
   }
 
@@ -697,6 +698,7 @@ static void set_good_speed_features_framesize_independent(
     // The run cap is not reached with key frames at most 100 frames apart.
     sf->hl_sf.tip_first_max_run = 99;
     sf->hl_sf.tip_first_margin_pct = 1;
+    sf->lpf_sf.disable_loop_restoration_chroma = boosted ? 0 : 1;
     sf->lpf_sf.skip_wienerns_frame_filter_rounding = 1;
     if (cm->current_frame.pyramid_level >= 4)
       sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
@@ -860,6 +862,21 @@ static void set_good_speed_features_framesize_independent(
   if (enable_motion_mode_search_in_winner_mode(&sf->inter_sf)) {
     sf->winner_mode_sf.motion_mode_for_winner_cand = 2;
     if (speed == 6) sf->winner_mode_sf.motion_mode_for_winner_cand = 3;
+  }
+
+  if (cpi->is_screen_content_type) {
+    if (speed >= 3) {
+      // Sub-pel refinement is critical for sharp synthetic edges and text.
+      sf->mv_sf.subpel_search_method = SUBPEL_TREE;
+      sf->mv_sf.skip_second_best_subpel = 0;
+
+      // Compound and inter-intra modes provide substantial coding gains on
+      // screen content sequences with high efficiency.
+      sf->inter_sf.disable_interintra = false;
+      sf->inter_sf.comp_inter_joint_search_thresh = BLOCK_4X4;
+      sf->inter_sf.prune_comp_type_by_comp_avg = 0;
+      sf->inter_sf.prune_comp_search_by_single_result = 0;
+    }
   }
 }
 
@@ -1638,8 +1655,18 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     if (sf->part_sf.disable_extended_sdp) {
       cpi->common.seq_params.enable_extended_sdp = 0;
     }
-    cpi->common.seq_params.enable_ext_partitions &=
-        !sf->part_sf.disable_ext_partitions;
+    const bool is_scc = cpi->is_screen_content_type ||
+                        cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN ||
+                        cpi->common.seq_params.force_screen_content_tools == 1;
+    if (is_scc) {
+      cpi->common.seq_params.enable_ext_partitions =
+          oxcf->part_cfg.enable_ext_partitions;
+      sf->part_sf.disable_ext_partitions =
+          !oxcf->part_cfg.enable_ext_partitions;
+    } else {
+      cpi->common.seq_params.enable_ext_partitions &=
+          !sf->part_sf.disable_ext_partitions;
+    }
 
     cpi->common.seq_params.enable_uneven_4way_partitions &=
         !sf->part_sf.disable_uneven_4way_partitions;
@@ -1900,6 +1927,12 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   // Speed 1 and fine quantizers only; assigned, not cleared, because this
   // function runs per frame while the framesize-independent pass does not.
   sf->tx_sf.use_tx_result_cache = cpi->oxcf.mode == GOOD && speed >= 1;
+
+  if (cpi->oxcf.mode == GOOD && speed >= 3) {
+    sf->part_sf.disable_ext_partitions =
+        !cpi->is_screen_content_type ||
+        !cpi->oxcf.part_cfg.enable_ext_partitions;
+  }
 
   if (cpi->oxcf.mode == GOOD && speed == 0) {
     const int qindex_thresh = 124 + qindex_offset;
