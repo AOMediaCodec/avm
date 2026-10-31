@@ -7089,7 +7089,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV2_COMP *cpi, MACROBLOCK *x,
       int rate_mv = 0;
       if (!mbmi->intrabc_mode)
         rate_mv +=
-            av2_intrabc_mv_bit_cost(&dv, &default_dv_ref.as_mv, dv_costs,
+            av2_intrabc_mv_bit_cost(&mbmi->mv[0].as_mv, &default_dv_ref.as_mv,
+                                    dv_costs,
                                     MV_COST_WEIGHT_SUB, mbmi->pb_mv_precision);
 
       if (is_pb_mv_precision_active) {
