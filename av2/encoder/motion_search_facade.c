@@ -255,7 +255,7 @@ void av2_single_motion_search(const AV2_COMP *const cpi, MACROBLOCK *x,
             FULLPEL_MV prev_smv = smv;
             MV prev_mv = get_mv_from_fullmv(&prev_smv);
             cur_mv.as_mv = prev_mv;
-            term = opfl_refine_fullpel_mv_one_sided(cm, xd, &full_ms_params,
+            term = opfl_refine_fullpel_mv_one_sided(cm, x, xd, &full_ms_params,
                                                     mbmi, &smv, &cur_mv, bsize);
             if (term) break;
 
@@ -500,7 +500,7 @@ void av2_single_motion_search_high_precision(const AV2_COMP *const cpi,
       FULLPEL_MV prev_fullmv = start_fullmv;
       MV prev_mv = get_mv_from_fullmv(&prev_fullmv);
       cur_mv.as_mv = prev_mv;
-      term = opfl_refine_fullpel_mv_one_sided(cm, xd, &full_ms_params, mbmi,
+      term = opfl_refine_fullpel_mv_one_sided(cm, x, xd, &full_ms_params, mbmi,
                                               &start_fullmv, &cur_mv, bsize);
       if (term) break;
 
@@ -991,6 +991,7 @@ void av2_compound_single_motion_search(const AV2_COMP *cpi, MACROBLOCK *x,
   }
 
   InterPredParams inter_pred_params;
+  JointMvdPredCache *const pred_cache = &x->joint_mvd_pred;
   if (is_joint_mvd_coding_mode(mbmi->mode)) {
     const int pw = block_size_wide[bsize];
     const int ph = block_size_high[bsize];
@@ -1004,6 +1005,24 @@ void av2_compound_single_motion_search(const AV2_COMP *cpi, MACROBLOCK *x,
                           mi_col * MI_SIZE, 0, 0, xd->bd, 0, &cm->sf_identity,
                           &ref_yv12, EIGHTTAP_REGULAR);
     inter_pred_params.conv_params = get_conv_params(0, PLANE_TYPE_Y, xd->bd);
+    // The cached predictions are valid for this block and this buffer only.
+    assert(bsize == mbmi->sb_type[PLANE_TYPE_Y]);
+    if (pred_cache->mi_row != mi_row || pred_cache->mi_col != mi_col ||
+        pred_cache->bsize != bsize || pred_cache->ref_buf != ref_yv12.buf ||
+        pred_cache->ref_stride != ref_yv12.stride) {
+      pred_cache->num_filled = 0;
+      pred_cache->mi_row = mi_row;
+      pred_cache->mi_col = mi_col;
+      pred_cache->bsize = bsize;
+      pred_cache->ref_buf = ref_yv12.buf;
+      pred_cache->ref_stride = ref_yv12.stride;
+    }
+    pred_cache->slot_pels = ALIGN_POWER_OF_TWO(pw * ph + 32, 4);
+    pred_cache->num_slots =
+        pred_cache->buf
+            ? AVMMIN(JOINT_MVD_PRED_SLOTS,
+                     JOINT_MVD_PRED_BUF_PELS / pred_cache->slot_pels)
+            : 0;
   }
 
   if (ref_idx) {
@@ -1057,12 +1076,12 @@ void av2_compound_single_motion_search(const AV2_COMP *cpi, MACROBLOCK *x,
       bestsme = low_precision_joint_mvd_search(
           cm, xd, &ms_params, ref_mv.as_mv, this_mv, &best_mv.as_mv, &dis, &sse,
           ref_idx, other_mv, &best_other_mv.as_mv, second_pred,
-          &inter_pred_params);
+          &inter_pred_params, pred_cache);
     } else {
       bestsme = joint_mvd_search(cm, xd, &ms_params, ref_mv.as_mv, this_mv,
                                  &best_mv.as_mv, &dis, &sse, ref_idx, other_mv,
                                  &best_other_mv.as_mv, second_pred,
-                                 &inter_pred_params, NULL);
+                                 &inter_pred_params, pred_cache, NULL);
     }
   } else if ((mbmi->mode == JOINT_NEWMV || mbmi->mode == JOINT_NEWMV_OPTFLOW) &&
              mbmi->use_amvd) {
@@ -1077,7 +1096,8 @@ void av2_compound_single_motion_search(const AV2_COMP *cpi, MACROBLOCK *x,
 
     bestsme = av2_joint_amvd_motion_search(
         cm, xd, &ms_params, &ref_mv.as_mv, &best_mv.as_mv, &dis, &sse, ref_idx,
-        other_mv, &best_other_mv.as_mv, second_pred, &inter_pred_params);
+        other_mv, &best_other_mv.as_mv, second_pred, &inter_pred_params,
+        pred_cache);
     if (bestsme == INT_MAX) {
       best_mv.as_int = INVALID_MV;
       best_other_mv.as_int = INVALID_MV;

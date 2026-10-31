@@ -4178,6 +4178,18 @@ static int ref_mv_idx_to_search(AV2_COMP *const cpi, MACROBLOCK *x,
   return result;
 }
 
+// Returns the refinemv_flag handle_compound_inter_prediction() sets for the
+// current precision (the default flag with SIMPLE_TRANSLATION). It does not
+// test idx_mask when this is 1.
+static INLINE int comp_refinemv_by_default(const AV2_COMMON *cm,
+                                           MB_MODE_INFO *mbmi) {
+  const MOTION_MODE motion_mode = mbmi->motion_mode;
+  mbmi->motion_mode = SIMPLE_TRANSLATION;
+  const int refinemv = get_default_refinemv_flag(cm, mbmi);
+  mbmi->motion_mode = motion_mode;
+  return refinemv;
+}
+
 // Computes the ref_mv_idx pre-screening masks (see ref_mv_idx_to_search()) of
 // the current MV precision (mbmi->pb_mv_precision) for BAWP off and, when BAWP
 // is allowed, for every BAWP option. This is called lazily, i.e. only for MV
@@ -4199,9 +4211,17 @@ static AVM_INLINE void compute_ref_mv_idx_masks(
 
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
-  idx_mask[0][pb_mv_precision] = ref_mv_idx_to_search(
-      cpi, x, rd_stats, args, ref_best_rd, mode_info[0][pb_mv_precision], bsize,
-      ref_set, flex_mv_cost);
+  // Compound NEAR modes that default to refinemv never read idx_mask[0], and
+  // nothing else the pre-search leaves is read: the mbmi fields it sets are
+  // reset or rewritten first, and is_cwp_allowed() and av2_is_interp_needed()
+  // are 0 under refinemv.
+  const int comp_nearmv =
+      has_second_ref(mbmi) && have_nearmv_in_inter_mode(mbmi->mode);
+  if (!comp_nearmv || !comp_refinemv_by_default(cm, mbmi)) {
+    idx_mask[0][pb_mv_precision] = ref_mv_idx_to_search(
+        cpi, x, rd_stats, args, ref_best_rd, mode_info[0][pb_mv_precision],
+        bsize, ref_set, flex_mv_cost);
+  }
 
   if (cm->features.enable_bawp &&
       av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
@@ -9814,6 +9834,9 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   const ModeCosts *const mode_costs = &x->mode_costs;
   const int *const comp_inter_cost =
       mode_costs->comp_inter_cost[av2_get_reference_mode_context(cm, xd)];
+  // Frame buffers are recycled, so cached joint-search predictions must not
+  // outlive this search.
+  x->joint_mvd_pred.num_filled = 0;
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
   mbmi->local_rest_type = 1;
   mbmi->local_ccso_blk_flag = 1;

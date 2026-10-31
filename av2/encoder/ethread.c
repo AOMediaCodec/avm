@@ -661,9 +661,28 @@ static AVM_INLINE void create_enc_workers(AV2_COMP *cpi, int num_workers) {
                                sizeof(*thread_data->td->upsample_pred)));
 
       CHECK_MEM_ERROR(
+          cm, thread_data->td->joint_mvd_pred_buf,
+          avm_memalign(32, JOINT_MVD_PRED_BUF_PELS *
+                               sizeof(*thread_data->td->joint_mvd_pred_buf)));
+
+      CHECK_MEM_ERROR(
           cm, thread_data->td->tmp_pred_bufs,
           avm_memalign(32, MAX_MB_PLANE * MAX_SB_SQUARE *
                                sizeof(*thread_data->td->tmp_pred_bufs)));
+
+      // Scratch for the CCTX search and the one-sided OPFL MV refinement.
+      CHECK_MEM_ERROR(
+          cm, thread_data->td->cctx_scratch,
+          avm_memalign(32, (2 * MAX_SB_SQUARE + 4 * MAX_TX_SQUARE) *
+                               sizeof(*thread_data->td->cctx_scratch)));
+      CHECK_MEM_ERROR(
+          cm, thread_data->td->cctx_recon,
+          avm_memalign(
+              32, 2 * MAX_TX_SQUARE * sizeof(*thread_data->td->cctx_recon)));
+      CHECK_MEM_ERROR(
+          cm, thread_data->td->omvs_scratch,
+          avm_memalign(
+              32, 6 * MAX_SB_SQUARE * sizeof(*thread_data->td->omvs_scratch)));
 
       CHECK_MEM_ERROR(
           cm, thread_data->td->mbmi_ext,
@@ -937,9 +956,15 @@ static AVM_INLINE void prepare_enc_workers(AV2_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb.opfl_gxy_bufs = thread_data->td->opfl_gxy_bufs;
       thread_data->td->mb.opfl_dst_bufs = thread_data->td->opfl_dst_bufs;
       thread_data->td->mb.tmp_pred_bufs = thread_data->td->tmp_pred_bufs;
+      thread_data->td->mb.cctx_scratch = thread_data->td->cctx_scratch;
+      thread_data->td->mb.cctx_recon = thread_data->td->cctx_recon;
+      thread_data->td->mb.omvs_scratch = thread_data->td->omvs_scratch;
       thread_data->td->mb.e_mbd.tmp_conv_dst = thread_data->td->mb.tmp_conv_dst;
       thread_data->td->mb.e_mbd.tmp_upsample_pred =
           thread_data->td->mb.upsample_pred;
+      thread_data->td->mb.joint_mvd_pred.buf =
+          thread_data->td->joint_mvd_pred_buf;
+      thread_data->td->mb.joint_mvd_pred.num_filled = 0;
       // Temporary buffers used during the SMVR and OPFL processing.
       thread_data->td->mb.e_mbd.opfl_vxy_bufs =
           thread_data->td->mb.opfl_vxy_bufs;
@@ -979,8 +1004,14 @@ static AVM_INLINE void fp_prepare_enc_workers(AV2_COMP *cpi, AVxWorkerHook hook,
 
     if (i > 0) {
       thread_data->td->mb.upsample_pred = thread_data->td->upsample_pred;
+      thread_data->td->mb.cctx_scratch = thread_data->td->cctx_scratch;
+      thread_data->td->mb.cctx_recon = thread_data->td->cctx_recon;
+      thread_data->td->mb.omvs_scratch = thread_data->td->omvs_scratch;
       thread_data->td->mb.e_mbd.tmp_upsample_pred =
           thread_data->td->mb.upsample_pred;
+      thread_data->td->mb.joint_mvd_pred.buf =
+          thread_data->td->joint_mvd_pred_buf;
+      thread_data->td->mb.joint_mvd_pred.num_filled = 0;
     }
   }
 }
@@ -1421,8 +1452,14 @@ static AVM_INLINE void prepare_tpl_workers(AV2_COMP *cpi, AVxWorkerHook hook,
 
     if (i > 0) {
       thread_data->td->mb.upsample_pred = thread_data->td->upsample_pred;
+      thread_data->td->mb.cctx_scratch = thread_data->td->cctx_scratch;
+      thread_data->td->mb.cctx_recon = thread_data->td->cctx_recon;
+      thread_data->td->mb.omvs_scratch = thread_data->td->omvs_scratch;
       thread_data->td->mb.e_mbd.tmp_upsample_pred =
           thread_data->td->mb.upsample_pred;
+      thread_data->td->mb.joint_mvd_pred.buf =
+          thread_data->td->joint_mvd_pred_buf;
+      thread_data->td->mb.joint_mvd_pred.num_filled = 0;
     }
   }
 }

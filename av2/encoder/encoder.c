@@ -1336,6 +1336,12 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
     x->e_mbd.tmp_upsample_pred = x->upsample_pred;
   }
 
+  if (x->joint_mvd_pred.buf == NULL) {
+    CHECK_MEM_ERROR(cm, x->joint_mvd_pred.buf,
+                    avm_memalign(32, JOINT_MVD_PRED_BUF_PELS *
+                                         sizeof(*x->joint_mvd_pred.buf)));
+  }
+
   if (x->coef_info == NULL) {
     CHECK_MEM_ERROR(cm, x->coef_info,
                     avm_malloc(MAX_TX_SQUARE * sizeof(*x->coef_info)));
@@ -1370,6 +1376,23 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
     CHECK_MEM_ERROR(cm, x->tmp_pred_bufs,
                     avm_memalign(32, MAX_MB_PLANE * MAX_SB_SQUARE *
                                          sizeof(*x->tmp_pred_bufs)));
+  }
+
+  // Scratch for the CCTX search and the one-sided OPFL MV refinement.
+  if (x->cctx_scratch == NULL) {
+    CHECK_MEM_ERROR(cm, x->cctx_scratch,
+                    avm_memalign(32, (2 * MAX_SB_SQUARE + 4 * MAX_TX_SQUARE) *
+                                         sizeof(*x->cctx_scratch)));
+  }
+  if (x->cctx_recon == NULL) {
+    CHECK_MEM_ERROR(
+        cm, x->cctx_recon,
+        avm_memalign(32, 2 * MAX_TX_SQUARE * sizeof(*x->cctx_recon)));
+  }
+  if (x->omvs_scratch == NULL) {
+    CHECK_MEM_ERROR(
+        cm, x->omvs_scratch,
+        avm_memalign(32, 6 * MAX_SB_SQUARE * sizeof(*x->omvs_scratch)));
   }
 
   av2_reset_segment_features(cm);
@@ -1842,6 +1865,8 @@ static AVM_INLINE void free_thread_data(AV2_COMP *cpi) {
     avm_free(thread_data->td->palette_buffer);
     avm_free(thread_data->td->tmp_conv_dst);
     avm_free(thread_data->td->upsample_pred);
+    avm_free(thread_data->td->joint_mvd_pred_buf);
+    thread_data->td->joint_mvd_pred_buf = NULL;
     avm_free(thread_data->td->coef_info);
     avm_free(thread_data->td->dqcoeff_buf);
 
@@ -1852,6 +1877,12 @@ static AVM_INLINE void free_thread_data(AV2_COMP *cpi) {
     avm_free(thread_data->td->tip_memo);
     release_compound_type_rd_buffers(&thread_data->td->comp_rd_buffer);
     avm_free(thread_data->td->tmp_pred_bufs);
+    avm_free(thread_data->td->cctx_scratch);
+    thread_data->td->cctx_scratch = NULL;
+    avm_free(thread_data->td->cctx_recon);
+    thread_data->td->cctx_recon = NULL;
+    avm_free(thread_data->td->omvs_scratch);
+    thread_data->td->omvs_scratch = NULL;
     avm_free(thread_data->td->mb.inter_modes_info);
     for (int x = 0; x < 2; x++) {
       for (int y = 0; y < 2; y++) {
