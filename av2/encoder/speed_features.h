@@ -786,6 +786,12 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Enabled at speed >= 1.
   int share_motion_mode_prune_pool;
 
+  // Number of candidates in the motion mode prune pool that get a full
+  // transform search when the block searches the full mode pool (not in the
+  // dry pass, and not in a wet pass that reuses the dry-pass partition).
+  // 0 means TOP_MOTION_MODE_MODEL_COUNT.
+  int full_pool_inter_mode_prune_top;
+
   // Prune reference frames.
   // 0 implies no pruning
   // 1 implies prune for extended partition
