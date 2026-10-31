@@ -131,6 +131,16 @@ static AVM_INLINE void write_inter_mode(
                    INTER_SINGLE_MODES);
 }
 
+bool av2_encoder_decoder_model_accumulate_frame_symbols(
+    uint64_t *frame_symbols, uint64_t tile_group_symbols) {
+  if (frame_symbols == NULL ||
+      tile_group_symbols > UINT64_MAX - *frame_symbols) {
+    return false;
+  }
+  *frame_symbols += tile_group_symbols;
+  return true;
+}
+
 static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
                           FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
                           const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
@@ -6127,7 +6137,6 @@ static uint32_t write_tilegroup_payload(AV2_COMP *const cpi, uint8_t *const dst,
         *largest_tile_id = tile_cols * tile_row + tile_col;
         max_tile_size = tile_size;
       }
-      cm->features.frame_symbol_count = mode_bc.frame_symbol_count;
       if (tile_idx < end_tile_idx) {
         mem_put_le32(buf->data, tile_size - AV2_MIN_TILE_SIZE_BYTES);
       }
@@ -6139,6 +6148,17 @@ static uint32_t write_tilegroup_payload(AV2_COMP *const cpi, uint8_t *const dst,
       continue;
     else if (tile_idx > end_tile_idx)
       break;
+  }
+
+  if (cpi->level_params.keep_level_stats != 0 &&
+      !is_stat_generation_stage(cpi)) {
+    if (!av2_encoder_decoder_model_accumulate_frame_symbols(
+            &cm->features.frame_symbol_count, mode_bc.frame_symbol_count)) {
+      cpi->dm_frame_symbol_count_overflow = true;
+    }
+  } else {
+    // Preserve the pre-model behavior when level statistics are inactive.
+    cm->features.frame_symbol_count = mode_bc.frame_symbol_count;
   }
 
   if (tile_cols * tile_rows > 1 &&
@@ -7414,6 +7434,11 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 int av2_pack_bitstream(AV2_COMP *const cpi, uint8_t *dst, size_t *size,
                        int *const largest_tile_id) {
   AV2_COMMON *const cm = &cpi->common;
+  if (cpi->level_params.keep_level_stats != 0 &&
+      !is_stat_generation_stage(cpi)) {
+    cm->features.frame_symbol_count = 0;
+    cpi->dm_frame_symbol_count_overflow = false;
+  }
 
   // For some pairs of sequence-level and frame-level flags, if
   // single_picture_header_flag is true and the frame-level flag is 0, force
