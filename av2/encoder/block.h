@@ -1222,6 +1222,39 @@ typedef enum {
 } SOURCE_SAD;
 #define SINGLE_REF_MODES ((REF_FRAMES - 1) * 4)
 /*!\endcond */
+
+//! Most other-list predictions a JointMvdPredCache holds.
+#define JOINT_MVD_PRED_SLOTS 64
+//! Size of the per-thread buffer of a JointMvdPredCache, in pixels.
+#define JOINT_MVD_PRED_BUF_PELS (256 * 1024)
+
+/*! \brief Other-list luma predictions built by the joint MVD searches.
+ *
+ * Holds the predictions of one block and one reference buffer, so that the
+ * CWP and JMVD scale reruns of the JOINT_NEWMV searches reuse them.
+ */
+typedef struct {
+  //! Number of filled slots. Slots are filled in order.
+  int num_filled;
+  //! Number of slots that fit in buf at the current block size.
+  int num_slots;
+  //! Size of a slot in pixels, at least w * h + 32.
+  int slot_pels;
+  //! Row of the block the predictions belong to, in mi units.
+  int mi_row;
+  //! Column of the block the predictions belong to, in mi units.
+  int mi_col;
+  //! Size of the block the predictions belong to.
+  BLOCK_SIZE bsize;
+  //! Reference buffer the predictions are built from.
+  const uint16_t *ref_buf;
+  //! Stride of ref_buf.
+  int ref_stride;
+  //! MV of the prediction in each filled slot.
+  MV_DATA_TYPE mv[JOINT_MVD_PRED_SLOTS];
+  //! Per-thread buffer of JOINT_MVD_PRED_BUF_PELS pixels that holds the slots.
+  uint16_t *buf;
+} JointMvdPredCache;
 struct inter_modes_info;
 
 /*! \brief Encoder's parameters related to the current coding block.
@@ -1312,6 +1345,14 @@ typedef struct macroblock {
    *  Buffer used for upsampled prediction.
    */
   uint16_t *upsample_pred;
+  //! Other-list predictions of the joint MVD searches.
+  JointMvdPredCache joint_mvd_pred;
+  //! Scratch for the CCTX search: 2 * MAX_SB_SQUARE + 4 * MAX_TX_SQUARE.
+  tran_low_t *cctx_scratch;
+  //! Scratch for the CCTX joint UV reconstruction: 2 * MAX_TX_SQUARE.
+  uint16_t *cctx_recon;
+  //! Scratch for the one-sided OPFL MV refinement: 6 * MAX_SB_SQUARE.
+  int16_t *omvs_scratch;
   /**@}*/
 
   /*****************************************************************************
@@ -1645,6 +1686,11 @@ typedef struct macroblock {
    * which are used for pruning compound modes in inter mode
    * evaluation. */
   int64_t top_comp_est_rd[TOP_COMP_EST_RD_COUNT];
+  /*! \brief Set while dst holds the luma prediction intra_model_yrd() made
+   * for the first transform block of the uniform tx search being run. */
+  int8_t intra_y_pred_ready;
+  /*! \brief Transform size of that prediction. */
+  TX_SIZE intra_y_pred_tx;
 #if CONFIG_DIP_EXT_PRUNING
   /*! \brief Holds DIP related features used in ML based pruning. */
   struct DipMlInfo dip_ml_feature;
