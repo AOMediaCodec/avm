@@ -585,13 +585,14 @@ int av2_refine_mv_for_base_param_warp_model(
     WARP_SEARCH_METHOD search_method, int num_iterations,
     bool warp_mv_refine_early_term);
 
-void av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
-                                   const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
-                                   bool neighbor_is_above, BLOCK_SIZE bsize,
-                                   const WarpedMotionParams *neighbor_params,
-                                   WARP_SEARCH_METHOD search_method,
-                                   int num_iterations,
-                                   bool warp_mv_refine_early_term);
+int av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
+                                  const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
+                                  bool neighbor_is_above, BLOCK_SIZE bsize,
+                                  const WarpedMotionParams *neighbor_params,
+                                  WARP_SEARCH_METHOD search_method,
+                                  int num_iterations,
+                                  bool warp_mv_refine_early_term,
+                                  uint64_t max_start_sse);
 
 static INLINE void av2_set_fractional_mv(int_mv *fractional_best_mv) {
   for (int z = 0; z < 3; z++) {
