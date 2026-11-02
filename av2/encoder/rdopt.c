@@ -1319,15 +1319,10 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
         }
       }
     } else if (is_joint_mvd_coding_mode(this_mode)) {
-      if (!cm->seq_params.enable_joint_mvd) return INT64_MAX;
-      const int same_side = is_ref_frame_same_side(cm, mbmi);
-      // skip JOINT_NEWMV mode when two reference frames are from same side
-      if (same_side) return INT64_MAX;
-
-      const int first_ref_dist =
-          cm->ref_frame_relative_dist[mbmi->ref_frame[0]];
-      const int sec_ref_dist = cm->ref_frame_relative_dist[mbmi->ref_frame[1]];
-      if (first_ref_dist != sec_ref_dist) return INT64_MAX;
+      assert(cm->seq_params.enable_joint_mvd);
+      assert(!is_ref_frame_same_side(cm, mbmi));
+      assert(cm->ref_frame_relative_dist[mbmi->ref_frame[0]] ==
+             cm->ref_frame_relative_dist[mbmi->ref_frame[1]]);
 
       if (reuse_comp_mv_for_opfl(cm, x, args, cur_mv, rate_mv)) {
         return 0;
@@ -10177,6 +10172,12 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     // passed via opfl_modes_allowed)
     if (this_mode >= NEAR_NEARMV_OPTFLOW &&
         !opfl_allowed_cur_refs_bsize(cm, xd, mbmi))
+      continue;
+
+    if (is_joint_mvd_coding_mode(this_mode) &&
+        (is_ref_frame_same_side(cm, mbmi) ||
+         cm->ref_frame_relative_dist[ref_frame] !=
+             cm->ref_frame_relative_dist[second_ref_frame]))
       continue;
 
     // Skip OPFL when one ref is more than twice as far as the other.
