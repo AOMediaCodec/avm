@@ -257,7 +257,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 struct FwdTxfmParam {
   TX_SIZE tx_size;
-  TX_TYPE tx_type;
+  PRIMARY_TX_TYPE primary_tx_type;
   int bd;
   int seed;
   int use_ddt;
@@ -288,7 +288,7 @@ TEST_P(FwdTxfmVariantTest, BitExact) {
   TxfmParam txfm_param;
   memset(&txfm_param, 0, sizeof(txfm_param));
   txfm_param.tx_size = p.tx_size;
-  txfm_param.tx_type = p.tx_type;
+  txfm_param.primary_tx_type = p.primary_tx_type;
   txfm_param.bd = p.bd;
   txfm_param.lossless = 0;
   txfm_param.use_ddt = p.use_ddt;
@@ -299,15 +299,17 @@ TEST_P(FwdTxfmVariantTest, BitExact) {
   for (int k = 0; k < num_coeffs; k++) {
     ASSERT_EQ(ref_coeff[k], opt_coeff[k])
         << "mismatch at " << k << " tx_size=" << p.tx_size
-        << " tx_type=" << p.tx_type << " bd=" << p.bd << " seed=" << p.seed
-        << " use_ddt=" << p.use_ddt;
+        << " tx_type=" << p.primary_tx_type << " bd=" << p.bd
+        << " seed=" << p.seed << " use_ddt=" << p.use_ddt;
   }
 }
 
-static bool is_valid_fwd_txfm_combo(TX_SIZE sz, TX_TYPE ty) {
-  if (ty == DCT_DCT || ty == IDTX) return true;
+static bool is_valid_fwd_txfm_combo(TX_SIZE sz, PRIMARY_TX_TYPE ty) {
   const int w = tx_size_wide[sz];
   const int h = tx_size_high[sz];
+  // 64-length transforms only allow DCT_DCT.
+  if (w > 32 || h > 32) return ty == DCT_DCT;
+  if (ty == DCT_DCT || ty == IDTX) return true;
   const int row_1d = g_hor_tx_type[ty];
   const int col_1d = g_ver_tx_type[ty];
   if ((row_1d == DST7 || row_1d == DCT8) && w > 16) return false;
@@ -321,11 +323,12 @@ static std::vector<FwdTxfmParam> GenerateFwdParams() {
   std::vector<FwdTxfmParam> params;
   const int seeds[] = { 1, 42, 100, 255, 1000, 2023, 3141, 5678, 7777, 9999 };
   const int bds[] = { 8, 10, 12 };
-  const TX_SIZE sizes[] = { TX_4X4,   TX_8X8,   TX_16X16, TX_32X32,
-                            TX_4X8,   TX_8X4,   TX_8X16,  TX_16X8,
-                            TX_16X32, TX_32X16, TX_4X16,  TX_16X4,
-                            TX_8X32,  TX_32X8,  TX_4X32,  TX_32X4 };
-  const TX_TYPE types[] = {
+  const TX_SIZE sizes[] = { TX_4X4,  TX_8X8,   TX_16X16, TX_32X32, TX_4X8,
+                            TX_8X4,  TX_8X16,  TX_16X8,  TX_16X32, TX_32X16,
+                            TX_4X16, TX_16X4,  TX_8X32,  TX_32X8,  TX_4X32,
+                            TX_32X4, TX_64X64, TX_32X64, TX_64X32, TX_16X64,
+                            TX_64X16 };
+  const PRIMARY_TX_TYPE types[] = {
     DCT_DCT,      ADST_DCT,          DCT_ADST, ADST_ADST, FLIPADST_DCT,
     DCT_FLIPADST, FLIPADST_FLIPADST, IDTX,     V_DCT,     H_DCT
   };
@@ -364,7 +367,7 @@ TEST(FwdTxfmVariantExtreme, AllZero) {
       TxfmParam txfm_param;
       memset(&txfm_param, 0, sizeof(txfm_param));
       txfm_param.tx_size = sz;
-      txfm_param.tx_type = DCT_DCT;
+      txfm_param.primary_tx_type = DCT_DCT;
       txfm_param.bd = bd;
 
       fwd_txfm_c(input, ref_coeff, txw, &txfm_param);
@@ -405,7 +408,7 @@ TEST(FwdTxfmVariantExtreme, StrideMismatch) {
       TxfmParam txfm_param;
       memset(&txfm_param, 0, sizeof(txfm_param));
       txfm_param.tx_size = sz;
-      txfm_param.tx_type = DCT_DCT;
+      txfm_param.primary_tx_type = DCT_DCT;
       txfm_param.bd = bd;
 
       fwd_txfm_c(input, ref_coeff, stride, &txfm_param);
@@ -442,7 +445,7 @@ TEST(FwdTxfmVariantExtreme, MaxResidualNonSquare) {
       TxfmParam txfm_param;
       memset(&txfm_param, 0, sizeof(txfm_param));
       txfm_param.tx_size = sz;
-      txfm_param.tx_type = DCT_DCT;
+      txfm_param.primary_tx_type = DCT_DCT;
       txfm_param.bd = bd;
 
       fwd_txfm_c(input, ref_coeff, txw, &txfm_param);

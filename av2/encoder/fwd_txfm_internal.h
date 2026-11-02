@@ -25,8 +25,6 @@ void fwd_txfm_dct2_size16_c(const int *src, int *dst, int shift, int line,
                             int skip_line, int zero_line);
 void fwd_txfm_dct2_size32_c(const int *src, int *dst, int shift, int line,
                             int skip_line, int zero_line);
-void fwd_txfm_dct2_size64_c(const int *src, int *dst, int shift, int line,
-                            int skip_line, int zero_line);
 void fwd_txfm_idtx_size4_c(const int *src, int *dst, int shift, int line,
                            int skip_line, int zero_line);
 void fwd_txfm_idtx_size8_c(const int *src, int *dst, int shift, int line,

@@ -21,6 +21,7 @@
 #include "av2/common/enums.h"
 #include "av2/common/txb_common.h"
 #include "av2/encoder/fwd_txfm_internal.h"
+#include "av2/encoder/hybrid_fwd_txfm.h"
 #include "avm_dsp/txfm_common.h"
 #include "avm_dsp/arm/transpose_neon.h"
 
@@ -636,17 +637,6 @@ static void fwd_transform_1d_neon(const int *src, int *dst, int shift, int line,
           break;
       }
       break;
-    case 4:
-      switch (tx_type_index) {
-        case 0:
-          fwd_txfm_dct2_size64_c(src, dst, shift, line, skip_line, zero_line);
-          break;
-        default:
-          assert(0);
-          __builtin_unreachable();
-          break;
-      }
-      break;
     default:
       assert(0);
       __builtin_unreachable();
@@ -662,19 +652,16 @@ void fwd_txfm_neon(const int16_t *resi, tran_low_t *coeff, int diff_stride,
   const int height = tx_size_high[tx_size];
   assert(width >= 4 && height >= 4);
 
-  const uint32_t tx_wide_index = tx_size_wide_log2[tx_size] - 2;
-  const uint32_t tx_high_index = tx_size_high_log2[tx_size] - 2;
-
-  TX_TYPE tx_type = txfm_param->tx_type;
+  PRIMARY_TX_TYPE primary_tx_type = txfm_param->primary_tx_type;
 
   if (txfm_param->lossless) {
-    assert(tx_type == DCT_DCT);
+    assert(primary_tx_type == DCT_DCT);
     av2_highbd_fwht4x4(resi, coeff, diff_stride);
     return;
   }
 
-  int tx_type_row = g_hor_tx_type[tx_type];
-  int tx_type_col = g_ver_tx_type[tx_type];
+  int tx_type_row = g_hor_tx_type[primary_tx_type];
+  int tx_type_col = g_ver_tx_type[primary_tx_type];
 
   if (txfm_param->use_ddt) {
     const int use_ddt_row = (width == 4 && REPLACE_ADST4) ||
@@ -691,17 +678,18 @@ void fwd_txfm_neon(const int16_t *resi, tran_low_t *coeff, int diff_stride,
     }
   }
 
-  int skip_width = width > 32 ? width - 32 : 0;
-  int skip_height = height > 32 ? height - 32 : 0;
-
   int buf[MAX_TX_SQUARE];
 
-  // Copy residuals (int16) to coeff buffer (int32) using NEON
-  if (diff_stride == width) {
+  int w = width, h = height;
+  if (width > 32 || height > 32) {
+    // For 64-length dimensions, downsample the residual by 2 along such
+    // dimensions, then apply 32-point kernels.
+    av2_fwd_txfm_downsample_input(resi, diff_stride, tx_size, coeff, &w, &h);
+  } else if (diff_stride == width) {
+    // Copy residuals (int16) to coeff buffer (int32) using NEON
     const int total = width * height;
     assert((total & 7) == 0);
-    int i = 0;
-    for (; i + 8 <= total; i += 8) {
+    for (int i = 0; i + 8 <= total; i += 8) {
       int16x8_t r = vld1q_s16(resi + i);
       vst1q_s32(coeff + i, vmovl_s16(vget_low_s16(r)));
       vst1q_s32(coeff + i + 4, vmovl_s16(vget_high_s16(r)));
@@ -721,44 +709,28 @@ void fwd_txfm_neon(const int16_t *resi, tran_low_t *coeff, int diff_stride,
     }
   }
 
+  const uint32_t tx_wide_index =
+      AVMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_wide_log2[tx_size]) - 2;
+  const uint32_t tx_high_index =
+      AVMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_high_log2[tx_size]) - 2;
+
+  // Note: Shifts are still based on the original tx_size (see comment in
+  // av2_fwd_txfm_downsample_input()).
   const int shift_1st = fwd_tx_shift[tx_size][0];
   const int shift_2nd = fwd_tx_shift[tx_size][1];
 
-  fwd_transform_1d_neon(coeff, buf, shift_1st, width, 0, skip_height,
-                        tx_type_col, tx_high_index);
-  fwd_transform_1d_neon(buf, coeff, shift_2nd, height, skip_height, skip_width,
-                        tx_type_row, tx_wide_index);
-
-  // Re-pack non-zero coeffs in the first 32x32 indices.
-  if (skip_width) {
-    for (int row = 1; row < height; ++row) {
-      int32x4_t d0 = vld1q_s32(coeff + row * width);
-      int32x4_t d1 = vld1q_s32(coeff + row * width + 4);
-      int32x4_t d2 = vld1q_s32(coeff + row * width + 8);
-      int32x4_t d3 = vld1q_s32(coeff + row * width + 12);
-      int32x4_t d4 = vld1q_s32(coeff + row * width + 16);
-      int32x4_t d5 = vld1q_s32(coeff + row * width + 20);
-      int32x4_t d6 = vld1q_s32(coeff + row * width + 24);
-      int32x4_t d7 = vld1q_s32(coeff + row * width + 28);
-      vst1q_s32(coeff + row * 32, d0);
-      vst1q_s32(coeff + row * 32 + 4, d1);
-      vst1q_s32(coeff + row * 32 + 8, d2);
-      vst1q_s32(coeff + row * 32 + 12, d3);
-      vst1q_s32(coeff + row * 32 + 16, d4);
-      vst1q_s32(coeff + row * 32 + 20, d5);
-      vst1q_s32(coeff + row * 32 + 24, d6);
-      vst1q_s32(coeff + row * 32 + 28, d7);
-    }
-  }
+  fwd_transform_1d_neon(coeff, buf, shift_1st, w, 0, 0, tx_type_col,
+                        tx_high_index);
+  fwd_transform_1d_neon(buf, coeff, shift_2nd, h, 0, 0, tx_type_row,
+                        tx_wide_index);
 
   const int log2width = tx_size_wide_log2[tx_size];
   const int log2height = tx_size_high_log2[tx_size];
   const int sqrt2 = ((log2width + log2height) & 1) ? 1 : 0;
   if (sqrt2) {
-    const int count = AVMMIN(1024, width * height);
+    const int count = w * h;
     assert((count % 4) == 0);
-    int i = 0;
-    for (; i + 4 <= count; i += 4) {
+    for (int i = 0; i + 4 <= count; i += 4) {
       int32x4_t v = vld1q_s32(coeff + i);
       int64x2_t lo = vmull_s32(vget_low_s32(v), vdup_n_s32(NewSqrt2));
       int64x2_t hi = vmull_s32(vget_high_s32(v), vdup_n_s32(NewSqrt2));

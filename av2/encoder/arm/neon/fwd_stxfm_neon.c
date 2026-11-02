@@ -191,7 +191,7 @@ static INLINE void fwd_stxfm_8x8_neon(const int32_t *src, int32_t *dst,
 void fwd_stxfm_neon(tran_low_t *src, tran_low_t *dst,
                     const PREDICTION_MODE mode, const uint8_t stx_idx,
                     const int size, const int bd) {
-  assert(stx_idx < 4);
+  assert(stx_idx < STX_TYPES - 1);
   if (size == 0) {
     const int32_t *kernel = ist_4x4_kernel_int32[mode][stx_idx][0];
     fwd_stxfm_4x4_neon(src, dst, kernel, bd);
