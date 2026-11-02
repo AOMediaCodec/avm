@@ -929,6 +929,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // speed >= 1.
   int prune_warp_delta_by_ref_idx;
 
+  // Skip WARP_EXTEND motion mode when the luma SSE of its unrefined warped
+  // prediction exceeds this percentage of the luma SSE of the translational
+  // prediction at the same MV. 0: off. Enabled at speed 5.
+  int prune_warp_extend_sse_pct;
+
   // Skip extended compound mode when ref frame corresponding to NEWMV does not
   // have NEWMV as single mode winner.
   // 0 : no pruning

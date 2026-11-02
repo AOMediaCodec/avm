@@ -4854,12 +4854,11 @@ int av2_return_min_sub_pixel_mv(MACROBLOCKD *xd, const AV2_COMMON *const cm,
 // during motion_mode_rd. We are going through the whole
 // av2_enc_build_inter_predictor because we might have changed the interpolation
 // filter, etc before motion_mode_rd is called.
-static INLINE unsigned int compute_motion_cost(
+static INLINE unsigned int compute_motion_cost_and_sse(
     MACROBLOCKD *xd, const AV2_COMMON *const cm,
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, BLOCK_SIZE bsize,
-    const MV *this_mv, int compute_mvcost) {
+    const MV *this_mv, int compute_mvcost, unsigned int *sse) {
   unsigned int mse;
-  unsigned int sse;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
@@ -4876,11 +4875,20 @@ static INLINE unsigned int compute_motion_cost(
   const int dst_stride = xd->plane[0].dst.stride;
   const avm_variance_fn_ptr_t *vfp = ms_params->var_params.vfp;
 
-  mse = vfp->vf(dst, dst_stride, src, src_stride, &sse);
+  mse = vfp->vf(dst, dst_stride, src, src_stride, sse);
   if (compute_mvcost) {
     mse += mv_err_cost(*this_mv, &ms_params->mv_cost_params);
   }
   return mse;
+}
+
+static INLINE unsigned int compute_motion_cost(
+    MACROBLOCKD *xd, const AV2_COMMON *const cm,
+    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, BLOCK_SIZE bsize,
+    const MV *this_mv, int compute_mvcost) {
+  unsigned int sse;
+  return compute_motion_cost_and_sse(xd, cm, ms_params, bsize, this_mv,
+                                     compute_mvcost, &sse);
 }
 
 // Macros to build bitmasks which help us avoid redundant computations
@@ -5901,13 +5909,18 @@ int av2_refine_mv_for_base_param_warp_model(
 // by running the full WARP_EXTEND prediction pipeline.
 // For now, this uses the same method as av2_refine_warped_mv()
 // TODO(rachelbarker): See if we can improve this and av2_refine_warped_mv().
-void av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
-                                   const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
-                                   bool neighbor_is_above, BLOCK_SIZE bsize,
-                                   const WarpedMotionParams *neighbor_params,
-                                   WARP_SEARCH_METHOD search_method,
-                                   int num_iterations,
-                                   bool warp_mv_refine_early_term) {
+//
+// Returns 0 if the luma SSE of the unrefined warped prediction exceeds
+// max_start_sse (the search is then abandoned before any refinement), and 1
+// otherwise. Pass UINT64_MAX to disable this check.
+int av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
+                                  const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
+                                  bool neighbor_is_above, BLOCK_SIZE bsize,
+                                  const WarpedMotionParams *neighbor_params,
+                                  WARP_SEARCH_METHOD search_method,
+                                  int num_iterations,
+                                  bool warp_mv_refine_early_term,
+                                  uint64_t max_start_sse) {
   MB_MODE_INFO *mbmi = xd->mi[0];
 
   const MV *neighbors = warp_search_info[search_method].neighbors;
@@ -5927,7 +5940,10 @@ void av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
   // warp model, and stored it into mbmi->wm_params, but we have not yet
   // actually built and evaluated the resulting prediction
   assert(av2_is_subpelmv_in_range(mv_limits, *best_mv));
-  bestmse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv, 1);
+  unsigned int start_sse;
+  bestmse = compute_motion_cost_and_sse(xd, cm, ms_params, bsize, best_mv, 1,
+                                        &start_sse);
+  if ((uint64_t)start_sse > max_start_sse) return 0;
 
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -5985,6 +6001,7 @@ void av2_refine_mv_for_warp_extend(const AV2_COMMON *cm, MACROBLOCKD *xd,
   }
 
   mbmi->wm_params[0] = best_wm_params;
+  return 1;
 }
 
 // =============================================================================
