@@ -727,7 +727,9 @@ TEST(DecoderModelProcessTest, InactiveEventsDoNotAllocateOrChangeState) {
         inactive == 0
             ? nullptr
             : av2_decoder_model_create(&config, CountViolation, &callbacks);
-    if (inactive != 0) ASSERT_NE(model, nullptr);
+    if (inactive != 0) {
+      ASSERT_NE(model, nullptr);
+    }
     if (inactive == 1) av2_decoder_model_finish(model);
     if (inactive == 4) {
       av2_dm_set_internal_allocation_failure_after_for_testing(0);
