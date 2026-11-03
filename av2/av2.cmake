@@ -446,7 +446,8 @@ list(
   "${AVM_ROOT}/av2/encoder/x86/rdopt_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/pickrst_avx2.c")
 
-list(APPEND AVM_AV2_ENCODER_INTRIN_AVX512)
+list(APPEND AVM_AV2_ENCODER_INTRIN_AVX512
+     "${AVM_ROOT}/av2/encoder/x86/highbd_fwd_txfm_avx512.c")
 
 list(
   APPEND
