@@ -137,7 +137,7 @@ specialize qw/av2_copy_pred_array_highbd sse4_1 avx2/;
 
 #inv txfm
 add_proto qw/void inv_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size, const int bd";
-specialize qw/inv_stxfm sse4_1 avx2 neon/;
+specialize qw/inv_stxfm sse4_1 avx2/;
 add_proto qw/void av2_highbd_inv_txfm_add/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
 specialize qw/av2_highbd_inv_txfm_add sse4_1 avx2 neon/;
 
@@ -232,10 +232,12 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   specialize qw/av2_update_states avx2/;
   add_proto qw/void av2_calc_block_eob_rate/, "struct macroblock *x, int plane, TX_SIZE tx_size, int eob, uint16_t *block_eob_rate";
   specialize qw/av2_calc_block_eob_rate avx2/;
+  add_proto qw/int av2_find_best_path/, "const struct tcq_node_t *trellis, const int16_t *scan, const int32_t *dequant, const qm_val_t *iqmatrix, const tran_low_t *tcoeff, int first_scan_pos, int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff, int *min_rate, int64_t *min_cost";
+  specialize qw/av2_find_best_path avx2/;
   add_proto qw/void av2_get_coeff_ctx/, "const struct tcq_ctx_t *tcq_ctx, int col, struct tcq_coeff_ctx_t *coeff_ctx";
   specialize qw/av2_get_coeff_ctx avx2/;
   add_proto qw/void av2_update_nbr_diagonal/, "struct tcq_ctx_t *tcq_ctx, int row, int col, int bwl";
-  specialize qw/av2_update_nbr_diagonal avx2 neon/;
+  specialize qw/av2_update_nbr_diagonal avx2/;
 
   # fdct functions
 
@@ -245,14 +247,14 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   # fwd cctx
   add_proto qw/void av2_fwd_cross_chroma_tx_block/, "tran_low_t *coeff_c1, tran_low_t *coeff_c2,
                          TX_SIZE tx_size, CctxType cctx_type, const int bd";
-  specialize qw/av2_fwd_cross_chroma_tx_block avx2 neon/;
+  specialize qw/av2_fwd_cross_chroma_tx_block avx2/;
 
   #fwd txfm
   add_proto qw/void fwd_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size, const int bd";
-  specialize qw/fwd_stxfm sse4_1 avx2 neon/;
+  specialize qw/fwd_stxfm sse4_1 avx2/;
 
   add_proto qw/void fwd_txfm/,  "const int16_t *resi, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
-  specialize qw/fwd_txfm avx2 neon/;
+  specialize qw/fwd_txfm avx2/;
 
   #
   # Motion search
