@@ -9280,9 +9280,23 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     }
 
     const int ref_frame_index = COMPACT_INDEX0_NRS(ref_frame);
+    // Compound pairs only use regular inter references (never TIP or intra),
+    // so ref_costs_comp[][] is always accessed in bounds. GCC cannot prove this
+    // and emits a false-positive -Warray-bounds warning, so suppress it here.
+    assert(IMPLIES(comp_pred, ref_frame >= 0 &&
+                                  ref_frame < MAX_COMPOUND_REF_INDEX &&
+                                  second_ref_frame >= 0 &&
+                                  second_ref_frame < MAX_COMPOUND_REF_INDEX));
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
     const int ref_frame_cost = comp_pred
                                    ? ref_costs_comp[ref_frame][second_ref_frame]
                                    : ref_costs_single[ref_frame_index];
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
     const int compmode_cost = (comp_ref_allowed && !is_tip_ref_frame(ref_frame))
                                   ? comp_inter_cost[comp_pred]
                                   : 0;
