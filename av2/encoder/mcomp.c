@@ -589,7 +589,12 @@ int av2_mv_bit_cost(const MV *mv, const MV *ref_mv,
 int av2_intrabc_mv_bit_cost(const MV *mv, const MV *ref_mv,
                             const IntraBCMvCosts *mv_costs, int weight,
                             MvSubpelPrecision precision) {
-  const MV diff = { mv->row - ref_mv->row, mv->col - ref_mv->col };
+  // Same as av2_encode_dv(): the reference is rounded to the DV precision.
+  MV low_prec_ref_mv = *ref_mv;
+  if (precision < MV_PRECISION_HALF_PEL)
+    lower_mv_precision(&low_prec_ref_mv, precision);
+  const MV diff = { mv->row - low_prec_ref_mv.row,
+                    mv->col - low_prec_ref_mv.col };
   return get_intrabc_mv_cost_with_precision(diff, mv_costs, weight, 7,
                                             precision);
 }
