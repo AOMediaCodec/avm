@@ -9666,10 +9666,17 @@ static void try_intrabc_after_inter_search(
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
 
-  const int try_intrabc =
-      cpi->oxcf.kf_cfg.enable_intrabc && cpi->oxcf.kf_cfg.enable_intrabc_ext &&
-      !cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame &&
-      av2_allow_intrabc(cm, xd, bsize) && (xd->tree_type != CHROMA_PART);
+  // When skip_eval_intrabc_in_inter_frame == 2, only evaluate IntraBC on
+  // small blocks (<= 16x16) with high source variance.
+  const unsigned int var_thresh = 50;
+  const int skip_intrabc =
+      (cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame == 1) ||
+      (cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame == 2 &&
+       !(bsize <= BLOCK_16X16 && x->source_variance > var_thresh));
+  const int try_intrabc = cpi->oxcf.kf_cfg.enable_intrabc &&
+                          cpi->oxcf.kf_cfg.enable_intrabc_ext &&
+                          !skip_intrabc && av2_allow_intrabc(cm, xd, bsize) &&
+                          (xd->tree_type != CHROMA_PART);
   if (!(try_intrabc && is_intra_mode_allowed)) return;
 
   RD_STATS this_rd_cost;
