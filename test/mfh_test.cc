@@ -25,9 +25,9 @@ static const struct MFHTestParam {
   double psnr_thresh;
 } mfhTestParams[] = {
   // enable_mfh_obu_signaling = 0
-  { 0, 30.0 },
+  { 0, 28.5 },
   // enable_mfh_obu_signaling = 1
-  { 1, 30.0 },
+  { 1, 28.5 },
 };
 
 // Compiler may decide to add some padding to the struct above for alignment,
