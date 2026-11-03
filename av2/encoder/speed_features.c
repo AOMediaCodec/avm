@@ -416,6 +416,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_warp_delta_by_ref_idx = 1;
     sf->intra_sf.intra_pruning_with_mlp = 1;
     sf->intra_sf.intra_mode_prune_top = 4;
+    sf->intra_sf.disable_palette = true;
     sf->inter_sf.prune_comp_mode_eval_using_est_rd = true;
     sf->inter_sf.prune_warp_newmv_ref_mv_idx = true;
     sf->inter_sf.early_term_warp_delta_refine = true;
@@ -787,7 +788,6 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.ccso_terminate_search_luma_pass_count = 3;
     sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 6;
     sf->intra_sf.intra_mode_prune_top = 2;
-    sf->intra_sf.disable_palette = true;
     sf->part_sf.simple_motion_search_prune_agg = 3;
     sf->inter_sf.disable_interinter_wedge = 1;
     sf->inter_sf.disable_onesided_comp = true;
