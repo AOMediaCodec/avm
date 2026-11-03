@@ -1458,8 +1458,8 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
                                                 [tx_idx_for_large_txfm];
         }
 
-        if (block_signals_sec_tx_type(xd, tx_size, tx_type.primary_tx, eob) &&
-            xd->enable_ist) {
+        if (xd->enable_ist &&
+            block_signals_sec_tx_type(xd, tx_size, tx_type.primary_tx, eob)) {
           tx_type_cost +=
               x->mode_costs
                   .stx_flag_cost[is_inter][square_tx_size][tx_type.sec_tx];
@@ -1506,8 +1506,8 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
           return tx_type_cost;
         }
 
-        if (block_signals_sec_tx_type(xd, tx_size, tx_type.primary_tx, eob) &&
-            xd->enable_ist) {
+        if (xd->enable_ist &&
+            block_signals_sec_tx_type(xd, tx_size, tx_type.primary_tx, eob)) {
           tx_type_cost +=
               x->mode_costs
                   .stx_flag_cost[is_inter][square_tx_size][tx_type.sec_tx];
@@ -1518,8 +1518,8 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
       }
     }
   } else if (!xd->lossless[xd->mi[0]->segment_id]) {
-    if (block_signals_sec_tx_type(xd, tx_size, tx_type.primary_tx, eob) &&
-        xd->enable_ist) {
+    if (xd->enable_ist &&
+        block_signals_sec_tx_type(xd, tx_size, tx_type.primary_tx, eob)) {
       int tx_type_cost =
           x->mode_costs.stx_flag_cost[is_inter][square_tx_size][tx_type.sec_tx];
       if (tx_type.sec_tx > 0 && !is_inter)
@@ -2324,11 +2324,10 @@ static INLINE int get_coeff_cost_fsc(int is_first, int pos, tran_low_t abs_qc,
   return cost;
 }
 
-static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
-                                     int coeff_ctx, int dc_sign_ctx,
-                                     const LV_MAP_COEFF_COST *txb_costs,
-                                     int bwl, TX_CLASS tx_class,
-                                     int32_t *tmp_sign, int plane) {
+static AVM_FORCE_INLINE int get_coeff_cost_eob(
+    int ci, tran_low_t abs_qc, int sign, int coeff_ctx, int dc_sign_ctx,
+    const LV_MAP_COEFF_COST *txb_costs, int bwl, TX_CLASS tx_class,
+    int32_t *tmp_sign, int plane) {
   int cost = 0;
   const int row = ci >> bwl;
   const int col = ci - (row << bwl);
@@ -2393,7 +2392,7 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
   return cost;
 }
 
-static INLINE int get_coeff_cost_general(
+static AVM_FORCE_INLINE int get_coeff_cost_general(
     int is_last, int ci, tran_low_t abs_qc, int sign, int coeff_ctx,
     int dc_sign_ctx, const LV_MAP_COEFF_COST *txb_costs, int bwl,
     TX_CLASS tx_class, const uint8_t *levels, int32_t *tmp_sign, int plane,
@@ -3574,9 +3573,11 @@ int av2_optimize_txb_new(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
       !xd->lossless[xd->mi[0]->segment_id] && plane == PLANE_TYPE_Y &&
       ph_allowed_tx_types[tx_type.primary_tx] && (eob > PHTHRESH);
   coeff_info *coef_info = x->coef_info;
-  for (int scan_idx = 0; scan_idx < eob; scan_idx++) {
-    coef_info[scan_idx].tunable = false;
-    coef_info[scan_idx].upround = false;
+  if (enable_parity_hiding) {
+    for (int scan_idx = 0; scan_idx < eob; scan_idx++) {
+      coef_info[scan_idx].tunable = false;
+      coef_info[scan_idx].upround = false;
+    }
   }
 
   const int rshift =

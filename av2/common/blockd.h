@@ -2960,32 +2960,29 @@ get_txtype_from_idx_for_large_txfm(TX_SIZE tx_size, const TxSetType tx_set_type,
 static INLINE int block_signals_sec_tx_type(
     const MACROBLOCKD *xd, TX_SIZE tx_size,
     const PRIMARY_TX_TYPE primary_tx_type, int eob) {
-  if (is_inter_block(xd->mi[0], xd->tree_type) ? (eob <= 3) : (eob <= 1))
-    return 0;
+  // Only DCT_DCT and ADST_ADST blocks can code a secondary transform; check
+  // that first, as most primary transform types fail it.
+  if (primary_tx_type != DCT_DCT && primary_tx_type != ADST_ADST) return 0;
   const MB_MODE_INFO *mbmi = xd->mi[0];
-  PREDICTION_MODE intra_dir = get_intra_mode(mbmi, AVM_PLANE_Y);
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
+  // Mode dependent condition.
+  if (is_inter) {
+    if (primary_tx_type != DCT_DCT || width < 16 || height < 16 || eob <= 3)
+      return 0;
+  } else if (get_intra_mode(mbmi, AVM_PLANE_Y) >= PAETH_PRED || eob <= 1) {
+    return 0;
+  }
+  // Updated EOB condition
   const int st_size_class =
       (width == 8 && height == 8 && primary_tx_type == DCT_DCT) ? 1
       : (width >= 8 && height >= 8) ? (primary_tx_type == DCT_DCT ? 2 : 3)
                                     : 0;
-  bool ist_eob = 1;
-  // Updated EOB condition
-  if (((st_size_class == 0) && (eob > IST_4x4_HEIGHT)) ||
-      ((st_size_class == 1) && (eob > IST_8x8_HEIGHT_RED)) ||
-      ((st_size_class == 2) && (eob > IST_8x8_HEIGHT)) ||
-      ((st_size_class == 3) && (eob > IST_ADST_NZ_CNT))) {
-    ist_eob = 0;
-  }
-  bool condition = (primary_tx_type == DCT_DCT && width >= 16 && height >= 16);
-  bool mode_dependent_condition =
-      (is_inter_block(mbmi, xd->tree_type) ? condition
-                                           : intra_dir < PAETH_PRED);
-  const int code_stx =
-      (primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST) &&
-      mode_dependent_condition && ist_eob;
-  return code_stx;
+  if (st_size_class == 0) return eob <= IST_4x4_HEIGHT;
+  if (st_size_class == 1) return eob <= IST_8x8_HEIGHT_RED;
+  if (st_size_class == 2) return eob <= IST_8x8_HEIGHT;
+  return eob <= IST_ADST_NZ_CNT;
 }
 
 static INLINE void adjust_ext_tx_used_flag(TX_SIZE tx_size,
@@ -3127,18 +3124,14 @@ void av2_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
                             const int num_planes);
 
 static INLINE TX_SIZE av2_get_adjusted_tx_size(TX_SIZE tx_size) {
-  switch (tx_size) {
-    case TX_64X64:
-    case TX_64X32:
-    case TX_32X64: return TX_32X32;
-    case TX_64X16: return TX_32X16;
-    case TX_16X64: return TX_16X32;
-    case TX_64X8: return TX_32X8;
-    case TX_8X64: return TX_8X32;
-    case TX_64X4: return TX_32X4;
-    case TX_4X64: return TX_4X32;
-    default: return tx_size;
-  }
+  static const TX_SIZE adjusted_tx_size[TX_SIZES_ALL] = {
+    TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_32X32, TX_4X8,   TX_8X4,
+    TX_8X16, TX_16X8, TX_16X32, TX_32X16, TX_32X32, TX_32X32, TX_4X16,
+    TX_16X4, TX_8X32, TX_32X8,  TX_16X32, TX_32X16, TX_4X32,  TX_32X4,
+    TX_8X32, TX_32X8, TX_4X32,  TX_32X4,
+  };
+  assert(tx_size < TX_SIZES_ALL);
+  return adjusted_tx_size[tx_size];
 }
 
 static INLINE TX_SIZE get_lossless_tx_size(const MACROBLOCKD *xd,
@@ -3423,19 +3416,11 @@ static INLINE PLANE_TYPE get_plane_type(int plane) {
 }
 
 static INLINE int av2_get_max_eob(TX_SIZE tx_size) {
-  if (tx_size == TX_64X64 || tx_size == TX_64X32 || tx_size == TX_32X64) {
-    return 1024;
-  }
-  if (tx_size == TX_16X64 || tx_size == TX_64X16) {
-    return 512;
-  }
-  if (tx_size == TX_8X64 || tx_size == TX_64X8) {
-    return 256;
-  }
-  if (tx_size == TX_4X64 || tx_size == TX_64X4) {
-    return 128;
-  }
-  return tx_size_2d[tx_size];
+  static const int16_t max_eob[TX_SIZES_ALL + 1] = {
+    16, 64, 256, 1024, 1024, 32,  32,  128, 128, 512, 512, 1024, 1024,
+    64, 64, 256, 256,  512,  512, 128, 128, 256, 256, 128, 128,  0,
+  };
+  return max_eob[tx_size];
 }
 
 static AVM_INLINE PARTITION_TREE *get_partition_subtree_const(
