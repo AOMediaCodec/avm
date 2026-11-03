@@ -2033,7 +2033,9 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     sf->rd_sf.tx_domain_dist_level = 2;
     sf->rd_sf.tx_domain_dist_thres_level = 1;
 
-    sf->lpf_sf.early_terminate_ccso_search_by_cost = 1;
+    sf->lpf_sf.ccso_terminate_search_luma_pass_count = 10;
+    sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 20;
+    sf->lpf_sf.ccso_eo_band_mask = 9;
 
     // The predict_dc level is { 2, 2, 0 } for high qindex frames.
     const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
@@ -2121,7 +2123,8 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.gdf_prune_qp_cands = 1;
-    sf->lpf_sf.ccso_max_band_candidates = 32;
+    sf->lpf_sf.ccso_terminate_search_luma_pass_count = 4;
+    sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 8;
     sf->lpf_sf.ccso_reuse_bo_class_stats = 1;
     if (min_side <= 360) sf->lpf_sf.reduce_lr_unit_size_by_pyr_drop_low = 0;
   } else if (speed == 4) {
