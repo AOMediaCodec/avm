@@ -3455,9 +3455,7 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
       }
     }
     av2_ccso_search(cpi, ext_rec_y, cpi->ccso_rec_uv, cpi->ccso_org_uv,
-                    cpi->error_resilient_frame_seen,
-                    cpi->sf.lpf_sf.early_terminate_ccso_search_by_cost,
-                    cpi->sf.lpf_sf.ccso_chroma_dep);
+                    cpi->error_resilient_frame_seen);
     if (ccso_num_workers > 1 &&
         !cm->seq_params.disable_loopfilters_across_tiles)
       av2_ccso_frame_mt(&cm->cur_frame->buf, cm, xd, mt_info->workers,

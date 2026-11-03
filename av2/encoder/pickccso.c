@@ -22,6 +22,7 @@
 #include "avm/avm_integer.h"
 #include "avm_ports/system_state.h"
 #include "av2/common/av2_common_int.h"
+#include "av2/common/quant_common.h"
 #include "av2/common/reconinter.h"
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/ethread.h"
@@ -32,6 +33,74 @@
 
 const int ccso_offset[8] = { -10, -7, -3, -1, 0, 1, 3, 7 };
 const int ccso_scale[4] = { 1, 2, 3, 4 };
+
+#define CCSO_RANKED_PARAM_SIZE 221
+#define CCSO_RANKED_PARAM_SETS 3
+// The ccso search parameters in the descending order of importance (greedy
+// ranking of the marginal gain per iteration, never-winning passes last).
+// Built based on empirical stats. An entry is stored in 9 bits:
+//   bit 8: bo_only, bits 7-6: scale_idx, bits 5-3: ext_filter_support,
+//   bits 2-1: quant_idx, bit 0: edge_clf
+static const uint16_t
+    ccso_ranked_params_lut[CCSO_RANKED_PARAM_SETS][CCSO_RANKED_PARAM_SIZE] = {
+      // base_qindex < 135
+      {
+          24,  32,  12,  4,   2,   144, 50,  256, 52,  20,  28,  10,  42,  68,
+          34,  0,   14,  44,  8,   152, 18,  36,  48,  208, 74,  54,  40,  26,
+          6,   66,  16,  132, 96,  320, 76,  84,  216, 108, 92,  224, 22,  43,
+          192, 106, 146, 112, 90,  64,  448, 49,  82,  140, 138, 1,   160, 154,
+          72,  41,  102, 86,  30,  3,   38,  114, 13,  35,  11,  110, 70,  78,
+          130, 88,  98,  51,  100, 37,  19,  46,  162, 80,  198, 176, 240, 5,
+          27,  33,  128, 9,   118, 25,  45,  94,  136, 156, 104, 204, 202, 21,
+          384, 17,  29,  168, 193, 53,  148, 170, 116, 222, 71,  200, 178, 194,
+          206, 134, 111, 67,  234, 225, 65,  207, 97,  107, 158, 195, 172, 179,
+          131, 210, 142, 73,  69,  163, 232, 89,  79,  99,  95,  147, 150, 227,
+          103, 119, 157, 139, 243, 238, 117, 164, 205, 85,  153, 196, 247, 182,
+          115, 211, 242, 212, 166, 218, 159, 237, 105, 219, 83,  77,  180, 135,
+          239, 165, 75,  129, 183, 181, 93,  109, 171, 245, 81,  87,  113, 177,
+          143, 220, 149, 174, 101, 215, 223, 91,  133, 137, 141, 145, 151, 155,
+          161, 167, 169, 173, 175, 197, 199, 201, 203, 209, 213, 214, 217, 221,
+          226, 228, 229, 230, 231, 233, 235, 236, 241, 244, 246,
+      },
+      // 135 <= base_qindex < 185
+      {
+          32,  90,  2,   256, 98,  128, 34,  74,  24,  170, 52,  0,   42,  320,
+          82,  10,  12,  36,  192, 18,  178, 14,  44,  131, 28,  130, 160, 138,
+          48,  448, 106, 35,  26,  66,  384, 152, 6,   162, 40,  210, 20,  8,
+          50,  100, 144, 16,  114, 3,   104, 146, 4,   136, 154, 84,  68,  1,
+          51,  54,  92,  161, 43,  168, 22,  228, 224, 176, 129, 96,  99,  216,
+          155, 132, 46,  72,  38,  78,  234, 208, 64,  244, 153, 226, 19,  108,
+          232, 41,  80,  156, 179, 112, 147, 119, 11,  5,   164, 169, 140, 21,
+          49,  88,  30,  9,   225, 97,  45,  27,  33,  29,  137, 177, 17,  194,
+          240, 148, 89,  116, 202, 76,  117, 53,  139, 209, 200, 173, 103, 37,
+          111, 214, 149, 101, 109, 163, 86,  25,  204, 83,  13,  107, 77,  242,
+          70,  172, 81,  110, 245, 233, 65,  118, 165, 236, 171, 75,  212, 145,
+          235, 67,  229, 157, 230, 196, 201, 220, 91,  158, 180, 133, 218, 102,
+          246, 237, 73,  134, 174, 150, 94,  113, 115, 243, 69,  166, 181, 87,
+          195, 93,  241, 231, 105, 71,  217, 203, 85,  141, 79,  95,  135, 142,
+          143, 151, 159, 167, 175, 182, 183, 193, 197, 198, 199, 205, 206, 207,
+          211, 213, 215, 219, 221, 222, 223, 227, 238, 239, 247,
+      },
+      // base_qindex >= 185
+      {
+          162, 256, 130, 448, 154, 34,  320, 178, 2,   160, 42,  384, 170, 147,
+          128, 18,  138, 24,  131, 146, 152, 27,  40,  224, 19,  0,   144, 179,
+          32,  3,   168, 176, 225, 161, 16,  50,  22,  35,  74,  6,   98,  192,
+          10,  155, 43,  108, 163, 66,  99,  51,  26,  106, 200, 114, 30,  48,
+          82,  83,  112, 171, 44,  208, 54,  240, 1,   90,  11,  226, 36,  136,
+          14,  216, 139, 243, 20,  28,  64,  148, 109, 96,  33,  38,  145, 46,
+          76,  137, 52,  193, 104, 91,  9,   129, 4,   196, 77,  88,  41,  195,
+          236, 107, 84,  25,  78,  235, 5,   49,  72,  201, 242, 232, 8,   37,
+          13,  228, 68,  17,  153, 67,  53,  241, 12,  177, 89,  181, 100, 211,
+          73,  85,  209, 75,  45,  80,  164, 116, 92,  21,  233, 132, 69,  169,
+          210, 97,  115, 81,  65,  141, 111, 119, 180, 70,  93,  29,  156, 173,
+          149, 194, 203, 157, 234, 165, 174, 117, 227, 101, 205, 218, 229, 79,
+          71,  86,  87,  94,  95,  102, 103, 105, 110, 113, 118, 133, 134, 135,
+          140, 142, 143, 150, 151, 158, 159, 166, 167, 172, 175, 182, 183, 197,
+          198, 199, 202, 204, 206, 207, 212, 213, 214, 215, 217, 219, 220, 221,
+          222, 223, 230, 231, 237, 238, 239, 244, 245, 246, 247,
+      },
+    };
 
 static INLINE bool reuse_ccso_class_info(const AV2_COMMON *cm) {
   return !cm->bru.enabled;
@@ -1669,12 +1738,15 @@ static AVM_INLINE void search_reuse_ccso_idx(AV2_COMMON *cm, CcsoCtx *ctx,
 // Evaluates every max_band_log2 value for the current
 // (scale_idx, so mode, filter_support, quant_idx, edge_clf) candidate,
 // updates ctx->final whenever a new frame-wide best is found.
-static AVM_INLINE bool search_max_band_log2(AV2_COMMON *cm, CcsoCtx *ctx,
+static AVM_INLINE void search_max_band_log2(AV2_COMMON *cm, CcsoCtx *ctx,
                                             MACROBLOCKD *xd) {
   CcsoCtxCommon *s = &ctx->ccso_cm;
 
   for (int max_band_log2 = 0; max_band_log2 < ctx->num_band_iter;
        max_band_log2++) {
+    if (!ctx->ccso_bo_only && !((s->eo_band_mask >> max_band_log2) & 1)) {
+      continue;
+    }
     ctx->max_band_log2 = max_band_log2;
     ctx->shift_bits = cm->seq_params.bit_depth - max_band_log2;
     if (ctx->ccso_bo_only) {
@@ -1710,58 +1782,94 @@ static AVM_INLINE bool search_max_band_log2(AV2_COMMON *cm, CcsoCtx *ctx,
       av2_copy_array(ctx->final_filter_control, ctx->best_filter_control,
                      s->sb_count);
     }
-    if (s->early_terminate_ccso_search &&
-        ctx->final.filtered_cost != UINT64_MAX &&
-        1.001 * ctx->final.filtered_cost > ctx->last_best_cost) {
-      return true;
-    }
-    if (s->max_band_candidates &&
-        ++ctx->num_band_candidates >= s->max_band_candidates) {
-      return true;
-    }
   }
-  return false;
 }
 
-// Evaluates edge_clf0 and edge_clf1 for the current (scale_idx, so mode,
-// filter, qstep) candidate.
-static AVM_INLINE bool search_edge_clf(AV2_COMMON *cm, CcsoCtx *ctx,
+// For a given [plane, scale_idx, so mode, eo switchable filter type, qstep,
+// edge classifier], this function performs rdo search across max bands,
+// reference's ccso filter offsets / new filter offsets and selects params with
+// best rdo.
+static AVM_INLINE void search_edge_clf(AV2_COMMON *cm, CcsoCtx *ctx,
                                        MACROBLOCKD *xd) {
-  const int num_edge_clf_iter = ctx->ccso_bo_only ? 1 : 2;
   const int total_band_log2_plus1 = ctx->ccso_bo_only ? 7 : 4;
   const int total_band_log2 = total_band_log2_plus1 - 1;
 
   ctx->num_band_iter = total_band_log2_plus1;
-  for (int edge_clf = 0; edge_clf < num_edge_clf_iter; edge_clf++) {
-    ctx->edge_clf = edge_clf;
-    ctx->max_edge_interval = edge_clf_to_edge_interval[edge_clf];
-    ctx->last_best_cost = ctx->final.filtered_cost;
+  ctx->max_edge_interval = edge_clf_to_edge_interval[ctx->edge_clf];
 
-    if (quant_sz[ctx->scale_idx][ctx->quant_idx] == 0 && edge_clf == 1) {
-      continue;
-    }
-    if (!ctx->ccso_bo_only) {
-      ccso_run_rows(cm, ctx, xd, CCSO_JOB_SRC_INFO, 0, NULL, NULL, NULL);
-
-      // compute the total_class_err for minimum shift_bits possible before the
-      // below loop starts, later use the same in the ccso_pre_compute_class_err
-      // calls.
-      ctx->init_shift_bits = cm->seq_params.bit_depth - total_band_log2;
-      ctx->shift_bits = ctx->init_shift_bits;
-      ccso_pre_compute_class_err(cm, ctx, xd);
-    }
-
-    if (search_max_band_log2(cm, ctx, xd)) return true;
+  if (quant_sz[ctx->scale_idx][ctx->quant_idx] == 0 && ctx->edge_clf == 1) {
+    return;
   }
-  return false;
+  if (!ctx->ccso_bo_only) {
+    ccso_run_rows(cm, ctx, xd, CCSO_JOB_SRC_INFO, 0, NULL, NULL, NULL);
+
+    // compute the total_class_err for minimum shift_bits possible before the
+    // below loop starts, later use the same in the ccso_pre_compute_class_err
+    // calls.
+    ctx->init_shift_bits = cm->seq_params.bit_depth - total_band_log2;
+    ctx->shift_bits = ctx->init_shift_bits;
+    ccso_pre_compute_class_err(cm, ctx, xd);
+  }
+
+  search_max_band_log2(cm, ctx, xd);
 }
 
-// For a given [plane, scale_idx, so mode, eo switchable filter type, qstep],
-// this function performs rdo search across all eo classifier types, max bands,
-// reference's ccso filter offsets / new filter offsets and selects params with
-// best rdo.
-bool av2_ccso_param_search(AV2_COMMON *cm, CcsoCtx *ctx, MACROBLOCKD *xd) {
-  return search_edge_clf(cm, ctx, xd);
+typedef struct {
+  uint8_t bo_only;
+  uint8_t scale_idx;
+  uint8_t ext_filter_support;
+  uint8_t quant_idx;
+  uint8_t edge_clf;
+} CcsoSearchJobInfo;
+
+static AVM_INLINE CcsoSearchJobInfo ccso_param_unpack(uint16_t job) {
+  CcsoSearchJobInfo entry;
+  entry.bo_only = (job >> 8) & 1;
+  entry.scale_idx = (job >> 6) & 3;
+  entry.ext_filter_support = (job >> 3) & 7;
+  entry.quant_idx = (job >> 1) & 3;
+  entry.edge_clf = job & 1;
+  return entry;
+}
+
+static int ccso_get_ranked_param_set(const AV2_COMMON *cm) {
+  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+  const int qindex = cm->quant_params.base_qindex;
+  if (qindex < 135 + qindex_offset) return 0;
+  if (qindex < 185 + qindex_offset) return 1;
+  return 2;
+}
+
+// Searches the ranked parameter table in order. If bail_passes is nonzero, the
+// search stops once that many consecutive passes fail to lower the best rd cost
+// by at least 0.01% of the unfiltered cost. A bail_passes of 0 searches every
+// pass.
+static void ccso_param_search(AV2_COMMON *cm, CcsoCtx *ctx, MACROBLOCKD *xd,
+                              uint64_t best_unfiltered_cost, int bail_passes) {
+  const uint16_t *lut = ccso_ranked_params_lut[ccso_get_ranked_param_set(cm)];
+  const uint64_t min_gain = AVMMAX(best_unfiltered_cost / 10000, 1);  // 0.01%
+  uint64_t prev_cost = best_unfiltered_cost;
+  int no_improve_count = 0;
+
+  for (int i = 0; i < CCSO_RANKED_PARAM_SIZE; ++i) {
+    const CcsoSearchJobInfo entry = ccso_param_unpack(lut[i]);
+    ctx->scale_idx = entry.scale_idx;
+    ctx->ccso_bo_only = entry.bo_only;
+    ctx->ext_filter_support = entry.ext_filter_support;
+    ctx->quant_idx = entry.quant_idx;
+    ctx->edge_clf = entry.edge_clf;
+    search_edge_clf(cm, ctx, xd);
+    if (bail_passes) {
+      const uint64_t cost =
+          AVMMIN(ctx->final.filtered_cost, best_unfiltered_cost);
+      if (cost + min_gain <= prev_cost) {
+        prev_cost = cost;
+        no_improve_count = 0;
+      } else if (++no_improve_count >= bail_passes) {
+        break;
+      }
+    }
+  }
 }
 
 // Writes val into the MB_MODE_INFO field that stores CCSO's per-block
@@ -1926,8 +2034,7 @@ static void derive_ccso_filter(AV2_COMP *cpi, const int plane,
                                const uint16_t *org_uv,
                                const uint16_t *ext_rec_y,
                                const uint16_t *rec_uv, int rdmult,
-                               bool error_resilient_frame_seen,
-                               int early_terminate_ccso_search) {
+                               bool error_resilient_frame_seen) {
   AV2_COMMON *const cm = &cpi->common;
   ThreadData *td = &cpi->td;
   MACROBLOCKD *const xd = &td->mb.e_mbd;
@@ -1948,10 +2055,6 @@ static void derive_ccso_filter(AV2_COMP *cpi, const int plane,
       ((mi_params->mi_cols >> ss_x) + (1 << log2_filter_unit_size_x >> 2) - 1) /
       (1 << log2_filter_unit_size_x >> 2);
   const int sb_count = ccso_nvfb * ccso_nhfb;
-
-  const int total_scale_idx = 4;
-  const int total_filter_support = 7;
-  const int total_quant_idx = 4;
 
   uint8_t frame_bits = 1;  // ccso_planes[ plane ]
   frame_bits += 1;         // ccso_bo_only[ plane ]
@@ -2021,9 +2124,10 @@ static void derive_ccso_filter(AV2_COMP *cpi, const int plane,
   ccso_cm->frame_bits_bo_only = frame_bits_bo_only;
   ccso_cm->check_ccso = check_ccso;
   ccso_cm->num_ref_frames = num_ref_frames;
-  ccso_cm->early_terminate_ccso_search = early_terminate_ccso_search;
-  ccso_cm->max_band_candidates = cpi->sf.lpf_sf.ccso_max_band_candidates;
   ccso_cm->reuse_bo_class_stats = cpi->sf.lpf_sf.ccso_reuse_bo_class_stats;
+  // At least one of the four edge offset band counts must be searched.
+  assert(cpi->sf.lpf_sf.ccso_eo_band_mask & 0xF);
+  ccso_cm->eo_band_mask = cpi->sf.lpf_sf.ccso_eo_band_mask;
 
   ctx->final.filtered_cost = UINT64_MAX;
   ctx->final.ref_idx = -1;
@@ -2039,29 +2143,11 @@ static void derive_ccso_filter(AV2_COMP *cpi, const int plane,
       RDCOST(rdmult, av2_cost_literal(1), unfiltered_dist_frame * 16),
       cpi->sf.lc_sf.skip_plane_ccso);
 
-  for (uint8_t scale_idx = 0; scale_idx < total_scale_idx; ++scale_idx) {
-    for (uint8_t search_idx = 0; search_idx < 2; search_idx++) {
-      // A BO-only candidate is cheaper and covers a different part of the
-      // search space. Under early termination, evaluate it first so the full
-      // filter search starts with a finite RD bound. Keep the original order
-      // for exhaustive search, where ordering should not affect the result.
-      const uint8_t ccso_bo_only =
-          early_terminate_ccso_search ? 1 - search_idx : search_idx;
-      const int num_filter_iter = ccso_bo_only ? 1 : total_filter_support;
-      for (uint8_t ext_filter_support = 0; ext_filter_support < num_filter_iter;
-           ++ext_filter_support) {
-        const uint8_t num_quant_iter = ccso_bo_only ? 1 : total_quant_idx;
-        for (uint8_t quant_idx = 0; quant_idx < num_quant_iter; ++quant_idx) {
-          ctx->scale_idx = scale_idx;
-          ctx->ccso_bo_only = ccso_bo_only;
-          ctx->ext_filter_support = ext_filter_support;
-          ctx->quant_idx = quant_idx;
-          if (av2_ccso_param_search(cm, ctx, xd)) goto exit_loops;
-        }
-      }
-    }
-  }
-exit_loops:
+  ccso_param_search(
+      cm, ctx, xd, best_unfiltered_cost,
+      plane == AVM_PLANE_Y
+          ? cpi->sf.lpf_sf.ccso_terminate_search_luma_pass_count
+          : cpi->sf.lpf_sf.ccso_terminate_search_chroma_pass_count);
 
   finalize_ccso_plane(cm, ctx, td,
                       best_unfiltered_cost < ctx->final.filtered_cost);
@@ -2071,8 +2157,7 @@ exit_loops:
 void av2_ccso_search(struct AV2_COMP *cpi, const uint16_t *ext_rec_y,
                      uint16_t *rec_uv[MAX_MB_PLANE],
                      uint16_t *org_uv[MAX_MB_PLANE],
-                     bool error_resilient_frame_seen,
-                     int early_terminate_ccso_search, int ccso_chroma_dep) {
+                     bool error_resilient_frame_seen) {
   AV2_COMMON *const cm = &cpi->common;
   ThreadData *td = &cpi->td;
   MACROBLOCKD *const xd = &td->mb.e_mbd;
@@ -2092,14 +2177,9 @@ void av2_ccso_search(struct AV2_COMP *cpi, const uint16_t *ext_rec_y,
     av2_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                          NULL);
     for (int plane = num_planes - 1; plane >= AVM_PLANE_Y; --plane) {
-      if (plane == AVM_PLANE_Y && ccso_chroma_dep && num_planes > 1 &&
-          !cm->ccso_info.ccso_frame_flag) {
-        break;
-      }
       int rdmult_plane = (plane == AVM_PLANE_Y) ? rdmult : ((rdmult * 7) >> 3);
       derive_ccso_filter(cpi, plane, org_uv[plane], ext_rec_y, rec_uv[plane],
-                         rdmult_plane, error_resilient_frame_seen,
-                         early_terminate_ccso_search);
+                         rdmult_plane, error_resilient_frame_seen);
       cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[plane];
     }
   }
