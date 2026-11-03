@@ -4185,18 +4185,6 @@ static INLINE void av2_zero_left_context(MACROBLOCKD *const xd) {
   av2_zero(xd->left_partition_context);
 }
 
-// Disable array-bounds checks as the TX_SIZE enum contains values larger than
-// TX_SIZES_ALL (TX_INVALID) which make extending the array as a workaround
-// infeasible. The assert is enough for static analysis and this or other tools
-// asan, valgrind would catch oob access at runtime.
-#if defined(__GNUC__) && __GNUC__ >= 4
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#endif
-
-#if defined(__GNUC__) && __GNUC__ >= 4
-#pragma GCC diagnostic warning "-Warray-bounds"
-#endif
-
 static INLINE int get_mi_grid_idx(const CommonModeInfoParams *const mi_params,
                                   int mi_row, int mi_col) {
   return mi_row * mi_params->mi_stride + mi_col;
