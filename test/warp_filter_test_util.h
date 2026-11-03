@@ -13,6 +13,7 @@
 #ifndef AVM_TEST_WARP_FILTER_TEST_UTIL_H_
 #define AVM_TEST_WARP_FILTER_TEST_UTIL_H_
 
+#include <string>
 #include <tuple>
 
 #include "config/av2_rtcd.h"
@@ -101,6 +102,34 @@ class AV2HighbdWarpFilterTest
   void RunCheckOutput(highbd_warp_affine_func test_impl);
   void RunSpeedTest(highbd_warp_affine_func test_impl);
   void RunBoundaryCheck(highbd_warp_affine_func test_impl, int mode);
+
+  libavm_test::ACMRandom rnd_;
+};
+
+// (baseline, test), timed on identical inputs
+typedef std::tuple<highbd_warp_affine_func, highbd_warp_affine_func>
+    HighbdWarpImplPair;
+// (impls, (w, h), store mode, nonzero mask alpha<<3|beta<<2|gamma<<1|delta)
+typedef std::tuple<HighbdWarpImplPair, std::tuple<int, int>, int, int>
+    HighbdWarpSpeedCompareParams;
+
+::testing::internal::ParamGenerator<HighbdWarpSpeedCompareParams>
+BuildSpeedCompareParams(highbd_warp_affine_func baseline,
+                        highbd_warp_affine_func test);
+
+std::string SpeedCompareParamName(
+    const ::testing::TestParamInfo<HighbdWarpSpeedCompareParams> &info);
+
+class AV2HighbdWarpSpeedCompareTest
+    : public ::testing::TestWithParam<HighbdWarpSpeedCompareParams> {
+ public:
+  virtual ~AV2HighbdWarpSpeedCompareTest();
+  virtual void SetUp();
+  virtual void TearDown();
+  static void TearDownTestSuite();
+
+ protected:
+  void RunSpeedCompare();
 
   libavm_test::ACMRandom rnd_;
 };
