@@ -1384,9 +1384,6 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // enable deblock for block partition search
   int enable_deblock_for_partition_search;
 
-  // early terminate ccso search by cost threshold
-  int early_terminate_ccso_search_by_cost;
-
   // If set, trim the RU-size candidate set by pyramid_level in
   // av2_pick_filter_restoration() (see pickrst.c). Default 0 = full search.
   int reduce_lr_unit_size_by_pyr;
@@ -1422,9 +1419,6 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // LR unit size is dropped from the search.
   int reduce_lr_unit_size_drop_high_level;
 
-  // bypass ccso luma plane check
-  int ccso_chroma_dep;
-
   // Switches for the multithreaded CDEF and CCSO encoder stages. They exist
   // only to A/B test each multithreaded path against its single-threaded path
   // while the encoder baseline is still changing, because the fixed cost of
@@ -1447,11 +1441,6 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // highest-index candidates; 2: search only the highest-index candidate.
   int gdf_prune_qp_cands;
 
-  // If nonzero, the CCSO search of a plane stops after this many
-  // (filter candidate, max_band_log2) evaluations and keeps the best found.
-  // 0 means no limit.
-  int ccso_max_band_candidates;
-
   // If set, the CCSO band-offset-only search gathers its per-block class
   // statistics once per plane at the finest band count and derives every
   // coarser band count by summing adjacent bins, instead of one pixel pass per
@@ -1465,6 +1454,16 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // If set, the GDF search and filter run on several threads. Turned off when
   // there is only one thread or when BRU is enabled.
   int enable_gdf_mt;
+
+  // Terminate ranked order ccso param search if 'n' consecutive passes did not
+  // improve rdcost. If count is 0, then search defaults to exhaustive.
+  int ccso_terminate_search_luma_pass_count;
+  int ccso_terminate_search_chroma_pass_count;
+
+  // Bit mask of the edge offset max_band_log2 values that the CCSO search
+  // evaluates for every edge offset pass. The band offset passes are not
+  // affected.
+  int ccso_eo_band_mask;
 } LOOP_FILTER_SPEED_FEATURES;
 
 typedef struct REALTIME_SPEED_FEATURES {
