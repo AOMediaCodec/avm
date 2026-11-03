@@ -15,41 +15,7 @@
 
 #include "avm_dsp/x86/convolve_sse4_1.h"
 #include "av2/common/warped_motion.h"
-
-DECLARE_ALIGNED(32, static const uint8_t, warp_highbd_shuffle_pattern[32]) = {
-  0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15,
-  0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15
-};
-
-DECLARE_ALIGNED(32, static const uint8_t, warp_highbd_arrange_bytes[32]) = {
-  0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15,
-  0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15
-};
-
-DECLARE_ALIGNED(32, static const uint8_t, shuffle_input_mask[32]) = {
-  0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15,
-  0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15
-};
-
-DECLARE_ALIGNED(32, static const uint8_t, shuffle_alpha0_gamma0_mask0[32]) = {
-  0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3,
-  0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3
-};
-
-DECLARE_ALIGNED(32, static const uint8_t, shuffle_alpha0_gamma0_mask1[32]) = {
-  4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7,
-  4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7
-};
-
-DECLARE_ALIGNED(32, static const uint8_t, shuffle_alpha0_gamma0_mask2[32]) = {
-  8, 9, 10, 11, 8, 9, 10, 11, 8, 9, 10, 11, 8, 9, 10, 11,
-  8, 9, 10, 11, 8, 9, 10, 11, 8, 9, 10, 11, 8, 9, 10, 11
-};
-
-DECLARE_ALIGNED(32, static const uint8_t, shuffle_alpha0_gamma0_mask3[32]) = {
-  12, 13, 14, 15, 12, 13, 14, 15, 12, 13, 14, 15, 12, 13, 14, 15,
-  12, 13, 14, 15, 12, 13, 14, 15, 12, 13, 14, 15, 12, 13, 14, 15
-};
+#include "av2/common/x86/highbd_warp_affine_x86.h"
 
 static INLINE void prepare_8tap_filter_coeffs_alpha0_gamma0_avx2(
     int32_t s, __m256i *coeffs) {
@@ -129,14 +95,13 @@ static INLINE void load_horiz_src_pixels_avx2(const uint16_t *ref, __m256i *r) {
   r[1] = _mm256_loadu_si256((__m256i *)(ref + 1));
 }
 
-static INLINE void prepare_8tap_horiz_src_padded_avx2(const uint16_t *ref,
-                                                      int out_of_boundary_left,
-                                                      int out_of_boundary_right,
-                                                      __m256i *src_padded) {
+static INLINE void prepare_8tap_horiz_src_padded_avx2(
+    const uint16_t *ref, int out_of_boundary_left, int out_of_boundary_right,
+    __m256i *src_padded, const __m256i v_arrange,
+    const __m256i v_shuf_pattern) {
   const __m256i src_0 = _mm256_loadu_si256((__m256i *)ref);
 
-  const __m256i src_01 = _mm256_shuffle_epi8(
-      src_0, _mm256_loadu_si256((__m256i *)warp_highbd_arrange_bytes));
+  const __m256i src_01 = _mm256_shuffle_epi8(src_0, v_arrange);
   __m256i src_reg = _mm256_permute4x64_epi64(src_01, 0xD8);
 
   if (out_of_boundary_left >= 0) {
@@ -154,9 +119,8 @@ static INLINE void prepare_8tap_horiz_src_padded_avx2(const uint16_t *ref,
     src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_right);
   }
 
-  src_padded[0] = _mm256_shuffle_epi8(
-      _mm256_permute4x64_epi64(src_reg, 0xD8),
-      _mm256_loadu_si256((__m256i *)warp_highbd_shuffle_pattern));
+  src_padded[0] = _mm256_shuffle_epi8(_mm256_permute4x64_epi64(src_reg, 0xD8),
+                                      v_shuf_pattern);
   __m256i src_padded_hi = _mm256_permute4x64_epi64(src_padded[0], 0xEE);
   src_padded[1] = _mm256_alignr_epi8(src_padded_hi, src_padded[0], 2);
 }
@@ -187,14 +151,17 @@ static INLINE void filter_src_pixels_horiz_avx2(const __m256i *in,
   const __m256i res_2 = _mm256_madd_epi16(in[2], coeffs[2]);
   const __m256i res_3 = _mm256_madd_epi16(in[3], coeffs[3]);
 
-  const __m256i res_4 = _mm256_add_epi32(
-      res_0, _mm256_add_epi32(_mm256_add_epi32(res_2, res_3), res_1));
+  // balanced add tree
+  const __m256i res_01 = _mm256_add_epi32(res_0, res_1);
+  const __m256i res_23 = _mm256_add_epi32(res_2, res_3);
+  const __m256i res_4 = _mm256_add_epi32(res_01, res_23);
   const __m256i res = _mm256_add_epi32(res_4, *offset);
   *out = _mm256_srai_epi32(res, shift);
 }
 
 static INLINE void prepare_8tap_vert_src_avx2(const __m256i *input,
-                                              __m256i *src) {
+                                              __m256i *src,
+                                              const __m256i v_input_mask) {
   __m256i input_01 = _mm256_packus_epi32(input[0], input[1]);
   __m256i input_23 = _mm256_packus_epi32(input[2], input[3]);
   __m256i input_45 = _mm256_packus_epi32(input[4], input[5]);
@@ -203,30 +170,23 @@ static INLINE void prepare_8tap_vert_src_avx2(const __m256i *input,
   __m256i input_34 = _mm256_packus_epi32(input[3], input[4]);
   __m256i input_56 = _mm256_packus_epi32(input[5], input[6]);
 
-  src[0] = _mm256_shuffle_epi8(
-      input_01, _mm256_load_si256((__m256i *)shuffle_input_mask));
-  src[1] = _mm256_shuffle_epi8(
-      input_23, _mm256_load_si256((__m256i *)shuffle_input_mask));
-  src[2] = _mm256_shuffle_epi8(
-      input_45, _mm256_load_si256((__m256i *)shuffle_input_mask));
-  src[4] = _mm256_shuffle_epi8(
-      input_12, _mm256_load_si256((__m256i *)shuffle_input_mask));
-  src[5] = _mm256_shuffle_epi8(
-      input_34, _mm256_load_si256((__m256i *)shuffle_input_mask));
-  src[6] = _mm256_shuffle_epi8(
-      input_56, _mm256_load_si256((__m256i *)shuffle_input_mask));
+  src[0] = _mm256_shuffle_epi8(input_01, v_input_mask);
+  src[1] = _mm256_shuffle_epi8(input_23, v_input_mask);
+  src[2] = _mm256_shuffle_epi8(input_45, v_input_mask);
+  src[4] = _mm256_shuffle_epi8(input_12, v_input_mask);
+  src[5] = _mm256_shuffle_epi8(input_34, v_input_mask);
+  src[6] = _mm256_shuffle_epi8(input_56, v_input_mask);
 }
 
 static INLINE void filter_src_pixels_vertical_avx2(__m256i *tmp, __m256i *src,
                                                    __m256i *coeffs,
                                                    __m256i *v_sum_r0,
-                                                   __m256i *v_sum_r1, int k) {
+                                                   __m256i *v_sum_r1, int k,
+                                                   const __m256i v_input_mask) {
   __m256i input_67 = _mm256_packus_epi32(tmp[k + 10], tmp[k + 11]);
   __m256i input_78 = _mm256_packus_epi32(tmp[k + 11], tmp[k + 12]);
-  src[3] = _mm256_shuffle_epi8(
-      input_67, _mm256_load_si256((__m256i *)shuffle_input_mask));
-  src[7] = _mm256_shuffle_epi8(
-      input_78, _mm256_load_si256((__m256i *)shuffle_input_mask));
+  src[3] = _mm256_shuffle_epi8(input_67, v_input_mask);
+  src[7] = _mm256_shuffle_epi8(input_78, v_input_mask);
 
   __m256i sum_r0 = _mm256_madd_epi16(src[0], coeffs[0]);
   sum_r0 = _mm256_add_epi32(sum_r0, _mm256_madd_epi16(src[1], coeffs[1]));
@@ -249,97 +209,6 @@ static INLINE void filter_src_pixels_vertical_avx2(__m256i *tmp, __m256i *src,
   src[6] = src[7];
 }
 
-static INLINE void store_vertical_filter_output_avx2(
-    uint16_t *pred, int p_stride, ConvolveParams *conv_params, int bd,
-    const __m256i *res_lo, const __m256i *res_hi, const __m256i *res_add_const,
-    const __m256i *reduce_bits_vert_const, const int use_wtd_comp_avg,
-    const __m256i *wt0, const __m256i *wt1, const __m256i *res_sub_const,
-    const __m256i *round_bits_const, int i, int j, int k,
-    const int reduce_bits_vert, const int round_bits) {
-  const __m256i clip_pixel =
-      _mm256_set1_epi16(bd == 10 ? 1023 : (bd == 12 ? 4095 : 255));
-  __m256i v_sum = *res_lo;
-  __m256i v_sum_r1 = *res_hi;
-
-  if (conv_params->is_compound) {
-    __m128i *const p =
-        (__m128i *)&conv_params->dst[(i + k + 4) * conv_params->dst_stride + j];
-
-    __m128i *const p_r1 =
-        (__m128i *)&conv_params->dst[(i + k + 5) * conv_params->dst_stride + j];
-
-    v_sum = _mm256_add_epi32(v_sum, *res_add_const);
-    v_sum = _mm256_srai_epi32(_mm256_add_epi32(v_sum, *reduce_bits_vert_const),
-                              reduce_bits_vert);
-    v_sum_r1 = _mm256_add_epi32(v_sum_r1, *res_add_const);
-    v_sum_r1 = _mm256_srai_epi32(
-        _mm256_add_epi32(v_sum_r1, *reduce_bits_vert_const), reduce_bits_vert);
-    if (conv_params->do_average) {
-      __m128i *const dst16 = (__m128i *)&pred[(i + k + 4) * p_stride + j];
-      __m128i *const dst16_r1 = (__m128i *)&pred[(i + k + 5) * p_stride + j];
-      __m256i p_32 = _mm256_cvtepu16_epi32(_mm_loadu_si128(p));
-      __m256i p_32_r1 = _mm256_cvtepu16_epi32(_mm_loadu_si128(p_r1));
-      v_sum = _mm256_shuffle_epi32(_mm256_permute4x64_epi64(v_sum, 0xD8), 0xD8);
-      v_sum_r1 =
-          _mm256_shuffle_epi32(_mm256_permute4x64_epi64(v_sum_r1, 0xD8), 0xD8);
-
-      if (use_wtd_comp_avg) {
-        v_sum = _mm256_add_epi32(_mm256_mullo_epi32(p_32, *wt0),
-                                 _mm256_mullo_epi32(v_sum, *wt1));
-        v_sum = _mm256_srai_epi32(v_sum, DIST_PRECISION_BITS);
-
-        v_sum_r1 = _mm256_add_epi32(_mm256_mullo_epi32(p_32_r1, *wt0),
-                                    _mm256_mullo_epi32(v_sum_r1, *wt1));
-        v_sum_r1 = _mm256_srai_epi32(v_sum_r1, DIST_PRECISION_BITS);
-      } else {
-        v_sum = _mm256_srai_epi32(_mm256_add_epi32(p_32, v_sum), 1);
-        v_sum_r1 = _mm256_srai_epi32(_mm256_add_epi32(p_32_r1, v_sum_r1), 1);
-      }
-
-      __m256i v_sum1 = _mm256_add_epi32(v_sum, *res_sub_const);
-      v_sum1 = _mm256_srai_epi32(_mm256_add_epi32(v_sum1, *round_bits_const),
-                                 round_bits);
-      __m256i v_sum1_r1 = _mm256_add_epi32(v_sum_r1, *res_sub_const);
-      v_sum1_r1 = _mm256_srai_epi32(
-          _mm256_add_epi32(v_sum1_r1, *round_bits_const), round_bits);
-
-      __m256i v_sum16 = _mm256_packus_epi32(v_sum1, v_sum1_r1);
-      v_sum16 =
-          _mm256_permute4x64_epi64(_mm256_min_epi16(v_sum16, clip_pixel), 0xD8);
-      _mm_storeu_si128(dst16, _mm256_castsi256_si128(v_sum16));
-      _mm_storeu_si128(dst16_r1, _mm256_extracti128_si256(v_sum16, 1));
-    } else {
-      v_sum = _mm256_packus_epi32(v_sum, v_sum_r1);
-      __m256i v_sum16 =
-          _mm256_shuffle_epi8(_mm256_permute4x64_epi64(v_sum, 0xD8),
-                              _mm256_load_si256((__m256i *)shuffle_input_mask));
-      _mm_storeu_si128(p, _mm256_castsi256_si128(v_sum16));
-      _mm_storeu_si128(p_r1, _mm256_extracti128_si256(v_sum16, 1));
-    }
-  } else {
-    // Round and pack into 16 bits
-    const __m256i round_const = _mm256_set1_epi32(
-        -(1 << (bd + reduce_bits_vert - 1)) + ((1 << reduce_bits_vert) >> 1));
-    const __m256i zero = _mm256_setzero_si256();
-
-    __m256i v_sum1 = _mm256_srai_epi32(_mm256_add_epi32(v_sum, round_const),
-                                       reduce_bits_vert);
-    __m256i v_sum1_r1 = _mm256_srai_epi32(
-        _mm256_add_epi32(v_sum_r1, round_const), reduce_bits_vert);
-
-    v_sum1 = _mm256_packus_epi32(v_sum1, v_sum1_r1);
-    v_sum1 = _mm256_permute4x64_epi64(v_sum1, 0xD8);
-    __m256i v_sum16 = _mm256_shuffle_epi8(
-        v_sum1, _mm256_load_si256((__m256i *)shuffle_input_mask));
-    v_sum16 = _mm256_max_epi16(_mm256_min_epi16(v_sum16, clip_pixel), zero);
-    __m128i *const p = (__m128i *)&pred[(i + k + 4) * p_stride + j];
-    __m128i *const p_r1 = (__m128i *)&pred[(i + k + 5) * p_stride + j];
-
-    _mm_storeu_si128(p, _mm256_castsi256_si128(v_sum16));
-    _mm_storeu_si128(p_r1, _mm256_extracti128_si256(v_sum16, 1));
-  }
-}
-
 void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
                                  int width, int height, int stride,
                                  uint16_t *pred, int p_col, int p_row,
@@ -356,13 +225,11 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
   const int reduce_bits_vert = conv_params->is_compound
                                    ? conv_params->round_1
                                    : 2 * FILTER_BITS - reduce_bits_horiz;
-  const int max_bits_horiz = bd + FILTER_BITS + 1 - reduce_bits_horiz;
   const int offset_bits_horiz = bd + FILTER_BITS - 1;
   const int offset_bits_vert = bd + 2 * FILTER_BITS - reduce_bits_horiz;
   const int round_bits =
       2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
   const int offset_bits = bd + 2 * FILTER_BITS - conv_params->round_0;
-  (void)max_bits_horiz;
   assert(IMPLIES(conv_params->is_compound, conv_params->dst != NULL));
 
   // Check that, even with 12-bit input, the intermediate values will fit
@@ -378,6 +245,11 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
   __m256i round_bits_const = _mm256_set1_epi32(((1 << round_bits) >> 1));
 
   const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
+  // by value: __m128i stores may alias conv_params
+  const int is_compound = conv_params->is_compound;
+  const int do_average = conv_params->do_average;
+  CONV_BUF_TYPE *const dst = conv_params->dst;
+  const int dst_stride = conv_params->dst_stride;
   const int w0 = conv_params->fwd_offset;
   const int w1 = conv_params->bck_offset;
   const __m256i wt0 = _mm256_set1_epi32(w0);
@@ -385,11 +257,22 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
 
   __m256i v_rbhoriz = _mm256_set1_epi32(1 << (reduce_bits_horiz - 1));
   int ohoriz = 1 << offset_bits_horiz;
-  int mhoriz = 1 << max_bits_horiz;
   const __m256i v_offset_bits_horiz = _mm256_set1_epi32(ohoriz);
   const __m256i offset = _mm256_add_epi32(v_offset_bits_horiz, v_rbhoriz);
-  (void)mhoriz;
   int sx;
+
+  // loop invariants
+  const __m256i v_input_mask =
+      _mm256_load_si256((const __m256i *)shuffle_input_mask);
+  const __m256i v_arrange =
+      _mm256_load_si256((const __m256i *)warp_highbd_arrange_bytes);
+  const __m256i v_shuf_pattern =
+      _mm256_load_si256((const __m256i *)warp_highbd_shuffle_pattern);
+  const __m256i clip_pixel =
+      _mm256_set1_epi16(bd == 10 ? 1023 : (bd == 12 ? 4095 : 255));
+  const __m256i zero = _mm256_setzero_si256();
+  const __m256i round_const_single = _mm256_set1_epi32(
+      -(1 << (bd + reduce_bits_vert - 1)) + ((1 << reduce_bits_vert) >> 1));
 
   for (int i = 0; i < p_height; i += 8) {
     for (int j = 0; j < p_width; j += 8) {
@@ -419,11 +302,15 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
       sx4 &= ~((1 << WARP_PARAM_REDUCE_BITS) - 1);
       sy4 &= ~((1 << WARP_PARAM_REDUCE_BITS) - 1);
 
+      // iy4 + k in bounds for k in [-7, 7]: skip clamp
+      const int interior_vert =
+          (iy4 - 7 >= top_limit) && (iy4 + 7 <= bottom_limit);
+
       // Horizontal filter
       if (ix4 <= left_limit - 7) {
         for (int k = -7; k < AVMMIN(8, p_height - i); ++k) {
           int iy = iy4 + k;
-          iy = clamp(iy, top_limit, bottom_limit);
+          if (!interior_vert) iy = clamp(iy, top_limit, bottom_limit);
           tmp[k + 7] = _mm256_cvtepi16_epi32(
               _mm_set1_epi16((1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
                              ref[iy * stride + left_limit] *
@@ -432,7 +319,7 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
       } else if (ix4 >= right_limit + 7) {
         for (int k = -7; k < AVMMIN(8, p_height - i); ++k) {
           int iy = iy4 + k;
-          iy = clamp(iy, top_limit, bottom_limit);
+          if (!interior_vert) iy = clamp(iy, top_limit, bottom_limit);
           tmp[k + 7] = _mm256_cvtepi16_epi32(
               _mm_set1_epi16((1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
                              ref[iy * stride + right_limit] *
@@ -446,11 +333,12 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
           prepare_8tap_filter_coeffs_alpha0_gamma0_avx2(sx4, &coeffs[0]);
           for (int k = -7; k < AVMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
-            iy = clamp(iy, top_limit, bottom_limit);
+            if (!interior_vert) iy = clamp(iy, top_limit, bottom_limit);
 
             prepare_8tap_horiz_src_padded_avx2(
                 &ref[iy * stride + ix4 - 7], out_of_boundary_left,
-                out_of_boundary_right, &src_padded[0]);
+                out_of_boundary_right, &src_padded[0], v_arrange,
+                v_shuf_pattern);
             prepare_8tap_horiz_src_avx2(&src_padded[0], &src[0]);
             filter_src_pixels_horiz_avx2(src, coeffs, &offset,
                                          reduce_bits_horiz, &tmp[k + 7]);
@@ -458,13 +346,14 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
         } else if (alpha == 0) {
           for (int k = -7; k < AVMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
-            iy = clamp(iy, top_limit, bottom_limit);
+            if (!interior_vert) iy = clamp(iy, top_limit, bottom_limit);
 
             sx = sx4 + beta * (k + 4);
             prepare_8tap_filter_coeffs_alpha0_gamma0_avx2(sx, coeffs);
             prepare_8tap_horiz_src_padded_avx2(
                 &ref[iy * stride + ix4 - 7], out_of_boundary_left,
-                out_of_boundary_right, &src_padded[0]);
+                out_of_boundary_right, &src_padded[0], v_arrange,
+                v_shuf_pattern);
             prepare_8tap_horiz_src_avx2(&src_padded[0], &src[0]);
             filter_src_pixels_horiz_avx2(src, coeffs, &offset,
                                          reduce_bits_horiz, &tmp[k + 7]);
@@ -473,11 +362,12 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
           prepare_8tap_filter_coeffs_avx2(sx4, alpha, &coeffs[0]);
           for (int k = -7; k < AVMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
-            iy = clamp(iy, top_limit, bottom_limit);
+            if (!interior_vert) iy = clamp(iy, top_limit, bottom_limit);
 
             prepare_8tap_horiz_src_padded_avx2(
                 &ref[iy * stride + ix4 - 7], out_of_boundary_left,
-                out_of_boundary_right, &src_padded[0]);
+                out_of_boundary_right, &src_padded[0], v_arrange,
+                v_shuf_pattern);
             prepare_8tap_horiz_src_avx2(&src_padded[0], &src[0]);
             filter_src_pixels_horiz_avx2(src, coeffs, &offset,
                                          reduce_bits_horiz, &tmp[k + 7]);
@@ -485,13 +375,14 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
         } else {
           for (int k = -7; k < AVMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
-            iy = clamp(iy, top_limit, bottom_limit);
+            if (!interior_vert) iy = clamp(iy, top_limit, bottom_limit);
 
             sx = sx4 + beta * (k + 4);
             prepare_8tap_filter_coeffs_avx2(sx, alpha, &coeffs[0]);
             prepare_8tap_horiz_src_padded_avx2(
                 &ref[iy * stride + ix4 - 7], out_of_boundary_left,
-                out_of_boundary_right, &src_padded[0]);
+                out_of_boundary_right, &src_padded[0], v_arrange,
+                v_shuf_pattern);
             prepare_8tap_horiz_src_avx2(&src_padded[0], &src[0]);
             filter_src_pixels_horiz_avx2(src, coeffs, &offset,
                                          reduce_bits_horiz, &tmp[k + 7]);
@@ -503,7 +394,7 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
           prepare_8tap_filter_coeffs_alpha0_gamma0_avx2(sx4, &coeffs[0]);
           for (int k = -7; k < AVMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
-            iy = clamp(iy, top_limit, bottom_limit);
+            if (!interior_vert) iy = clamp(iy, top_limit, bottom_limit);
             iy = iy * stride;
             load_horiz_src_pixels_avx2(&ref[iy + ix4 - 7], &r[0]);
             prepare_8tap_horiz_src_avx2(&r[0], &src[0]);
@@ -513,7 +404,7 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
         } else if (alpha == 0) {
           for (int k = -7; k < AVMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
-            iy = clamp(iy, top_limit, bottom_limit);
+            if (!interior_vert) iy = clamp(iy, top_limit, bottom_limit);
             iy = iy * stride;
 
             sx = sx4 + beta * (k + 4);
@@ -528,7 +419,7 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
           prepare_8tap_filter_coeffs_avx2(sx4, alpha, &coeffs[0]);
           for (int k = -7; k < AVMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
-            iy = clamp(iy, top_limit, bottom_limit);
+            if (!interior_vert) iy = clamp(iy, top_limit, bottom_limit);
             iy = iy * stride;
             load_horiz_src_pixels_avx2(&ref[iy + ix4 - 7], &r[0]);
             prepare_8tap_horiz_src_avx2(&r[0], &src[0]);
@@ -538,7 +429,7 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
         } else {
           for (int k = -7; k < AVMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
-            iy = clamp(iy, top_limit, bottom_limit);
+            if (!interior_vert) iy = clamp(iy, top_limit, bottom_limit);
             iy = iy * stride;
 
             sx = sx4 + beta * (k + 4);
@@ -561,22 +452,23 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
         coeffs[6] = coeffs[2];
         coeffs[7] = coeffs[3];
 
-        prepare_8tap_vert_src_avx2(tmp, src);
+        prepare_8tap_vert_src_avx2(tmp, src, v_input_mask);
 
         for (int k = -4; k < AVMMIN(4, p_height - i - 4); k += 2) {
           __m256i v_sum_r0, v_sum_r1;
           filter_src_pixels_vertical_avx2(tmp, src, coeffs, &v_sum_r0,
-                                          &v_sum_r1, k);
+                                          &v_sum_r1, k, v_input_mask);
 
-          store_vertical_filter_output_avx2(
-              pred, p_stride, conv_params, bd, &v_sum_r0, &v_sum_r1,
-              &res_add_const, &reduce_bits_vert_const, use_wtd_comp_avg, &wt0,
-              &wt1, &res_sub_const, &round_bits_const, i, j, k,
-              reduce_bits_vert, round_bits);
+          highbd_warp_store_vertical_2rows(
+              pred, p_stride, is_compound, do_average, dst, dst_stride,
+              &v_sum_r0, &v_sum_r1, &res_add_const, &reduce_bits_vert_const,
+              use_wtd_comp_avg, &wt0, &wt1, &res_sub_const, &round_bits_const,
+              i, j, k, reduce_bits_vert, round_bits, clip_pixel, zero,
+              round_const_single, v_input_mask);
         }
       } else if (gamma == 0) {
         __m256i coeffs[8], src[8];
-        prepare_8tap_vert_src_avx2(tmp, src);
+        prepare_8tap_vert_src_avx2(tmp, src, v_input_mask);
 
         for (int k = -4; k < AVMMIN(4, p_height - i - 4); k += 2) {
           __m256i v_sum_r0, v_sum_r1;
@@ -587,13 +479,14 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
           prepare_8tap_filter_coeffs_alpha0_gamma0_avx2(sy_1, &coeffs[4]);
 
           filter_src_pixels_vertical_avx2(tmp, src, coeffs, &v_sum_r0,
-                                          &v_sum_r1, k);
+                                          &v_sum_r1, k, v_input_mask);
 
-          store_vertical_filter_output_avx2(
-              pred, p_stride, conv_params, bd, &v_sum_r0, &v_sum_r1,
-              &res_add_const, &reduce_bits_vert_const, use_wtd_comp_avg, &wt0,
-              &wt1, &res_sub_const, &round_bits_const, i, j, k,
-              reduce_bits_vert, round_bits);
+          highbd_warp_store_vertical_2rows(
+              pred, p_stride, is_compound, do_average, dst, dst_stride,
+              &v_sum_r0, &v_sum_r1, &res_add_const, &reduce_bits_vert_const,
+              use_wtd_comp_avg, &wt0, &wt1, &res_sub_const, &round_bits_const,
+              i, j, k, reduce_bits_vert, round_bits, clip_pixel, zero,
+              round_const_single, v_input_mask);
         }
       } else if (delta == 0) {
         __m256i coeffs[8], src[8];
@@ -604,22 +497,23 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
         coeffs[6] = coeffs[2];
         coeffs[7] = coeffs[3];
 
-        prepare_8tap_vert_src_avx2(tmp, src);
+        prepare_8tap_vert_src_avx2(tmp, src, v_input_mask);
 
         for (int k = -4; k < AVMMIN(4, p_height - i - 4); k += 2) {
           __m256i v_sum_r0, v_sum_r1;
           filter_src_pixels_vertical_avx2(tmp, src, coeffs, &v_sum_r0,
-                                          &v_sum_r1, k);
+                                          &v_sum_r1, k, v_input_mask);
 
-          store_vertical_filter_output_avx2(
-              pred, p_stride, conv_params, bd, &v_sum_r0, &v_sum_r1,
-              &res_add_const, &reduce_bits_vert_const, use_wtd_comp_avg, &wt0,
-              &wt1, &res_sub_const, &round_bits_const, i, j, k,
-              reduce_bits_vert, round_bits);
+          highbd_warp_store_vertical_2rows(
+              pred, p_stride, is_compound, do_average, dst, dst_stride,
+              &v_sum_r0, &v_sum_r1, &res_add_const, &reduce_bits_vert_const,
+              use_wtd_comp_avg, &wt0, &wt1, &res_sub_const, &round_bits_const,
+              i, j, k, reduce_bits_vert, round_bits, clip_pixel, zero,
+              round_const_single, v_input_mask);
         }
       } else {
         __m256i src[8];
-        prepare_8tap_vert_src_avx2(tmp, src);
+        prepare_8tap_vert_src_avx2(tmp, src, v_input_mask);
 
         for (int k = -4; k < AVMMIN(4, p_height - i - 4); k += 2) {
           __m256i coeffs[8];
@@ -631,13 +525,14 @@ void av2_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
           prepare_8tap_filter_coeffs_avx2(sy_1, gamma, &coeffs[4]);
 
           filter_src_pixels_vertical_avx2(tmp, src, coeffs, &v_sum_r0,
-                                          &v_sum_r1, k);
+                                          &v_sum_r1, k, v_input_mask);
 
-          store_vertical_filter_output_avx2(
-              pred, p_stride, conv_params, bd, &v_sum_r0, &v_sum_r1,
-              &res_add_const, &reduce_bits_vert_const, use_wtd_comp_avg, &wt0,
-              &wt1, &res_sub_const, &round_bits_const, i, j, k,
-              reduce_bits_vert, round_bits);
+          highbd_warp_store_vertical_2rows(
+              pred, p_stride, is_compound, do_average, dst, dst_stride,
+              &v_sum_r0, &v_sum_r1, &res_add_const, &reduce_bits_vert_const,
+              use_wtd_comp_avg, &wt0, &wt1, &res_sub_const, &round_bits_const,
+              i, j, k, reduce_bits_vert, round_bits, clip_pixel, zero,
+              round_const_single, v_input_mask);
         }
       }
     }

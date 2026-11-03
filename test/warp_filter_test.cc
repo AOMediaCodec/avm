@@ -16,6 +16,7 @@
 using libavm_test::ACMRandom;
 using libavm_test::AV2ExtHighbdWarpFilter::AV2ExtHighbdWarpFilterTest;
 using libavm_test::AV2HighbdWarpFilter::AV2HighbdWarpFilterTest;
+using libavm_test::AV2HighbdWarpFilter::AV2HighbdWarpSpeedCompareTest;
 using std::make_tuple;
 using std::tuple;
 
@@ -36,6 +37,8 @@ TEST_P(AV2HighbdWarpFilterTest, ExtremesAllMax) {
 TEST_P(AV2HighbdWarpFilterTest, BitDepthMidpoint) {
   RunBoundaryCheck(std::get<4>(GET_PARAM(0)), 2);
 }
+
+TEST_P(AV2HighbdWarpSpeedCompareTest, DISABLED_Speed) { RunSpeedCompare(); }
 
 TEST_P(AV2ExtHighbdWarpFilterTest, CheckOutput) {
   RunCheckOutput(::testing::get<4>(GET_PARAM(0)));
@@ -67,7 +70,25 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, AV2ExtHighbdWarpFilterTest,
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV2HighbdWarpFilterTest,
     libavm_test::AV2HighbdWarpFilter::BuildParams(av2_highbd_warp_affine_avx2));
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2_vs_SSE4_1, AV2HighbdWarpSpeedCompareTest,
+    libavm_test::AV2HighbdWarpFilter::BuildSpeedCompareParams(
+        av2_highbd_warp_affine_sse4_1, av2_highbd_warp_affine_avx2),
+    libavm_test::AV2HighbdWarpFilter::SpeedCompareParamName);
 #endif  // HAVE_AVX2
+
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(AVX512, AV2HighbdWarpFilterTest,
+                         libavm_test::AV2HighbdWarpFilter::BuildParams(
+                             av2_highbd_warp_affine_avx512));
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX512_vs_AVX2, AV2HighbdWarpSpeedCompareTest,
+    libavm_test::AV2HighbdWarpFilter::BuildSpeedCompareParams(
+        av2_highbd_warp_affine_avx2, av2_highbd_warp_affine_avx512),
+    libavm_test::AV2HighbdWarpFilter::SpeedCompareParamName);
+#endif  // HAVE_AVX512
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
@@ -81,5 +102,6 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV2ExtHighbdWarpFilterTest,
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2HighbdWarpFilterTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2ExtHighbdWarpFilterTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2HighbdWarpSpeedCompareTest);
 
 }  // namespace
