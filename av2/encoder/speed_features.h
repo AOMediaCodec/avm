@@ -942,6 +942,15 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // aggressiveness
   int prune_motion_mode_level;
 
+  // Prune the MVD sign derivation parity adjustment search. The adjusted MV
+  // is only needed for the candidate that is finally coded, so the search is
+  // skipped for candidates that cannot win.
+  // 0 : no pruning
+  // 1 : do not adjust the MV in the dry pass of the two-pass partition search
+  // 2 : level 1, and skip the adjustment of candidates whose model rd is far
+  //     from the best motion mode model rds seen so far
+  int mvd_sign_derive_prune_level;
+
   // Prune warped motion search using previous frame stats.
   int prune_warped_prob_thresh;
 
