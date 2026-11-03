@@ -214,4 +214,11 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV2FwdTxfm2dTest,
                                             ::testing::ValuesIn(kTestBd)),
                          BdParamName<AV2FwdTxfm2dTest::ParamType>);
 #endif  // HAVE_AVX2
+
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(AVX512, AV2FwdTxfm2dTest,
+                         ::testing::Combine(::testing::Values(fwd_txfm_avx512),
+                                            ::testing::ValuesIn(kTestBd)),
+                         BdParamName<AV2FwdTxfm2dTest::ParamType>);
+#endif  // HAVE_AVX512
 }  // namespace

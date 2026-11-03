@@ -19,6 +19,7 @@
 #include "av2/common/av2_txfm.h"
 #include "av2/common/txb_common.h"
 #include "av2/encoder/hybrid_fwd_txfm.h"
+#include "av2/encoder/x86/highbd_fwd_txfm_x86.h"
 #include "avm_dsp/txfm_common.h"
 #include "avm_dsp/x86/txfm_common_sse2.h"
 #include "avm_ports/mem.h"
@@ -3119,7 +3120,8 @@ static void fwd_txfm_dct2_64bit_avx2(const int *src, int *dst, int shift,
   const int half = size >> 1;
   const int num_out = size - zero_line;
   const int nz_line = line - skip_line;
-  const __m256i v_offset = _mm256_set1_epi64x(shift > 0 ? 1 << (shift - 1) : 0);
+  const __m256i v_offset =
+      _mm256_set1_epi64x(shift > 0 ? 1LL << (shift - 1) : 0);
   __m256i even[16], even_odd[16], odd[16], odd_odd[16], out[32];
   assert(size == 16 || size == 32);
   assert((nz_line & 7) == 0);
@@ -3154,7 +3156,8 @@ static void fwd_txfm_matrix16_64bit_avx2(const int *src, int *dst, int shift,
                                          int line, int skip_line,
                                          const int *tx_mat, int flip) {
   const int nz_line = line - skip_line;
-  const __m256i v_offset = _mm256_set1_epi64x(shift > 0 ? 1 << (shift - 1) : 0);
+  const __m256i v_offset =
+      _mm256_set1_epi64x(shift > 0 ? 1LL << (shift - 1) : 0);
   __m256i in[16], in_odd[16], out[16];
   assert((nz_line & 7) == 0);
 
@@ -3179,10 +3182,10 @@ static void fwd_txfm_matrix16_64bit_avx2(const int *src, int *dst, int shift,
 #ifdef __GNUC__
 __attribute__((noinline))
 #endif
-static void
-fwd_transform_1d_64bit_avx2(const int *src, int *dst, int shift, int line,
-                            int skip_line, int zero_line,
-                            const int tx_type_index, const int size_index) {
+void fwd_transform_1d_64bit_avx2(const int *src, int *dst, int shift, int line,
+                                 int skip_line, int zero_line,
+                                 const int tx_type_index,
+                                 const int size_index) {
   const int size = 4 << size_index;
   assert(tx_type_index == DCT2 || tx_type_index == IDT || size == 16);
   switch (tx_type_index) {
@@ -3212,13 +3215,6 @@ fwd_transform_1d_64bit_avx2(const int *src, int *dst, int shift, int line,
                             tx_type_index, size_index);
       break;
   }
-}
-
-// At 12 bits the row-pass sums of these sizes exceed 32 bits.
-static INLINE int row_pass_needs_64bit(TX_SIZE tx_size, int bd) {
-  if (bd <= 10) return 0;
-  return tx_size == TX_64X64 || tx_size == TX_64X32 || tx_size == TX_32X64 ||
-         tx_size == TX_16X64;
 }
 
 void fwd_txfm_avx2(const int16_t *resi, tran_low_t *coeff, int diff_stride,

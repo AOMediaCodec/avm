@@ -262,7 +262,7 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   specialize qw/fwd_stxfm sse4_1 avx2/;
 
   add_proto qw/void fwd_txfm/,  "const int16_t *resi, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
-  specialize qw/fwd_txfm avx2/;
+  specialize qw/fwd_txfm avx2 avx512/;
 
   #
   # Motion search
