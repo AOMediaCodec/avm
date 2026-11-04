@@ -709,8 +709,8 @@ static INLINE int av2_enc_is_dv_valid(const MV dv, const AV2_COMMON *cm,
                                       int mib_size_log2) {
   if (!av2_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, mib_size_log2))
     return 0;
-  const MACROBLOCK *const x = (const MACROBLOCK *)((const char *)xd -
-                                                   offsetof(MACROBLOCK, e_mbd));
+  const MACROBLOCK *const x =
+      (const MACROBLOCK *)((const char *)xd - offsetof(MACROBLOCK, e_mbd));
   if (!x->rowmt_ibc_restrict) return 1;
 
   const TileInfo *const tile = &xd->tile;
@@ -747,7 +747,8 @@ static INLINE int is_sub_pel_bv_valid(const MV dv, const AV2_COMMON *cm,
   return av2_is_fullmv_in_range(full_pel_mv_limits, get_fullmv_from_mv(&dv),
                                 pb_mv_precision) &&
          av2_is_subpelmv_in_range(sub_pel_mv_limits, dv) &&
-         av2_enc_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, cm->mib_size_log2);
+         av2_enc_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize,
+                             cm->mib_size_log2);
 }
 
 // Returns the cost for signaling the index of compound weighted prediction
