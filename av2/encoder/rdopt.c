@@ -3864,12 +3864,17 @@ static int64_t simple_translation_pred_rd(
   return RDCOST(x->rdmult, rd_stats->rate + est_rate, est_dist);
 }
 
-// Represents a set of integers, from 0 to sizeof(int) * 8, as bits in
-// an integer. 0 for the i-th bit means that integer is excluded, 1 means
-// it is included.
-static INLINE void mask_set_bit(int *mask, int index) { *mask |= (1 << index); }
+// Represents a set of integers, from 0 to sizeof(uint64_t) * 8 - 1, as bits in
+// a 64-bit mask. 0 for the i-th bit means that integer is excluded, 1 means
+// it is included. A 64-bit mask is required because ref_mv_idx_type can reach
+// MAX_REF_MV_SQUARE - 1 when there are two DRLs.
+static INLINE void mask_set_bit(uint64_t *mask, int index) {
+  assert(index >= 0 && index < 64);
+  *mask |= ((uint64_t)1 << index);
+}
 
-static INLINE bool mask_check_bit(int mask, int index) {
+static INLINE bool mask_check_bit(uint64_t mask, int index) {
+  assert(index >= 0 && index < 64);
   return (mask >> index) & 0x1;
 }
 
@@ -3943,12 +3948,13 @@ static int skip_similar_ref_mv(AV2_COMP *const cpi, MACROBLOCK *x,
 // translation search and see if we can eliminate any motion vectors.
 // Returns an integer where, if the i-th bit is set, it means that the i-th
 // motion vector should be searched. This is only set for NEAR_MV.
-static int ref_mv_idx_to_search(AV2_COMP *const cpi, MACROBLOCK *x,
-                                RD_STATS *rd_stats,
-                                HandleInterModeArgs *const args,
-                                int64_t ref_best_rd, inter_mode_info *mode_info,
-                                BLOCK_SIZE bsize, const int *ref_set,
-                                const int flex_mv_cost) {
+static uint64_t ref_mv_idx_to_search(AV2_COMP *const cpi, MACROBLOCK *x,
+                                     RD_STATS *rd_stats,
+                                     HandleInterModeArgs *const args,
+                                     int64_t ref_best_rd,
+                                     inter_mode_info *mode_info,
+                                     BLOCK_SIZE bsize, const int *ref_set,
+                                     const int flex_mv_cost) {
   AV2_COMMON *const cm = &cpi->common;
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -3957,7 +3963,7 @@ static int ref_mv_idx_to_search(AV2_COMP *const cpi, MACROBLOCK *x,
   if (this_mode == WARPMV) return 1;  // Always search WARPMV mode
 
   // Only search indices if they have some chance of being good.
-  int good_indices = 0;
+  uint64_t good_indices = 0;
 
   int ref_mv_idx[2];
   for (ref_mv_idx[1] = 0; ref_mv_idx[1] < ref_set[1]; ++ref_mv_idx[1]) {
@@ -4039,7 +4045,7 @@ static int ref_mv_idx_to_search(AV2_COMP *const cpi, MACROBLOCK *x,
   // If the simple translation cost is not within this multiple of the
   // best RD, skip it. Note that the cutoff is derived experimentally.
   const double ref_dth = 5;
-  int result = 0;
+  uint64_t result = 0;
 
   for (ref_mv_idx[1] = 0; ref_mv_idx[1] < ref_set[1]; ++ref_mv_idx[1]) {
     for (ref_mv_idx[0] = 0; ref_mv_idx[0] < ref_set[0]; ++ref_mv_idx[0]) {
@@ -5309,7 +5315,8 @@ static void handle_single_inter_prediction(
     int precision_dx, const PRECISION_SET *precision_def,
     MvSubpelPrecision *best_precision_so_far, int *best_precision_dx_so_far,
     int64_t *best_precision_rd_so_far, int mode_ctx, HandleInterModeArgs *args,
-    const int *flex_mv_cost, int idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]) {
+    const int *flex_mv_cost,
+    uint64_t idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]) {
   const AV2_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
@@ -5487,7 +5494,8 @@ static void handle_compound_inter_prediction(
     int precision_dx, const PRECISION_SET *precision_def,
     MvSubpelPrecision *best_precision_so_far, int *best_precision_dx_so_far,
     int64_t *best_precision_rd_so_far, int mode_ctx, HandleInterModeArgs *args,
-    const int *flex_mv_cost, int idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS],
+    const int *flex_mv_cost,
+    uint64_t idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS],
     int jmvd_scaling_factor_num, PREDICTION_MODE best_ref_mode) {
   const AV2_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
@@ -6045,7 +6053,7 @@ static int64_t handle_inter_mode(
   }
 
   int flex_mv_cost[NUM_MV_PRECISIONS] = { 0, 0, 0, 0, 0, 0, 0 };
-  int idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS] = { 0 };
+  uint64_t idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS] = { 0 };
   if (is_pb_mv_prec_active) {
     const int down_ctx = av2_get_pb_mv_precision_down_context(cm, xd);
     const int mpp_flag_context = av2_get_mpp_flag_context(cm, xd);
