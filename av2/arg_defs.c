@@ -832,7 +832,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .max_drl_refmvs =
       ARG_DEF(NULL, "max-drl-refmvs", 1,
               "Maximum number of drl reference MVs per reference. "
-              "(0 (auto), 2-8 (fixed)) default is 0 (auto)."),
+              "(0 (auto), 2-6 (fixed)) default is 0 (auto)."),
   .max_drl_refbvs = ARG_DEF(NULL, "max-drl-refbvs", 1,
                             "Maximum number of drl reference BVs for IntraBC. "
                             "(0 (auto), 2-4 (fixed)) default is 0 (auto)."),
