@@ -280,6 +280,10 @@ static int tip_first_level(const AV2_COMMON *cm) {
 void av2_tip_first_frame_start(AV2_COMP *cpi, uint8_t *dest, size_t *size) {
   cpi->tip_first->dest = dest;
   cpi->tip_first->size = size;
+  cpi->tip_first->prev_level = cpi->tip_first->cur_level;
+  cpi->tip_first->prev_tip = cpi->tip_first->cur_tip;
+  cpi->tip_first->cur_level = (int)cpi->common.current_frame.pyramid_level;
+  cpi->tip_first->cur_tip = 0;
   cpi->tip_first->skip_normal_encode = 0;
   cpi->tip_first->searched = 0;
   cpi->tip_first->ref_deferred = 0;
@@ -297,6 +301,11 @@ static int tip_first_will_try(const AV2_COMP *cpi) {
       cm->seq_params.enable_band_metadata)
     return 0;
   const int level = tip_first_level(cm);
+  // No normal-coding cost of the level yet: follow the frame encoded just
+  // before, one level shallower.
+  if (!cpi->tip_first->valid[level])
+    return cpi->sf.hl_sf.tip_first_follow_parent && cpi->tip_first->prev_tip &&
+           cpi->tip_first->prev_level == cpi->tip_first->cur_level - 1;
   // The normal-coding cost of the level is compared only between frames of
   // the same qindex.
   return cpi->tip_first->last_tip[level] && cpi->tip_first->valid[level] &&
@@ -358,6 +367,9 @@ int av2_tip_first_search_end(AV2_COMP *cpi, int64_t sse, int64_t rate) {
     // Both costs at the rdmult of this frame: the rdmult of a frame of the
     // same level and qindex can differ (gfu_boost).
     const int level = tip_first_level(cm);
+    // Searched without a normal-coding cost of the level: the shallower frame
+    // before it ended as TIP direct output (hl_sf.tip_first_follow_parent).
+    if (!cpi->tip_first->valid[level]) return 1;
     const int64_t rdmult =
         av2_compute_rd_mult(cpi, cm->quant_params.base_qindex);
     const double tip_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
@@ -393,6 +405,7 @@ int av2_tip_first_finalize(AV2_COMP *cpi, int64_t normal_rate,
   if (cpi->sf.hl_sf.tip_first_max_run <= 0) return tip_wins;
   const int tip_output = cpi->tip_first->skip_normal_encode || tip_wins;
   const int level = tip_first_level(&cpi->common);
+  cpi->tip_first->cur_tip = tip_output;
   if (cpi->tip_first->skip_normal_encode) {
     cpi->tip_first->last_tip[level] = 1;
     ++cpi->tip_first->run[level];
