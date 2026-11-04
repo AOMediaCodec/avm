@@ -1560,9 +1560,11 @@ typedef struct macroblock {
    */
   IntraBCHashInfo intrabc_hash_info;
 
-  // Set when the SB rows of a tile are encoded by several threads (row-mt):
-  // IntraBC may then only reference the area that is guaranteed to be
-  // reconstructed, see av2_enc_is_dv_valid().
+  /*! \brief Set when the SB rows of a tile are encoded by several threads.
+   *
+   * IntraBC may then only reference the area that row-mt guarantees is
+   * already reconstructed, see av2_enc_is_dv_valid().
+   */
   int rowmt_ibc_restrict;
   /**@}*/
 
