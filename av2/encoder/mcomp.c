@@ -1191,7 +1191,7 @@ static AVM_FORCE_INLINE void calc_int_sad_list(
         ms_params->cm->features.allow_local_intrabc) {
       MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(best_mv.row),
                     (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(best_mv.col) };
-      int flag = av2_is_dv_valid(sub_mv, ms_params->cm, ms_params->xd,
+      int flag = av2_enc_is_dv_valid(sub_mv, ms_params->cm, ms_params->xd,
                                  ms_params->mi_row, ms_params->mi_col,
                                  ms_params->bsize, ms_params->mib_size_log2);
       if (flag) {
@@ -1213,7 +1213,7 @@ static AVM_FORCE_INLINE void calc_int_sad_list(
             ms_params->cm->features.allow_local_intrabc) {
           MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(this_mv.row),
                         (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(this_mv.col) };
-          int flag = av2_is_dv_valid(
+          int flag = av2_enc_is_dv_valid(
               sub_mv, ms_params->cm, ms_params->xd, ms_params->mi_row,
               ms_params->mi_col, ms_params->bsize, ms_params->mib_size_log2);
           if (flag) {
@@ -1240,7 +1240,7 @@ static AVM_FORCE_INLINE void calc_int_sad_list(
               ms_params->cm->features.allow_local_intrabc) {
             MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(this_mv.row),
                           (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(this_mv.col) };
-            int flag = av2_is_dv_valid(
+            int flag = av2_enc_is_dv_valid(
                 sub_mv, ms_params->cm, ms_params->xd, ms_params->mi_row,
                 ms_params->mi_col, ms_params->bsize, ms_params->mib_size_log2);
             if (flag) {
@@ -1776,7 +1776,7 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
   if (ms_params->is_intra_mode && ms_params->cm->features.allow_local_intrabc) {
     MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(start_mv.row),
                   (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(start_mv.col) };
-    if (av2_is_dv_valid(sub_mv, ms_params->cm, ms_params->xd, ms_params->mi_row,
+    if (av2_enc_is_dv_valid(sub_mv, ms_params->cm, ms_params->xd, ms_params->mi_row,
                         ms_params->mi_col, ms_params->bsize,
                         ms_params->mib_size_log2)) {
       best_address = get_buf_from_fullmv(ref, &start_mv);
@@ -1821,7 +1821,7 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
           (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(best_mv->row + site[1 + j].mv.row),
           (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(best_mv->col + site[1 + j].mv.col)
         };
-        all_in &= av2_is_dv_valid(sub_mv, ms_params->cm, ms_params->xd,
+        all_in &= av2_enc_is_dv_valid(sub_mv, ms_params->cm, ms_params->xd,
                                   ms_params->mi_row, ms_params->mi_col,
                                   ms_params->bsize, ms_params->mib_size_log2);
       }
@@ -1842,7 +1842,7 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
                               best_mv->row + site[idx + j].mv.row),
                           (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(
                               best_mv->col + site[idx + j].mv.col) };
-            valid &= av2_is_dv_valid(
+            valid &= av2_enc_is_dv_valid(
                 sub_mv, ms_params->cm, ms_params->xd, ms_params->mi_row,
                 ms_params->mi_col, ms_params->bsize, ms_params->mib_size_log2);
           }
@@ -1885,7 +1885,7 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
               ms_params->cm->features.allow_local_intrabc) {
             MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(this_mv.row),
                           (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(this_mv.col) };
-            int valid = av2_is_dv_valid(
+            int valid = av2_enc_is_dv_valid(
                 sub_mv, ms_params->cm, ms_params->xd, ms_params->mi_row,
                 ms_params->mi_col, ms_params->bsize, ms_params->mib_size_log2);
             if (!valid) continue;
@@ -2018,7 +2018,7 @@ static int exhaustive_mesh_search(FULLPEL_MV start_mv,
   if (ms_params->is_intra_mode && ms_params->cm->features.allow_local_intrabc) {
     const MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(start_mv.row),
                         (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(start_mv.col) };
-    if (av2_is_dv_valid(sub_mv, ms_params->cm, ms_params->xd, ms_params->mi_row,
+    if (av2_enc_is_dv_valid(sub_mv, ms_params->cm, ms_params->xd, ms_params->mi_row,
                         ms_params->mi_col, ms_params->bsize,
                         ms_params->mib_size_log2)) {
       best_sad = get_mvpred_sad(
@@ -2107,7 +2107,7 @@ static int exhaustive_mesh_search(FULLPEL_MV start_mv,
             best_valid_mv.col != best_mv->col) {
           const MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(best_mv->row),
                               (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(best_mv->col) };
-          if (av2_is_dv_valid(sub_mv, ms_params->cm, ms_params->xd,
+          if (av2_enc_is_dv_valid(sub_mv, ms_params->cm, ms_params->xd,
                               ms_params->mi_row, ms_params->mi_col,
                               ms_params->bsize, ms_params->mib_size_log2)) {
             best_valid_mv = *best_mv;
@@ -2971,7 +2971,7 @@ int av2_intrabc_hash_search(const AV2_COMP *cpi, const MACROBLOCKD *xd,
       // Make sure the prediction is from valid area.
       const MV dv = { GET_MV_SUBPEL(ref_block_hash.y - y_pos),
                       GET_MV_SUBPEL(ref_block_hash.x - x_pos) };
-      if (!av2_is_dv_valid(dv, &cpi->common, xd, mi_row, mi_col, bsize,
+      if (!av2_enc_is_dv_valid(dv, &cpi->common, xd, mi_row, mi_col, bsize,
                            cpi->common.mib_size_log2))
         continue;
 

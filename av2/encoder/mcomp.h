@@ -694,6 +694,51 @@ static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
   mv_cost_params->is_ibc_cost = is_ibc_cost;
 }
 
+// Encoder-side IntraBC DV check. On top of the normative av2_is_dv_valid() it
+// applies, when row-mt is active, the limit of what the row-mt wavefront
+// guarantees to be reconstructed (the decoder is sequential and has no such
+// limit, so every DV accepted here is also legal for the decoder).
+//
+// av2_row_mt_sync_read() with sync_range == 1 starts SB (r, c) of a tile only
+// once SB c + 1 of row r - 1 is finished, and that SB itself started only after
+// SB c + 2 of row r - 2 was finished, etc. Hence rows above are guaranteed
+// reconstructed up to (excluding) SB column c + d + 1 for the row at distance
+// d >= 1; SB row r itself is covered by the normative rules (previous SBs of
+// the same thread / is_mi_coded within the SB).
+static INLINE int av2_enc_is_dv_valid(const MV dv, const AV2_COMMON *cm,
+                                      const MACROBLOCKD *xd, int mi_row,
+                                      int mi_col, BLOCK_SIZE bsize,
+                                      int mib_size_log2) {
+  if (!av2_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, mib_size_log2))
+    return 0;
+  const MACROBLOCK *const x = (const MACROBLOCK *)((const char *)xd -
+                                                   offsetof(MACROBLOCK, e_mbd));
+  if (!x->rowmt_ibc_restrict) return 1;
+
+  const TileInfo *const tile = &xd->tile;
+  const int sb_px = MI_SIZE << mib_size_log2;
+  const int off_col = dv.col & 7, off_row = dv.row & 7;
+  // Source area in tile-relative luma pixels. The right/bottom edges include
+  // the sub-pel interpolation border and 2 more pixels for a possible
+  // half-pel chroma position (1 chroma pixel, 4:2:0).
+  const int y_top = (mi_row - tile->mi_row_start) * MI_SIZE + (dv.row >> 3) -
+                    (off_row ? IBC_TOP_INTERP_BORDER : 0);
+  const int y_bot = (mi_row - tile->mi_row_start) * MI_SIZE +
+                    block_size_high[bsize] + (dv.row >> 3) +
+                    (off_row ? IBC_BOTTOM_INTERP_BORDER : 0) + 2;
+  const int x_right = (mi_col - tile->mi_col_start) * MI_SIZE +
+                      block_size_wide[bsize] + (dv.col >> 3) +
+                      (off_col ? IBC_RIGHT_INTERP_BORDER : 0) + 2;
+  const int cur_sb_row = (mi_row - tile->mi_row_start) >> mib_size_log2;
+  const int cur_sb_col = (mi_col - tile->mi_col_start) >> mib_size_log2;
+  const int src_sb_row_top = y_top / sb_px;
+  if (y_top < 0 || src_sb_row_top >= cur_sb_row) return 1;
+  // The part of the source closest to the current SB row binds.
+  const int src_sb_row = AVMMIN((y_bot - 1) / sb_px, cur_sb_row - 1);
+  const int d = cur_sb_row - src_sb_row;
+  return x_right <= (cur_sb_col + d + 1) * sb_px;
+}
+
 // Check if the MV is valid for IBC mode
 static INLINE int is_sub_pel_bv_valid(const MV dv, const AV2_COMMON *cm,
                                       const MACROBLOCKD *xd, int mi_row,
@@ -704,7 +749,7 @@ static INLINE int is_sub_pel_bv_valid(const MV dv, const AV2_COMMON *cm,
   return av2_is_fullmv_in_range(full_pel_mv_limits, get_fullmv_from_mv(&dv),
                                 pb_mv_precision) &&
          av2_is_subpelmv_in_range(sub_pel_mv_limits, dv) &&
-         av2_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, cm->mib_size_log2);
+         av2_enc_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, cm->mib_size_log2);
 }
 
 // Returns the cost for signaling the index of compound weighted prediction
