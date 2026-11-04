@@ -314,6 +314,8 @@ avm_metadata_t *avm_img_metadata_alloc(
   metadata->layer_idc = AVM_LAYER_UNSPECIFIED;
   metadata->xlayer_map = 0;
   memset(metadata->mlayer_map, 0, sizeof(metadata->mlayer_map));
+  metadata->mlayer_id = 0;
+  metadata->tlayer_id = 0;
   return metadata;
 }
 
