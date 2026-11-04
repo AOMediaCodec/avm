@@ -310,9 +310,20 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   int tip_first_max_run;
 
   /*!
-   * Margin of the TIP-first decision, in percent (see tip_first_max_run).
+   * Margin of the TIP-first decision, in percent (see tip_first_max_run). A
+   * negative margin also skips the normal encode when the TIP RD cost is up to
+   * that many percent above the normal-coding RD cost.
    */
   int tip_first_margin_pct;
+
+  /*!
+   * TIP-first on a pyramid level without a frame whose normal encode ran yet
+   * (the first GOP after a key frame): if 1, a frame coded right after a frame
+   * one level shallower that ended as TIP direct output runs the TIP direct
+   * output search first and is coded as TIP direct output without its normal
+   * encode.
+   */
+  int tip_first_follow_parent;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!\cond */

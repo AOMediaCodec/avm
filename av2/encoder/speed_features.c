@@ -693,7 +693,8 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 4) {
     // The run cap is not reached with key frames at most 100 frames apart.
     sf->hl_sf.tip_first_max_run = 99;
-    sf->hl_sf.tip_first_margin_pct = 1;
+    sf->hl_sf.tip_first_margin_pct = -5;
+    sf->hl_sf.tip_first_follow_parent = 1;
     sf->lpf_sf.ccso_terminate_search_luma_pass_count = 4;
     sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 8;
     sf->lpf_sf.disable_loop_restoration_chroma = boosted ? 0 : 1;
@@ -1083,6 +1084,7 @@ static AVM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->enable_tip_mt = 1;
   hl_sf->tip_first_max_run = 0;
   hl_sf->tip_first_margin_pct = 0;
+  hl_sf->tip_first_follow_parent = 0;
 }
 
 static AVM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
