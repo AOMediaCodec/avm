@@ -1171,10 +1171,10 @@ void loop_filter_tip_plane_vert_rows(AV2_COMMON *cm, const int plane,
   const uint16_t q_vert = lfi->tip_q_thr[plane][VERT_EDGE];
   const uint16_t side_vert = lfi->tip_side_thr[plane][VERT_EDGE];
   const int bit_depth = cm->seq_params.bit_depth;
-  int subsampling_x, subsampling_y;
-  const int sub_bw =
-      get_tip_lf_unit_size(cm, plane, &subsampling_x, &subsampling_y) >>
-      subsampling_x;
+  int subsampling_x = 0, subsampling_y = 0;
+  const int unit_size =
+      get_tip_lf_unit_size(cm, plane, &subsampling_x, &subsampling_y);
+  const int sub_bw = unit_size >> subsampling_x;
   const int w = plane_w;
 
   for (int j = row_start; j < row_end; j += 4) {
@@ -1215,10 +1215,10 @@ void loop_filter_tip_plane_horz_cols(AV2_COMMON *cm, const int plane,
   const uint16_t q_horz = lfi->tip_q_thr[plane][HORZ_EDGE];
   const uint16_t side_horz = lfi->tip_side_thr[plane][HORZ_EDGE];
   const int bit_depth = cm->seq_params.bit_depth;
-  int subsampling_x, subsampling_y;
-  const int sub_bh =
-      get_tip_lf_unit_size(cm, plane, &subsampling_x, &subsampling_y) >>
-      subsampling_y;
+  int subsampling_x = 0, subsampling_y = 0;
+  const int unit_size =
+      get_tip_lf_unit_size(cm, plane, &subsampling_x, &subsampling_y);
+  const int sub_bh = unit_size >> subsampling_y;
   const int h = plane_h;
 
   for (int i = col_start; i < col_end; i += 4) {
