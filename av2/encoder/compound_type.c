@@ -337,7 +337,8 @@ static int64_t pick_interintra_wedge(const AV2_COMP *const cpi,
   const MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(av2_is_wedge_used(bsize));
-  assert(cpi->common.features.enabled_motion_modes & (1 << INTERINTRA));
+  assert(mbmi->warp_inter_intra ||
+         (cpi->common.features.enabled_motion_modes & (1 << INTERINTRA)));
 
   const struct buf_2d *const src = &x->plane[0].src;
   const int bw = block_size_wide[bsize];
