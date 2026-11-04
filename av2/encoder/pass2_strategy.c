@@ -1493,8 +1493,11 @@ static void define_gf_group_pass0(AV2_COMP *cpi, FRAME_TYPE curr_frame_type) {
       (rc->baseline_gf_interval >= rc->frames_to_key) ? 1 : 0;
 
   // TODO(sarahparker): finish bit allocation for one pass pyramid.
+  const int max_pyr_height = AVMMAX(
+      0,
+      AVMMIN(gf_cfg->gf_max_pyr_height, cpi->common.seq_params.ref_frames - 1));
   gf_group->max_layer_depth_allowed =
-      AVMMIN(gf_cfg->gf_max_pyr_height, USE_ALTREF_FOR_ONE_PASS);
+      AVMMIN(max_pyr_height, USE_ALTREF_FOR_ONE_PASS);
 
   // Rare case when the look-ahead is less than the target GOP length, can't
   // generate ARF frame.
@@ -1650,7 +1653,11 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
   int64_t gf_group_bits;
   const int is_intra_only = rc->frames_since_key == 0;
 
-  cpi->internal_altref_allowed = (gf_cfg->gf_max_pyr_height > 1);
+  const int max_pyr_height = AVMMAX(
+      0, AVMMIN(gf_cfg->gf_max_pyr_height, cm->seq_params.ref_frames - 1));
+  const int min_pyr_height = AVMMIN(gf_cfg->gf_min_pyr_height, max_pyr_height);
+
+  cpi->internal_altref_allowed = (max_pyr_height > 1);
 
   // Reset the GF group data structures unless this is a key
   // frame in which case it will already have been done.
@@ -1675,7 +1682,7 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
   init_gf_stats(&gf_stats);
   GF_FRAME_STATS first_frame_stats, last_frame_stats;
 
-  const int can_disable_arf = !gf_cfg->gf_min_pyr_height;
+  const int can_disable_arf = !min_pyr_height;
 
   // Load stats for the current frame.
   double mod_frame_err = 0.0;
@@ -1741,7 +1748,7 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
   //   avg_sr_coded_error:      average of the SSE per pixel of each frame;
   //   avg_raw_err_stdev:       average of the standard deviation of (0,0)
   //                            motion error per block of each frame.
-  const int can_disable_internal_arfs = gf_cfg->gf_min_pyr_height <= 1;
+  const int can_disable_internal_arfs = min_pyr_height <= 1;
   if (can_disable_internal_arfs &&
       gf_stats.zero_motion_accumulator > MIN_ZERO_MOTION &&
       gf_stats.avg_sr_coded_error / num_mbs < MAX_SR_CODED_ERROR &&
@@ -1750,7 +1757,9 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
   }
 
   int use_alt_ref;
-  if (can_disable_arf) {
+  if (max_pyr_height == 0) {
+    use_alt_ref = 0;
+  } else if (can_disable_arf) {
     use_alt_ref =
         !is_almost_static(gf_stats.zero_motion_accumulator,
                           twopass->kf_zeromotion_pct, cpi->lap_enabled) &&
@@ -1813,7 +1822,7 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
   // Should we use the alternate reference frame.
   if (use_alt_ref) {
-    gf_group->max_layer_depth_allowed = gf_cfg->gf_max_pyr_height;
+    gf_group->max_layer_depth_allowed = max_pyr_height;
     set_baseline_gf_interval(cpi, (i - 1), active_max_gf_interval, use_alt_ref,
                              frame_params->frame_type);
 
