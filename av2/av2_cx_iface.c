@@ -126,16 +126,18 @@ struct av2_extracfg {
                                       // for sequence
   int max_partition_aspect_ratio;
   int disable_ml_transform_speed_features;  // disable all ml transform speedups
-  int enable_sdp;           // enable semi-decoupled partitioning
-  int enable_extended_sdp;  // enable inter semi-decoupled partitioning
-  int enable_mrls;          // enable multiple reference line selection
-  int enable_tip;           // enable temporal interpolated prediction
-  int enable_tip_refinemv;  // enable RefineMv and OPFL for TIP
-  int enable_mv_traj;       // enable MV trajectory tracking
-  int enable_high_motion;   // Enable a large motion search window
-  int enable_bawp;          // enable block adaptive weighted prediction
-  int enable_cwp;           // enable compound weighted prediction
-  int enable_imp_msk_bld;   // enable implicit masked blending
+  int enable_sdp;             // enable semi-decoupled partitioning
+  int enable_extended_sdp;    // enable inter semi-decoupled partitioning
+  int enable_mrls;            // enable multiple reference line selection
+  int enable_tip;             // enable temporal interpolated prediction
+  int enable_tip_refinemv;    // enable RefineMv and OPFL for TIP
+  int enable_mv_traj;         // enable MV trajectory tracking
+  int enable_high_motion;     // Enable a large motion search window
+  int enable_opfl_mv_search;  // optical flow MV search: 0 off, 1 all, 2 SC
+                              // (default)
+  int enable_bawp;            // enable block adaptive weighted prediction
+  int enable_cwp;             // enable compound weighted prediction
+  int enable_imp_msk_bld;     // enable implicit masked blending
 
   int enable_fsc;             // enable forward skip coding
   int enable_idtx_intra;      // enable idtx for intra
@@ -466,6 +468,7 @@ static struct av2_extracfg default_extra_cfg = {
   1,    // enable RefineMv and OPFL for TIP
   1,    // enable mv trajectory tracking
   0,    // enable a large motion search window
+  2,    // enable optical flow MV search (screen content only [default])
   1,    // enable block adaptive weighted prediction (BAWP)
   1,    // enable compound weighted prediction (CWP)
   1,    // eanble implicit masked blending
@@ -1245,6 +1248,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_tip_refinemv = extra_cfg->enable_tip_refinemv;
   cfg->enable_mv_traj = extra_cfg->enable_mv_traj;
   cfg->enable_high_motion = extra_cfg->enable_high_motion;
+  cfg->enable_opfl_mv_search = extra_cfg->enable_opfl_mv_search;
   cfg->enable_bawp = extra_cfg->enable_bawp;
   cfg->enable_cwp = extra_cfg->enable_cwp;
   cfg->enable_imp_msk_bld = extra_cfg->enable_imp_msk_bld;
@@ -1364,6 +1368,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_tip_refinemv = cfg->enable_tip_refinemv;
   extra_cfg->enable_mv_traj = cfg->enable_mv_traj;
   extra_cfg->enable_high_motion = cfg->enable_high_motion;
+  extra_cfg->enable_opfl_mv_search = cfg->enable_opfl_mv_search;
   extra_cfg->enable_bawp = cfg->enable_bawp;
   extra_cfg->enable_cwp = cfg->enable_cwp;
   extra_cfg->enable_imp_msk_bld = cfg->enable_imp_msk_bld;
@@ -1734,6 +1739,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   }
 
   tool_cfg->enable_high_motion = extra_cfg->enable_high_motion;
+  tool_cfg->enable_opfl_mv_search = extra_cfg->enable_opfl_mv_search;
 
   tool_cfg->enable_opfl_refine = extra_cfg->enable_opfl_refine;
   if (tool_cfg->enable_opfl_refine) {
@@ -4543,6 +4549,11 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
                                   &g_av2_codec_arg_defs.enable_high_motion,
                                   argv, err_string)) {
     extra_cfg.enable_high_motion = avm_arg_parse_int_helper(&arg, err_string);
+  } else if (avm_arg_match_helper(&arg,
+                                  &g_av2_codec_arg_defs.enable_opfl_mv_search,
+                                  argv, err_string)) {
+    extra_cfg.enable_opfl_mv_search =
+        avm_arg_parse_int_helper(&arg, err_string);
   } else if (avm_arg_match_helper(&arg, &g_av2_codec_arg_defs.enable_bawp, argv,
                                   err_string)) {
     extra_cfg.enable_bawp = avm_arg_parse_int_helper(&arg, err_string);
@@ -5191,6 +5202,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
           1,  // enable RefineMv and OPFL for TIP
           1,  // MV traj
           0,  // enable_high_motion
+          2,  // enable_opfl_mv_search (screen content only [default])
           1,    1, 1, 1,
           1,  // enable idtx intra for fsc is disabled case
           1,
@@ -5332,6 +5344,7 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
           .enable_tip_refinemv = 0,
           .enable_mv_traj = 0,
           .enable_high_motion = 0,
+          .enable_opfl_mv_search = 2,
           .enable_bawp = 0,
           .enable_cwp = 0,
           .enable_imp_msk_bld = 0,
