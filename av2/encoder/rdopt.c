@@ -9792,6 +9792,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       .inter_mode_mask = (1u << NEWMV) | (1u << NEW_NEWMV) | (1u << NEARMV) |
                          (1u << NEAR_NEARMV) | (1u << WARPMV) |
                          (1u << WARP_NEWMV),
+      .skip_tip_newmv = cpi->oxcf.speed >= 5,
       .precisions_from_top = cpi->sf.inter_sf.dry_pass_mv_prec_from_top
                                  ? cpi->sf.inter_sf.dry_pass_mv_prec_from_top
                                  : 3,
@@ -10119,6 +10120,10 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     // modes are not worth their cost here.
     if (apply_dry_pass_shortcuts &&
         !(dry_pass_cfg.inter_mode_mask & (1u << this_mode)))
+      continue;
+    // Dry pass: TIP with NEARMV only.
+    if (apply_dry_pass_shortcuts && dry_pass_cfg.skip_tip_newmv &&
+        this_mode == NEWMV && is_tip_ref_frame(ref_frame))
       continue;
     // Dry pass: use the top ranks only. The eval order iterates rank indices
     // 0..N-1 where rank 0 is the closest reference. TIP is always allowed
