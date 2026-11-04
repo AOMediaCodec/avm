@@ -3309,14 +3309,16 @@ static AVM_INLINE void init_allowed_partitions(
       partition_allowed[PARTITION_VERT] && allow_rect &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT),
                    rect_min_partition_size);
+  const bool allow_ext_3way = !cpi->sf.part_sf.disable_ext_partitions &&
+                              (cpi->speed <= 1 || bsize <= BLOCK_32X32);
   part_search_state->partition_allowed[PARTITION_HORZ_3] =
-      partition_allowed[PARTITION_HORZ_3] &&
+      partition_allowed[PARTITION_HORZ_3] && allow_ext_3way &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_3),
                    ext_min_partition_size) &&
       is_bsize_geq(get_h_partition_subsize(bsize, 1, PARTITION_HORZ_3),
                    ext_min_partition_size);
   part_search_state->partition_allowed[PARTITION_VERT_3] =
-      partition_allowed[PARTITION_VERT_3] &&
+      partition_allowed[PARTITION_VERT_3] && allow_ext_3way &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_3),
                    ext_min_partition_size) &&
       is_bsize_geq(get_h_partition_subsize(bsize, 1, PARTITION_VERT_3),
@@ -3742,15 +3744,40 @@ orientation_anisotropy_for_frame(const AV2_COMP *const cpi, uint64_t base) {
 // The block is sampled on a lattice of at most 32x32 points, so the cost is
 // negligible next to a single partition RD trial.
 static AVM_INLINE void compute_source_profile_variance(
-    const MACROBLOCK *x, BLOCK_SIZE bsize,
+    const AV2_COMP *const cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     PartitionSearchState *part_search_state) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
+  const bool is_inside_frame =
+      (blk_params->mi_row + mi_size_high[bsize] <= cm->mi_params.mi_rows) &&
+      (blk_params->mi_col + mi_size_wide[bsize] <= cm->mi_params.mi_cols);
+  if (!is_inside_frame || !cpi->source) {
+    part_search_state->src_var_rows = 0;
+    part_search_state->src_var_cols = 0;
+    part_search_state->src_var_valid = true;
+    return;
+  }
+  av2_setup_src_planes(x, cpi->source, blk_params->mi_row, blk_params->mi_col,
+                       1, NULL);
   const struct buf_2d *const src = &x->plane[AVM_PLANE_Y].src;
+  if (!src->buf) {
+    part_search_state->src_var_rows = 0;
+    part_search_state->src_var_cols = 0;
+    part_search_state->src_var_valid = true;
+    return;
+  }
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const int step_x = AVMMAX(1, bw / PART_PROFILE_SAMPLES);
   const int step_y = AVMMAX(1, bh / PART_PROFILE_SAMPLES);
   const int num_x = AVMMIN(PART_PROFILE_SAMPLES, bw / step_x);
   const int num_y = AVMMIN(PART_PROFILE_SAMPLES, bh / step_y);
+  if (num_x <= 0 || num_y <= 0) {
+    part_search_state->src_var_rows = 0;
+    part_search_state->src_var_cols = 0;
+    part_search_state->src_var_valid = true;
+    return;
+  }
   const int stride = src->stride;
 
   int64_t row_sum[PART_PROFILE_SAMPLES] = { 0 };
@@ -3826,7 +3853,8 @@ static AVM_INLINE void prune_partitions_by_structure_orientation(
   }
 
   if (!part_search_state->src_var_valid)
-    compute_source_profile_variance(x, bsize, part_search_state);
+    compute_source_profile_variance(cpi, (MACROBLOCK *)x, bsize,
+                                    part_search_state);
 
   const uint64_t var_rows = part_search_state->src_var_rows;
   const uint64_t var_cols = part_search_state->src_var_cols;
@@ -5130,6 +5158,44 @@ static AVM_INLINE void prune_ext_partitions_3way(
   }
 
   const int min_prune_level = frame_is_intra_only(cm) ? 2 : 1;
+
+  // On screen content at speed >= 2, prune 3-way partitions when PARTITION_NONE
+  // is already a zero-residual skip block, or prune based on source profile
+  // variance dominance (only evaluate the dominant direction; prune both on
+  // isotropic content).
+  if (cpi->is_screen_content_type && cpi->speed >= 2 &&
+      part_search_state->forced_partition == PARTITION_INVALID &&
+      !x->must_find_valid_partition &&
+      (part_search_state->partition_allowed[PARTITION_HORZ_3] ||
+       part_search_state->partition_allowed[PARTITION_VERT_3])) {
+    if (part_search_state->found_best_partition &&
+        pc_tree->partitioning == PARTITION_NONE && pc_tree->skippable) {
+      part_search_state->prune_partition[PARTITION_HORZ_3] = true;
+      part_search_state->prune_partition[PARTITION_VERT_3] = true;
+    }
+    const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
+    const BLOCK_SIZE bsize = blk_params->bsize;
+    const bool is_inside_frame =
+        (blk_params->mi_row + mi_size_high[bsize] <= cm->mi_params.mi_rows) &&
+        (blk_params->mi_col + mi_size_wide[bsize] <= cm->mi_params.mi_cols);
+    if (is_inside_frame && block_size_wide[bsize] >= 16 &&
+        block_size_high[bsize] >= 16) {
+      if (!part_search_state->src_var_valid) {
+        compute_source_profile_variance(cpi, (MACROBLOCK *)x, bsize,
+                                        part_search_state);
+      }
+      const uint64_t var_rows = part_search_state->src_var_rows;
+      const uint64_t var_cols = part_search_state->src_var_cols;
+      // Require at least 25% directional dominance to evaluate 3-way
+      // partitions.
+      if (var_rows * 4 <= var_cols * 5) {
+        part_search_state->prune_partition[PARTITION_HORZ_3] = true;
+      }
+      if (var_cols * 4 <= var_rows * 5) {
+        part_search_state->prune_partition[PARTITION_VERT_3] = true;
+      }
+    }
+  }
 
   // Prune horz 3 with speed features
   if (part_search_state->partition_allowed[PARTITION_HORZ_3] &&
