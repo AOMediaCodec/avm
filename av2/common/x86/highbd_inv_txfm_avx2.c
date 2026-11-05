@@ -15,6 +15,7 @@
 #include "config/avm_config.h"
 #include "config/av2_rtcd.h"
 #include "avm_dsp/x86/synonyms.h"
+#include "avm_dsp/x86/transpose_sse2.h"
 #include "av2/common/idct.h"
 #include "av2/common/txb_common.h"
 
@@ -3243,4 +3244,52 @@ void av2_inv_cross_chroma_tx_block_avx2(tran_low_t *dqcoeff_c1,
     _mm256_storeu_si256((__m256i *)&src_c1[i], v_res0);
     _mm256_storeu_si256((__m256i *)&src_c2[i], v_res1);
   }
+}
+
+// 4-point inverse WHT of av2_highbd_iwht4x4_16_add_c on 4 lanes; in[] is a, c,
+// d, b and becomes the outputs a, b, c, d.
+static INLINE void iwht4(__m128i *in) {
+  const __m128i a = _mm_add_epi32(in[0], in[1]);
+  const __m128i d = _mm_sub_epi32(in[2], in[3]);
+  const __m128i e = _mm_srai_epi32(_mm_sub_epi32(a, d), 1);
+  const __m128i b = _mm_sub_epi32(e, in[3]);
+  const __m128i c = _mm_sub_epi32(e, in[1]);
+  in[0] = _mm_sub_epi32(a, b);
+  in[1] = b;
+  in[2] = c;
+  in[3] = _mm_add_epi32(d, c);
+}
+
+void av2_highbd_iwht4x4_16_add_avx2(const tran_low_t *input, uint16_t *dest,
+                                    int stride, int bd) {
+  // Decoded coefficients can use up to bd + 8 bits, so the sums need 32 bits.
+  __m128i s[4], t[4];
+  for (int i = 0; i < 4; ++i) {
+    s[i] = _mm_srai_epi32(_mm_loadu_si128((const __m128i *)(input + 4 * i)),
+                          UNIT_QUANT_SHIFT);
+  }
+  transpose_32bit_4x4(s, t);
+  iwht4(t);
+  transpose_32bit_4x4(t, s);
+  iwht4(s);
+  // s[i] now holds row i of the residual.
+  const __m128i d01 =
+      _mm_unpacklo_epi64(_mm_loadl_epi64((const __m128i *)dest),
+                         _mm_loadl_epi64((const __m128i *)(dest + stride)));
+  const __m128i d23 =
+      _mm_unpacklo_epi64(_mm_loadl_epi64((const __m128i *)(dest + 2 * stride)),
+                         _mm_loadl_epi64((const __m128i *)(dest + 3 * stride)));
+  const __m256i r01 = _mm256_add_epi32(_mm256_cvtepu16_epi32(d01),
+                                       _mm256_set_m128i(s[1], s[0]));
+  const __m256i r23 = _mm256_add_epi32(_mm256_cvtepu16_epi32(d23),
+                                       _mm256_set_m128i(s[3], s[2]));
+  // The 128-bit lanes hold rows 0, 2 and rows 1, 3.
+  const __m256i res = _mm256_min_epu16(_mm256_packus_epi32(r01, r23),
+                                       _mm256_set1_epi16((1 << bd) - 1));
+  const __m128i res02 = _mm256_castsi256_si128(res);
+  const __m128i res13 = _mm256_extracti128_si256(res, 1);
+  _mm_storel_epi64((__m128i *)dest, res02);
+  _mm_storel_epi64((__m128i *)(dest + stride), res13);
+  _mm_storel_epi64((__m128i *)(dest + 2 * stride), _mm_srli_si128(res02, 8));
+  _mm_storel_epi64((__m128i *)(dest + 3 * stride), _mm_srli_si128(res13, 8));
 }

@@ -15,6 +15,7 @@
 #include "av2/common/enums.h"
 #include "av2/common/av2_txfm.h"
 #include "av2/common/idct.h"
+#include "avm_dsp/x86/transpose_sse2.h"
 #include <immintrin.h>
 
 static INLINE __m256i load_4x4_s16_avx2(const int16_t *src, int stride) {
@@ -95,6 +96,20 @@ static INLINE void store_4x4_s16_s32_avx2(__m256i data_s16, int32_t *dst,
   _mm_storeu_si128((__m128i *)(dst_bytes + 3 * stride_bytes), row3_data);
 }
 
+// 4-point WHT of av2_fwht4x4_c on 4 lanes; in[] is a, b, c, d and becomes the
+// outputs a, c, d, b.
+static INLINE void fwht4(__m128i *in) {
+  const __m128i a = _mm_add_epi16(in[0], in[1]);
+  const __m128i d = _mm_sub_epi16(in[3], in[2]);
+  const __m128i e = _mm_srai_epi16(_mm_sub_epi16(a, d), 1);
+  const __m128i b = _mm_sub_epi16(e, in[1]);
+  const __m128i c = _mm_sub_epi16(e, in[2]);
+  in[0] = _mm_sub_epi16(a, c);
+  in[1] = c;
+  in[2] = _mm_add_epi16(d, b);
+  in[3] = b;
+}
+
 void av2_lossless_fwd_idtx_avx2(const int16_t *src_diff, tran_low_t *coeff,
                                 int diff_stride, TxfmParam *txfm_param) {
   const int txw = tx_size_wide[txfm_param->tx_size];
@@ -110,5 +125,24 @@ void av2_lossless_fwd_idtx_avx2(const int16_t *src_diff, tran_low_t *coeff,
       __m256i shifted_block = _mm256_slli_epi16(block, scale_bits);
       store_4x4_s16_s32_avx2(shifted_block, coeff + i * txw + j, txw);
     }
+  }
+}
+
+void av2_highbd_fwht4x4_avx2(const int16_t *input, tran_low_t *output,
+                             int stride) {
+  // Residuals of up to 12 bits keep every sum within 16 bits.
+  __m128i s[4], col[4], row[4];
+  for (int i = 0; i < 4; ++i) {
+    s[i] = _mm_loadl_epi64((const __m128i *)(input + i * stride));
+  }
+  fwht4(s);
+  transpose_16bit_4x4(s, col);
+  fwht4(col);
+  // row[0] holds rows 0-1 and row[2] rows 2-3.
+  transpose_16bit_4x4(col, row);
+  for (int i = 0; i < 2; ++i) {
+    const __m256i v = _mm256_cvtepi16_epi32(row[2 * i]);
+    _mm256_storeu_si256((__m256i *)(output + 8 * i),
+                        _mm256_slli_epi32(v, UNIT_QUANT_SHIFT));
   }
 }

@@ -154,6 +154,7 @@ add_proto qw/void av2_highbd_inv_txfm_add_horz/, "const tran_low_t *input, uint1
 
 add_proto qw/void av2_highbd_iwht4x4_1_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
 add_proto qw/void av2_highbd_iwht4x4_16_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
+specialize qw/av2_highbd_iwht4x4_16_add avx2/;
 
 add_proto qw/void av2_highbd_iwht4x4_1_vert_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
 add_proto qw/void av2_highbd_iwht4x4_16_vert_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
@@ -278,7 +279,7 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   specialize qw/av2_highbd_quantize_fp sse4_1 avx2 neon/;
 
   add_proto qw/void av2_highbd_fwht4x4/, "const int16_t *input, tran_low_t *output, int stride";
-  specialize qw/av2_highbd_fwht4x4 neon/;
+  specialize qw/av2_highbd_fwht4x4 avx2 neon/;
 
   # End av2_high encoder functions
 

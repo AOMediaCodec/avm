@@ -191,4 +191,133 @@ INSTANTIATE_TEST_SUITE_P(
 
 #endif  // HAVE_NEON
 
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, Trans4x4WHT,
+    ::testing::Values(make_tuple(&av2_highbd_fwht4x4_avx2, &iwht4x4_10, DCT_DCT,
+                                 AVM_BITS_10, 16, &av2_highbd_fwht4x4_c),
+                      make_tuple(&av2_highbd_fwht4x4_avx2, &iwht4x4_12, DCT_DCT,
+                                 AVM_BITS_12, 16, &av2_highbd_fwht4x4_c)));
+#endif  // HAVE_AVX2
+
+typedef void (*IwhtAddFunc)(const tran_low_t *in, uint16_t *dest, int stride,
+                            int bd);
+typedef std::tuple<IwhtAddFunc, avm_bit_depth_t> IwhtAddParam;
+
+enum { kFromResidual, kRandomCoeffs, kExtremeCoeffs };
+
+class InvWHT4x4Test : public ::testing::TestWithParam<IwhtAddParam> {
+ public:
+  virtual ~InvWHT4x4Test() {}
+
+  virtual void SetUp() {
+    inv_txfm_ = GET_PARAM(0);
+    bd_ = GET_PARAM(1);
+    max_pixel_ = (1 << bd_) - 1;
+  }
+  virtual void TearDown() { libavm_test::ClearSystemState(); }
+
+ protected:
+  static const int kStride = 8;
+
+  void FillBlock(ACMRandom *rnd, int mode, tran_low_t *coeff, uint16_t *ref,
+                 uint16_t *dst) {
+    // The decoder clamps dequantized coefficients to bd + 8 bits.
+    const int coeff_max = (1 << (bd_ + 7)) - 1;
+    if (mode == kFromResidual) {
+      int16_t residual[16];
+      for (int i = 0; i < 16; ++i) {
+        residual[i] =
+            (rnd->Rand16() & max_pixel_) - (rnd->Rand16() & max_pixel_);
+      }
+      av2_fwht4x4_c(residual, coeff, 4);
+    } else {
+      for (int i = 0; i < 16; ++i) {
+        if (mode == kRandomCoeffs) {
+          coeff[i] = static_cast<int>(rnd->Rand31() % (2 * (coeff_max + 1))) -
+                     coeff_max - 1;
+        } else {
+          coeff[i] = (rnd->Rand8() & 1) ? coeff_max : -coeff_max - 1;
+        }
+      }
+    }
+    for (int i = 0; i < 4 * kStride; ++i) {
+      if (mode == kExtremeCoeffs) {
+        ref[i] = dst[i] = (rnd->Rand8() & 1) ? max_pixel_ : 0;
+      } else {
+        ref[i] = dst[i] = rnd->Rand16() & max_pixel_;
+      }
+    }
+  }
+
+  void RunCheck(int mode) {
+    ACMRandom rnd(ACMRandom::DeterministicSeed());
+    DECLARE_ALIGNED(16, tran_low_t, coeff[16]);
+    DECLARE_ALIGNED(16, uint16_t, ref[4 * kStride]);
+    DECLARE_ALIGNED(16, uint16_t, dst[4 * kStride]);
+    for (int n = 0; n < 10000; ++n) {
+      FillBlock(&rnd, mode, coeff, ref, dst);
+      av2_highbd_iwht4x4_16_add_c(coeff, ref, kStride, bd_);
+      ASM_REGISTER_STATE_CHECK(inv_txfm_(coeff, dst, kStride, bd_));
+      for (int i = 0; i < 4 * kStride; ++i) {
+        ASSERT_EQ(ref[i], dst[i])
+            << "Error: not bit-exact at index " << i << " of block " << n;
+      }
+    }
+  }
+
+  void RunSpeedTest() {
+    ACMRandom rnd(ACMRandom::DeterministicSeed());
+    DECLARE_ALIGNED(16, tran_low_t, coeff[16]);
+    DECLARE_ALIGNED(16, uint16_t, ref[4 * kStride]);
+    DECLARE_ALIGNED(16, uint16_t, dst[4 * kStride]);
+    const int num_iter = 50000;
+    FillBlock(&rnd, kFromResidual, coeff, ref, dst);
+
+    avm_usec_timer c_timer;
+    avm_usec_timer_start(&c_timer);
+    for (int i = 0; i < num_iter; ++i) {
+      ASM_REGISTER_STATE_CHECK(
+          av2_highbd_iwht4x4_16_add_c(coeff, ref, kStride, bd_));
+    }
+    avm_usec_timer_mark(&c_timer);
+
+    avm_usec_timer simd_timer;
+    avm_usec_timer_start(&simd_timer);
+    for (int i = 0; i < num_iter; ++i) {
+      ASM_REGISTER_STATE_CHECK(inv_txfm_(coeff, dst, kStride, bd_));
+    }
+    avm_usec_timer_mark(&simd_timer);
+
+    for (int i = 0; i < 4 * kStride; ++i) {
+      ASSERT_EQ(ref[i], dst[i]) << "Error: not bit-exact at index " << i;
+    }
+    const int c_time = static_cast<int>(avm_usec_timer_elapsed(&c_timer));
+    const int simd_time = static_cast<int>(avm_usec_timer_elapsed(&simd_timer));
+    printf("c_time = %d \t simd_time = %d \t Gain = %4.2f \n", c_time,
+           simd_time, static_cast<float>(c_time) / simd_time);
+  }
+
+  IwhtAddFunc inv_txfm_;
+  int bd_;
+  int max_pixel_;
+};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(InvWHT4x4Test);
+
+TEST_P(InvWHT4x4Test, FromResidual) { RunCheck(kFromResidual); }
+
+TEST_P(InvWHT4x4Test, RandomCoeffs) { RunCheck(kRandomCoeffs); }
+
+TEST_P(InvWHT4x4Test, ExtremeCoeffs) { RunCheck(kExtremeCoeffs); }
+
+TEST_P(InvWHT4x4Test, DISABLED_Speed) { RunSpeedTest(); }
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, InvWHT4x4Test,
+    ::testing::Combine(::testing::Values(&av2_highbd_iwht4x4_16_add_avx2),
+                       ::testing::Values(AVM_BITS_8, AVM_BITS_10,
+                                         AVM_BITS_12)));
+#endif  // HAVE_AVX2
+
 }  // namespace
