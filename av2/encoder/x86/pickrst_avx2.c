@@ -114,3 +114,28 @@ void av2_wienerns_stats_batch_avx2(int64_t *A, const int16_t *feat,
     }
   }
 }
+
+void av2_wienerns_gather_features_1x16_avx2(int16_t *feat, int feat_stride,
+                                            const uint16_t *dgd,
+                                            const uint16_t *luma,
+                                            const WienernsGatherTaps *g) {
+  const __m256i vdgd = _mm256_loadu_si256((const __m256i *)dgd);
+  const __m256i vluma =
+      luma ? _mm256_loadu_si256((const __m256i *)luma) : _mm256_setzero_si256();
+  const int *offset = g->offsets;
+  for (int k = 0; k < g->num_feat; ++k) {
+    __m256i pred = _mm256_set1_epi16((int16_t)g->num_center[k]);
+    for (int t = 0; t < g->num_dgd[k]; ++t) {
+      const __m256i vtap =
+          _mm256_loadu_si256((const __m256i *)(dgd + *offset++));
+      pred = _mm256_add_epi16(pred, _mm256_sub_epi16(vtap, vdgd));
+    }
+    assert(g->num_luma[k] == 0 || luma != NULL);
+    for (int t = 0; t < g->num_luma[k]; ++t) {
+      const __m256i vtap =
+          _mm256_loadu_si256((const __m256i *)(luma + *offset++));
+      pred = _mm256_add_epi16(pred, _mm256_sub_epi16(vtap, vluma));
+    }
+    _mm256_storeu_si256((__m256i *)(feat + k * feat_stride), pred);
+  }
+}

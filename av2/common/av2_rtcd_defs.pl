@@ -25,6 +25,7 @@ print <<EOF
 #include "av2/common/odintrin.h"
 #include "av2/common/restoration.h"
 
+struct WienernsGatherTaps;
 struct macroblockd;
 
 /* Encoder forward decls */
@@ -423,6 +424,9 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   # WienerNS filter stats accumulation
   add_proto qw/void av2_wienerns_stats_batch/, "int64_t *A, const int16_t *feat, int feat_stride, int n, int dim";
   specialize qw/av2_wienerns_stats_batch sse4_1 avx2/;
+
+  add_proto qw/void av2_wienerns_gather_features_1x16/, "int16_t *feat, int feat_stride, const uint16_t *dgd, const uint16_t *luma, const struct WienernsGatherTaps *taps";
+  specialize qw/av2_wienerns_gather_features_1x16 avx2/;
 }
 
 # WARPED_MOTION / GLOBAL_MOTION functions
