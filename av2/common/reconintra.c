@@ -821,14 +821,18 @@ static void highbd_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
   const int min_base_z2 = -(1 + mrl_index);
 
   if (angle > 0 && angle < 90) {
-    above[max_base_z1_z3 + 1] = above[max_base_z1_z3];
-    above[max_base_z1_z3 + 2] = above[max_base_z1_z3];
+    // SIMD kernels load up to 10 past max_base (lanes later masked out).
+    for (int i = 1; i <= 10; ++i)
+      above[max_base_z1_z3 + i] = above[max_base_z1_z3];
     av2_highbd_dr_prediction_z1_idif(dst, stride, bw, bh, above, left, dx, dy,
                                      bd, mrl_index);
 
   } else if (angle > 90 && angle < 180) {
-    above[min_base_z2 - 1] = above[min_base_z2];
-    left[min_base_z2 - 1] = left[min_base_z2];
+    // SIMD kernels load down to min_base - 8 (lanes later masked out).
+    for (int i = 1; i <= 8; ++i) {
+      above[min_base_z2 - i] = above[min_base_z2];
+      left[min_base_z2 - i] = left[min_base_z2];
+    }
     if (mrl_index == 0) {
       above[max_base_z2_above + 1] = above[max_base_z2_above];
       left[max_base_z2_left + 1] = left[max_base_z2_left];
@@ -837,8 +841,8 @@ static void highbd_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
                                      bd, mrl_index);
 
   } else if (angle > 180 && angle < 270) {
-    left[max_base_z1_z3 + 1] = left[max_base_z1_z3];
-    left[max_base_z1_z3 + 2] = left[max_base_z1_z3];
+    for (int i = 1; i <= 10; ++i)
+      left[max_base_z1_z3 + i] = left[max_base_z1_z3];
     av2_highbd_dr_prediction_z3_idif(dst, stride, bw, bh, above, left, dx, dy,
                                      bd, mrl_index);
 
@@ -908,15 +912,13 @@ static void highbd_second_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
   if (angle > 0 && angle < 90) {
     int dy = dr_intra_derivative[90 - angle];
     int dx = 1;
-    left[max_base + 1] = left[max_base];
-    left[max_base + 2] = left[max_base];
+    for (int i = 1; i <= 10; ++i) left[max_base + i] = left[max_base];
     av2_highbd_dr_prediction_z3_idif(dst, stride, bw, bh, above, left, dx, dy,
                                      bd, 0);
   } else if (angle > 180 && angle < 270) {
     int dx = dr_intra_derivative[angle - 180];
     int dy = 1;
-    above[max_base + 1] = above[max_base];
-    above[max_base + 2] = above[max_base];
+    for (int i = 1; i <= 10; ++i) above[max_base + i] = above[max_base];
     av2_highbd_dr_prediction_z1_idif(dst, stride, bw, bh, above, left, dx, dy,
                                      bd, 0);
   }
