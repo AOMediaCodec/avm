@@ -1116,6 +1116,14 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
   }
 
   RANGE_CHECK(extra_cfg, reduced_tx_type_set, 0, 3);
+  if (extra_cfg->max_drl_refmvs > 0) {
+    RANGE_CHECK(extra_cfg, max_drl_refmvs, MIN_MAX_DRL_BITS + 1,
+                MAX_MAX_DRL_BITS + 1);
+  }
+  if (extra_cfg->max_drl_refbvs > 0) {
+    RANGE_CHECK(extra_cfg, max_drl_refbvs, MIN_MAX_IBC_DRL_BITS + 1,
+                MAX_MAX_IBC_DRL_BITS + 1);
+  }
 
   RANGE_CHECK_HI(extra_cfg, enable_low_complexity_decode, 2);
 
