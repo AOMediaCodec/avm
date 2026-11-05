@@ -217,7 +217,8 @@ void av2_enc_build_inter_predictor(const AV2_COMMON *cm, MACROBLOCKD *xd,
                               mi_col, mi_row);
   }
 
-  if (need_chroma_refinemv) {
+  if (need_chroma_refinemv &&
+      !(plane_from != 0 && xd->tree_type == SHARED_PART)) {
     fill_subblock_refine_mv(xd->refinemv_subinfo, xd->plane[0].width,
                             xd->plane[0].height, mbmi->mv[0].as_mv,
                             mbmi->mv[1].as_mv);
