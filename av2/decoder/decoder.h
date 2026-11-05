@@ -619,6 +619,17 @@ typedef struct AV2Decoder {
   bool obus_in_frame_unit_data[MAX_NUM_TLAYERS][MAX_NUM_MLAYERS][NUM_OBU_TYPES];
 
   /*!
+   * ci_obu_received[xlayer_id][tlayer_id][mlayer_id] is true when a Content
+   * Interpretation OBU with the given layer IDs has been parsed and not yet
+   * consumed by the frame header of that layer. Unlike
+   * obus_in_frame_unit_data, it is not reset at frame unit boundaries, so a CI
+   * OBU that is sent ahead of the frame data of its layer (e.g. in the grouped
+   * per-extended-layer high level syntax of VCWG-G130) is still seen by the
+   * frame it belongs to. Cleared when consumed and at each temporal delimiter.
+   */
+  bool ci_obu_received[MAX_NUM_XLAYERS][MAX_NUM_TLAYERS][MAX_NUM_MLAYERS];
+
+  /*!
    * Indicates if the bitstream has multiple extended layers (multistream).
    * Set when an MSDO OBU or a Global LCR with multiple xlayers is present.
    * Controls xlayer context switching and tile group contiguity checks.
