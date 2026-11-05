@@ -317,6 +317,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_high_motion;
+  /*!\brief Optical flow based MV search (Encoder only): 0: off,
+   * 1: all content, 2: screen content only (default)
+   */
+  unsigned int enable_opfl_mv_search;
   /*!\brief enable block adaptive weighted prediction
    *
    */

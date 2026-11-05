@@ -1319,15 +1319,10 @@ static int64_t handle_newmv(const AV2_COMP *const cpi, MACROBLOCK *const x,
         }
       }
     } else if (is_joint_mvd_coding_mode(this_mode)) {
-      if (!cm->seq_params.enable_joint_mvd) return INT64_MAX;
-      const int same_side = is_ref_frame_same_side(cm, mbmi);
-      // skip JOINT_NEWMV mode when two reference frames are from same side
-      if (same_side) return INT64_MAX;
-
-      const int first_ref_dist =
-          cm->ref_frame_relative_dist[mbmi->ref_frame[0]];
-      const int sec_ref_dist = cm->ref_frame_relative_dist[mbmi->ref_frame[1]];
-      if (first_ref_dist != sec_ref_dist) return INT64_MAX;
+      assert(cm->seq_params.enable_joint_mvd);
+      assert(!is_ref_frame_same_side(cm, mbmi));
+      assert(cm->ref_frame_relative_dist[mbmi->ref_frame[0]] ==
+             cm->ref_frame_relative_dist[mbmi->ref_frame[1]]);
 
       if (reuse_comp_mv_for_opfl(cm, x, args, cur_mv, rate_mv)) {
         return 0;
@@ -4752,12 +4747,18 @@ static int process_compound_inter_mode(
   // candidate in av2_compound_type_rd, which means it used the dst_buf
   // rather than the tmp_buf.
   if (mbmi->interinter_comp.type == COMPOUND_AVERAGE && is_luma_interp_done) {
-    if (num_planes > 1) {
+    const int skip_uv_build = cpi->sf.interp_sf.skip_model_rd_uv ||
+                              (cpi->sf.inter_sf.skip_temporary_pred_for_opfl &&
+                               opfl_allowed_cur_pred_mode(cm, xd, mbmi));
+    // Skip building chroma predictors in the conditions that they are not used.
+    if (num_planes > 1 && !skip_uv_build) {
       av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                     AVM_PLANE_U, num_planes - 1,
                                     x->tip_unit_hooks);
     }
-    *skip_build_pred = INTERP_SKIP_LUMA_SKIP_CHROMA;
+    *skip_build_pred = (num_planes > 1 && skip_uv_build)
+                           ? INTERP_SKIP_LUMA_EVAL_CHROMA
+                           : INTERP_SKIP_LUMA_SKIP_CHROMA;
   }
   return 0;
 }
@@ -10178,6 +10179,12 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     // passed via opfl_modes_allowed)
     if (this_mode >= NEAR_NEARMV_OPTFLOW &&
         !opfl_allowed_cur_refs_bsize(cm, xd, mbmi))
+      continue;
+
+    if (is_joint_mvd_coding_mode(this_mode) &&
+        (is_ref_frame_same_side(cm, mbmi) ||
+         cm->ref_frame_relative_dist[ref_frame] !=
+             cm->ref_frame_relative_dist[second_ref_frame]))
       continue;
 
     // Skip OPFL when one ref is more than twice as far as the other.
