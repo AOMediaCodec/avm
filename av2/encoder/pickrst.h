@@ -27,6 +27,21 @@ struct AV2_COMP;
 // The SIMD versions of av2_wienerns_stats_batch() need every input to be
 // below this in absolute value.
 #define WIENERNS_STATS_MAX_ABS (1 << 13)
+// Pixels of a row gathered at once, MI_SIZE rows make a batch.
+#define WIENERNS_STATS_ROW 16
+
+#define WIENERNS_GATHER_MAX_TAPS (3 * WIENERNS_TAPS_MAX)
+/*!\brief The taps of a filter grouped by feature
+ */
+typedef struct WienernsGatherTaps {
+  int num_feat;                          /*!< Number of features */
+  uint8_t num_center[WIENERNS_TAPS_MAX]; /*!< Bias of each feature */
+  uint8_t num_dgd[WIENERNS_TAPS_MAX];    /*!< Taps of each feature */
+  uint8_t num_luma[WIENERNS_TAPS_MAX];   /*!< Cross component taps of each
+                                              feature */
+  int offsets[WIENERNS_GATHER_MAX_TAPS]; /*!< Offsets of all the taps,
+                                              serialized by feature */
+} WienernsGatherTaps;
 
 static INLINE int check_wienerns_eq(const WienerNonsepInfo *info,
                                     const WienerNonsepInfo *ref, int num_coeffs,
