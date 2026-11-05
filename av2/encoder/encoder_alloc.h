@@ -272,6 +272,8 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   release_compound_type_rd_buffers(&cpi->td.mb.comp_rd_buffer);
   avm_free(cpi->td.mb.tmp_conv_dst);
   avm_free(cpi->td.mb.upsample_pred);
+  avm_free(cpi->td.mb.joint_mvd_pred.buf);
+  cpi->td.mb.joint_mvd_pred.buf = NULL;
   avm_free(cpi->td.mb.coef_info);
   avm_free(cpi->td.mb.dqcoeff_buf);
 
@@ -282,6 +284,12 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   avm_free(cpi->td.mb.tmp_pred_bufs);
   avm_free(cpi->td.tip_memo);
   cpi->td.tip_memo = NULL;
+  avm_free(cpi->td.mb.cctx_scratch);
+  cpi->td.mb.cctx_scratch = NULL;
+  avm_free(cpi->td.mb.cctx_recon);
+  cpi->td.mb.cctx_recon = NULL;
+  avm_free(cpi->td.mb.omvs_scratch);
+  cpi->td.mb.omvs_scratch = NULL;
 
 #if CONFIG_DENOISE
   if (cpi->denoise_and_model) {

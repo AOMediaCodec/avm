@@ -534,7 +534,7 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV2_COMP *const cpi,
   return best_rate_overhead;
 }
 
-int get_uv_mode_cost(MB_MODE_INFO *mbmi, const ModeCosts mode_costs,
+int get_uv_mode_cost(MB_MODE_INFO *mbmi, const ModeCosts *mode_costs,
                      MACROBLOCKD *xd, CFL_ALLOWED_TYPE cfl_allowed,
                      int mode_index) {
   assert(mode_index < UV_CFL_PRED);
@@ -542,17 +542,17 @@ int get_uv_mode_cost(MB_MODE_INFO *mbmi, const ModeCosts mode_costs,
   if (cfl_allowed) {
     const int cfl_ctx = get_cfl_ctx(xd);
     if (mbmi->uv_mode == UV_CFL_PRED) {
-      return mode_costs.cfl_mode_cost[cfl_ctx][1];
+      return mode_costs->cfl_mode_cost[cfl_ctx][1];
     }
-    int cost = mode_costs.cfl_mode_cost[cfl_ctx][0];
+    int cost = mode_costs->cfl_mode_cost[cfl_ctx][0];
     int mode_set_low = AVMMIN(mode_index, CHROMA_INTRA_MODE_INDEX_COUNT - 1);
-    cost += mode_costs.intra_uv_mode_cost[uv_context][mode_set_low];
+    cost += mode_costs->intra_uv_mode_cost[uv_context][mode_set_low];
     if (mode_set_low == (CHROMA_INTRA_MODE_INDEX_COUNT - 1))
       cost += av2_cost_literal(3);
     return cost;
   }
   int mode_set_low = AVMMIN(mode_index, CHROMA_INTRA_MODE_INDEX_COUNT - 1);
-  int cost = mode_costs.intra_uv_mode_cost[uv_context][mode_set_low];
+  int cost = mode_costs->intra_uv_mode_cost[uv_context][mode_set_low];
   if (mode_set_low == (CHROMA_INTRA_MODE_INDEX_COUNT - 1))
     cost += av2_cost_literal(3);
   return cost;
@@ -739,7 +739,7 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
       }
       if (mbmi->use_dpcm_uv == 0) {
         mode_cost += get_uv_mode_cost(
-            mbmi, x->mode_costs, xd,
+            mbmi, &x->mode_costs, xd,
             is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) ||
                 is_mhccp_allowed(cm, xd),
             mbmi->uv_mode_idx);
@@ -1093,6 +1093,21 @@ static AVM_INLINE int intra_block_yrd(const AV2_COMP *const cpi, MACROBLOCK *x,
   return 0;
 }
 
+// Uniform tx search right after intra_model_yrd() for the same mode: its
+// first transform block reuses the luma prediction the model left in dst.
+static AVM_INLINE void pick_uniform_tx_yrd_after_model(const AV2_COMP *cpi,
+                                                       MACROBLOCK *x,
+                                                       RD_STATS *rd_stats,
+                                                       BLOCK_SIZE bsize,
+                                                       int64_t ref_best_rd) {
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  x->intra_y_pred_ready = !xd->lossless[xd->mi[0]->segment_id];
+  x->intra_y_pred_tx =
+      tx_size_from_tx_mode(bsize, x->txfm_search_params.tx_mode_search_type);
+  av2_pick_uniform_tx_size_type_yrd(cpi, x, rd_stats, bsize, ref_best_rd);
+  x->intra_y_pred_ready = 0;
+}
+
 /*!\brief Prune a DIP mode candidate based on model RD cost.
  *
  * \ingroup intra_mode_search
@@ -1176,8 +1191,13 @@ static INLINE void handle_intra_dip_mode(
         continue;
       }
 
-      av2_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats_y_iml, bsize,
+      // Without the speed feature no model ran, so dst holds no prediction.
+      if (cpi->sf.intra_sf.include_dip_for_top_n_model_rd_pruning)
+        pick_uniform_tx_yrd_after_model(cpi, x, &rd_stats_y_iml, bsize,
                                         best_rd);
+      else
+        av2_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats_y_iml, bsize,
+                                          best_rd);
 
       if (rd_stats_y_iml.rate == INT_MAX) continue;
       const int this_rate_tmp =
@@ -1342,7 +1362,7 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
     intra_search_state->mrl0_dir_mode_survived[mbmi->mode] = 1;
   av2_init_rd_stats(rd_stats_y);
   x->prune_tx_partition = 0;
-  av2_pick_uniform_tx_size_type_yrd(cpi, x, rd_stats_y, bsize, best_rd);
+  pick_uniform_tx_yrd_after_model(cpi, x, rd_stats_y, bsize, best_rd);
 
   if (mode == DC_PRED && xd->tree_type != CHROMA_PART &&
       av2_intra_dip_allowed_bsize(cm, bsize)) {
@@ -1969,8 +1989,8 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
 
             // Evaluate best transform size and type for Luma.
             RD_STATS this_rd_stats;
-            av2_pick_uniform_tx_size_type_yrd(cpi, x, &this_rd_stats, bsize,
-                                              best_rd_so_far);
+            pick_uniform_tx_yrd_after_model(cpi, x, &this_rd_stats, bsize,
+                                            best_rd_so_far);
             int this_rate_tokenonly = this_rd_stats.rate;
             const int64_t this_distortion = this_rd_stats.dist;
             const int this_skip_txfm = this_rd_stats.skip_txfm;

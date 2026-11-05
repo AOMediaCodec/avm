@@ -1753,6 +1753,14 @@ typedef struct ThreadData {
   // TIP unit memo of this thread (see tip_memo.h), allocated on first use; its
   // cache is set in mb.tip_unit_hooks while a superblock is encoded.
   struct TipUnitMemo *tip_memo;
+  // Buffer of mb.joint_mvd_pred.
+  uint16_t *joint_mvd_pred_buf;
+  // Scratch for the CCTX search.
+  tran_low_t *cctx_scratch;
+  // Scratch for the CCTX joint UV reconstruction.
+  uint16_t *cctx_recon;
+  // Scratch for the one-sided OPFL MV refinement.
+  int16_t *omvs_scratch;
   int intrabc_used;
   int deltaq_used;
   FRAME_CONTEXT *tctx;
