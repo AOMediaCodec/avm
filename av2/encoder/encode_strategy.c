@@ -674,6 +674,20 @@ static int get_refresh_idx(int update_arf, int refresh_level,
 
   int oldest_ref_level_order = INT32_MAX;
   int oldest_ref_level_idx = -1;
+
+  int num_past_frames = 0;
+  for (int map_idx = 0; map_idx < ref_frames; map_idx++) {
+    RefFrameMapPair ref_pair = ref_frame_map_pairs[map_idx];
+    if (ref_pair.ref_frame_for_inference == -1) continue;
+    if (is_ras_frame == 1 && ref_pair.frame_type == KEY_FRAME) continue;
+    if ((olk_flags_to_keep >> map_idx) & 1u) continue;
+    if (ref_pair.disp_order_removed <= cur_frame_disp - 1) {
+      num_past_frames++;
+    }
+  }
+  const int past_frames_to_keep =
+      is_multi_layers_lag_test ? 1 : AVMMIN(3, num_past_frames);
+
   for (int map_idx = 0; map_idx < ref_frames; map_idx++) {
     RefFrameMapPair ref_pair = ref_frame_map_pairs[map_idx];
     if (ref_pair.ref_frame_for_inference == -1) continue;
@@ -682,14 +696,9 @@ static int get_refresh_idx(int update_arf, int refresh_level,
     const int frame_order = ref_pair.disp_order_removed;
     const int reference_frame_level = ref_pair.pyr_level;
 
-    if (is_multi_layers_lag_test) {
-      // For multi layer, need to manage the buffer more flexibly.
-      // Keep future frames and one closest previous frames in output order
-      if (frame_order > cur_frame_disp - 1) continue;
-    } else {
-      // Keep future frames and three closest previous frames in output order
-      if (frame_order > cur_frame_disp - 3) continue;
-    }
+    // Keep future frames and up to past_frames_to_keep closest previous frames
+    // in output order
+    if (frame_order > cur_frame_disp - past_frames_to_keep) continue;
 
     // Keep track of the oldest reference frame matching the specified
     // refresh level from the subgop cfg
