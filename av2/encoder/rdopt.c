@@ -6434,7 +6434,8 @@ static INLINE int is_bv_valid(const FULLPEL_MV *full_mv, const AV2_COMMON *cm,
   if (!av2_is_fullmv_in_range(&fullms_params.mv_limits, *full_mv,
                               fullms_params.mv_cost_params.pb_mv_precision))
     return 0;
-  if (!av2_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, cm->mib_size_log2))
+  if (!av2_enc_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize,
+                           cm->mib_size_log2))
     return 0;
   return 1;
 }

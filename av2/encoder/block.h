@@ -1512,6 +1512,13 @@ typedef struct macroblock {
    * Contains the hash table, hash function, and buffer used for intrabc.
    */
   IntraBCHashInfo intrabc_hash_info;
+
+  /*! \brief Set when the SB rows of a tile are encoded by several threads.
+   *
+   * IntraBC may then only reference the area that row-mt guarantees is
+   * already reconstructed, see av2_enc_is_dv_valid().
+   */
+  int rowmt_ibc_restrict;
   /**@}*/
 
   /*****************************************************************************

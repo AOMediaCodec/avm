@@ -1532,6 +1532,7 @@ static AVM_INLINE void encode_sb_row(AV2_COMP *cpi, ThreadData *td,
   AV2EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
   AV2EncRowMultiThreadSync *const row_mt_sync = &tile_data->row_mt_sync;
   bool row_mt_enabled = mt_info->row_mt_enabled;
+  td->mb.rowmt_ibc_restrict = row_mt_enabled;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
   const int sb_cols_in_tile = av2_get_sb_cols_in_tile(cm, tile_data->tile_info);
