@@ -292,10 +292,6 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (is_720p_or_larger) {
-      sf->inter_sf.disable_masked_comp = 1;
-    }
-
-    if (is_720p_or_larger) {
       sf->inter_sf.prune_ref_mv_idx_search = 2;
     }
 
@@ -1526,6 +1522,8 @@ void av2_set_speed_features_framesize_dependent(AV2_COMP *cpi, int speed) {
     cpi->common.seq_params.enable_uneven_4way_partitions =
         oxcf->part_cfg.enable_uneven_4way_partitions &&
         !sf->part_sf.disable_uneven_4way_partitions;
+    cpi->common.seq_params.enable_masked_compound &=
+        !sf->inter_sf.disable_masked_comp;
   }
 }
 
@@ -1774,9 +1772,6 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     cpi->common.seq_params.enable_tip_refinemv =
         cpi->oxcf.tool_cfg.enable_tip_refinemv;
     cpi->common.seq_params.enable_restoration &= !sf->lpf_sf.disable_lr_filter;
-
-    cpi->common.seq_params.enable_masked_compound &=
-        !sf->inter_sf.disable_masked_comp;
 
     if (sf->part_sf.disable_extended_sdp) {
       cpi->common.seq_params.enable_extended_sdp = 0;
