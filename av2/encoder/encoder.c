@@ -4008,6 +4008,10 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
   int undershoot_seen = 0;
   int low_cr_seen = 0;
   MvSubpelPrecision last_loop_mv_prec = cm->features.fr_mv_precision;
+  const SPEED_FEATURES base_sf = cpi->sf;
+  const WinnerModeParams base_winner_mode_params = cpi->winner_mode_params;
+  fractional_mv_step_fp *const base_find_fractional_mv_step =
+      cpi->mv_search_params.find_fractional_mv_step;
   do {
     loop = 0;
     avm_clear_system_state();
@@ -4052,6 +4056,13 @@ static int encode_with_recode_loop(AV2_COMP *cpi, size_t *size, uint8_t *dest) {
 
     av2_set_quantizer(cpi, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq);
+
+    if (loop_count > 0) {
+      cpi->sf = base_sf;
+      cpi->winner_mode_params = base_winner_mode_params;
+      cpi->mv_search_params.find_fractional_mv_step =
+          base_find_fractional_mv_step;
+    }
 
     set_primary_ref_frame(cpi);
 
