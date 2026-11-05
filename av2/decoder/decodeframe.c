@@ -7567,9 +7567,12 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   //   - OLK or RAS frames only when random access decoding starts at this TU
   // For higher mlayers, the RAP boundary is inherited from transitively
   // dependent layers that have a CLK, or an OLK/RAS with random access.
+  // The CI OBU may have been sent ahead of this frame's frame unit (e.g. in
+  // the grouped per-extended-layer high level syntax), so do not rely on
+  // obus_in_frame_unit_data, which only covers the current frame unit.
   const bool is_ci_present =
-      pbi->obus_in_frame_unit_data[cm->tlayer_id][cm->mlayer_id]
-                                  [OBU_CONTENT_INTERPRETATION];
+      pbi->ci_obu_received[xlayer_id][cm->tlayer_id][cm->mlayer_id];
+  pbi->ci_obu_received[xlayer_id][cm->tlayer_id][cm->mlayer_id] = false;
   bool is_rap_boundary =
       (obu_type == OBU_CLOSED_LOOP_KEY) ||
       ((obu_type == OBU_OPEN_LOOP_KEY || obu_type == OBU_RAS_FRAME) &&
