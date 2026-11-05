@@ -1106,12 +1106,20 @@ static AVM_INLINE void init_gop_frames_for_tpl(
     int refresh_frame_map_index =
         av2_get_refresh_ref_frame_map(cm, refresh_mask);
     if (refresh_frame_map_index < cm->seq_params.ref_frames) {
-      ref_frame_map_pairs[refresh_frame_map_index].disp_order =
-          AVMMAX(0, true_disp);
-      ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
-          get_true_pyr_level(gf_group->layer_depth[gf_index],
-                             frame_params.frame_type == KEY_FRAME,
-                             cpi->gf_group.max_layer_depth, 0);
+      RefFrameMapPair *const rp = &ref_frame_map_pairs[refresh_frame_map_index];
+      rp->disp_order = AVMMAX(0, true_disp);
+      rp->disp_order_removed = rp->disp_order;
+      rp->pyr_level = get_true_pyr_level(gf_group->layer_depth[gf_index],
+                                         frame_params.frame_type == KEY_FRAME,
+                                         cpi->gf_group.max_layer_depth, 0);
+      rp->ref_frame_for_inference = 1;
+      rp->ref_frame_restricted = 0;
+      rp->frame_type = frame_params.frame_type;
+      rp->base_qindex = gf_group->q_val[gf_index];
+      rp->width = cm->width;
+      rp->height = cm->height;
+      rp->tlayer_id = cm->current_frame.tlayer_id;
+      rp->mlayer_id = cm->current_frame.mlayer_id;
     }
 
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
@@ -1202,12 +1210,20 @@ static AVM_INLINE void init_gop_frames_for_tpl(
     int refresh_frame_map_index =
         av2_get_refresh_ref_frame_map(cm, refresh_mask);
     if (refresh_frame_map_index < cm->seq_params.ref_frames) {
-      ref_frame_map_pairs[refresh_frame_map_index].disp_order =
-          AVMMAX(0, true_disp);
-      ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
-          get_true_pyr_level(gf_group->layer_depth[gf_index],
-                             frame_params.frame_type == KEY_FRAME,
-                             cpi->gf_group.max_layer_depth, 0);
+      RefFrameMapPair *const rp = &ref_frame_map_pairs[refresh_frame_map_index];
+      rp->disp_order = AVMMAX(0, true_disp);
+      rp->disp_order_removed = rp->disp_order;
+      rp->pyr_level = get_true_pyr_level(gf_group->layer_depth[gf_index],
+                                         frame_params.frame_type == KEY_FRAME,
+                                         cpi->gf_group.max_layer_depth, 0);
+      rp->ref_frame_for_inference = 1;
+      rp->ref_frame_restricted = 0;
+      rp->frame_type = frame_params.frame_type;
+      rp->base_qindex = gf_group->q_val[gf_index];
+      rp->width = cm->width;
+      rp->height = cm->height;
+      rp->tlayer_id = cm->current_frame.tlayer_id;
+      rp->mlayer_id = cm->current_frame.mlayer_id;
     }
 
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
