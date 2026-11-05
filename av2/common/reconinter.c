@@ -3783,7 +3783,7 @@ void av2_build_inter_predictors(const AV2_COMMON *cm, MACROBLOCKD *xd,
   // xd->mv_refined is 2 * N_OF_OFFSETS int_mv = 8192 bytes, sized for a whole
   // 256x256 superblock's optical-flow subblock grid. It is a large memset
   // in the encoder. Only memeset it when necessary.
-  if (plane == AVM_PLANE_Y) {
+  if (plane == AVM_PLANE_Y && !build_for_refine_mv_only) {
     const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
     if (tip_ref_frame ||
         is_optflow_refinement_enabled(cm, xd, mi, AVM_PLANE_Y, tip_ref_frame)) {
