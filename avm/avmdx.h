@@ -338,6 +338,17 @@ enum avm_dec_control_id {
    */
   AV2D_SET_SKIP_FILM_GRAIN,
 
+  /*!\brief Codec control function to enable Annex D multistream-atlas
+   * composition, int parameter (0 = off (default), 1 = on).
+   *
+   * When enabled and the bitstream carries a MULTISTREAM_ATLAS or
+   * MULTISTREAM_ALPHA_ATLAS OBU, the decoder composites the extended-layer
+   * frames of each temporal unit into a single output frame per Annex D,
+   * returned by avm_codec_get_frame(). Requires monotonic_output_order_flag ==
+   * 1; otherwise decoding errors.
+   */
+  AV2D_SET_COMPOSE_ANNEX_D,
+
   AV2D_SET_RANDOM_ACCESS,
 
   AV2D_SET_BRU_OPT_MODE,
@@ -509,6 +520,9 @@ AVM_CTRL_USE_TYPE(AV2D_SET_SELECTED_LOCAL_OPS, int *)
 
 AVM_CTRL_USE_TYPE(AV2D_SET_OUTPUT_ALL_LAYERS, int)
 #define AVM_CTRL_AV2D_SET_OUTPUT_ALL_LAYERS
+
+AVM_CTRL_USE_TYPE(AV2D_SET_COMPOSE_ANNEX_D, int)
+#define AVM_CTRL_AV2D_SET_COMPOSE_ANNEX_D
 
 AVM_CTRL_USE_TYPE(AV2_SET_INSPECTION_CALLBACK, avm_inspect_init *)
 #define AVM_CTRL_AV2_SET_INSPECTION_CALLBACK
