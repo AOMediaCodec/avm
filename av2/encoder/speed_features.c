@@ -227,12 +227,6 @@ static void set_good_speed_feature_framesize_dependent(
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
     }
 
-    // Speed 6 turns this pruning off in the framesize-independent pass, which
-    // runs before this one; do not turn it back on there.
-    if (is_4k_or_larger && speed < 6) {
-      sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
-    }
-
     if (is_4k_or_larger) {
       sf->part_sf.intra_two_pass_max_qindex = 95;
     } else if (is_720p_or_larger && !is_1080p_or_larger) {
@@ -750,7 +744,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
-    sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
     sf->tx_sf.tx_type_search.disable_inter_ist = true;
     sf->tx_sf.prune_ist_by_best_rd = true;
 
@@ -859,7 +852,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.disable_filtered_key_tpl = 1;
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
-    sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
     sf->tx_sf.disable_cctx_dry_pass = true;
     sf->tx_sf.enable_tx_partition = false;
 
@@ -2193,7 +2185,6 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
 
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
     if (min_side >= 480) sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
-    if (min_side >= 2160) sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
     sf->tx_sf.prune_tx_search_by_pre_rd = 1;
 
     sf->rd_sf.perform_coeff_opt = is_arf2 ? 3 : 4;
@@ -2229,7 +2220,6 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     sf->intra_sf.intrabc_skip_int_qtr_rd = true;
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
-    sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 1;
     sf->tx_sf.prune_ist_by_best_rd = true;
 
     sf->rd_sf.perform_coeff_opt = is_arf2 ? 3 : 5;
@@ -2279,7 +2269,6 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     if (min_side >= 720) sf->inter_sf.prune_ref_mv_idx_search = 2;
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
-    if (min_side < 2160) sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
     sf->tx_sf.disable_cctx_dry_pass = true;
     sf->tx_sf.enable_tx_partition = false;
 
