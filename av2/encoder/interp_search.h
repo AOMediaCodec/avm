@@ -87,6 +87,8 @@ typedef struct {
   uint32_t compound_type_mask;
   /*! \brief Bitmask of allowed PREDICTION_MODE values in the dry pass. */
   uint32_t inter_mode_mask;
+  /*! \brief Skip NEWMV on the TIP reference; TIP NEARMV stays. */
+  bool skip_tip_newmv;
   /*! \brief Number of top MV precisions searched, from the highest. */
   int precisions_from_top;
   /*! \brief Cap on most-probable intra Y modes. */
