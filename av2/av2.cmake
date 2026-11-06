@@ -410,7 +410,8 @@ list(
   "${AVM_ROOT}/av2/common/x86/affine_optflow_refine_avx512.c"
   "${AVM_ROOT}/av2/common/x86/highbd_inv_txfm_avx512.c"
   "${AVM_ROOT}/av2/common/x86/lowbd_inv_txfm_avx512.c"
-  "${AVM_ROOT}/av2/common/x86/highbd_convolve_2d_avx512.c")
+  "${AVM_ROOT}/av2/common/x86/highbd_convolve_2d_avx512.c"
+  "${AVM_ROOT}/av2/common/x86/highbd_warp_affine_avx512.c")
 
 list(APPEND AVM_AV2_ENCODER_ASM_SSE2 "${AVM_ROOT}/av2/encoder/x86/dct_sse2.asm")
 
