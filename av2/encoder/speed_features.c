@@ -2099,9 +2099,69 @@ static int use_faster_speed_features(const AV2_COMP *cpi, int speed) {
   }
 }
 
+// Set speed features to be like speed 3.
+// These speed features keep their speed-2 values,
+// because their speed-3 values cost too much quality for their time
+// saving: use_interp_filter, comp_inter_joint_search_thresh,
+// prune_comp_search_by_single_result, adaptive_tx_type_search_idx,
+// adaptive_tx_partition_type_search_idx and
+// disable_loop_restoration_chroma.
+static AVM_INLINE void set_speed3_like_features(AV2_COMP *cpi) {
+  SPEED_FEATURES *const sf = &cpi->sf;
+  const AV2_COMMON *const cm = &cpi->common;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const int is_arf2 =
+      gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE;
+  const int min_side = AVMMIN(cm->width, cm->height);
+
+  if (cpi->oxcf.pass != 0 || !has_no_stats_stage(cpi))
+    sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
+
+  sf->gm_sf.num_refinement_steps = 0;
+
+  sf->mv_sf.auto_mv_step_size = 1;
+  sf->mv_sf.full_pixel_search_level = 1;
+  sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
+  sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
+  set_mesh_patterns(sf, 3);
+
+  sf->inter_sf.disable_interintra = true;
+  sf->inter_sf.disable_wedge_search_var_thresh = 100;
+  sf->inter_sf.prune_comp_type_by_comp_avg = 2;
+  sf->inter_sf.disable_sb_level_mv_cost_upd = 1;
+  sf->inter_sf.perform_best_rd_based_gating_for_chroma = 1;
+  sf->inter_sf.prune_inter_modes_based_on_tpl = 1;
+  sf->inter_sf.skip_repeated_ref_mv = 1;
+  sf->inter_sf.skip_repeated_full_newmv = 1;
+  sf->inter_sf.txfm_rd_gate_level = is_arf2 ? 1 : 2;
+  sf->inter_sf.prune_opfl = 1;
+
+  if (!cm->features.is_scc_content_by_detector)
+    sf->intra_sf.prune_palette_search_level = 2;
+  sf->intra_sf.intra_mode_prune_top = 3;
+
+  sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
+  if (min_side >= 480) sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
+  sf->tx_sf.prune_tx_search_by_pre_rd = 1;
+
+  sf->rd_sf.perform_coeff_opt = is_arf2 ? 3 : 4;
+
+  sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
+  sf->winner_mode_sf.dc_blk_pred_level = 2;
+
+  sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL2;
+
+  // Not a speed-3 value: let the adaptive RD thresholds grow to 4 times the
+  // level-1 cap, as set_fast_inter_mode_search() does. Its other value,
+  // full_pool_inter_mode_prune_top = 6, is not used, because tests show
+  // that it costs too much quality for its time saving at speed 2.
+  sf->inter_sf.adaptive_rd_thresh = 4;
+}
+
 // Use the values of the next speed for some speed features, on the frames
-// that use_faster_speed_features() selects. The partition speed features
-// change only at speed 1, on the frames that have a low qindex.
+// that use_faster_speed_features() selects. At speed 1, the frames that have a
+// low qindex also use the speed-3 values that speed 2 uses. The partition
+// speed features change only at speed 1, on the frames that have a low qindex.
 static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
   if (!use_faster_speed_features(cpi, speed)) return;
 
@@ -2124,7 +2184,6 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     if (!allow_screen_content_tools) sf->mv_sf.newmv_drl_search_limit = 2;
 
     sf->inter_sf.disable_interinter_wedge_newmv_search = 1;
-    sf->inter_sf.prune_comp_type_by_comp_avg = 1;
     sf->inter_sf.prune_comp_type_by_model_rd = 1;
     sf->inter_sf.prune_motion_mode_level = 2;
     sf->inter_sf.enable_four_param_warp_in_winner_mode = 1;
@@ -2137,14 +2196,10 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     if (cpi->oxcf.part_cfg.erp_pruning_level < 2 && !allow_screen_content_tools)
       sf->inter_sf.prune_ref_frames = 2;
 
-    if (!cm->features.is_scc_content_by_detector)
-      sf->intra_sf.prune_palette_search_level = 1;
-
     sf->tx_sf.model_based_prune_tx_search_level = 0;
     if (!cpi->oxcf.txfm_cfg.disable_ml_transform_speed_features)
       sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
 
-    sf->rd_sf.perform_coeff_opt = 3;
     sf->rd_sf.tx_domain_dist_level = 2;
     sf->rd_sf.tx_domain_dist_thres_level = 1;
 
@@ -2152,15 +2207,11 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 20;
     sf->lpf_sf.ccso_eo_band_mask = 9;
 
-    // The predict_dc level is { 2, 2, 0 } for high qindex frames.
-    if (sf->winner_mode_sf.dc_blk_pred_level == 0 && !low_qindex) {
-      sf->winner_mode_sf.dc_blk_pred_level = 3;
-    }
-
-    // The partition values of speed 2, on the frames that have a low qindex.
-    // These frames are slow to encode, so a faster partition search saves
-    // more time on them.
+    // On the frames that have a low qindex, also use the partition values of
+    // speed 2 and the speed-3 values that speed 2 uses on these frames. These
+    // frames are slow to encode, so a faster search saves more time on them.
     if (low_qindex) {
+      // Partition values of speed 2.
       sf->part_sf.prune_rect_split_by_rd = 2;
       sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
       if (sf->part_sf.prune_ext_part_with_part_none)
@@ -2192,56 +2243,12 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
                  cpi->oxcf.resize_cfg.resize_mode == RESIZE_NONE) {
         sf->part_sf.default_max_partition_size = BLOCK_128X128;
       }
+
+      // Speed-3 values: the values of the speed-2 list below.
+      set_speed3_like_features(cpi);
     }
   } else if (speed == 2) {
-    // Speed-3 values. These speed features keep their speed-2 values,
-    // because their speed-3 values cost too much quality for their time
-    // saving: use_interp_filter, comp_inter_joint_search_thresh,
-    // prune_comp_search_by_single_result, adaptive_tx_type_search_idx,
-    // adaptive_tx_partition_type_search_idx and
-    // disable_loop_restoration_chroma.
-    if (cpi->oxcf.pass != 0 || !has_no_stats_stage(cpi))
-      sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
-
-    sf->gm_sf.num_refinement_steps = 0;
-
-    sf->mv_sf.auto_mv_step_size = 1;
-    sf->mv_sf.full_pixel_search_level = 1;
-    sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
-    sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
-    set_mesh_patterns(sf, 3);
-
-    sf->inter_sf.disable_interintra = true;
-    sf->inter_sf.disable_wedge_search_var_thresh = 100;
-    sf->inter_sf.prune_comp_type_by_comp_avg = 2;
-    sf->inter_sf.disable_sb_level_mv_cost_upd = 1;
-    sf->inter_sf.perform_best_rd_based_gating_for_chroma = 1;
-    sf->inter_sf.prune_inter_modes_based_on_tpl = 1;
-    sf->inter_sf.skip_repeated_ref_mv = 1;
-    sf->inter_sf.skip_repeated_full_newmv = 1;
-    sf->inter_sf.txfm_rd_gate_level = is_arf2 ? 1 : 2;
-    sf->inter_sf.prune_opfl = 1;
-
-    if (!cm->features.is_scc_content_by_detector)
-      sf->intra_sf.prune_palette_search_level = 2;
-    sf->intra_sf.intra_mode_prune_top = 3;
-
-    sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
-    if (min_side >= 480) sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
-    sf->tx_sf.prune_tx_search_by_pre_rd = 1;
-
-    sf->rd_sf.perform_coeff_opt = is_arf2 ? 3 : 4;
-
-    sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
-    sf->winner_mode_sf.dc_blk_pred_level = 2;
-
-    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL2;
-
-    // Not a speed-3 value: let the adaptive RD thresholds grow to 4 times the
-    // level-1 cap, as set_fast_inter_mode_search() does. Its other value,
-    // full_pool_inter_mode_prune_top = 6, is not used, because tests show
-    // that it costs too much quality for its time saving at speed 2.
-    sf->inter_sf.adaptive_rd_thresh = 4;
+    set_speed3_like_features(cpi);
   } else if (speed == 3) {
     // Speed-4 values.
     sf->gm_sf.downsample_level = 1;
