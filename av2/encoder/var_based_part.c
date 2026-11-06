@@ -575,18 +575,22 @@ static inline void set_vbp_thresholds(AV2_COMP *cpi, int64_t thresholds[],
   const bool is_screen = (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
   if (is_screen) {
     if (source_sad_level == kZeroSad) {
-      thresholds[1] = (2 * thresholds[1]);
-      thresholds[2] = (2 * thresholds[2]);
-      thresholds[3] = (2 * thresholds[3]);
       thresholds[4] = INT64_MAX;
-    } else if (source_sad_level <= kVeryLowSad) {
-      thresholds[1] = (3 * thresholds[1]) >> 1;
-      thresholds[2] = (3 * thresholds[2]) >> 1;
-      thresholds[3] = (3 * thresholds[3]) >> 1;
-    } else if (source_sad_level <= kLowSad) {
-      thresholds[1] = (5 * thresholds[1]) >> 2;
-      thresholds[2] = (5 * thresholds[2]) >> 2;
-      thresholds[3] = (5 * thresholds[3]) >> 2;
+    }
+    if (!is_segment_id_boosted) {
+      if (source_sad_level == kZeroSad) {
+        thresholds[1] = (2 * thresholds[1]);
+        thresholds[2] = (2 * thresholds[2]);
+        thresholds[3] = (2 * thresholds[3]);
+      } else if (source_sad_level <= kVeryLowSad) {
+        thresholds[1] = (3 * thresholds[1]) >> 1;
+        thresholds[2] = (3 * thresholds[2]) >> 1;
+        thresholds[3] = (3 * thresholds[3]) >> 1;
+      } else if (source_sad_level <= kLowSad) {
+        thresholds[1] = (5 * thresholds[1]) >> 2;
+        thresholds[2] = (5 * thresholds[2]) >> 2;
+        thresholds[3] = (5 * thresholds[3]) >> 2;
+      }
     }
   } else {
     if (num_pixels <= RESOLUTION_288P) {
@@ -1213,8 +1217,15 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
                            cm->seq_params.bit_depth)
           : cm->quant_params.base_qindex;
 
+  int64_t thresholds_base[6];
+  int64_t *leaves_thresholds = thresholds;
   set_vbp_thresholds(cpi, thresholds, qindex, source_sad_level,
                      is_segment_id_boosted);
+  if (qindex != cm->quant_params.base_qindex || is_segment_id_boosted) {
+    set_vbp_thresholds(cpi, thresholds_base, cm->quant_params.base_qindex,
+                       source_sad_level, 0);
+    leaves_thresholds = thresholds_base;
+  }
 
   src_buf = x->plane[AVM_PLANE_Y].src.buf;
   int src_stride = x->plane[AVM_PLANE_Y].src.stride;
@@ -1249,7 +1260,7 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
     if (source_sad == 0 && mi_col + block_width <= tile->mi_col_end &&
         mi_row + block_height <= tile->mi_row_end) {
       if (y_sad == 0 ||
-          (is_screen &&
+          (is_screen && !is_segment_id_boosted &&
            y_sad < (unsigned int)(block_width * block_height * 2))) {
         if (!is_chroma_var_high(cpi, x, xd, cm->seq_params.sb_size, 0, 0,
                                 full_mv, thresholds[1])) {
@@ -1292,8 +1303,8 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
   // Fill in the entire tree of 8x8 (for inter frames) or 4x4 (for key frames)
   // variances for splits.
   fill_variance_tree_leaves(cpi, x, vt, force_split, avg_16x16, maxvar_16x16,
-                            minvar_16x16, thresholds, src_buf, src_stride,
-                            dst_buf, dst_stride, is_key_frame,
+                            minvar_16x16, leaves_thresholds, src_buf,
+                            src_stride, dst_buf, dst_stride, is_key_frame,
                             cm->seq_params.sb_size);
 
   const VPartOffsets offsets = get_vpart_offsets(cm->seq_params.sb_size);

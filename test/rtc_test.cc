@@ -54,6 +54,16 @@ class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
     cfg_.enable_tcq = 0;
   }
 
+  virtual void BeginPassHook(unsigned int /*pass*/) {
+    psnr_ = 0.0;
+    nframes_ = 0;
+  }
+
+  virtual void PSNRPktHook(const avm_codec_cx_pkt_t *pkt) {
+    psnr_ += pkt->data.psnr.psnr[0];
+    ++nframes_;
+  }
+
   virtual bool DoDecode() const { return true; }
 
   virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
@@ -61,6 +71,10 @@ class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
     if (video->frame() == 0) {
       encoder->Control(AV2E_SET_TUNE_CONTENT, tune_content_);
       encoder->Control(AVME_SET_CPUUSED, 6);
+      if (enable_screen_tools_) {
+        encoder->Control(AV2E_SET_ENABLE_PALETTE, 1);
+        encoder->Control(AV2E_SET_ENABLE_INTRABC, 1);
+      }
       if (dpb_size_ > 0) {
         encoder->SetOption("dpb-size", std::to_string(dpb_size_).c_str());
       }
@@ -82,6 +96,9 @@ class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
   int max_reference_frames_ = 1;
   int dpb_size_ = 0;
   int explicit_ref_frame_map_ = 1;
+  bool enable_screen_tools_ = false;
+  double psnr_ = 0.0;
+  int nframes_ = 0;
 };
 
 TEST_P(RtcTest, RtcTest) {
@@ -118,6 +135,36 @@ TEST_P(RtcTest, RtcCyclicRefreshMultiRefTest) {
     ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0, 50);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   }
+}
+
+TEST_P(RtcTest, RtcScreenCyclicRefreshTest) {
+  if (tune_content_ != AVM_CONTENT_SCREEN) return;
+  init_flags_ = AVM_CODEC_USE_PSNR;
+  enable_screen_tools_ = true;
+  max_reference_frames_ = 3;
+  dpb_size_ = 3;
+  explicit_ref_frame_map_ = 0;
+  cfg_.g_w = 640;
+  cfg_.g_h = 480;
+  cfg_.kf_max_dist = 90000;
+  cfg_.rc_end_usage = AVM_CBR;
+  cfg_.rc_min_quantizer = 2;
+  cfg_.rc_max_quantizer = 200;
+  cfg_.rc_target_bitrate = 250;
+
+  aq_mode_ = 0;
+  ::libavm_test::Y4mVideoSource video_aq0("screendata.y4m", 0, 25);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_aq0));
+  ASSERT_EQ(nframes_, 25);
+  const double psnr_aq0 = psnr_ / nframes_;
+
+  aq_mode_ = 3;
+  ::libavm_test::Y4mVideoSource video_aq3("screendata.y4m", 0, 25);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video_aq3));
+  ASSERT_EQ(nframes_, 25);
+  const double psnr_aq3 = psnr_ / nframes_;
+
+  EXPECT_GT(psnr_aq3, psnr_aq0 + 2.0);
 }
 
 AV2_INSTANTIATE_TEST_SUITE(RtcTest, ::testing::Range(0, 2));
