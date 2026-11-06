@@ -8431,11 +8431,16 @@ static int inter_mode_search_order_independent_skip(
                           x->inter_mode_cache[0]->ref_frame[1] != INTRA_FRAME);
     }
 
-    if (cpi->sf.inter_sf.prune_ref_frames >= 3 && ref_type > 0) {
+    const int primary_ref = (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled &&
+                             cm->bru.update_ref_idx == 0)
+                                ? 1
+                                : 0;
+    if (cpi->sf.inter_sf.prune_ref_frames >= 3 && ref_type > primary_ref) {
       if (search_state->best_rd != INT64_MAX) {
-        // Prune secondary references if ref 0 already produced a skippable mode
-        // (zero residual). If ref 0 match was not skippable, do not prune:
-        // allow evaluating secondary references for this block.
+        // Prune secondary references if primary_ref already produced a
+        // skippable mode (zero residual). If primary_ref match was not
+        // skippable, do not prune: allow evaluating secondary references for
+        // this block.
         if (!search_state->best_mode_skippable) {
           skip_ref = 0;
         }
@@ -9880,9 +9885,15 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         picked_ref_frames_mask =
             fetch_picked_ref_frames_mask(x, cm->sb_size, cm->mib_size);
         if (picked_ref_frames_mask) {
-          // Always ensure the primary reference (ref 0) and the reference
-          // selected for superblock variance partitioning are tested.
-          picked_ref_frames_mask |= (1ULL << 0);
+          // Always ensure the primary reference (ref 0, or ref 1 when BRU owns
+          // ref 0) and the reference selected for superblock variance
+          // partitioning are tested.
+          const int primary_ref =
+              (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled &&
+               cm->bru.update_ref_idx == 0)
+                  ? 1
+                  : 0;
+          picked_ref_frames_mask |= (1ULL << primary_ref);
           if (is_inter_ref_frame(x->vbp_ref_frame) &&
               !is_tip_ref_frame(x->vbp_ref_frame)) {
             picked_ref_frames_mask |= (1ULL << x->vbp_ref_frame);

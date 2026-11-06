@@ -3685,6 +3685,13 @@ static AVM_INLINE void enforce_max_ref_frames(AV2_COMP *cpi,
   MV_REFERENCE_FRAME ref_frame;
   int total_valid_refs = 0;
 
+  if (cpi->sf.rt_sf.rtc_enable_bru && cpi->common.bru.enabled &&
+      !cpi->common.bru.frame_inactive_flag &&
+      cpi->common.bru.update_ref_idx >= 0 &&
+      cpi->common.bru.update_ref_idx < INTER_REFS_PER_FRAME) {
+    *ref_frame_flags &= ~(1 << cpi->common.bru.update_ref_idx);
+  }
+
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     if (*ref_frame_flags & (1 << ref_frame)) {
       total_valid_refs++;

@@ -627,6 +627,22 @@ static void set_rate_correction_factor(AV2_COMP *cpi, double factor, int width,
   }
 }
 
+// On BRU frames, at least half (or all) of the superblocks are skipped via
+// BRU_INACTIVE_SB. Allow elevated post-scene-change rate_correction_factor
+// values to relax down to half of the single-frame equilibrium at rc_qindex
+// so Q can step down normally, without collapsing to MIN_BPB_FACTOR and
+// triggering large bit spikes when full-frame refinement resumes.
+static double get_cbr_bru_min_bpb_factor(const AV2_COMP *cpi, int rc_qindex,
+                                         int mbs) {
+  const int target_bits_per_mb =
+      (int)(((uint64_t)cpi->rc.this_frame_target << BPER_MB_NORMBITS) /
+            AVMMAX(mbs, 1));
+  const double q_val =
+      av2_convert_qindex_to_q(rc_qindex, cpi->common.seq_params.bit_depth);
+  const int enumerator = cpi->is_screen_content_type ? 375000 : 750000;
+  return AVMMAX(MIN_BPB_FACTOR, 0.50 * target_bits_per_mb * q_val / enumerator);
+}
+
 void av2_rc_update_rate_correction_factors(AV2_COMP *cpi, int width,
                                            int height) {
   const AV2_COMMON *const cm = &cpi->common;
@@ -656,6 +672,11 @@ void av2_rc_update_rate_correction_factors(AV2_COMP *cpi, int width,
   // Clear down mmx registers to allow floating point in what follows
   avm_clear_system_state();
 
+  const bool is_cbr_bru_frame = cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled;
+  const int rc_qindex = (is_cbr_bru_frame && cm->bru.frame_inactive_flag)
+                            ? cpi->rc.unresized_base_qindex
+                            : cm->quant_params.base_qindex;
+
   // Work out how big we would have expected the frame to be at this Q given
   // the current correction factor.
   // Stay in double to avoid int overflow when values are large
@@ -664,9 +685,8 @@ void av2_rc_update_rate_correction_factors(AV2_COMP *cpi, int width,
         av2_cyclic_refresh_estimate_bits_at_q(cpi, rate_correction_factor);
   } else {
     projected_size_based_on_q = av2_estimate_bits_at_q(
-        cm->current_frame.frame_type, cm->quant_params.base_qindex, MBs,
-        rate_correction_factor, cm->seq_params.bit_depth,
-        cpi->is_screen_content_type);
+        cm->current_frame.frame_type, rc_qindex, MBs, rate_correction_factor,
+        cm->seq_params.bit_depth, cpi->is_screen_content_type);
   }
   // Work out a size correction factor.
   if (projected_size_based_on_q > FRAME_OVERHEAD_BITS)
@@ -682,12 +702,20 @@ void av2_rc_update_rate_correction_factors(AV2_COMP *cpi, int width,
     adjustment_limit = 0.75;
   }
 
+  double min_bpb_factor = MIN_BPB_FACTOR;
+  if (is_cbr_bru_frame && correction_factor < 100) {
+    min_bpb_factor = get_cbr_bru_min_bpb_factor(cpi, rc_qindex, MBs);
+    if (rate_correction_factor <= min_bpb_factor) {
+      correction_factor = 100;
+    }
+  }
+
   cpi->rc.q_2_frame = cpi->rc.q_1_frame;
-  cpi->rc.q_1_frame = cm->quant_params.base_qindex;
+  cpi->rc.q_1_frame = rc_qindex;
   cpi->rc.rc_2_frame = cpi->rc.rc_1_frame;
   if (correction_factor > 110)
     cpi->rc.rc_1_frame = -1;
-  else if (correction_factor < 90)
+  else if (correction_factor < 90 && !is_cbr_bru_frame)
     cpi->rc.rc_1_frame = 1;
   else
     cpi->rc.rc_1_frame = 0;
@@ -712,8 +740,8 @@ void av2_rc_update_rate_correction_factors(AV2_COMP *cpi, int width,
     rate_correction_factor = (rate_correction_factor * correction_factor) / 100;
 
     // Keep rate_correction_factor within limits
-    if (rate_correction_factor < MIN_BPB_FACTOR)
-      rate_correction_factor = MIN_BPB_FACTOR;
+    if (rate_correction_factor < min_bpb_factor)
+      rate_correction_factor = min_bpb_factor;
   }
 
   set_rate_correction_factor(cpi, rate_correction_factor, width, height);
@@ -1076,9 +1104,17 @@ static int rc_pick_q_and_bounds_no_stats_cbr(const AV2_COMP *cpi, int width,
   assert(has_no_stats_stage(cpi));
   assert(cpi->oxcf.rc_cfg.mode == AVM_CBR);
 
+  // AV2 BRU disallows coded_lossless/all_lossless (base_qindex == 0). Keep the
+  // CBR quantizer floor at 1 whenever non-lossless CBR BRU is active.
+  int best_quality = rc->best_quality;
+  if (cpi->sf.rt_sf.rtc_enable_bru &&
+      !is_lossless_requested(&cpi->oxcf.rc_cfg) && rc->worst_quality >= 1) {
+    best_quality = AVMMAX(best_quality, 1);
+  }
+
   // Clip the active best and worst quality values to limits
   active_best_quality =
-      clamp(active_best_quality, rc->best_quality, rc->worst_quality);
+      clamp(active_best_quality, best_quality, rc->worst_quality);
   active_worst_quality =
       clamp(active_worst_quality, active_best_quality, rc->worst_quality);
 
@@ -1100,6 +1136,9 @@ static int rc_pick_q_and_bounds_no_stats_cbr(const AV2_COMP *cpi, int width,
   // Special case code to try and match quality with forced key frames
   if (current_frame->frame_type == KEY_FRAME && rc->this_key_frame_forced) {
     q = rc->last_boosted_qindex;
+    if (cpi->sf.rt_sf.rtc_enable_bru) {
+      q = clamp(q, best_quality, rc->worst_quality);
+    }
   } else {
     q = av2_rc_regulate_q(cpi, rc->this_frame_target, active_best_quality,
                           active_worst_quality, width, height);
@@ -1112,11 +1151,27 @@ static int rc_pick_q_and_bounds_no_stats_cbr(const AV2_COMP *cpi, int width,
     }
   }
 
-  assert(*top_index <= rc->worst_quality && *top_index >= rc->best_quality);
-  assert(*bottom_index <= rc->worst_quality &&
-         *bottom_index >= rc->best_quality);
-  assert(q <= rc->worst_quality && q >= rc->best_quality);
+  assert(*top_index <= rc->worst_quality && *top_index >= best_quality);
+  assert(*bottom_index <= rc->worst_quality && *bottom_index >= best_quality);
+  assert(q <= rc->worst_quality && q >= best_quality);
   return q;
+}
+
+int av2_rc_estimate_cbr_q(const AV2_COMP *cpi) {
+  int bottom_index = 0;
+  int top_index = 0;
+  return rc_pick_q_and_bounds_no_stats_cbr(
+      cpi, cpi->common.width, cpi->common.height, &bottom_index, &top_index);
+}
+
+void av2_rc_free_rtc_bru(RATE_CONTROL *rc) {
+  for (int i = 0; i < REF_FRAMES; ++i) {
+    avm_free(rc->rtc_bru.sb_q[i]);
+    rc->rtc_bru.sb_q[i] = NULL;
+  }
+  avm_free(rc->rtc_bru.cur_sb_q);
+  rc->rtc_bru.cur_sb_q = NULL;
+  rc->rtc_bru.sb_units = 0;
 }
 
 static int gf_group_pyramid_level(const GF_GROUP *gf_group, int gf_index) {
@@ -1963,10 +2018,16 @@ void av2_rc_postencode_update(AV2_COMP *cpi, uint64_t bytes_used) {
   const int qindex = cm->quant_params.base_qindex;
   // In AVM_Q mode, update ambient Q history with the unresized baseline qindex
   // so downscaling the current frame does not shift future frames' base QPs.
-  const int rc_qindex = (cpi->oxcf.rc_cfg.mode == AVM_Q &&
-                         av2_frame_scaled(cm) && rc->unresized_base_qindex > 0)
-                            ? rc->unresized_base_qindex
-                            : qindex;
+  // On 1-pass CBR BRU whole-frame inactive frames, base_qindex inherits the
+  // BRU reference's qindex, so advance RC history with the CBR-picked qindex.
+  const int rc_qindex =
+      (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled &&
+       cm->bru.frame_inactive_flag)
+          ? rc->unresized_base_qindex
+          : ((cpi->oxcf.rc_cfg.mode == AVM_Q && av2_frame_scaled(cm) &&
+              rc->unresized_base_qindex > 0)
+                 ? rc->unresized_base_qindex
+                 : qindex);
   // Reset per-frame resize denominator so pre-frame queries on the next frame
   // default to no resize (SCALE_NUMERATOR).
   cpi->resize_scale_denom = SCALE_NUMERATOR;

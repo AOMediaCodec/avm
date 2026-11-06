@@ -292,6 +292,17 @@ typedef struct {
   int resize_count;
   // Baseline frame base_qindex picked before applying any downscale QP offset.
   int unresized_base_qindex;
+
+  // Per-superblock quantizer tracking for 1-pass RTC CBR BRU.
+  struct {
+    // Certified per-superblock qindex for each DPB slot (UINT16_MAX if
+    // uncertified).
+    uint16_t *sb_q[REF_FRAMES];
+    // Scratch per-superblock qindex buffer for the current encoded frame.
+    uint16_t *cur_sb_q;
+    // Number of superblock units allocated in sb_q and cur_sb_q.
+    int sb_units;
+  } rtc_bru;
   /*!\endcond */
 } RATE_CONTROL;
 
@@ -526,6 +537,10 @@ void av2_get_one_pass_rt_params(struct AV2_COMP *cpi,
                                 unsigned int frame_flags);
 
 int av2_encodedframe_overshoot_cbr(struct AV2_COMP *cpi, int *q);
+
+int av2_rc_estimate_cbr_q(const struct AV2_COMP *cpi);
+
+void av2_rc_free_rtc_bru(RATE_CONTROL *rc);
 
 #ifdef __cplusplus
 }  // extern "C"

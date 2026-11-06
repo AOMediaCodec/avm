@@ -56,6 +56,7 @@
 #include "av2/encoder/aq_cyclicrefresh.h"
 #include "av2/encoder/aq_variance.h"
 #include "av2/encoder/bitstream.h"
+#include "av2/encoder/bru.h"
 #include "av2/encoder/context_tree.h"
 #include "av2/encoder/encodeframe.h"
 #include "av2/encoder/encodemv.h"
@@ -3802,6 +3803,14 @@ static int encode_without_recode(AV2_COMP *cpi) {
 
   set_size_independent_vars(cpi);
   av2_setup_frame_size(cpi);
+  // av2_setup_frame_size() calls av2_get_ref_frames() directly, which skips
+  // bru_swap_ref() when enable_explicit_ref_frame_map is 1 and overwrites
+  // remapped_ref_idx[]. Re-apply enc_bru_swap_ref() to keep the BRU reference
+  // mapping synchronized.
+  if (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled &&
+      cm->seq_params.enable_explicit_ref_frame_map) {
+    enc_bru_swap_ref(cm);
+  }
   av2_set_size_dependent_vars(cpi, &q, &bottom_index, &top_index);
 
   {
@@ -3880,6 +3889,10 @@ static int encode_without_recode(AV2_COMP *cpi) {
   // control parameters.
   if (cpi->sf.rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ &&
       cpi->rc.high_source_sad) {
+    // av2_find_rtc_cbr_bru_slot() disables BRU on high_source_sad frames so
+    // av2_encodedframe_overshoot_cbr() does not raise q after BRU region
+    // detection has already evaluated target_q.
+    assert(!(cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled));
     av2_encodedframe_overshoot_cbr(cpi, &q);
   }
 
@@ -3893,9 +3906,23 @@ static int encode_without_recode(AV2_COMP *cpi) {
   av2_setup_frame(cpi);
 
   if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) {
-    suppress_active_map(cpi);
-    av2_cyclic_refresh_setup(cpi);
-    av2_apply_active_map(cpi);
+    if (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled) {
+      // While cyclic refresh is still boosting static superblocks,
+      // av2_detect_cbr_bru_regions() sets cm->bru.enabled = 0 so the else
+      // branch below runs av2_cyclic_refresh_setup(). Once static superblocks
+      // are boosted and BRU activates on the current frame (cm->bru.enabled ==
+      // 1), disable segmentation for this frame.
+      // TODO(jianj): Enable cyclic refresh on partial-active BRU frames
+      // (cm->bru.enabled && !cm->bru.frame_inactive_flag).
+      av2_disable_segmentation(&cm->seg);
+      if (cpi->cyclic_refresh != NULL) {
+        cpi->cyclic_refresh->counter_encode_maxq_scene_change++;
+      }
+    } else {
+      suppress_active_map(cpi);
+      av2_cyclic_refresh_setup(cpi);
+      av2_apply_active_map(cpi);
+    }
   }
   if (cm->seg.enabled) {
     if (!cm->seg.update_data && cm->prev_frame) {
@@ -3910,6 +3937,12 @@ static int encode_without_recode(AV2_COMP *cpi) {
   cm->seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
   segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
   cm->cur_frame->seg.enabled = cm->seg.enabled;
+  // Track per-SB quantizers on every frame when rtc_enable_bru is active (even
+  // when cm->bru.enabled == 0 on the current frame), because any frame stored
+  // in the DPB can be used as the BRU reference frame 2 frames later (t+2).
+  if (cpi->sf.rt_sf.rtc_enable_bru) {
+    av2_init_cbr_bru_frame_sb_q(cpi);
+  }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, av2_encode_frame_time);
@@ -3933,9 +3966,17 @@ static int encode_without_recode(AV2_COMP *cpi) {
 
   // transform / motion compensation build reconstruction frame
   av2_encode_frame(cpi);
+  if (cpi->sf.rt_sf.rtc_enable_bru) {
+    av2_compute_cbr_bru_frame_sb_q(cpi);
+  }
 
   // Update some stats from cyclic refresh.
-  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) av2_cyclic_refresh_postencode(cpi);
+  // TODO(jianj): Enable cyclic refresh on partial-active BRU frames
+  // (cm->bru.enabled && !cm->bru.frame_inactive_flag).
+  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ &&
+      !(cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled)) {
+    av2_cyclic_refresh_postencode(cpi);
+  }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av2_encode_frame_time);
@@ -4911,7 +4952,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
   end_timing(cpi, av2_pack_bitstream_final_time);
 #endif
   // if bru enabled, remove the source associated with the bru_ref
-  if (cm->bru.enabled) {
+  if (cm->bru.enabled && !av2_preserve_zero_lag_cbr_bru_lookahead(cpi)) {
     av2_lookahead_leave(cpi->lookahead, cm->bru.ref_disp_order, ENCODE_STAGE);
     // get current frame
     for (int i = 0; i < cpi->lookahead->max_sz - 1; i++) {
@@ -5293,11 +5334,13 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
   }
 
   // For 1 pass CBR, check if we are dropping this frame.
-  // Never drop on key frame.
+  // Never drop on key frame or when BRU is active on the frame.
   if (has_no_stats_stage(cpi) && oxcf->rc_cfg.mode == AVM_CBR &&
       current_frame->frame_type != KEY_FRAME &&
-      cpi->oxcf.gf_cfg.lag_in_frames == 0) {
+      cpi->oxcf.gf_cfg.lag_in_frames == 0 &&
+      !(cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled)) {
     if (av2_rc_drop_frame(cpi)) {
+      av2_rewind_zero_lag_cbr_bru_lookahead_on_drop(cpi);
       av2_setup_frame_size(cpi);
       av2_rc_postencode_update_drop_frame(cpi);
       release_scaled_references(cpi);
@@ -5390,7 +5433,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
   //        for the purpose to verify no mismatch between encoder and decoder.
   if (cm->immediate_output_picture) cpi->last_show_frame_buf = cm->cur_frame;
   if (cm->seq_params.enable_bru && !cm->bru.enabled &&
-      cm->current_frame.frame_type == INTER_FRAME) {
+      cm->current_frame.frame_type == INTER_FRAME &&
+      !av2_preserve_zero_lag_cbr_bru_lookahead(cpi)) {
     bru_lookahead_buf_refresh(cpi->lookahead,
                               cm->current_frame.refresh_frame_flags,
                               cm->ref_frame_map, ENCODE_STAGE);
@@ -5411,6 +5455,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
   }
 
   refresh_reference_frames(cpi);
+  if (cpi->sf.rt_sf.rtc_enable_bru || cpi->rc.rtc_bru.sb_units > 0) {
+    av2_commit_cbr_bru_dpb_sb_q(cpi);
+  }
 
 #if CONFIG_ENTROPY_STATS
   av2_accumulate_frame_counts(&aggregate_fc, &cpi->counts);
@@ -6193,10 +6240,16 @@ void enc_bru_swap_ref(AV2_COMMON *const cm) {
           }
         }
         // happend in encoder only, decoder do not know bru.ref_order yet
-        if (cm->bru.update_ref_idx == -1) {
-          for (int i = num_past_refs; i < REF_FRAMES; i++) {
+        if (cm->bru.update_ref_idx == -1 && scores != NULL) {
+          const int max_ranked = AVMMIN(cm->bru.ref_n_ranked, REF_FRAMES);
+          for (int i = num_past_refs; i < max_ranked; i++) {
+            const int slot = scores[i].index;
+            if (slot < 0 || slot >= REF_FRAMES ||
+                cm->ref_frame_map[slot] == NULL) {
+              continue;
+            }
             const int ref_list_disp_order =
-                cm->ref_frame_map[scores[i].index]->display_order_hint;
+                cm->ref_frame_map[slot]->display_order_hint;
             if (ref_list_disp_order == cm->bru.ref_disp_order) {
               replaced_bru_ref_idx = i;
               break;
