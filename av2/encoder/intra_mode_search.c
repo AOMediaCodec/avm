@@ -872,14 +872,27 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
   return best_rd;
 }
 
-// Shared palette-mode gate used at the several palette-search entry points.
+// Shared palette gate for intra luma (av2_rd_pick_intra_sby_mode()) and
+// inter-frame intra search (av2_search_palette_mode(),
+// av2_handle_intra_mode()):
+// - Un-gated (!disable_palette && !gate_by_kf_trial): follow
+//   allow_screen_content_tools (e.g., REALTIME, or speed 0 coarse QPs).
+// - is_scc_content_by_detector: always allow on frames passing the stricter
+//   check in av2_set_screen_content_options() (even mid-GOP or speed >= 4).
+// - Keyframe-gated (gate_by_kf_trial && kf_trial_allow_palette): reuse the GOP
+//   keyframe decision from av2_determine_sc_tools_with_encoding().
 static AVM_INLINE bool should_try_palette(const AV2_COMP *const cpi,
                                           const MB_MODE_INFO *const mbmi,
                                           int plane_type) {
   const FeatureFlags *const features = &cpi->common.features;
-  return cpi->oxcf.tool_cfg.enable_palette &&
-         !(cpi->sf.intra_sf.disable_palette &&
-           !features->is_scc_content_by_detector) &&
+  const bool disable_palette = cpi->sf.intra_sf.disable_palette;
+  const bool gate_by_kf_trial =
+      av2_gate_palette_by_kf_trial(cpi, cpi->common.quant_params.base_qindex);
+  const bool allow_palette_sf =
+      (!disable_palette && !gate_by_kf_trial) ||
+      features->is_scc_content_by_detector ||
+      (gate_by_kf_trial && cpi->kf_trial_allow_palette);
+  return cpi->oxcf.tool_cfg.enable_palette && allow_palette_sf &&
          av2_allow_palette(plane_type, features->allow_screen_content_tools,
                            mbmi->sb_type[PLANE_TYPE_Y]);
 }
