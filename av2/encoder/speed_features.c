@@ -318,6 +318,7 @@ static void set_good_speed_features_framesize_independent(
   const AV2_COMMON *const cm = &cpi->common;
   const int is_480p_or_larger = AVMMIN(cm->width, cm->height) >= 480;
   const int is_1080p_or_larger = AVMMIN(cm->width, cm->height) >= 1080;
+  const int is_4k_or_larger = AVMMIN(cm->width, cm->height) >= 2160;
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const int boosted = frame_is_boosted(cpi);
   const int is_boosted_arf2_bwd_type =
@@ -808,6 +809,9 @@ static void set_good_speed_features_framesize_independent(
     // Rank the chroma intra modes without the CCTX search in all frames; the
     // winner is re-evaluated with CCTX.
     sf->intra_sf.uv_mode_rank_skip_cctx = true;
+    if (is_4k_or_larger) {
+      sf->inter_sf.dry_pass_prune_tip = 1;
+    }
 
     // Statistics-domain WIENER_NONSEP merge and class-count evaluation.
     sf->lpf_sf.wienerns_stat_class_search = 1;
@@ -827,6 +831,7 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 6) {
     sf->part_sf.wet_static_256_nearmv_only = 1;
     sf->inter_sf.disable_skip_mode_in_dry_pass = true;
+    sf->inter_sf.dry_pass_prune_tip = 1;
     sf->inter_sf.dry_pass_skip_warp_min_pyr_level =
         DRY_PASS_SKIP_WARP_MIN_PYR_LEVEL;
     sf->part_sf.prune_inter_modes_by_none_part = 1;
@@ -1276,6 +1281,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->reuse_erp_mode_flag = 0;
   inter_sf->prune_warpmv_prob_thresh = 32;
   inter_sf->dry_pass_skip_warp_min_pyr_level = 0;
+  inter_sf->dry_pass_prune_tip = 0;
   inter_sf->prune_amvd_newmv = 0;
   inter_sf->prune_amvd = false;
   inter_sf->enable_enhanced_inter_mode_cache_reuse = 0;

@@ -10144,11 +10144,15 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         !(dry_pass_cfg.inter_mode_mask & (1u << this_mode)))
       continue;
     // Dry pass: use the top ranks only. The eval order iterates rank indices
-    // 0..N-1 where rank 0 is the closest reference. TIP is always allowed
+    // 0..N-1 where rank 0 is the closest reference. TIP is often allowed
     // because it is a different kind of prediction and can win on smooth
-    // content.
+    // content. But when feature dry_pass_prune_tip >= 1, NEWMV mode is skipped
+    // for TIP.
     if (apply_dry_pass_shortcuts && is_inter_ref_frame(ref_frame) &&
         ref_frame > dry_pass_cfg.ref_rank_cap && !is_tip_ref_frame(ref_frame))
+      continue;
+    if (apply_dry_pass_shortcuts && is_tip_ref_frame(ref_frame) &&
+        inter_sf->dry_pass_prune_tip >= 1 && this_mode == NEWMV)
       continue;
     // Dry pass: same limit for the second reference of a compound mode.
     if (apply_dry_pass_shortcuts && is_inter_ref_frame(second_ref_frame) &&
