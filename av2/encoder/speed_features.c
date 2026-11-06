@@ -133,6 +133,14 @@ static int frame_is_boosted(const AV2_COMP *cpi) {
   return frame_is_kf_gf_arf(cpi);
 }
 
+static int prune_warp_delta_modes_level(int speed, int is_4k_or_larger) {
+  static const uint8_t kLevels[2][7] = {
+    { 0, 1, 2, 3, 3, 0, 4 },  // < 2160p
+    { 0, 1, 2, 3, 4, 3, 3 },  // >= 2160p
+  };
+  return kLevels[is_4k_or_larger != 0][clamp(speed, 0, 6)];
+}
+
 static void set_good_speed_feature_framesize_dependent(
     const AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   const AV2_COMMON *const cm = &cpi->common;
@@ -300,6 +308,8 @@ static void set_good_speed_feature_framesize_dependent(
 
     sf->part_sf.intra_two_pass_max_qindex = is_270p_or_lesser ? 95 : 255;
   }
+  sf->inter_sf.prune_warp_delta_modes =
+      prune_warp_delta_modes_level(speed, is_4k_or_larger);
   // Speeds 1-6 override this in av2_set_speed_features_qindex_dependent().
   sf->part_sf.use_square_partition_only_threshold = BLOCK_LARGEST;
 }
@@ -1344,6 +1354,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->disable_interintra = false;
   inter_sf->prune_warpmv_by_pyr_lvl = false;
   inter_sf->prune_warp_delta_by_ref_idx = 0;
+  inter_sf->prune_warp_delta_modes = 0;
   inter_sf->prune_warp_extend_sse_pct = 0;
   inter_sf->prune_comp_using_best_single_mode_ref = 0;
   inter_sf->prune_mode_search_simple_translation = 0;
@@ -2283,6 +2294,8 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     sf->inter_sf.disable_interinter_wedge_newmv_search = 1;
     sf->inter_sf.prune_comp_type_by_model_rd = 1;
     sf->inter_sf.prune_motion_mode_level = 2;
+    sf->inter_sf.prune_warp_delta_modes =
+        prune_warp_delta_modes_level(2, min_side >= 2160);
     sf->inter_sf.enable_four_param_warp_in_winner_mode = 1;
     sf->inter_sf.reuse_inter_intra_mode = 1;
     sf->inter_sf.skip_repeated_newmv = 1;
@@ -2383,6 +2396,8 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     }
     sf->inter_sf.prune_bawp_by_gop_usage = 1;
     sf->inter_sf.fast_warp_delta_decoupled_search = 1;
+    sf->inter_sf.prune_warp_delta_modes =
+        prune_warp_delta_modes_level(4, min_side >= 2160);
     sf->inter_sf.prune_inter_modes_based_on_tpl = 3;
 
     sf->intra_sf.skip_intra_in_interframe = 2;

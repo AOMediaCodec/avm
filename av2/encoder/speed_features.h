@@ -952,6 +952,15 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // speed >= 1.
   int prune_warp_delta_by_ref_idx;
 
+  // Two-stage pruning of WARP_DELTA sub-modes in motion_mode_rd():
+  // - WARPMV: evaluates warpmv_with_mvd_flag == 0 first across warp_ref_idx
+  //   and gates warpmv_with_mvd_flag == 1 using Stage-1 RD/skip_txfm,
+  //   translational MVD improvement, and pyramid level.
+  // - WARP_NEWMV: evaluates warp_precision_idx == 0 first and gates
+  //   warp_precision_idx == 1 and warp_ref_idx >= 2.
+  // 0: off; 1..4: increasing pruning aggressiveness.
+  int prune_warp_delta_modes;
+
   // Skip WARP_EXTEND motion mode when the luma SSE of its unrefined warped
   // prediction exceeds this percentage of the luma SSE of the translational
   // prediction at the same MV. 0: off. Enabled at speed 5.

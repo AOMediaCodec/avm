@@ -3326,6 +3326,101 @@ static AVM_INLINE int evaluate_motion_mode_trial(
   return 0;
 }
 
+/*!\brief Winning Stage-1 WARP_DELTA trial state.
+ *
+ * Tracks the best Stage-1 WARP_DELTA trial (warpmv_with_mvd_flag == 0 for
+ * WARPMV, or warp_precision_idx == 0 for WARP_NEWMV) to gate Stage-2 trials.
+ */
+typedef struct {
+  int idx;       /*!< Winning Stage-1 warp_ref_idx (-1 if none). */
+  int64_t rd;    /*!< Full RD cost of the winning Stage-1 trial. */
+  int skip_txfm; /*!< skip_txfm flag of the winning Stage-1 trial. */
+} WarpStage1Best;
+
+static AVM_INLINE void update_warp_stage1_best(const MACROBLOCK *x,
+                                               const RD_STATS *rd_stats,
+                                               int warp_ref_idx,
+                                               WarpStage1Best *s1) {
+  const int64_t this_rd = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
+  if (this_rd < s1->rd) {
+    const MACROBLOCKD *xd = &x->e_mbd;
+    s1->idx = warp_ref_idx;
+    s1->rd = this_rd;
+    s1->skip_txfm = xd->mi[0]->skip_txfm[xd->tree_type == CHROMA_PART];
+  }
+}
+
+static AVM_INLINE bool query_mvd_helped_trans(const HandleInterModeArgs *args,
+                                              MV_REFERENCE_FRAME ref0,
+                                              int64_t *nearmv_rd_out) {
+  *nearmv_rd_out = INT64_MAX;
+  if (args->single_inter_rd == NULL || is_tip_ref_frame(ref0)) return false;
+  const int rf0 = COMPACT_INDEX0_NRS(ref0);
+  const int64_t nearmv_rd =
+      args->single_inter_rd[single_inter_mode_idx(NEARMV)][0][rf0].full_rd;
+  const int64_t newmv_rd =
+      args->single_inter_rd[single_inter_mode_idx(NEWMV)][0][rf0].full_rd;
+  *nearmv_rd_out = nearmv_rd;
+  return newmv_rd < INT64_MAX &&
+         (nearmv_rd == INT64_MAX || newmv_rd + (newmv_rd >> 4) < nearmv_rd);
+}
+
+static AVM_INLINE bool within_warp_stage2_rd_gate(int64_t stage1_rd,
+                                                  int64_t ref_rd,
+                                                  int prune_level) {
+  const int shift = clamp(prune_level + 1, 2, 4);
+  return ref_rd == INT64_MAX || stage1_rd <= ref_rd + (ref_rd >> shift);
+}
+
+// Returns a 2-bit mask over warp_ref_idx in {0, 1} for Stage-2 WARPMV trials
+// (warpmv_with_mvd_flag == 1).
+static AVM_INLINE int warpmv_mvd_ref_mask(int prune_level,
+                                          unsigned int pyr_level,
+                                          bool mvd_helped,
+                                          const WarpStage1Best *s1,
+                                          int64_t ref_rd, int best_skip_txfm) {
+  const int lvl = clamp(prune_level, 0, 4);
+  if (s1->idx < 0) {
+    static const uint8_t kMaxPyrMiss[2][5] = {
+      { 0, 2, 0, 0, 0 },  // !mvd_helped
+      { 0, 4, 3, 3, 2 },  // mvd_helped
+    };
+    if (best_skip_txfm || pyr_level >= kMaxPyrMiss[mvd_helped][lvl]) return 0;
+    return (mvd_helped && lvl <= 2 && pyr_level < 2) ? 3 : 1;
+  }
+  static const uint8_t kMaxPyrHit[2][5] = {
+    { 0, UINT8_MAX, UINT8_MAX, 2, 2 },  // !mvd_helped
+    { 0, UINT8_MAX, UINT8_MAX, 4, 3 },  // mvd_helped
+  };
+  if (s1->skip_txfm || pyr_level >= kMaxPyrHit[mvd_helped][lvl] ||
+      !within_warp_stage2_rd_gate(s1->rd, ref_rd, lvl))
+    return 0;
+  if (s1->idx < 2) return 1 << s1->idx;
+  return (lvl == 1 && pyr_level < 2) ? 1 : 0;
+}
+
+static AVM_INLINE bool skip_warp_newmv_base_ref(
+    int prune_level, unsigned int pyr_level, int warp_ref_idx,
+    int eval_motion_mode, const MotionModeBestState *best) {
+  if (prune_level <= 0 || warp_ref_idx < 2) return false;
+  if (eval_motion_mode) return true;
+  return best->best_rd != INT64_MAX &&
+         (best->best_xskip_txfm || prune_level >= 4 ||
+          (prune_level >= 2 && pyr_level >= 2));
+}
+
+static AVM_INLINE bool allow_warp_newmv_prec1(int prune_level,
+                                              unsigned int pyr_level,
+                                              const WarpStage1Best *s1,
+                                              int64_t ref_rd,
+                                              int best_skip_txfm) {
+  static const uint8_t kMaxPyr[5] = { 0, UINT8_MAX, UINT8_MAX, 3, 2 };
+  const int lvl = clamp(prune_level, 0, 4);
+  return s1->idx >= 0 && !s1->skip_txfm && !best_skip_txfm &&
+         pyr_level < kMaxPyr[lvl] &&
+         within_warp_stage2_rd_gate(s1->rd, ref_rd, lvl);
+}
+
 /*!\brief AV2 motion mode search
  *
  * \ingroup inter_mode_search
@@ -3508,8 +3603,20 @@ static int64_t motion_mode_rd(
         warp_inter_intra_limit = cfg->warp_inter_intra_cap;
         warpmv_with_mvd_limit = cfg->warpmv_with_mvd_cap;
       }
+      const int prune_level = cpi->sf.inter_sf.prune_warp_delta_modes;
+      const unsigned int pyr_level = cm->current_frame.pyramid_level;
+      int64_t nearmv_rd = INT64_MAX;
+      const bool mvd_helped_trans =
+          prune_level > 0 &&
+          query_mvd_helped_trans(args, base_mbmi.ref_frame[0], &nearmv_rd);
+      const int stage1_mvd_limit = prune_level
+                                       ? AVMMIN(warpmv_with_mvd_limit, 1)
+                                       : warpmv_with_mvd_limit;
+      const int8_t ref_frame_type = av2_ref_frame_type(base_mbmi.ref_frame);
       for (int warp_inter_intra = 0; warp_inter_intra < warp_inter_intra_limit;
            warp_inter_intra++) {
+        const int64_t entry_ref_best_rd = ref_best_rd;
+        WarpStage1Best stage1 = { -1, INT64_MAX, 0 };
         for (int warp_ref_idx = 0; warp_ref_idx < warp_ref_idx_limit;
              warp_ref_idx++) {
           // Search warp interintra in winner mode for remaing wrl indices
@@ -3521,7 +3628,7 @@ static int64_t motion_mode_rd(
                              !eval_motion_mode,
                          (!warp_inter_intra || warp_ref_idx >= 2)));
           for (int warpmv_with_mvd_flag = 0;
-               warpmv_with_mvd_flag < warpmv_with_mvd_limit;
+               warpmv_with_mvd_flag < stage1_mvd_limit;
                warpmv_with_mvd_flag++) {
             const MotionModeTrialParams trial = {
               mode_index,           warp_ref_idx,     warp_ref_idx_limit,
@@ -3533,7 +3640,37 @@ static int64_t motion_mode_rd(
                 do_tx_search, inter_modes_info, top_motion_mode_model_rd,
                 &base_mbmi, &trial, &ctx, &best, eval_motion_mode);
             if (ret > 0) return INT64_MAX;
+            if (prune_level && ret == 0)
+              update_warp_stage1_best(x, rd_stats, warp_ref_idx, &stage1);
           }
+        }
+        if (!prune_level || warpmv_with_mvd_limit <= 1) continue;
+        const int64_t flag0_ref_rd = (mvd_helped_trans && nearmv_rd < INT64_MAX)
+                                         ? AVMMAX(nearmv_rd, entry_ref_best_rd)
+                                         : entry_ref_best_rd;
+        const int mvd_mask =
+            warpmv_mvd_ref_mask(prune_level, pyr_level, mvd_helped_trans,
+                                &stage1, flag0_ref_rd, best.best_xskip_txfm);
+        if (!mvd_mask) continue;
+        const int mvd_ref_limit = AVMMIN(warp_ref_idx_limit, 2);
+        for (int warp_ref_idx = 0; warp_ref_idx < mvd_ref_limit;
+             warp_ref_idx++) {
+          if (!(mvd_mask & (1 << warp_ref_idx))) continue;
+          if (cpi->sf.inter_sf.enable_warp_inter_intra_in_winner &&
+              (eval_motion_mode != (warp_inter_intra && warp_ref_idx < 2)))
+            continue;
+          if (mbmi_ext->warp_param_stack[ref_frame_type][warp_ref_idx]
+                  .proj_type == PROJ_DEFAULT)
+            continue;
+          const MotionModeTrialParams trial = {
+            mode_index, warp_ref_idx, warp_ref_idx_limit, 1, warp_inter_intra, 0
+          };
+          const int ret = evaluate_motion_mode_trial(
+              cpi, tile_data, x, bsize, rd_stats, rd_stats_y, rd_stats_uv, args,
+              &ref_best_rd, ref_skip_rd, orig_dst, best_est_rd, do_tx_search,
+              inter_modes_info, top_motion_mode_model_rd, &base_mbmi, &trial,
+              &ctx, &best, eval_motion_mode);
+          if (ret > 0) return INT64_MAX;
         }
       }
     } else {
@@ -3547,10 +3684,19 @@ static int64_t motion_mode_rd(
       // Dry pass: try only the first warp precision.
       if (x->apply_dry_pass_shortcuts)
         warp_precision_limit = cfg->warp_precision_cap;
+      const int prune_level = cpi->sf.inter_sf.prune_warp_delta_modes;
+      const unsigned int pyr_level = cm->current_frame.pyramid_level;
+      const int64_t entry_ref_best_rd = ref_best_rd;
+      const int stage1_prec_limit =
+          prune_level ? AVMMIN(warp_precision_limit, 1) : warp_precision_limit;
+      WarpStage1Best stage1 = { -1, INT64_MAX, 0 };
       for (int warp_ref_idx = 0; warp_ref_idx < warp_ref_idx_limit;
            warp_ref_idx++) {
-        for (int warp_precision_idx = 0;
-             warp_precision_idx < warp_precision_limit; warp_precision_idx++) {
+        if (skip_warp_newmv_base_ref(prune_level, pyr_level, warp_ref_idx,
+                                     eval_motion_mode, &best))
+          continue;
+        for (int warp_precision_idx = 0; warp_precision_idx < stage1_prec_limit;
+             warp_precision_idx++) {
           const MotionModeTrialParams trial = {
             mode_index, warp_ref_idx,      warp_ref_idx_limit, 0,
             0,          warp_precision_idx
@@ -3561,7 +3707,22 @@ static int64_t motion_mode_rd(
               inter_modes_info, top_motion_mode_model_rd, &base_mbmi, &trial,
               &ctx, &best, eval_motion_mode);
           if (ret > 0) return INT64_MAX;
+          if (prune_level && ret == 0 && warp_ref_idx < 2)
+            update_warp_stage1_best(x, rd_stats, warp_ref_idx, &stage1);
         }
+      }
+      if (prune_level && warp_precision_limit > 1 &&
+          allow_warp_newmv_prec1(prune_level, pyr_level, &stage1,
+                                 entry_ref_best_rd, best.best_xskip_txfm)) {
+        const MotionModeTrialParams trial = {
+          mode_index, stage1.idx, warp_ref_idx_limit, 0, 0, 1
+        };
+        const int ret = evaluate_motion_mode_trial(
+            cpi, tile_data, x, bsize, rd_stats, rd_stats_y, rd_stats_uv, args,
+            &ref_best_rd, ref_skip_rd, orig_dst, best_est_rd, do_tx_search,
+            inter_modes_info, top_motion_mode_model_rd, &base_mbmi, &trial,
+            &ctx, &best, eval_motion_mode);
+        if (ret > 0) return INT64_MAX;
       }
     }
   }
