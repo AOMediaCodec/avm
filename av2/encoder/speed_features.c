@@ -818,6 +818,15 @@ static void set_good_speed_features_framesize_independent(
     sf->intra_sf.uv_mode_rank_skip_cctx = true;
     if (is_4k_or_larger) {
       sf->inter_sf.dry_pass_prune_tip = 1;
+    } else {
+      sf->tx_sf.disable_cctx_dry_pass = true;
+      sf->inter_sf.dry_pass_skip_warp_min_pyr_level =
+          DRY_PASS_SKIP_WARP_MIN_PYR_LEVEL;
+      sf->inter_sf.dry_pass_mv_prec_from_top =
+          (!boosted && !allow_screen_content_tools &&
+           cm->current_frame.pyramid_level >= 3)
+              ? 1
+              : 0;
     }
 
     // Statistics-domain WIENER_NONSEP merge and class-count evaluation.
