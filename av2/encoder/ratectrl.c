@@ -423,8 +423,11 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
     if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
         cpi->cyclic_refresh->apply_cyclic_refresh) {
       // For static screen type content limit the Q drop till the start of the
-      // next refresh cycle.
-      if (cpi->cyclic_refresh->sb_index > cpi->cyclic_refresh->last_sb_index) {
+      // next refresh cycle (including the first frame after a scene change,
+      // where sb_index == last_sb_index == 0 starts the initial cycle).
+      if (cpi->cyclic_refresh->sb_index > cpi->cyclic_refresh->last_sb_index ||
+          (rc->frames_since_key > 1 &&
+           cpi->cyclic_refresh->counter_encode_maxq_scene_change == 0)) {
         max_delta_down = clamp(rc->q_1_frame / 32, 1, 8);
       } else {
         max_delta_down = clamp(rc->q_1_frame / 8, 1, 16);

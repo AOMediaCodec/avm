@@ -401,15 +401,20 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
     // Loop through all MI blocks in superblock and update map.
     xmis = AVMMIN(mi_params->mi_cols - mi_col, cm->mib_size);
     ymis = AVMMIN(mi_params->mi_rows - mi_row, cm->mib_size);
-    if (cr->use_block_sad_scene_det && cpi->rc.frames_since_key > 30 &&
-        cr->counter_encode_maxq_scene_change > 30 &&
+    const int is_screen_content =
+        (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
+    const int min_sc_frames = is_screen_content ? 0 : 30;
+    const int min_kf_frames = is_screen_content ? 1 : 30;
+    if (cr->use_block_sad_scene_det &&
+        cpi->rc.frames_since_key > min_kf_frames &&
+        cr->counter_encode_maxq_scene_change > min_sc_frames &&
         cpi->src_sad_blk_64x64 != NULL && cpi->unscaled_source != NULL &&
         cm->width == cpi->unscaled_source->y_crop_width &&
         cm->height == cpi->unscaled_source->y_crop_height) {
       const int num_64x64_cols = cm->width >> 6;
       const int num_64x64_rows = cm->height >> 6;
       if (num_64x64_cols * num_64x64_rows == cpi->src_sad_blk_alloc_size) {
-        const int blk_step = (cm->sb_size == BLOCK_128X128) ? 2 : 1;
+        const int blk_step = mi_size_wide[cm->sb_size] >> 4;
         const int blk_row_start = sb_row_index * blk_step;
         const int blk_col_start = sb_col_index * blk_step;
         uint64_t sum_sad = 0;
@@ -430,7 +435,8 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
           const uint64_t scale = (cm->width * cm->height < 640 * 360) ? 6 : 8;
           const uint64_t scale_low = 2;
           thresh_sad = (scale * 64 * 64) << bd_shift;
-          thresh_sad_low = (scale_low * 64 * 64) << bd_shift;
+          thresh_sad_low =
+              is_screen_content ? 0 : ((scale_low * 64 * 64) << bd_shift);
         }
       }
     }
@@ -517,20 +523,20 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
   // 2) Preceding frames have low average qindex (< qp_thresh)
   // 3) Scene change is detected
   // 4) Preceding frames have high average qindex (> qp_max_thresh)
-  // 5) Non-screen content with too much motion (avg_frame_low_motion < 45).
+  // 5) Content with sustained motion (low zero-MV block percentage).
   if (frame_is_intra_only(cm) || is_lossless_requested(&cpi->oxcf.rc_cfg) ||
       scene_change_detected || rc->avg_frame_qindex[INTER_FRAME] < qp_thresh ||
       (frames_since_scene_change > 20 &&
        rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||
-      (!is_screen_content && cr->avg_frame_low_motion < 45 &&
+      (cr->avg_frame_low_motion < (is_screen_content ? 30 : 45) &&
        frames_since_scene_change > 40)) {
     cr->apply_cyclic_refresh = 0;
     return;
   }
   // Also turn off if actual_num_seg1_blocks & actual_num_seg2_blocks were both
   // 0 for several frames and low motion is small.
-  if (!is_screen_content && cr->actual_num_seg1_blocks == 0 &&
-      cr->actual_num_seg2_blocks == 0 && cr->avg_frame_low_motion < 70 &&
+  if (cr->actual_num_seg1_blocks == 0 && cr->actual_num_seg2_blocks == 0 &&
+      cr->avg_frame_low_motion < (is_screen_content ? 45 : 70) &&
       frames_since_scene_change > 40 && cr->percent_refresh_adjustment <= 0) {
     cr->apply_cyclic_refresh = 0;
     return;
@@ -541,8 +547,8 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
   cr->max_qdelta_perc = 60;
   cr->time_for_refresh = 0;
   cr->use_block_sad_scene_det =
-      (!is_screen_content &&
-       (cm->sb_size == BLOCK_64X64 || cm->sb_size == BLOCK_128X128))
+      (cm->sb_size == BLOCK_64X64 || cm->sb_size == BLOCK_128X128 ||
+       cm->sb_size == BLOCK_256X256)
           ? 1
           : 0;
   cr->motion_thresh = 32;
@@ -672,8 +678,10 @@ void av2_cyclic_refresh_setup(AV2_COMP *const cpi) {
     av2_disable_segfeature(seg, CR_SEGMENT_ID_BASE, SEG_LVL_ALT_Q);
     // Use segment BOOST1 for in-frame Q adjustment.
     av2_enable_segfeature(seg, CR_SEGMENT_ID_BOOST1, SEG_LVL_ALT_Q);
-    // Use segment BOOST2 for more aggressive in-frame Q adjustment.
-    av2_enable_segfeature(seg, CR_SEGMENT_ID_BOOST2, SEG_LVL_ALT_Q);
+    // Use segment BOOST2 for more aggressive in-frame Q adjustment when active.
+    if (cr->rate_boost_fac > 10) {
+      av2_enable_segfeature(seg, CR_SEGMENT_ID_BOOST2, SEG_LVL_ALT_Q);
+    }
 
     // Set the q delta for segment BOOST1.
     const CommonQuantParams *const quant_params = &cm->quant_params;
@@ -690,13 +698,17 @@ void av2_cyclic_refresh_setup(AV2_COMP *const cpi) {
 
     av2_set_segdata(seg, CR_SEGMENT_ID_BOOST1, SEG_LVL_ALT_Q, qindex_delta);
 
-    // Set a more aggressive (higher) q delta for segment BOOST2.
-    qindex_delta = compute_deltaq(
-        cpi, quant_params->base_qindex,
-        AVMMIN(CR_MAX_RATE_TARGET_RATIO,
-               0.1 * cr->rate_boost_fac * cr->rate_ratio_qdelta));
-    cr->qindex_delta[2] = qindex_delta;
-    av2_set_segdata(seg, CR_SEGMENT_ID_BOOST2, SEG_LVL_ALT_Q, qindex_delta);
+    if (cr->rate_boost_fac > 10) {
+      // Set a more aggressive (higher) q delta for segment BOOST2.
+      qindex_delta = compute_deltaq(
+          cpi, quant_params->base_qindex,
+          AVMMIN(CR_MAX_RATE_TARGET_RATIO,
+                 0.1 * cr->rate_boost_fac * cr->rate_ratio_qdelta));
+      cr->qindex_delta[2] = qindex_delta;
+      av2_set_segdata(seg, CR_SEGMENT_ID_BOOST2, SEG_LVL_ALT_Q, qindex_delta);
+    } else {
+      cr->qindex_delta[2] = 0;
+    }
 
     // Update the segmentation and refresh map.
     cyclic_refresh_update_map(cpi);
