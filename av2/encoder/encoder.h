@@ -3014,6 +3014,21 @@ typedef struct AV2_COMP {
    */
   int is_screen_content_type;
 
+  /*!
+   * GOP-level palette gate set per KEY_FRAME in
+   * av2_determine_sc_tools_with_encoding() and read in should_try_palette()
+   * when av2_gate_palette_by_kf_trial() is true (not carried across All-Intra
+   * keyframes).
+   */
+  bool kf_trial_allow_palette;
+
+  /*!
+   * Set in av2_set_screen_content_options() when > 2% of pixels lie in
+   * 2..4-color 16x16 luma blocks under auto-detection; gates running the
+   * two-pass keyframe trial in av2_determine_sc_tools_with_encoding().
+   */
+  bool allow_sc_kf_trial;
+
 #if CONFIG_COLLECT_PARTITION_STATS == 2
   /*!
    * Accumulates the partition timing stat over the whole frame.
@@ -3917,6 +3932,28 @@ static INLINE void av2_set_seq_lr_tools_mask(SequenceHeader *const seq_params,
   }
 
   seq_params->lr_tools_disable_mask[1] |= DEF_UV_LR_TOOLS_DISABLE_MASK;
+}
+
+// Speed 0 8-bit base_qindex cutoff (+48 at 10-bit via MAXQ_OFFSET) for
+// keyframe palette gating: sits between CTC fine/medium keyframes (AI qp <=
+// 160, RA qp <= 210, 8-bit base_qindex <= 165) where un-gated palette hurts
+// game clips, and coarse keyframes (AI qp >= 185, RA qp = 235, base_qindex >=
+// 189) where small on-screen text and UI overlays still benefit.
+#define PALETTE_KF_TRIAL_SPEED0_MAX_QINDEX_8B 175
+
+// Returns true in GOOD mode when palette search should be gated by the
+// stricter detector check (is_scc_content_by_detector) or the GOP keyframe
+// trial (kf_trial_allow_palette): speeds 1-4 when !disable_palette, and speed
+// 0 up to PALETTE_KF_TRIAL_SPEED0_MAX_QINDEX_8B. Explicit qindex lets the
+// keyframe trial pass q_orig before av2_set_quantizer() sets base_qindex.
+static INLINE bool av2_gate_palette_by_kf_trial(const AV2_COMP *cpi,
+                                                int qindex) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const AV2EncoderConfig *const oxcf = &cpi->oxcf;
+  if (oxcf->mode != GOOD || cpi->sf.intra_sf.disable_palette) return false;
+  if (oxcf->speed >= 1) return true;
+  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+  return qindex <= PALETTE_KF_TRIAL_SPEED0_MAX_QINDEX_8B + qindex_offset;
 }
 
 /*!\endcond */

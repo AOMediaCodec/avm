@@ -2481,6 +2481,7 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
     features->allow_intrabc =
         features->allow_screen_content_tools && cpi->oxcf.kf_cfg.enable_intrabc;
     features->is_scc_content_by_detector = features->allow_screen_content_tools;
+    cpi->allow_sc_kf_trial = false;  // Keyframe trial is GOOD-mode only.
     return;
   }
   // Estimate if the source frame is screen content, based on the portion of
@@ -2533,9 +2534,19 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
       features->allow_screen_content_tools &&
       counts_2 * blk_h * blk_w * var_factor > width * height;
 
+  // Stricter detector check (2..4 colors and var > 0 in > 1/12 of the frame),
+  // unlike the looser color-only allow_screen_content_tools check (> 1/11).
+  // Passing frames allow palette directly; looser-only keyframes still run the
+  // two-pass trial in av2_determine_sc_tools_with_encoding().
   features->is_scc_content_by_detector =
       features->allow_screen_content_tools &&
       counts_2 * blk_h * blk_w * var_factor > width * height;
+
+  // Require > 2% (1/50) low-color 16x16 blocks to run the two-pass keyframe
+  // palette trial (int64_t avoids 32-bit overflow on >= 43 MP frames).
+  cpi->allow_sc_kf_trial =
+      (cm->seq_params.force_screen_content_tools == 2) &&
+      ((int64_t)counts_1 * blk_h * blk_w * 50 > (int64_t)width * height);
 
   if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
     features->allow_screen_content_tools = features->allow_intrabc =

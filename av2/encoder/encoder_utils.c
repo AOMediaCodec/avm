@@ -718,8 +718,8 @@ void av2_setup_frame(AV2_COMP *cpi) {
 static void screen_content_tools_determination(
     AV2_COMP *cpi, const int allow_screen_content_tools_orig_decision,
     const int allow_intrabc_orig_decision,
-    const int is_screen_content_type_orig_decision, const int pass,
-    int *projected_size_pass, PSNR_STATS *psnr) {
+    const int is_screen_content_type_orig_decision, const bool gate_by_kf_trial,
+    const int pass, int *projected_size_pass, PSNR_STATS *psnr) {
   AV2_COMMON *const cm = &cpi->common;
   FeatureFlags *const features = &cm->features;
   projected_size_pass[pass] = cpi->rc.projected_frame_size;
@@ -743,12 +743,18 @@ static void screen_content_tools_determination(
   const double palette_ratio =
       (double)cpi->palette_pixel_num / (double)(cm->height * cm->width);
   const int psnr_diff_is_large = (psnr_diff > STRICT_PSNR_DIFF_THRESH);
+  // Under palette gating, raise the ratio_is_large bar from >= 0.01% palette
+  // pixels to >= 1.5% with > 4 dB/ratio gain, or >= 2.0% with >= 0.05 dB gain
+  // (alongside psnr_diff > 0.88 dB above).
   // Note: These two conditions are intentionally separated because combining
   // them can cause division by zero under some compiler configurations (e.g.
   // clang-16 + address sanitizer) when palette_ratio == 0.0.
-  int ratio_is_large = (palette_ratio >= 0.0001);
+  const double min_palette_ratio = gate_by_kf_trial ? 0.015 : 0.0001;
+  int ratio_is_large = (palette_ratio >= min_palette_ratio);
   if (ratio_is_large) {
-    ratio_is_large = ((psnr_diff / palette_ratio) > 4);
+    ratio_is_large =
+        ((psnr_diff / palette_ratio) > 4) ||
+        (gate_by_kf_trial && palette_ratio >= 0.02 && psnr_diff >= 0.05);
   }
   const int is_sc_encoding_much_better = (psnr_diff_is_large || ratio_is_large);
 
@@ -776,6 +782,12 @@ static void screen_content_tools_determination(
     features->allow_intrabc = allow_intrabc_orig_decision;
     cpi->is_screen_content_type = is_screen_content_type_orig_decision;
   }
+  // Keep non-palette screen-content tools on their original decision above if
+  // the trial fails, while recording the GOP palette gate separately.
+  cpi->kf_trial_allow_palette =
+      !cpi->sf.intra_sf.disable_palette &&
+      (gate_by_kf_trial ? (is_sc_encoding_much_better != 0)
+                        : (features->allow_screen_content_tools != 0));
 }
 
 // Set some encoding parameters to make the encoding process fast.
@@ -807,6 +819,8 @@ static void set_encoding_params_for_screen_content(AV2_COMP *cpi,
 // Determines whether to use screen content tools for the key frame group.
 // This function modifies "cm->features.allow_screen_content_tools",
 // "cm->features.allow_intrabc" and "cpi->is_screen_content_type".
+// Also sets the GOP palette gate (cpi->kf_trial_allow_palette) on each
+// KEY_FRAME when av2_gate_palette_by_kf_trial() is active.
 void av2_determine_sc_tools_with_encoding(AV2_COMP *cpi, const int q_orig) {
   AV2_COMMON *const cm = &cpi->common;
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
@@ -815,18 +829,36 @@ void av2_determine_sc_tools_with_encoding(AV2_COMP *cpi, const int q_orig) {
   int projected_size_pass[3] = { 0 };
   PSNR_STATS psnr[3];
   const int is_key_frame = cm->current_frame.frame_type == KEY_FRAME;
+  // Inter frames reuse the preceding keyframe's cpi->kf_trial_allow_palette.
+  if (!is_key_frame) return;
   const int allow_screen_content_tools_orig_decision =
       cm->features.allow_screen_content_tools;
   const int allow_intrabc_orig_decision = cm->features.allow_intrabc;
   const int is_screen_content_type_orig_decision = cpi->is_screen_content_type;
+  const bool allow_palette = !cpi->sf.intra_sf.disable_palette;
+  const bool gate_by_kf_trial = av2_gate_palette_by_kf_trial(cpi, q_orig);
+  // Default if the trial is skipped below (e.g., !gate_by_kf_trial or fwd_kf).
+  cpi->kf_trial_allow_palette =
+      allow_palette && (allow_screen_content_tools_orig_decision != 0);
   if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
     cm->features.allow_screen_content_tools = cm->features.allow_intrabc = 1;
+    cpi->kf_trial_allow_palette = allow_palette;
     return;
   }
-
-  // Turn off the encoding trial for some cases.
-  if (oxcf->kf_cfg.fwd_kf_enabled || is_screen_content_type_orig_decision ||
-      !is_key_frame) {
+  // Trust the stricter per-frame check in av2_set_screen_content_options()
+  // without running the trial; <= 2% low-color keyframes fast-reject below.
+  if (gate_by_kf_trial && cm->features.is_scc_content_by_detector) {
+    cpi->kf_trial_allow_palette = true;
+    return;
+  }
+  if (gate_by_kf_trial && !cpi->allow_sc_kf_trial) {
+    cpi->kf_trial_allow_palette = false;
+    return;
+  }
+  // When gate_by_kf_trial is true, still run the trial on keyframes that only
+  // passed the looser allow_screen_content_tools check.
+  if (oxcf->kf_cfg.fwd_kf_enabled ||
+      (!gate_by_kf_trial && is_screen_content_type_orig_decision)) {
     return;
   }
 
@@ -836,9 +868,11 @@ void av2_determine_sc_tools_with_encoding(AV2_COMP *cpi, const int q_orig) {
   // Use a high q and a fixed partition to do quick encoding.
   const int q_for_screen_content_quick_run =
       is_lossless_requested(&oxcf->rc_cfg) ? q_orig : AVMMAX(q_orig, 200);
-  const int partition_search_type_orig = cpi->sf.part_sf.partition_search_type;
-  const BLOCK_SIZE fixed_partition_block_size_orig =
-      cpi->sf.part_sf.fixed_partition_size;
+  // Save full speed/winner-mode state so q >= 200 overrides from
+  // av2_set_speed_features_qindex_dependent() (e.g., predict_dc_level) do not
+  // leak when q_orig is lower.
+  const SPEED_FEATURES sf_orig = cpi->sf;
+  const WinnerModeParams winner_mode_params_orig = cpi->winner_mode_params;
 
   // Setup necessary params for encoding, including frame source, etc.
   avm_clear_system_state();
@@ -871,6 +905,8 @@ void av2_determine_sc_tools_with_encoding(AV2_COMP *cpi, const int q_orig) {
 
   // The two encoding passes aim to help determine whether to use screen
   // content tools, with a high q and fixed partition.
+  // Enable palette during pass 1 so the trial can measure its coding gain.
+  cpi->kf_trial_allow_palette = allow_palette;
   for (int pass = 0; pass < 2; ++pass) {
     set_encoding_params_for_screen_content(cpi, pass);
     av2_set_quantizer(cpi, q_cfg->qm_minlevel, q_cfg->qm_maxlevel,
@@ -890,14 +926,21 @@ void av2_determine_sc_tools_with_encoding(AV2_COMP *cpi, const int q_orig) {
     // Screen content decision
     screen_content_tools_determination(
         cpi, allow_screen_content_tools_orig_decision,
-        allow_intrabc_orig_decision, is_screen_content_type_orig_decision, pass,
-        projected_size_pass, psnr);
+        allow_intrabc_orig_decision, is_screen_content_type_orig_decision,
+        gate_by_kf_trial, pass, projected_size_pass, psnr);
   }
+  if (!allow_palette) cpi->kf_trial_allow_palette = false;
   assert(is_key_frame);
   cm->features.kf_allow_sc_tools = cm->features.allow_screen_content_tools;
-  // Set partition speed feature back.
-  cpi->sf.part_sf.partition_search_type = partition_search_type_orig;
-  cpi->sf.part_sf.fixed_partition_size = fixed_partition_block_size_orig;
+  if (gate_by_kf_trial) {
+    cpi->sf = sf_orig;
+    cpi->winner_mode_params = winner_mode_params_orig;
+  } else {
+    // Set partition speed feature back.
+    cpi->sf.part_sf.partition_search_type =
+        sf_orig.part_sf.partition_search_type;
+    cpi->sf.part_sf.fixed_partition_size = sf_orig.part_sf.fixed_partition_size;
+  }
 }
 
 static void fix_interp_filter(InterpFilter *const interp_filter,
