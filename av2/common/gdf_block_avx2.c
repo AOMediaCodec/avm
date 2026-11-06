@@ -325,55 +325,6 @@ void gdf_compensation_sse_unit_avx2(
   }
 }
 
-// Load weight register in the shape of [alpha[k]_sample[i],
-// alpha[k]_sample[i+1], .., alpha[k]_sample[i+15]]:
-//     difference between each sample i-th to the center sample is to be clipped
-//     into range [-alpha, alpha]
-// m256i_tmp_reg_01, m256_tmp_reg
-#define gdf_load_alpha_reg(clip_max_reg, clip_min_reg, alphaOff,        \
-                           m256i_tmp_reg, m256_tmp_reg, cls_idx)        \
-  m256i_tmp_reg = _mm256_set1_epi64x(*((const long long *)(alphaOff))); \
-  m256_tmp_reg = _mm256_castsi256_ps(                                   \
-      _mm256_unpacklo_epi16(m256i_tmp_reg, m256i_tmp_reg));             \
-  __m256i clip_max_reg =                                                \
-      _mm256_castps_si256(_mm256_permutevar_ps(m256_tmp_reg, cls_idx)); \
-  __m256i clip_min_reg = _mm256_sub_epi16(_mm256_setzero_si256(), clip_max_reg);
-
-// Load bias register in the shape of [hiadd, loadd]:
-//     hiadd = [b_class0, b_class1, b_class2, b_class3] = 128bit,
-//     loadd = [b_class0, b_class1, b_class2, b_class3] = 128bit
-//     each b_classX is of 32 bit
-#define gdf_load_bias_reg(bias_regx, biasOff) \
-  __m256 bias_regx =                          \
-      _mm256_loadu2_m128((const float *)(biasOff), (const float *)(biasOff));
-
-// Load weight register in the shape of [weigt[k]_sample[i],
-// weigt[k]_sample[i+1], .., weigt[k]_sample[i+15]]:
-//     weigt[k]_sample[x] is of 32 bits --> weight_regx contains 8 32-bit
-//     weights (only 16 LSB bits are nonzeros), W[cls_idx[sample0]] of 16-bit
-//     weight_regx = [W[cls_idx[sample0]], W[cls_idx[sample0]],
-//     W[cls_idx[sample1]], W[cls_idx[sample1]], ..., W[cls_idx[sample14]],
-//     W[cls_idx[sample14]]]
-#define gdf_load_weight_reg(weight_regx, weightOff, m256i_tmp_reg,       \
-                            m256_tmp_reg, cls_idx)                       \
-  m256i_tmp_reg = _mm256_set1_epi64x(*((const long long *)(weightOff))); \
-  m256_tmp_reg = _mm256_castsi256_ps(                                    \
-      _mm256_unpacklo_epi16(m256i_tmp_reg, m256i_tmp_reg));              \
-  __m256i weight_regx =                                                  \
-      _mm256_castps_si256(_mm256_permutevar_ps(m256_tmp_reg, cls_idx));
-
-// Generate two vectors:
-//     odd_clip  = [16-bit 0, X[1], 16-bit 0, X[3], 16-bit 0, X[5], ..., 16-bit
-//     0, X[15]] even_clip = [16-bit 0, X[0], 16-bit 0, X[2], 16-bit 0, X[4],
-//     ..., 16-bit 0, X[14]]
-#define gdf_clip_input_reg(odd_clip, even_clip, sample_reg, clip_min_reg,    \
-                           clip_max_reg, m256i_tmp_reg_01, m256i_tmp_reg_02, \
-                           odd_mask)                                         \
-  m256i_tmp_reg_01 = _mm256_max_epi16(sample_reg, clip_min_reg);             \
-  m256i_tmp_reg_02 = _mm256_min_epi16(m256i_tmp_reg_01, clip_max_reg);       \
-  __m256i odd_clip = _mm256_and_si256(odd_mask, m256i_tmp_reg_02);           \
-  __m256i even_clip = _mm256_andnot_si256(odd_mask, m256i_tmp_reg_02);
-
 #define gdf_quant_feature_reg(out_regxx, neg_mask, zero_reg, scale_value,      \
                               half_value, lut_shift, idx_min_reg, idx_max_reg) \
   neg_mask = _mm256_cmpgt_epi32(zero_reg, out_regxx);                          \
@@ -386,31 +337,6 @@ void gdf_compensation_sse_unit_avx2(
   out_regxx = _mm256_sub_epi32(out_regxx, idx_min_reg);                        \
   out_regxx = _mm256_max_epi32(out_regxx, zero_reg);                           \
   out_regxx = _mm256_min_epi32(out_regxx, idx_max_reg);
-
-#define gdf_mult_weight_to_input_reg(out_regx0, out_regx1, mul_regx0, \
-                                     mul_regx1, odd_clip, even_clip,  \
-                                     weight_regx)                     \
-  mul_regx0 = _mm256_madd_epi16(odd_clip, weight_regx);               \
-  mul_regx1 = _mm256_madd_epi16(even_clip, weight_regx);              \
-  out_regx0 = _mm256_add_epi32(mul_regx0, out_regx0);                 \
-  out_regx1 = _mm256_add_epi32(mul_regx1, out_regx1);
-
-#define gdf_assign_bias_to_output_reg(out_regx0, out_regx1, bias_regx, \
-                                      cls_idx)                         \
-  __m256i out_regx0 =                                                  \
-      _mm256_castps_si256(_mm256_permutevar_ps(bias_regx, cls_idx));   \
-  __m256i out_regx1 = out_regx0;
-
-// Swap the vertical weight/feature if the class index in [1, 3]
-//    cls_is_odd has the LSB moved to 31b for the use of _mm256_blendv_ps
-#define gdf_swap_value32bit_by_mask32bit(                                      \
-    vert_reg, horz_reg, m256_vert_tmp_reg, m256_horz_tmp_reg, cls_is_odd)      \
-  m256_vert_tmp_reg = _mm256_castsi256_ps(vert_reg);                           \
-  m256_horz_tmp_reg = _mm256_castsi256_ps(horz_reg);                           \
-  vert_reg = _mm256_castps_si256(_mm256_blendv_ps(                             \
-      m256_vert_tmp_reg, m256_horz_tmp_reg, _mm256_castsi256_ps(cls_is_odd))); \
-  horz_reg = _mm256_castps_si256(_mm256_blendv_ps(                             \
-      m256_horz_tmp_reg, m256_vert_tmp_reg, _mm256_castsi256_ps(cls_is_odd)));
 
 static inline __m256i gdf_intra_get_idx(__m256i *out_reg0, __m256i *out_reg1,
                                         __m256i *out_reg2) {
@@ -429,6 +355,137 @@ static inline __m256i gdf_inter_get_idx(__m256i *out_reg0, __m256i *out_reg1,
           _mm256_add_epi32(_mm256_slli_epi32(*out_reg1, 3),
                            _mm256_slli_epi32(*out_reg1, 1))),
       *out_reg2);
+}
+
+// The sign-extended table entries at the byte offsets idx.
+static inline __m256i gdf_lookup_error(const int8_t *gdf_table, __m256i idx) {
+  const __m256i sub_idx_mask = _mm256_set1_epi32(0x3);
+  const __m256i v = _mm256_i32gather_epi32(
+      (const int *)gdf_table, _mm256_andnot_si256(sub_idx_mask, idx), 1);
+  const __m256i bits =
+      _mm256_slli_epi32(_mm256_and_si256(sub_idx_mask, idx), 3);
+  return _mm256_srai_epi32(_mm256_slli_epi32(_mm256_srlv_epi32(v, bits), 24),
+                           24);
+}
+
+// The three features of GDF are derived as feature f = bias[cls][f] + {sum of
+// (input_k() * W[k][cls][f]) for k = [0 - 21]}. Here input_k is clamped
+// difference between tap sample and center sample. cls is the class of the
+// center sample. Also, some of the weights W are zero for all 3 features. An
+// input contributes to feature 0 if it is in the vertical set
+// (gdf_guided_sample_vertical_masks) and the class is even, or in the
+// horizontal set (gdf_guided_sample_horizontal_masks) and the class is odd; to
+// feature 1 the other way round; and to feature 2 if it is in the mixed set
+// (gdf_guided_sample_mixed_masks).
+
+enum { GDF_SET_V, GDF_SET_H, GDF_SET_M, GDF_SETS };
+
+static const int gdf_set_size[GDF_SETS] = { 12, 12, 10 };
+// List of taps that contribute to gdf feature(s).
+static const int gdf_set_inputs[GDF_SETS][12] = {
+  { 0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 16, 17 },
+  { 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 },
+  { 3, 5, 9, 15, 16, 17, 18, 19, 20, 21 },
+};
+
+// Store weights of one set (vertical, horizontal or mixed) for the pairs of gdf
+// inputs. For a pair, weight[p] holds one 32-bit entry per class: the weight
+// of the first input in the low 16 bits and of the second in the high 16
+// bits; entries 4-7 are unused. The weights come from the feature this set
+// computes for that class: for the vertical set feature 0 for even classes
+// and feature 1 for odd classes, for the horizontal set the opposite, and for
+// the mixed set always feature 2. bias holds the bias of the same feature, one
+// 32-bit entry per class.
+#define GDF_MAX_PAIRS 6
+typedef struct {
+  __m256i weight[GDF_MAX_PAIRS];
+  __m256i bias;
+} gdf_set_t;
+
+// 32-bit lanes of the 4 classes, (lo | hi << 16). rest unused
+static inline __m256i gdf_pair_table(const int16_t *lo, const int16_t *hi) {
+  int32_t t[8] = { 0 };
+  for (int c = 0; c < GDF_TRAIN_CLS_NUM; c++) {
+    t[c] = (uint16_t)lo[c] | ((uint32_t)(uint16_t)hi[c] << 16);
+  }
+  return _mm256_loadu_si256((const __m256i *)t);
+}
+
+static void gdf_init_sets(const int16_t *weight, const int32_t *bias,
+                          gdf_set_t *sets) {
+  for (int s = 0; s < GDF_SETS; s++) {
+    gdf_set_t *const set = &sets[s];
+    for (int p = 0; p < gdf_set_size[s] / 2; p++) {
+      int16_t w[2][GDF_TRAIN_CLS_NUM];
+      for (int m = 0; m < 2; m++) {
+        const int k = gdf_set_inputs[s][2 * p + m];
+        for (int c = 0; c < GDF_TRAIN_CLS_NUM; c++) {
+          const int feat = s == GDF_SET_M ? 2 : (s ^ (c & 1));
+          w[m][c] = weight[k * GDF_TRAIN_CLS_NUM + c +
+                           GDF_OPTS_INP_TOT * GDF_TRAIN_CLS_NUM * feat];
+        }
+      }
+      set->weight[p] = gdf_pair_table(w[0], w[1]);
+    }
+    int32_t b[8] = { 0 };
+    for (int c = 0; c < GDF_TRAIN_CLS_NUM; c++) {
+      const int out = s == GDF_SET_M ? 2 : (s ^ (c & 1));
+      b[c] = bias[c + GDF_TRAIN_CLS_NUM * out];
+    }
+    set->bias = _mm256_loadu_si256((const __m256i *)b);
+  }
+}
+
+// Get clipped gdf inputs of 16 contiguous pixels.
+static AVM_FORCE_INLINE void gdf_get_inputs(const uint16_t *center,
+                                            const int *fwd_off,
+                                            const int *bwd_off,
+                                            uint16_t *const *lap, int j,
+                                            int pxl_shift, const __m256 *alpha,
+                                            __m256i cls_idx, __m256i *gdf_inp) {
+  const __m256i zero_reg = _mm256_setzero_si256();
+  const __m256i min_val = _mm256_set1_epi16(-(1 << (GDF_TEST_INP_PREC - 1)));
+  const __m256i max_val = _mm256_set1_epi16((1 << (GDF_TEST_INP_PREC - 1)) - 1);
+  // Spatial filter kernel processing:
+  // - normalize (tap - center)
+  // - clip to [-alpha, alpha]
+  // - add symmetrical taps (fwd, bwd)
+  // - clip to sample range max
+  const __m256i center_reg = _mm256_loadu_si256((const __m256i *)center);
+  for (int k = 0; k < GDF_NET_INP_REC_NUM; k++) {
+    const __m256i clip_max =
+        _mm256_castps_si256(_mm256_permutevar_ps(alpha[k], cls_idx));
+    const __m256i clip_min = _mm256_sub_epi16(zero_reg, clip_max);
+    const __m256i fwd = _mm256_slli_epi16(
+        _mm256_sub_epi16(
+            _mm256_loadu_si256((const __m256i *)(center + fwd_off[k])),
+            center_reg),
+        pxl_shift);
+    const __m256i bwd = _mm256_slli_epi16(
+        _mm256_sub_epi16(
+            _mm256_loadu_si256((const __m256i *)(center + bwd_off[k])),
+            center_reg),
+        pxl_shift);
+    const __m256i sum = _mm256_add_epi16(
+        _mm256_min_epi16(_mm256_max_epi16(fwd, clip_min), clip_max),
+        _mm256_min_epi16(_mm256_max_epi16(bwd, clip_min), clip_max));
+    gdf_inp[k] = _mm256_min_epi16(_mm256_max_epi16(sum, min_val), max_val);
+  }
+  // Gradient filter kernel processing:
+  // - alpha is below 2^(GDF_TEST_INP_PREC - 1), so the second clip does
+  // nothing.
+  for (int k = GDF_NET_INP_REC_NUM; k < GDF_OPTS_INP_TOT; k++) {
+    const __m256i clip_max =
+        _mm256_castps_si256(_mm256_permutevar_ps(alpha[k], cls_idx));
+    const __m256i clip_min = _mm256_sub_epi16(zero_reg, clip_max);
+    const __m256i sample = _mm256_srli_epi16(
+        _mm256_slli_epi16(
+            _mm256_load_si256(
+                (const __m256i *)(lap[k - GDF_NET_INP_REC_NUM] + j)),
+            pxl_shift),
+        GDF_TRAIN_GRD_SHIFT);
+    gdf_inp[k] = _mm256_min_epi16(_mm256_max_epi16(sample, clip_min), clip_max);
+  }
 }
 
 /*!\brief Function to generate vertical/horizontal/mixed features
@@ -471,178 +528,109 @@ void gdf_inference_unit_avx2(
     bias = gdf_inter_bias_table[ref_dst_idx - 1][qp_idx];
     gdf_table = gdf_inter_error_table[ref_dst_idx - 1][qp_idx];
   }
-  __m256i (*gdf_get_idx_func)(__m256i *, __m256i *, __m256i *) =
-      is_intra ? gdf_intra_get_idx : gdf_inter_get_idx;
+  int fwd_off[GDF_NET_INP_REC_NUM], bwd_off[GDF_NET_INP_REC_NUM];
+  for (int k = 0; k < GDF_NET_INP_REC_NUM; k++) {
+    fwd_off[k] = gdf_guided_sample_coordinates_fwd[k][0] * rec_stride +
+                 gdf_guided_sample_coordinates_fwd[k][1];
+    bwd_off[k] = gdf_guided_sample_coordinates_bwd[k][0] * rec_stride +
+                 gdf_guided_sample_coordinates_bwd[k][1];
+  }
+  // Load the 4 per-class alphas of each input and duplicate each into a 32-bit
+  // slot, since a class covers 2 pixels.
+  __m256 alpha_bc[GDF_OPTS_INP_TOT];
+  for (int k = 0; k < GDF_OPTS_INP_TOT; k++) {
+    const __m256i v = _mm256_set1_epi64x(
+        *((const long long *)(alpha + k * GDF_TRAIN_CLS_NUM)));
+    alpha_bc[k] = _mm256_castsi256_ps(_mm256_unpacklo_epi16(v, v));
+  }
+  gdf_set_t sets[GDF_SETS];
+  gdf_init_sets(weight, bias, sets);
 
-  gdf_load_bias_reg(bias_reg0, bias);
-  gdf_load_bias_reg(bias_reg1, bias + GDF_NET_INP_GRD_NUM);
-  gdf_load_bias_reg(bias_reg2,
-                    bias + GDF_NET_INP_GRD_NUM + GDF_NET_INP_GRD_NUM);
+  const __m256i scale_value = _mm256_set1_epi32(lut_idx_scale);
+  const __m256i half_value = _mm256_set1_epi32(lut_shitf_half);
+  const __m256i idx_min_reg = _mm256_set1_epi32(lut_idx_min);
+  const __m256i idx_max_reg = _mm256_set1_epi32(lut_frm_max - 1);
+  const __m256i zero_reg = _mm256_setzero_si256();
+  // Classes of pixels 0-3, 8-11 and 4-7, 12-15 from those of the 8 pairs.
+  const __m256i lo_pairs = _mm256_setr_epi32(0, 0, 1, 1, 4, 4, 5, 5);
+  const __m256i hi_pairs = _mm256_setr_epi32(2, 2, 3, 3, 6, 6, 7, 7);
 
   int16_t *tgt_line = err_pnt;
   const uint16_t *rec_ptr = rec_pnt;
-
-  __m256i m256i_tmp_reg_01, m256i_tmp_reg_02;
-  __m256i odd_mask = _mm256_set1_epi32(0x0000ffff);
-  const __m256i min_val = _mm256_set1_epi16(-(1 << (GDF_TEST_INP_PREC - 1)));
-  const __m256i max_val = _mm256_set1_epi16((1 << (GDF_TEST_INP_PREC - 1)) - 1);
-  __m256 m256_tmp_reg, m256_tmp_reg_02;
+  __m256i inp[GDF_OPTS_INP_TOT];
 
   for (int i = 0; i < (i_max - i_min); i++) {
     for (int j = 0; j < (j_max - j_min); j += 16) {
-      __m256i cls_idx =
+      const __m256i cls_idx =
           _mm256_load_si256((const __m256i *)(gdf_cls_pnt + (j >> 1)));
-      __m256i cls_is_odd = _mm256_slli_epi32(cls_idx, 31);
-      gdf_assign_bias_to_output_reg(out_reg00, out_reg01, bias_reg0, cls_idx);
-      gdf_assign_bias_to_output_reg(out_reg10, out_reg11, bias_reg1, cls_idx);
-      gdf_assign_bias_to_output_reg(out_reg20, out_reg21, bias_reg2, cls_idx);
-      gdf_swap_value32bit_by_mask32bit(out_reg00, out_reg10, m256_tmp_reg,
-                                       m256_tmp_reg_02, cls_is_odd);
-      gdf_swap_value32bit_by_mask32bit(out_reg01, out_reg11, m256_tmp_reg,
-                                       m256_tmp_reg_02, cls_is_odd);
-
-      for (int k = 0; k < GDF_NET_INP_REC_NUM; k++) {
-        __m256i input_reg1 = _mm256_loadu_si256((const __m256i *)(rec_ptr + j));
-        const uint16_t *s_pos_fwd =
-            rec_ptr + j +
-            (gdf_guided_sample_coordinates_fwd[k][0] * rec_stride) +
-            gdf_guided_sample_coordinates_fwd[k][1];
-        m256i_tmp_reg_01 = _mm256_loadu_si256((const __m256i *)(s_pos_fwd));
-        m256i_tmp_reg_02 = _mm256_sub_epi16(m256i_tmp_reg_01, input_reg1);
-        __m256i sample_reg0 = _mm256_slli_epi16(m256i_tmp_reg_02, pxl_shift);
-
-        const uint16_t *s_pos_bwd =
-            rec_ptr + j +
-            (gdf_guided_sample_coordinates_bwd[k][0] * rec_stride) +
-            gdf_guided_sample_coordinates_bwd[k][1];
-        m256i_tmp_reg_01 = _mm256_loadu_si256((const __m256i *)(s_pos_bwd));
-        m256i_tmp_reg_02 = _mm256_sub_epi16(m256i_tmp_reg_01, input_reg1);
-        __m256i sample_reg1 = _mm256_slli_epi16(m256i_tmp_reg_02, pxl_shift);
-
-        gdf_load_alpha_reg(clip_max_reg, clip_min_reg,
-                           alpha + k * GDF_TRAIN_CLS_NUM, m256i_tmp_reg_01,
-                           m256_tmp_reg, cls_idx);
-        gdf_clip_input_reg(odd_clip0, even_clip0, sample_reg0, clip_min_reg,
-                           clip_max_reg, m256i_tmp_reg_01, m256i_tmp_reg_02,
-                           odd_mask);
-        gdf_clip_input_reg(odd_clip1, even_clip1, sample_reg1, clip_min_reg,
-                           clip_max_reg, m256i_tmp_reg_01, m256i_tmp_reg_02,
-                           odd_mask);
-        __m256i odd_clip = _mm256_min_epi16(
-            _mm256_max_epi16(_mm256_add_epi16(odd_clip0, odd_clip1), min_val),
-            max_val);
-        __m256i even_clip = _mm256_min_epi16(
-            _mm256_max_epi16(_mm256_add_epi16(even_clip0, even_clip1), min_val),
-            max_val);
-
-        gdf_load_weight_reg(weight_reg0, weight + k * GDF_TRAIN_CLS_NUM,
-                            m256i_tmp_reg_01, m256_tmp_reg, cls_idx);
-        gdf_load_weight_reg(weight_reg1,
-                            weight + k * GDF_TRAIN_CLS_NUM +
-                                GDF_OPTS_INP_TOT * GDF_TRAIN_CLS_NUM,
-                            m256i_tmp_reg_01, m256_tmp_reg, cls_idx);
-        gdf_swap_value32bit_by_mask32bit(weight_reg0, weight_reg1, m256_tmp_reg,
-                                         m256_tmp_reg_02, cls_is_odd);
-        if (gdf_guided_sample_vertical_masks[k]) {
-          gdf_mult_weight_to_input_reg(out_reg00, out_reg01, m256i_tmp_reg_01,
-                                       m256i_tmp_reg_02, odd_clip, even_clip,
-                                       weight_reg0);
-        }
-        if (gdf_guided_sample_horizontal_masks[k]) {
-          gdf_mult_weight_to_input_reg(out_reg10, out_reg11, m256i_tmp_reg_01,
-                                       m256i_tmp_reg_02, odd_clip, even_clip,
-                                       weight_reg1);
-        }
-        if (gdf_guided_sample_mixed_masks[k]) {
-          gdf_load_weight_reg(weight_reg2,
-                              weight + k * GDF_TRAIN_CLS_NUM +
-                                  GDF_OPTS_INP_TOT * 2 * GDF_TRAIN_CLS_NUM,
-                              m256i_tmp_reg_01, m256_tmp_reg, cls_idx);
-          gdf_mult_weight_to_input_reg(out_reg20, out_reg21, m256i_tmp_reg_01,
-                                       m256i_tmp_reg_02, odd_clip, even_clip,
-                                       weight_reg2);
-        }
-      }
-      gdf_swap_value32bit_by_mask32bit(out_reg00, out_reg10, m256_tmp_reg,
-                                       m256_tmp_reg_02, cls_is_odd);
-      gdf_swap_value32bit_by_mask32bit(out_reg01, out_reg11, m256_tmp_reg,
-                                       m256_tmp_reg_02, cls_is_odd);
-
-      for (int k = GDF_NET_INP_REC_NUM;
-           k < (GDF_NET_INP_GRD_NUM + GDF_NET_INP_REC_NUM); k++) {
-        m256i_tmp_reg_01 = _mm256_load_si256(
-            (const __m256i *)(copied_lap_pnt[k - GDF_NET_INP_REC_NUM] + j));
-        m256i_tmp_reg_02 = _mm256_slli_epi16(m256i_tmp_reg_01, pxl_shift);
-        __m256i sample_reg =
-            _mm256_srli_epi16(m256i_tmp_reg_02, GDF_TRAIN_GRD_SHIFT);
-
-        gdf_load_alpha_reg(clip_max_reg, clip_min_reg,
-                           alpha + k * GDF_TRAIN_CLS_NUM, m256i_tmp_reg_01,
-                           m256_tmp_reg, cls_idx);
-        gdf_clip_input_reg(odd_clip, even_clip, sample_reg, clip_min_reg,
-                           clip_max_reg, m256i_tmp_reg_01, m256i_tmp_reg_02,
-                           odd_mask)
-
-            gdf_load_weight_reg(weight_reg2,
-                                weight + k * GDF_TRAIN_CLS_NUM +
-                                    GDF_OPTS_INP_TOT * 2 * GDF_TRAIN_CLS_NUM,
-                                m256i_tmp_reg_01, m256_tmp_reg, cls_idx);
-        gdf_mult_weight_to_input_reg(out_reg20, out_reg21, m256i_tmp_reg_01,
-                                     m256i_tmp_reg_02, odd_clip, even_clip,
-                                     weight_reg2)
+      if (pxl_shift == 0) {
+        gdf_get_inputs(rec_ptr + j, fwd_off, bwd_off, copied_lap_pnt, j, 0,
+                       alpha_bc, cls_idx, inp);
+      } else {
+        gdf_get_inputs(rec_ptr + j, fwd_off, bwd_off, copied_lap_pnt, j,
+                       pxl_shift, alpha_bc, cls_idx, inp);
       }
 
-      __m256i scale_value = _mm256_set1_epi32(lut_idx_scale);
-      __m256i half_value = _mm256_set1_epi32(lut_shitf_half);
-      __m256i idx_min_reg = _mm256_set1_epi32(lut_idx_min);
-      __m256i idx_max_reg = _mm256_set1_epi32(lut_frm_max - 1);
-      __m256i zero_reg = _mm256_setzero_si256();
+      const __m256i cls_lo = _mm256_permutevar8x32_epi32(cls_idx, lo_pairs);
+      const __m256i cls_hi = _mm256_permutevar8x32_epi32(cls_idx, hi_pairs);
+      __m256i acc_lo[GDF_SETS], acc_hi[GDF_SETS];
+      for (int s = 0; s < GDF_SETS; s++) {
+        const gdf_set_t *const set = &sets[s];
+        acc_lo[s] = _mm256_permutevar8x32_epi32(set->bias, cls_lo);
+        acc_hi[s] = _mm256_permutevar8x32_epi32(set->bias, cls_hi);
+        for (int p = 0; p < gdf_set_size[s] / 2; p++) {
+          const __m256i in_a = inp[gdf_set_inputs[s][2 * p]];
+          const __m256i in_b = inp[gdf_set_inputs[s][2 * p + 1]];
+          const __m256i w = set->weight[p];
+          acc_lo[s] = _mm256_add_epi32(
+              acc_lo[s],
+              _mm256_madd_epi16(_mm256_unpacklo_epi16(in_a, in_b),
+                                _mm256_permutevar8x32_epi32(w, cls_lo)));
+          acc_hi[s] = _mm256_add_epi32(
+              acc_hi[s],
+              _mm256_madd_epi16(_mm256_unpackhi_epi16(in_a, in_b),
+                                _mm256_permutevar8x32_epi32(w, cls_hi)));
+        }
+      }
+
+      // Features 0 and 1 from the vertical and horizontal sums, by class.
+      __m256i feat_lo[3], feat_hi[3];
+      const __m256 odd_lo = _mm256_castsi256_ps(_mm256_slli_epi32(cls_lo, 31));
+      const __m256 odd_hi = _mm256_castsi256_ps(_mm256_slli_epi32(cls_hi, 31));
+      feat_lo[0] = _mm256_castps_si256(
+          _mm256_blendv_ps(_mm256_castsi256_ps(acc_lo[GDF_SET_V]),
+                           _mm256_castsi256_ps(acc_lo[GDF_SET_H]), odd_lo));
+      feat_lo[1] = _mm256_castps_si256(
+          _mm256_blendv_ps(_mm256_castsi256_ps(acc_lo[GDF_SET_H]),
+                           _mm256_castsi256_ps(acc_lo[GDF_SET_V]), odd_lo));
+      feat_lo[2] = acc_lo[GDF_SET_M];
+      feat_hi[0] = _mm256_castps_si256(
+          _mm256_blendv_ps(_mm256_castsi256_ps(acc_hi[GDF_SET_V]),
+                           _mm256_castsi256_ps(acc_hi[GDF_SET_H]), odd_hi));
+      feat_hi[1] = _mm256_castps_si256(
+          _mm256_blendv_ps(_mm256_castsi256_ps(acc_hi[GDF_SET_H]),
+                           _mm256_castsi256_ps(acc_hi[GDF_SET_V]), odd_hi));
+      feat_hi[2] = acc_hi[GDF_SET_M];
+
       __m256i neg_mask;
-
-      gdf_quant_feature_reg(out_reg00, neg_mask, zero_reg, scale_value,
-                            half_value, lut_shift, idx_min_reg, idx_max_reg);
-      gdf_quant_feature_reg(out_reg01, neg_mask, zero_reg, scale_value,
-                            half_value, lut_shift, idx_min_reg, idx_max_reg);
-      gdf_quant_feature_reg(out_reg10, neg_mask, zero_reg, scale_value,
-                            half_value, lut_shift, idx_min_reg, idx_max_reg);
-      gdf_quant_feature_reg(out_reg11, neg_mask, zero_reg, scale_value,
-                            half_value, lut_shift, idx_min_reg, idx_max_reg);
-      gdf_quant_feature_reg(out_reg20, neg_mask, zero_reg, scale_value,
-                            half_value, lut_shift, idx_min_reg, idx_max_reg);
-      gdf_quant_feature_reg(out_reg21, neg_mask, zero_reg, scale_value,
-                            half_value, lut_shift, idx_min_reg, idx_max_reg);
-
-      __m256i lut_idx_odd =
-          gdf_get_idx_func(&out_reg00, &out_reg10, &out_reg20);
-      _mm256_add_epi32(_mm256_add_epi32(_mm256_slli_epi32(out_reg00, 8),
-                                        _mm256_slli_epi32(out_reg10, 4)),
-                       out_reg20);
-      __m256i lut_idx_even =
-          gdf_get_idx_func(&out_reg01, &out_reg11, &out_reg21);
-
-      __m256i sub_idx_mask = _mm256_set1_epi32(0x3);
-      __m256i v_odd = _mm256_i32gather_epi32(
-          (int *)gdf_table, _mm256_andnot_si256(sub_idx_mask, lut_idx_odd), 1);
-      __m256i v_even = _mm256_i32gather_epi32(
-          (int *)gdf_table, _mm256_andnot_si256(sub_idx_mask, lut_idx_even), 1);
-
-      __m256i tv_odd = _mm256_srai_epi32(
-          _mm256_slli_epi32(
-              _mm256_srlv_epi32(
-                  v_odd, _mm256_slli_epi32(
-                             _mm256_and_si256(sub_idx_mask, lut_idx_odd), 3)),
-              24),
-          24);
-      __m256i tv_even = _mm256_srai_epi32(
-          _mm256_slli_epi32(
-              _mm256_srlv_epi32(
-                  v_even, _mm256_slli_epi32(
-                              _mm256_and_si256(sub_idx_mask, lut_idx_even), 3)),
-              24),
-          8);
-
-      __m256i out_reg = _mm256_blend_epi16(tv_odd, tv_even, 0xAA);
-
+      for (int o = 0; o < 3; o++) {
+        gdf_quant_feature_reg(feat_lo[o], neg_mask, zero_reg, scale_value,
+                              half_value, lut_shift, idx_min_reg, idx_max_reg);
+        gdf_quant_feature_reg(feat_hi[o], neg_mask, zero_reg, scale_value,
+                              half_value, lut_shift, idx_min_reg, idx_max_reg);
+      }
+      __m256i lut_idx_lo, lut_idx_hi;
+      if (is_intra) {
+        lut_idx_lo = gdf_intra_get_idx(&feat_lo[0], &feat_lo[1], &feat_lo[2]);
+        lut_idx_hi = gdf_intra_get_idx(&feat_hi[0], &feat_hi[1], &feat_hi[2]);
+      } else {
+        lut_idx_lo = gdf_inter_get_idx(&feat_lo[0], &feat_lo[1], &feat_lo[2]);
+        lut_idx_hi = gdf_inter_get_idx(&feat_hi[0], &feat_hi[1], &feat_hi[2]);
+      }
+      // Pixels 0-3, 4-7 | 8-11, 12-15: back in order.
+      const __m256i out_reg =
+          _mm256_packs_epi32(gdf_lookup_error(gdf_table, lut_idx_lo),
+                             gdf_lookup_error(gdf_table, lut_idx_hi));
       _mm256_storeu_si256((__m256i *)(tgt_line + j), out_reg);
     }
     gdf_cls_pnt += (i & 1) ? gdf_cls_stride : 0;
