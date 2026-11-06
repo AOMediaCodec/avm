@@ -1967,9 +1967,11 @@ static AVM_INLINE void set_erp_speed_features_qindex_dependent(AV2_COMP *cpi) {
 }
 
 // Pick the two-pass superblock partition search level for this frame. This is
-// the single decision point for the feature: it runs at the end of
+// the main decision point for the feature: it runs at the end of
 // av2_set_speed_features_qindex_dependent(), which is the last speed-feature
 // pass before av2_encode_frame(), so it sees the final frame type and qindex.
+// Only set_faster_speed_features() changes the level after this function, on
+// some frames at speed 1.
 static AVM_INLINE void set_two_pass_partition_level(AV2_COMP *cpi) {
   const AV2_COMMON *const cm = &cpi->common;
   int *const level = &cpi->sf.part_sf.two_pass_partition_search;
@@ -2090,7 +2092,7 @@ static int use_faster_speed_features(const AV2_COMP *cpi, int speed) {
   const int low_qindex = qindex <= 113 + qindex_offset;
   const int high_qindex = qindex > 135 + qindex_offset;
   switch (speed) {
-    case 1: return top_level;
+    case 1: return top_level || low_qindex;
     case 3: return low_qindex || (top_level && high_qindex);
     case 5: return low_qindex || top_level;
     default: return low_qindex;  // Speeds 2 and 4.
@@ -2098,8 +2100,8 @@ static int use_faster_speed_features(const AV2_COMP *cpi, int speed) {
 }
 
 // Use the values of the next speed for some speed features, on the frames
-// that use_faster_speed_features() selects. The partition speed features do
-// not change.
+// that use_faster_speed_features() selects. The partition speed features
+// change only at speed 1, on the frames that have a low qindex.
 static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
   if (!use_faster_speed_features(cpi, speed)) return;
 
@@ -2111,6 +2113,8 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
   const int allow_screen_content_tools =
       cm->features.allow_screen_content_tools;
   const int min_side = AVMMIN(cm->width, cm->height);
+  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+  const int low_qindex = cm->quant_params.base_qindex <= 113 + qindex_offset;
 
   if (speed == 1) {
     // Speed-2 values.
@@ -2149,10 +2153,45 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     sf->lpf_sf.ccso_eo_band_mask = 9;
 
     // The predict_dc level is { 2, 2, 0 } for high qindex frames.
-    const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
-    if (sf->winner_mode_sf.dc_blk_pred_level == 0 &&
-        cm->quant_params.base_qindex > 113 + qindex_offset) {
+    if (sf->winner_mode_sf.dc_blk_pred_level == 0 && !low_qindex) {
       sf->winner_mode_sf.dc_blk_pred_level = 3;
+    }
+
+    // The partition values of speed 2, on the frames that have a low qindex.
+    // These frames are slow to encode, so a faster partition search saves
+    // more time on them.
+    if (low_qindex) {
+      sf->part_sf.prune_rect_split_by_rd = 2;
+      sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
+      if (sf->part_sf.prune_ext_part_with_part_none)
+        sf->part_sf.prune_ext_part_with_part_none = 2;
+      if (sf->part_sf.prune_ext_part_with_part_rect)
+        sf->part_sf.prune_ext_part_with_part_rect = 2;
+      if (sf->part_sf.prune_part_h_with_partition_boundary)
+        sf->part_sf.prune_part_h_with_partition_boundary = 2;
+      sf->part_sf.ext_part_h_subblock_rd_early_term = 1;
+      if (min_side >= 1080) sf->part_sf.prune_rect_with_split_depth = 2;
+      sf->part_sf.ml_post_none_early_term_thresh = 3;
+#if CONFIG_ML_PART_SPLIT
+      if (cpi->oxcf.part_cfg.erp_pruning_level >= 5 && min_side >= 2160 &&
+          sf->part_sf.prune_split_ml_level_inter == 0)
+        sf->part_sf.prune_split_ml_level_inter = 1;
+#endif  // CONFIG_ML_PART_SPLIT
+      // The speed does not change, so the sequence-level choices of speed 1
+      // stay (see av2_select_sb_size() and av2_wants_two_pass_partition()).
+      // Thus set the partition search that the choices of speed 2 give:
+      // speed 2 uses the fast two-pass partition search at 2160p and up.
+      // Below 2160p, speed 2 uses 128x128 superblocks if the encoder selects
+      // the superblock size and does not resize the frames.
+      if (min_side >= 2160) {
+        sf->part_sf.two_pass_partition_search = TWO_PASS_PART_FAST;
+        sf->part_sf.ext_recur_depth_level = 2;
+      } else if (cm->seq_params.sb_size == BLOCK_256X256 &&
+                 cpi->oxcf.tool_cfg.superblock_size ==
+                     AVM_SUPERBLOCK_SIZE_DYNAMIC &&
+                 cpi->oxcf.resize_cfg.resize_mode == RESIZE_NONE) {
+        sf->part_sf.default_max_partition_size = BLOCK_128X128;
+      }
     }
   } else if (speed == 2) {
     // Speed-3 values. These speed features keep their speed-2 values,
