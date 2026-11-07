@@ -8204,6 +8204,46 @@ static AVM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
   return ref_frame == cached_ref_type;
 }
 
+static uint64_t compute_active_single_ref_mask(uint64_t skip_ref_frame_mask) {
+  const uint64_t picked = ~skip_ref_frame_mask;
+  uint64_t active = picked & ((1ULL << INTER_REFS_PER_FRAME) - 1);
+  for (int r = INTER_REFS_PER_FRAME; r < INTRA_FRAME; ++r) {
+    if (picked & (1ULL << r)) {
+      MV_REFERENCE_FRAME rf[2];
+      av2_set_ref_frame(rf, r);
+      active |= (1ULL << rf[0]) | (1ULL << rf[1]);
+    }
+  }
+  return active;
+}
+
+static uint64_t filter_subblock_ref_frames_mask(uint64_t raw_mask,
+                                                int min_single_refs) {
+  raw_mask &= ~(1ULL << INTRA_FRAME);
+  if (!raw_mask) return 0;
+  uint64_t single_refs = raw_mask & ((1ULL << INTER_REFS_PER_FRAME) - 1);
+  for (int r = INTER_REFS_PER_FRAME; r < INTRA_FRAME; ++r) {
+    if (raw_mask & (1ULL << r)) {
+      MV_REFERENCE_FRAME rf[2];
+      av2_set_ref_frame(rf, r);
+      single_refs |= (1ULL << rf[0]) | (1ULL << rf[1]);
+    }
+  }
+  int num_single = 0;
+  for (int r = 0; r < INTER_REFS_PER_FRAME; ++r) {
+    num_single += (int)((single_refs >> r) & 1);
+  }
+  if (num_single < min_single_refs) return 0;
+  return raw_mask | 1ULL;
+}
+
+static AVM_INLINE bool can_prune_by_skip_ref_frame_mask(
+    const AV2_COMP *cpi, const MACROBLOCK *x, uint64_t skip_ref_frame_mask) {
+  return cpi->sf.inter_sf.prune_ref_setup_and_warpmv &&
+         skip_ref_frame_mask != 0 && cpi->sf.inter_sf.prune_ref_frames < 3 &&
+         !x->inter_mode_cache[0] && !x->must_find_valid_partition;
+}
+
 // Please add/modify parameter setting in this function, making it consistent
 // and easy to read and maintain.
 static AVM_INLINE void set_params_rd_pick_inter_mode(
@@ -8211,7 +8251,7 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
     mode_skip_mask_t *mode_skip_mask, unsigned int *ref_costs_single,
     unsigned int (*ref_costs_comp)[MAX_COMPOUND_REF_INDEX],
     struct buf_2d yv12_mb[SINGLE_REF_FRAMES][MAX_MB_PLANE],
-    const DryPassCfg *dry_pass_cfg) {
+    const DryPassCfg *dry_pass_cfg, uint64_t skip_ref_frame_mask) {
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -8223,6 +8263,12 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
   estimate_ref_frame_costs(cm, xd, &x->mode_costs, segment_id, ref_costs_single,
                            ref_costs_comp);
 
+  const bool can_skip_by_mask =
+      can_prune_by_skip_ref_frame_mask(cpi, x, skip_ref_frame_mask);
+  const uint64_t active_single_mask =
+      can_skip_by_mask ? compute_active_single_ref_mask(skip_ref_frame_mask)
+                       : 0;
+
   x->best_pred_mv_sad = INT_MAX;
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
@@ -8230,6 +8276,10 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
     mbmi_ext->ref_mv_count[ref_frame] = UINT8_MAX;
     x->pred_mv_sad[ref_frame] = INT_MAX;
     if ((cm->ref_frame_flags & (1 << ref_frame))) {
+      if (active_single_mask != 0 &&
+          !(active_single_mask & (1ULL << ref_frame))) {
+        continue;
+      }
       assert(get_ref_frame_yv12_buf(cm, ref_frame) != NULL);
       setup_buffer_ref_mvs_inter(cpi, x, ref_frame, bsize, yv12_mb);
     }
@@ -8268,6 +8318,10 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
       // Ref mv list population is not required, when compound references are
       // pruned.
       if (prune_ref_frame(cpi, x, ref_frame)) continue;
+      if (can_skip_by_mask &&
+          (skip_ref_frame_mask & ((uint64_t)1 << ref_frame))) {
+        continue;
+      }
       av2_find_mv_refs(
           cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count, xd->ref_mv_stack,
           xd->weight, NULL, mbmi_ext->global_mvs, xd->warp_param_stack,
@@ -9100,7 +9154,14 @@ static int skip_inter_mode(AV2_COMP *cpi, MACROBLOCK *x,
   const int comp_pred = is_inter_ref_frame(second_ref_frame);
 
   if (is_tip_ref_frame(ref_frame)) return 0;
-  if (this_mode == WARPMV) return 0;
+  if (this_mode == WARPMV) {
+    if (can_prune_by_skip_ref_frame_mask(cpi, x, args->skip_ref_frame_mask)) {
+      const uint64_t active =
+          compute_active_single_ref_mask(args->skip_ref_frame_mask);
+      if (active != 0 && !(active & (1ULL << ref_frame))) return 1;
+    }
+    return 0;
+  }
 
   const int ret = inter_mode_search_order_independent_skip(
       cpi, x, args->mode_skip_mask, args->search_state,
@@ -10103,6 +10164,14 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                      cm->sb_size, (int8_t)mbmi->region_type)) {
         picked_ref_frames_mask =
             fetch_picked_ref_frames_mask(x, bsize, cm->mib_size);
+      } else if (inter_sf->prune_subblock_ref_frames >= 1 &&
+                 bsize > BLOCK_LARGEST) {
+        picked_ref_frames_mask = filter_subblock_ref_frames_mask(
+            fetch_picked_ref_frames_mask(x, bsize, cm->mib_size), 1);
+      } else if (inter_sf->prune_subblock_ref_frames >= 2 &&
+                 mi_size_wide[bsize] != mi_size_high[bsize]) {
+        picked_ref_frames_mask = filter_subblock_ref_frames_mask(
+            fetch_picked_ref_frames_mask(x, bsize, cm->mib_size), 2);
       }
     }
   }
@@ -10129,7 +10198,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   // Initialize params, set frame modes, speed features.
   set_params_rd_pick_inter_mode(cpi, x, bsize, &mode_skip_mask,
                                 ref_costs_single, ref_costs_comp, yv12_mb,
-                                &dry_pass_cfg);
+                                &dry_pass_cfg, skip_ref_frame_mask);
 
   int64_t best_est_rd = INT64_MAX;
   const InterModeRdModel *const md = &tile_data->inter_mode_rd_models[bsize];

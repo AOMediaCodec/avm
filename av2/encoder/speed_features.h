@@ -830,6 +830,19 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   //    by best_mode_skippable
   int prune_ref_frames;
 
+  // Skip reference MV setup (setup_buffer_ref_mvs_inter and compound
+  // av2_find_mv_refs) and WARPMV evaluation for reference frames pruned by
+  // skip_ref_frame_mask.
+  bool prune_ref_setup_and_warpmv;
+
+  // Propagate filtered parent picked_ref_frames_mask to rectangular sub-blocks
+  // when has_searched_rect_subblock() is false:
+  // 0: No pruning
+  // 1: Prune for bsize > BLOCK_LARGEST (requiring >= 1 single reference)
+  // 2: Level 1 + prune for 1:2 rectangular blocks (requiring >= 2 single
+  //    references)
+  int prune_subblock_ref_frames;
+
   // When set to N>0, this flag limits the maximum number of compound
   // reference frame combinations evaluated in the RD search. For all compound
   // modes, same reference compound is restricted to (0,0). For non-NEAR_NEARMV
