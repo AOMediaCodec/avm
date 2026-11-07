@@ -404,7 +404,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.skip_compound_prune_top_refs_num_ref0 = 1;
     sf->inter_sf.skip_compound_prune_top_refs_num_ref1 = 2;
     sf->inter_sf.reduce_comp_refs = 2;
-    sf->inter_sf.disable_switchable_refinemv = 1;
     sf->inter_sf.prune_refinemv_by_ref_idx = 1;
     sf->inter_sf.prune_interintra_by_ref_idx = 1;
     sf->inter_sf.prune_warp_delta_by_ref_idx = 1;
@@ -422,8 +421,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.skip_pixel_dist_calc_using_tx_dist = true;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
     sf->tx_sf.enable_adaptive_tx_search_level = true;
-    // Effective at speeds 1-3 only; inter IST is disabled at speed >= 4.
-    sf->tx_sf.prune_inter_ist_by_dct_rd = true;
 
     sf->tx_sf.prune_intra_ist_stx_by_zero_eob = true;
 
@@ -496,8 +493,6 @@ static void set_good_speed_features_framesize_independent(
     // the current best partitioning is PARTITION_NONE).
     sf->part_sf.inter_sdp_fast_method_level = 1;
 
-    sf->part_sf.partition_pruning_with_mlp = 1;
-    sf->part_sf.partition_pruning_with_mlp_none_thresh = 3.5f;
     sf->part_sf.skip_revisit_by_rd_bound = 1;
     sf->lpf_sf.enable_deblock_for_partition_search = 1;
     if (!allow_screen_content_tools) {
@@ -525,6 +520,7 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 20;
     // Empirically, it is seen that in EO pass, bands 1 and 8 are preferred.
     sf->lpf_sf.ccso_eo_band_mask = 9;
+    sf->part_sf.partition_pruning_with_mlp = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
 
     sf->part_sf.disable_uneven_4way_partitions = true;
@@ -535,6 +531,7 @@ static void set_good_speed_features_framesize_independent(
     }
     sf->mv_sf.subpel_search_type = USE_4_TAPS;
 
+    sf->inter_sf.disable_switchable_refinemv = 1;
     sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
     sf->inter_sf.prune_comp_type_by_comp_avg = 1;
     sf->inter_sf.prune_comp_type_by_model_rd = boosted ? 0 : 1;
@@ -568,6 +565,8 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
     sf->tx_sf.model_based_prune_tx_search_level = 0;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
+    // Effective at speeds 2-3 only; inter IST is disabled at speed >= 4.
+    sf->tx_sf.prune_inter_ist_by_dct_rd = true;
 
     sf->rd_sf.perform_coeff_opt = boosted ? 2 : 3;
     sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
@@ -1658,13 +1657,13 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
   }
 
   if (cpi->speed >= 1) {
-    sf->part_sf.ext_recur_depth_level =
-        cm->current_frame.pyramid_level > 3 ? 1 : 0;
     sf->part_sf.ml_early_term_after_part_split_level = 2;
     sf->part_sf.prune_part_with_neighbor_boundaries = 1;
   }
 
   if (cpi->speed >= 2) {
+    sf->part_sf.ext_recur_depth_level =
+        cm->current_frame.pyramid_level > 3 ? 1 : 0;
     if (frame_is_intra_only(cm) || av2_wants_two_pass_partition(&cpi->oxcf)) {
       sf->part_sf.ext_recur_depth_level = 2;
     }
