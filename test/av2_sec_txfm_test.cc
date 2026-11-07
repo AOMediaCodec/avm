@@ -13,6 +13,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <tuple>
 #include <vector>
 
@@ -148,6 +149,14 @@ INSTANTIATE_TEST_SUITE_P(
                       FwdSTxfmFuncParam(fwd_stxfm_c, fwd_stxfm_avx2, 12)));
 #endif  // HAVE_AVX2
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV2FwdSecTxfmTest,
+    ::testing::Values(FwdSTxfmFuncParam(fwd_stxfm_c, fwd_stxfm_neon, 8),
+                      FwdSTxfmFuncParam(fwd_stxfm_c, fwd_stxfm_neon, 10),
+                      FwdSTxfmFuncParam(fwd_stxfm_c, fwd_stxfm_neon, 12)));
+#endif  // HAVE_NEON
+
 ///////////////////////////////////////////////////////////////
 //       unit-test for 'inv_stxfm'                           //
 ///////////////////////////////////////////////////////////////
@@ -169,17 +178,34 @@ class AV2InvSecTxfmTest : public FunctionEquivalenceTest<InvSTxfmFunc> {
           DECLARE_ALIGNED(32, tran_low_t, output[IST_8x8_WIDTH]) = { 0 };
           DECLARE_ALIGNED(32, tran_low_t, ref_output[IST_8x8_WIDTH]) = { 0 };
           const int coeff_range = ((1 << (bd + 7)) - 1);
-          for (int r = 0; r < IST_8x8_HEIGHT; r++) {
-            input[r] = rng_(2) ? rng_(coeff_range) : -rng_(coeff_range);
-          }
-          params_.ref_func(input, ref_output, set_id, stx, sb_size, bd);
-          ASM_REGISTER_STATE_CHECK(
-              params_.tst_func(input, output, set_id, stx, sb_size, bd));
-          int check_rows = (sb_size == 0) ? IST_4x4_WIDTH : IST_8x8_WIDTH;
-          for (int r = 0; r < check_rows; ++r) {
-            ASSERT_EQ(ref_output[r], output[r])
-                << "[" << r << "] " << " ref_output: " << ref_output[r]
-                << " mod_output: " << output[r];
+          for (int cnt = 0; cnt < 3; ++cnt) {
+            // inv_stxfm_sse4_1 accumulates into dst, so clear both outputs.
+            memset(output, 0, sizeof(output));
+            memset(ref_output, 0, sizeof(ref_output));
+            if (cnt == 0) {
+              for (int r = 0; r < IST_8x8_HEIGHT; ++r) {
+                input[r] = coeff_range;
+              }
+            } else if (cnt == 1) {
+              for (int r = 0; r < IST_8x8_HEIGHT; ++r) {
+                input[r] = -coeff_range;
+              }
+            } else {
+              for (int r = 0; r < IST_8x8_HEIGHT; ++r) {
+                input[r] = rng_(2) ? rng_(coeff_range) : -rng_(coeff_range);
+              }
+            }
+            params_.ref_func(input, ref_output, set_id, stx, sb_size, bd);
+            ASM_REGISTER_STATE_CHECK(
+                params_.tst_func(input, output, set_id, stx, sb_size, bd));
+            int check_rows = (sb_size == 0) ? IST_4x4_WIDTH : IST_8x8_WIDTH;
+            for (int r = 0; r < check_rows; ++r) {
+              ASSERT_EQ(ref_output[r], output[r])
+                  << "[" << r << "] cnt:" << cnt << " set_id:" << set_id
+                  << " stx:" << static_cast<int>(stx) << " sb_size:" << sb_size
+                  << " ref_output: " << ref_output[r]
+                  << " mod_output: " << output[r];
+            }
           }
         }
       }
@@ -243,4 +269,12 @@ INSTANTIATE_TEST_SUITE_P(
                       InvSTxfmFuncParam(inv_stxfm_c, inv_stxfm_avx2, 10),
                       InvSTxfmFuncParam(inv_stxfm_c, inv_stxfm_avx2, 12)));
 #endif  // HAVE_AVX2
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV2InvSecTxfmTest,
+    ::testing::Values(InvSTxfmFuncParam(inv_stxfm_c, inv_stxfm_neon, 8),
+                      InvSTxfmFuncParam(inv_stxfm_c, inv_stxfm_neon, 10),
+                      InvSTxfmFuncParam(inv_stxfm_c, inv_stxfm_neon, 12)));
+#endif  // HAVE_NEON
 }  // namespace
