@@ -257,8 +257,10 @@ const char *ext2str(EXT_TYPE ext_type) { return ext_names[(int)ext_type]; }
 int get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
                         WIN_TYPE win_type, int subsampled, int bits,
                         RationalResampleFilter *rf) {
+  // Sized MAX_RATIONAL_FACTOR + 1 because offset[rf->p] and intpel[rf->p] are
+  // written below to compute the final phase step rf->steps[rf->p - 1].
   double offset[MAX_RATIONAL_FACTOR + 1];
-  int intpel[MAX_RATIONAL_FACTOR];
+  int intpel[MAX_RATIONAL_FACTOR + 1];
   if (p <= 0 || q <= 0) {
     fprintf(stderr, "Resampling numerator or denominator must be positive\n");
     return 0;

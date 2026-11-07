@@ -20,6 +20,7 @@
 #include "config/avm_config.h"
 
 #include "avm_dsp/avm_dsp_common.h"
+#include "avm_mem/avm_mem.h"
 #include "avm_ports/mem.h"
 #include "avm_scale/avm_scale.h"
 #include "av2/common/common.h"
@@ -835,6 +836,75 @@ Error:
 #define LANCZOS_A_ENC_NONNORMATIVE_VER_C \
   5  // Non-normative ver Lanczos a Chroma
 
+// Non-normative encoder helper: replicates the outermost active [0..width) x
+// [0..height) samples of a 16-bit-backed plane outward by the specified top,
+// left, bottom, and right border widths.
+static void extend_plane_borders_high(uint16_t *const buf, int stride,
+                                      int width, int height, int extend_top,
+                                      int extend_left, int extend_bottom,
+                                      int extend_right) {
+  const int linesize = extend_left + width + extend_right;
+  uint16_t *src_ptr1 = buf;
+  uint16_t *src_ptr2 = buf + width - 1;
+  uint16_t *dst_ptr1 = buf - extend_left;
+  uint16_t *dst_ptr2 = buf + width;
+
+  for (int i = 0; i < height; ++i) {
+    avm_memset16(dst_ptr1, src_ptr1[0], extend_left);
+    avm_memset16(dst_ptr2, src_ptr2[0], extend_right);
+    src_ptr1 += stride;
+    src_ptr2 += stride;
+    dst_ptr1 += stride;
+    dst_ptr2 += stride;
+  }
+
+  src_ptr1 = buf - extend_left;
+  src_ptr2 = buf + stride * (height - 1) - extend_left;
+  dst_ptr1 = buf - stride * extend_top - extend_left;
+  dst_ptr2 = buf + stride * height - extend_left;
+
+  for (int i = 0; i < extend_top; ++i) {
+    memcpy(dst_ptr1, src_ptr1, linesize * sizeof(*dst_ptr1));
+    dst_ptr1 += stride;
+  }
+
+  for (int i = 0; i < extend_bottom; ++i) {
+    memcpy(dst_ptr2, src_ptr2, linesize * sizeof(*dst_ptr2));
+    dst_ptr2 += stride;
+  }
+}
+
+// Non-normative encoder helper: extends a resized frame buffer starting
+// directly from active crop_widths/crop_heights (rather than 8-aligned
+// widths/heights) so both the [crop_width..width) / [crop_height..height)
+// alignment strips inside boundary coding blocks and the outer UMV borders
+// replicate the outermost resampled pixels cleanly.
+static void extend_resized_frame_borders(YV12_BUFFER_CONFIG *const ybf,
+                                         const int num_planes) {
+  const int ss_x = ybf->uv_width < ybf->y_width;
+  const int ss_y = ybf->uv_height < ybf->y_height;
+
+  assert(ybf->y_height - ybf->y_crop_height < 16);
+  assert(ybf->y_width - ybf->y_crop_width < 16);
+  assert(ybf->y_height - ybf->y_crop_height >= 0);
+  assert(ybf->y_width - ybf->y_crop_width >= 0);
+
+  for (int plane = 0; plane < AVMMIN(num_planes, MAX_MB_PLANE); ++plane) {
+    const int is_uv = plane > 0;
+    const int crop_w = ybf->crop_widths[is_uv];
+    const int crop_h = ybf->crop_heights[is_uv];
+    if (crop_w <= 0 || crop_h <= 0) continue;
+    const int pad_right = AVMMAX(0, ybf->widths[is_uv] - crop_w);
+    const int pad_bottom = AVMMAX(0, ybf->heights[is_uv] - crop_h);
+    const int top = ybf->border >> (is_uv ? ss_y : 0);
+    const int left = ybf->border >> (is_uv ? ss_x : 0);
+    const int bottom = pad_bottom + top;
+    const int right = pad_right + left;
+    extend_plane_borders_high(ybf->buffers[plane], ybf->strides[is_uv], crop_w,
+                              crop_h, top, left, bottom, right);
+  }
+}
+
 // Resize the frame using Lanczos filter
 void av2_resize_lanczos_and_extend_frame(const YV12_BUFFER_CONFIG *src,
                                          YV12_BUFFER_CONFIG *dst, int bd,
@@ -853,7 +923,7 @@ void av2_resize_lanczos_and_extend_frame(const YV12_BUFFER_CONFIG *src,
         dst->crop_widths[is_uv], dst->strides[is_uv], is_uv ? subx : 0,
         is_uv ? suby : 0, bd, denom, num, lanczos_a_hor, lanczos_a_ver);
   }
-  avm_extend_frame_borders(dst, num_planes, 1);
+  extend_resized_frame_borders(dst, num_planes);
 }
 
 void av2_resize_frame420(const uint8_t *const y, int y_stride,
@@ -975,6 +1045,7 @@ void av2_resize_and_extend_frame_c(const YV12_BUFFER_CONFIG *src,
       }
     }
   }
+  extend_resized_frame_borders(dst, num_planes);
 }
 
 void av2_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
@@ -986,12 +1057,12 @@ void av2_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
   // the static analysis warnings.
   for (int i = 0; i < AVMMIN(num_planes, MAX_MB_PLANE); ++i) {
     const int is_uv = i > 0;
-    av2_highbd_resize_plane(src->buffers[i], src->heights[is_uv],
-                            src->widths[is_uv], src->strides[is_uv],
-                            dst->buffers[i], dst->heights[is_uv],
-                            dst->widths[is_uv], dst->strides[is_uv], bd);
+    av2_highbd_resize_plane(src->buffers[i], src->crop_heights[is_uv],
+                            src->crop_widths[is_uv], src->strides[is_uv],
+                            dst->buffers[i], dst->crop_heights[is_uv],
+                            dst->crop_widths[is_uv], dst->strides[is_uv], bd);
   }
-  avm_extend_frame_borders(dst, num_planes, 0);
+  extend_resized_frame_borders(dst, num_planes);
 }
 
 YV12_BUFFER_CONFIG *av2_scale_if_required(AV2_COMMON *cm,

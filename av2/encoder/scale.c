@@ -270,16 +270,17 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
       continue;
     }
 
+    const int frame_display_index =
+        gf_group->cur_frame_idx[gf_idx] + gf_group->arf_src_offset[gf_idx];
+    const int lookahead_idx = frame_display_index - base_disp_idx;
+
     // Locate the frame's unscaled source buffer: use cpi->unscaled_source for
     // the frame currently being encoded, and peek into the lookahead buffer
     // for the remaining frames in the subgop.
     const YV12_BUFFER_CONFIG *frame_src = NULL;
     if (gf_idx == cur_gf_index) {
       frame_src = unscaled;
-    } else {
-      const int frame_display_index =
-          gf_group->cur_frame_idx[gf_idx] + gf_group->arf_src_offset[gf_idx];
-      const int lookahead_idx = frame_display_index - base_disp_idx;
+    } else if (lookahead_idx >= 0) {
       const struct lookahead_entry *const entry = av2_lookahead_peek(
           cpi->lookahead, lookahead_idx, cpi->compressor_stage);
       if (entry != NULL) {
@@ -380,10 +381,14 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
     upscaled_buf.y_crop_height = orig_h;
 
     double sum_ratio = 0.0;
+    int valid_frames = 0;
     for (int f = 0; f < num_subgop_frames; ++f) {
       // Downsample frame f's Luma plane by 8/d and upsample back to
       // (orig_w, orig_h) to measure round-trip resampling MSE.
       const YV12_BUFFER_CONFIG *const src = subgop_srcs[f];
+      if (src->y_crop_width != orig_w || src->y_crop_height != orig_h) {
+        continue;
+      }
       av2_highbd_resize_plane(src->y_buffer, orig_h, orig_w, src->y_stride,
                               downscaled_y, scaled_h, scaled_w, scaled_w,
                               (int)bit_depth);
@@ -403,9 +408,11 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
       const double qstep_sq = qstep * qstep;
       const double mse = (double)sse / ((double)orig_w * (double)orig_h);
       sum_ratio += mse / qstep_sq;
+      ++valid_frames;
     }
+    if (valid_frames == 0) break;
 
-    const double avg_ratio = sum_ratio / (double)num_subgop_frames;
+    const double avg_ratio = sum_ratio / (double)valid_frames;
     if (avg_ratio < RESIZE_DYNAMIC_SUBGOP_THRESH) {
       best_denom = (uint8_t)d;
     } else {
