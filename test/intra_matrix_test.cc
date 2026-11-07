@@ -53,7 +53,7 @@ class IntraMatrixTest : public FunctionEquivalenceTest<F> {
     }
   }
 
-  T dip_arr_[DIP_ROWS * DIP_COLS];
+  T dip_arr_[DIP_FEATURES * DIP_ROWS];
   T dip_feat_[DIP_COLS];
 
   T dip_ref_data_[kBufSize];
@@ -93,9 +93,9 @@ TEST_P(IntraMatrixTestHB, RandomValues) {
       dip_feat_[i] = rng_(hi);
     }
     int mode = iter % INTRA_DIP_MODE_CNT;
-    for (int r = 0; r < DIP_ROWS; ++r) {
-      for (int c = 0; c < DIP_FEATURES; ++c) {
-        dip_arr_[r * DIP_COLS + c] = av2_intra_matrix_weights[mode][r][c];
+    for (int r = 0; r < DIP_FEATURES; ++r) {
+      for (int c = 0; c < DIP_ROWS; ++c) {
+        dip_arr_[r * DIP_ROWS + c] = av2_intra_matrix_weights[mode][r][c];
       }
     }
 
@@ -110,6 +110,13 @@ INSTANTIATE_TEST_SUITE_P(AVX2, IntraMatrixTestHB,
                              av2_dip_matrix_multiplication_avx2)));
 #endif  // HAVE_AVX2
 
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(AVX512, IntraMatrixTestHB,
+                         ::testing::Values(IntraMatrixTestFuncsHBD(
+                             av2_dip_matrix_multiplication_c,
+                             av2_dip_matrix_multiplication_avx512)));
+#endif  // HAVE_AVX512
+
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(IntraMatrixTestHB);
 
 // Speed tests
@@ -121,9 +128,9 @@ TEST_P(IntraMatrixTestHB, DISABLED_Speed) {
   for (int i = 0; i < 16; ++i) {
     dip_feat_[i] = rng_(hi);
   }
-  for (int r = 0; r < 64; ++r) {
-    for (int c = 0; c < 11; ++c) {
-      dip_arr_[r * 16 + c] = av2_intra_matrix_weights[0][r][c];
+  for (int r = 0; r < DIP_FEATURES; ++r) {
+    for (int c = 0; c < DIP_ROWS; ++c) {
+      dip_arr_[r * DIP_ROWS + c] = av2_intra_matrix_weights[0][r][c];
     }
   }
   dip_tst_ = &dip_tst_data_[0];
@@ -177,11 +184,9 @@ class ResampleOutputTest : public FunctionEquivalenceTest<ResampleOutputFunc> {
   }
 
   void RunCorrectnessTest() {
-    const int block_sizes[] = { 8, 16, 32, 64 };
+    const int block_sizes[] = { 4, 8, 16, 32, 64 };
     for (int bw : block_sizes) {
       for (int bh : block_sizes) {
-        // Data-driven intra prediction only applies to blocks with w*h >= 128.
-        if (bw * bh < 128) continue;
         for (int transpose = 0; transpose < 2; ++transpose) {
           const int bw_log2 = get_log2(bw);
           const int bh_log2 = get_log2(bh);
@@ -223,11 +228,9 @@ class ResampleOutputTest : public FunctionEquivalenceTest<ResampleOutputFunc> {
   }
 
   void RunSpeedTest() {
-    const int block_sizes[] = { 8, 16, 32, 64 };
+    const int block_sizes[] = { 4, 8, 16, 32, 64 };
     for (int bw : block_sizes) {
       for (int bh : block_sizes) {
-        // Data-driven intra prediction only applies to blocks with w*h >= 128.
-        if (bw * bh < 128) continue;
         for (int transpose = 0; transpose < 2; ++transpose) {
           const int bw_log2 = get_log2(bw);
           const int bh_log2 = get_log2(bh);
@@ -298,5 +301,11 @@ INSTANTIATE_TEST_SUITE_P(AVX2, ResampleOutputTest,
                          ::testing::Values(ResampleOutputTestFuncs(
                              resample_output_c, resample_output_avx2)));
 #endif  // HAVE_AVX2
+
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(AVX512, ResampleOutputTest,
+                         ::testing::Values(ResampleOutputTestFuncs(
+                             resample_output_c, resample_output_avx512)));
+#endif  // HAVE_AVX512
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ResampleOutputTest);

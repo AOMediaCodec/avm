@@ -197,10 +197,10 @@ specialize qw/av2_highbd_ibp_dr_prediction_z3 avx2/;
 
 # Data-driven intra prediction (DIP)
 add_proto qw/void av2_dip_matrix_multiplication/, "const uint16_t *A, const uint16_t *B, uint16_t *C, int bd";
-specialize qw/av2_dip_matrix_multiplication avx2/;
+specialize qw/av2_dip_matrix_multiplication avx2 avx512/;
 
 add_proto qw/void resample_output/, "uint16_t *dst, int dst_stride, const uint16_t *above_row, const uint16_t *left_col, uint16_t *ml_output, int bw_log2, int bh_log2, int transpose";
-specialize qw/resample_output avx2/;
+specialize qw/resample_output avx2 avx512/;
 
 # build compound seg mask functions
 add_proto qw/void av2_build_compound_diffwtd_mask_highbd/, "uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const uint16_t *src0, int src0_stride, const uint16_t *src1, int src1_stride, int h, int w, int bd";

@@ -23,7 +23,7 @@ extern "C" {
 #define DIP_SCALE 4
 #define DIP_FEATURES 11
 
-extern const uint16_t av2_intra_matrix_weights[][DIP_ROWS][DIP_COLS];
+extern const uint16_t av2_intra_matrix_weights[][DIP_FEATURES][DIP_ROWS];
 
 void av2_intra_matrix_pred(const uint16_t *input, int mode, uint16_t *output,
                            int bd);
