@@ -8027,7 +8027,8 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
     const AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     mode_skip_mask_t *mode_skip_mask, unsigned int *ref_costs_single,
     unsigned int (*ref_costs_comp)[MAX_COMPOUND_REF_INDEX],
-    struct buf_2d yv12_mb[SINGLE_REF_FRAMES][MAX_MB_PLANE]) {
+    struct buf_2d yv12_mb[SINGLE_REF_FRAMES][MAX_MB_PLANE],
+    const DryPassCfg *dry_pass_cfg) {
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -8071,6 +8072,13 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
         continue;
       if (!((cm->ref_frame_flags & (1 << rf[0])) &&
             (cm->ref_frame_flags & (1 << rf[1])))) {
+        continue;
+      }
+      // In the partition search dry pass, compound modes are capped to
+      // dry_pass_cfg->ref_rank_cap, so populating the reference MV stack for
+      // higher-ranked compound pairs is wasted work.
+      if (x->apply_dry_pass_shortcuts && (rf[0] > dry_pass_cfg->ref_rank_cap ||
+                                          rf[1] > dry_pass_cfg->ref_rank_cap)) {
         continue;
       }
 
@@ -9934,7 +9942,8 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   mbmi->mode = NEARMV;
   // Initialize params, set frame modes, speed features.
   set_params_rd_pick_inter_mode(cpi, x, bsize, &mode_skip_mask,
-                                ref_costs_single, ref_costs_comp, yv12_mb);
+                                ref_costs_single, ref_costs_comp, yv12_mb,
+                                &dry_pass_cfg);
 
   int64_t best_est_rd = INT64_MAX;
   const InterModeRdModel *const md = &tile_data->inter_mode_rd_models[bsize];
