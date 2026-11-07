@@ -758,6 +758,66 @@ static int get_refresh_frame_flags_subgop_cfg(
   return 1 << refresh_idx;
 }
 
+// In realtime mode with implicit reference mapping and >= 3 DPB slots, retain
+// one DPB slot as a long-term reference refreshed periodically
+// while the remaining slots cycle through the most recent frames.
+static int get_rtc_lt_refresh_idx(
+    AV2_COMP *const cpi, FRAME_UPDATE_TYPE frame_update_type,
+    int cur_disp_order, const RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
+    int olk_flags_to_keep) {
+  if (!cpi->sf.rt_sf.rtc_use_lt_ref || frame_update_type != LF_UPDATE ||
+      cpi->common.bru.enabled || cpi->rc.lt_ref_disp_order < 0) {
+    return INVALID_IDX;
+  }
+  // Refresh the long-term reference slot every x frames, to be adjusted.
+  const int period =
+      (cpi->common.width * cpi->common.height <= 640 * 480) ? 80 : 32;
+  int lt_idx = INVALID_IDX;
+  int oldest_idx = INVALID_IDX;
+  int oldest_order = INT32_MAX;
+  // Scan the DPB slots to locate:
+  // 1) lt_idx: the slot holding the active long-term reference frame
+  // 2) oldest_idx: the oldest frame among the remaining short-term slots.
+  for (int idx = 0; idx < cpi->common.seq_params.ref_frames; ++idx) {
+    const RefFrameMapPair *const pair = &ref_frame_map_pairs[idx];
+    if (pair->ref_frame_for_inference == -1 || pair->ref_frame_restricted)
+      continue;
+    if ((olk_flags_to_keep >> idx) & 1u) continue;
+    if (lt_idx == INVALID_IDX &&
+        pair->disp_order == cpi->rc.lt_ref_disp_order) {
+      lt_idx = idx;
+      continue;
+    }
+    if (pair->disp_order < oldest_order) {
+      oldest_order = pair->disp_order;
+      oldest_idx = idx;
+    }
+  }
+  // If the tracked long-term frame is no longer present in the DPB, fall back
+  // to standard get_refresh_idx().
+  if (lt_idx == INVALID_IDX) return INVALID_IDX;
+  const int elapsed = cur_disp_order - cpi->rc.lt_ref_disp_order;
+  if (cpi->oxcf.rc_cfg.mode == AVM_CBR) {
+    const int lt_q = ref_frame_map_pairs[lt_idx].base_qindex;
+    const int prev_q = cpi->rc.q_1_frame;
+    const int avg_q = cpi->rc.avg_frame_qindex[INTER_FRAME];
+    const int max_wait = period + 32;
+    const bool quality_ok =
+        !cpi->rc.high_source_sad && prev_q <= avg_q && prev_q <= lt_q + 8;
+    if (!cpi->rc.high_source_sad &&
+        ((elapsed >= period && quality_ok) || elapsed >= max_wait)) {
+      cpi->rc.lt_ref_disp_order = cur_disp_order;
+      return lt_idx;
+    }
+    return oldest_idx;
+  }
+  if (elapsed >= period) {
+    cpi->rc.lt_ref_disp_order = cur_disp_order;
+    return lt_idx;
+  }
+  return oldest_idx;
+}
+
 int av2_get_refresh_frame_flags(
     AV2_COMP *const cpi, const EncodeFrameParams *const frame_params,
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_disp_order,
@@ -765,6 +825,7 @@ int av2_get_refresh_frame_flags(
   // Shown key-frames overwrite all reference slots
   if (av2_is_shown_keyframe(cpi, frame_params->frame_type) &&
       cpi->common.seq_params.max_mlayer_id == 0 && !cpi->no_show_fwd_kf) {
+    cpi->rc.lt_ref_disp_order = cur_disp_order;
     return (1 << cpi->common.seq_params.ref_frames) - 1;
   }
 
@@ -897,6 +958,13 @@ int av2_get_refresh_frame_flags(
   // If there is an open slot, refresh that one instead of replacing a reference
   if (free_fb_index != INVALID_IDX) {
     return 1 << free_fb_index;
+  }
+
+  const int lt_refresh_idx =
+      get_rtc_lt_refresh_idx(cpi, frame_update_type, cur_disp_order,
+                             ref_frame_map_pairs, olk_flags_to_keep);
+  if (lt_refresh_idx != INVALID_IDX) {
+    return 1 << lt_refresh_idx;
   }
 
   const int update_arf = frame_update_type == ARF_UPDATE;
