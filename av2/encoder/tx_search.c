@@ -1165,36 +1165,6 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV2_COMP *cpi,
   return 16 * (dist_c1 + dist_c2);
 }
 
-// pruning thresholds for prune_txk_type and prune_txk_type_separ
-static const int prune_factors[5] = { 200, 200, 120, 80, 40 };  // scale 1000
-static const int mul_factors[5] = { 80, 80, 70, 50, 30 };       // scale 100
-
-// R-D costs are sorted in ascending order.
-static INLINE void sort_rd(int64_t rds[], PRIMARY_TX_TYPE txk[], int len) {
-  int i, j, k;
-
-  for (i = 1; i <= len - 1; ++i) {
-    for (j = 0; j < i; ++j) {
-      if (rds[j] > rds[i]) {
-        int64_t temprd;
-        PRIMARY_TX_TYPE tempi;
-
-        temprd = rds[i];
-        tempi = txk[i];
-
-        for (k = i; k > j; k--) {
-          rds[k] = rds[k - 1];
-          txk[k] = txk[k - 1];
-        }
-
-        rds[j] = temprd;
-        txk[j] = tempi;
-        break;
-      }
-    }
-  }
-}
-
 static INLINE void dist_block_tx_domain(MACROBLOCK *x, int plane, int block,
                                         TX_SIZE tx_size, int64_t *out_dist,
                                         int64_t *out_sse) {
@@ -1215,205 +1185,6 @@ static INLINE void dist_block_tx_domain(MACROBLOCK *x, int plane, int block,
 
   *out_dist = RIGHT_SIGNED_SHIFT(*out_dist, shift);
   *out_sse = RIGHT_SIGNED_SHIFT(this_sse, shift);
-}
-
-uint16_t prune_txk_type_separ(
-    const AV2_COMP *cpi, MACROBLOCK *x, int plane, int block, TX_SIZE tx_size,
-    int blk_row, int blk_col, BLOCK_SIZE plane_bsize, PRIMARY_TX_TYPE *txk_map,
-    uint16_t allowed_tx_mask, int prune_factor, const TXB_CTX *const txb_ctx,
-    int reduced_tx_set_used, int64_t ref_best_rd, int num_sel) {
-  const AV2_COMMON *cm = &cpi->common;
-
-  int idx;
-
-  int64_t rds_v[4];
-  int64_t rds_h[4];
-  PRIMARY_TX_TYPE idx_v[4] = { 0, 1, 2, 3 };
-  PRIMARY_TX_TYPE idx_h[4] = { 0, 1, 2, 3 };
-  int skip_v[4] = { 0 };
-  int skip_h[4] = { 0 };
-  const PRIMARY_TX_TYPE idx_map[PRIMARY_TX_TYPES] = {
-    DCT_DCT,      DCT_ADST,      DCT_FLIPADST,      V_DCT,
-    ADST_DCT,     ADST_ADST,     ADST_FLIPADST,     V_ADST,
-    FLIPADST_DCT, FLIPADST_ADST, FLIPADST_FLIPADST, V_FLIPADST,
-    H_DCT,        H_ADST,        H_FLIPADST,        IDTX
-  };
-
-  const int sel_pattern_v[16] = {
-    0, 0, 1, 1, 0, 2, 1, 2, 2, 0, 3, 1, 3, 2, 3, 3
-  };
-  const int sel_pattern_h[16] = {
-    0, 1, 0, 1, 2, 0, 2, 1, 2, 3, 0, 3, 1, 3, 2, 3
-  };
-
-  QUANT_PARAM quant_param;
-  TxfmParam txfm_param;
-  av2_setup_xform(cm, x, plane, tx_size,
-                  MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT), CCTX_NONE,
-                  &txfm_param);
-  av2_setup_quant(tx_size, 1, AV2_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
-                  &quant_param);
-  PRIMARY_TX_TYPE primary_tx_type;
-  // to ensure we can try ones even outside of ext_tx_set of current block
-  // this function should only be called for size < 16
-  assert(txsize_sqr_up_map[tx_size] <= TX_16X16);
-  txfm_param.tx_set_type = EXT_TX_SET_ALL16;
-
-  int rate_cost = 0;
-  int64_t dist = 0, sse = 0;
-  // evaluate horizontal with vertical DCT
-  for (idx = 0; idx < 4; ++idx) {
-    primary_tx_type = idx_map[idx];
-    txfm_param.primary_tx_type = primary_tx_type;
-    av2_xform_quant(0, cm, x, plane, block, blk_row, blk_col, plane_bsize,
-                    &txfm_param, &quant_param);
-    dist_block_tx_domain(x, plane, block, tx_size, &dist, &sse);
-
-    rate_cost = av2_cost_coeffs_txb_laplacian(
-        cm, x, plane, block, tx_size,
-        MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(primary_tx_type), CCTX_NONE, txb_ctx,
-        reduced_tx_set_used, 0);
-
-    rds_h[idx] = RDCOST(x->rdmult, rate_cost, dist);
-
-    if ((rds_h[idx] - (rds_h[idx] >> 2)) > ref_best_rd) {
-      skip_h[idx] = 1;
-    }
-  }
-  sort_rd(rds_h, idx_h, 4);
-  for (idx = 1; idx < 4; idx++) {
-    if (rds_h[idx] > rds_h[0] * 1.2) skip_h[idx_h[idx]] = 1;
-  }
-
-  if (skip_h[idx_h[0]]) return (uint16_t)0xFFFF;
-
-  // evaluate vertical with the best horizontal chosen
-  rds_v[0] = rds_h[0];
-  int start_v = 1, end_v = 4;
-  const PRIMARY_TX_TYPE *idx_map_v = idx_map + idx_h[0];
-
-  for (idx = start_v; idx < end_v; ++idx) {
-    primary_tx_type = idx_map_v[idx_v[idx] * 4];
-    txfm_param.primary_tx_type = primary_tx_type;
-    av2_xform_quant(0, cm, x, plane, block, blk_row, blk_col, plane_bsize,
-                    &txfm_param, &quant_param);
-
-    dist_block_tx_domain(x, plane, block, tx_size, &dist, &sse);
-
-    rate_cost = av2_cost_coeffs_txb_laplacian(
-        cm, x, plane, block, tx_size,
-        MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(primary_tx_type), CCTX_NONE, txb_ctx,
-        reduced_tx_set_used, 0);
-
-    rds_v[idx] = RDCOST(x->rdmult, rate_cost, dist);
-
-    if ((rds_v[idx] - (rds_v[idx] >> 2)) > ref_best_rd) {
-      skip_v[idx] = 1;
-    }
-  }
-  sort_rd(rds_v, idx_v, 4);
-  for (idx = 1; idx < 4; idx++) {
-    if (rds_v[idx] > rds_v[0] * 1.2) skip_v[idx_v[idx]] = 1;
-  }
-
-  // combine rd_h and rd_v to prune tx candidates
-  int i_v, i_h;
-  int64_t rds[16];
-  int num_cand = 0, last = PRIMARY_TX_TYPES - 1;
-
-  for (int i = 0; i < 16; i++) {
-    i_v = sel_pattern_v[i];
-    i_h = sel_pattern_h[i];
-    primary_tx_type = idx_map[idx_v[i_v] * 4 + idx_h[i_h]];
-    if (!(allowed_tx_mask & (1 << primary_tx_type)) || skip_h[idx_h[i_h]] ||
-        skip_v[idx_v[i_v]]) {
-      txk_map[last] = primary_tx_type;
-      last--;
-    } else {
-      txk_map[num_cand] = primary_tx_type;
-      rds[num_cand] = rds_v[i_v] + rds_h[i_h];
-      if (rds[num_cand] == 0) rds[num_cand] = 1;
-      num_cand++;
-    }
-  }
-  sort_rd(rds, txk_map, num_cand);
-
-  uint16_t prune = (uint16_t)(~(1 << txk_map[0]));
-  num_sel = AVMMIN(num_sel, num_cand);
-
-  for (int i = 1; i < num_sel; i++) {
-    int64_t factor = 1800 * (rds[i] - rds[0]) / (rds[0]);
-    if (factor < (int64_t)prune_factor)
-      prune &= ~(1 << txk_map[i]);
-    else
-      break;
-  }
-  return prune;
-}
-
-uint16_t prune_txk_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
-                        int block, TX_SIZE tx_size, int blk_row, int blk_col,
-                        BLOCK_SIZE plane_bsize, PRIMARY_TX_TYPE *txk_map,
-                        uint16_t allowed_tx_mask, int prune_factor,
-                        const TXB_CTX *const txb_ctx, int reduced_tx_set_used) {
-  const AV2_COMMON *cm = &cpi->common;
-  PRIMARY_TX_TYPE primary_tx_type;
-  int64_t rds[PRIMARY_TX_TYPES];
-
-  int num_cand = 0;
-  int last = PRIMARY_TX_TYPES - 1;
-
-  TxfmParam txfm_param;
-  QUANT_PARAM quant_param;
-  av2_setup_xform(cm, x, plane, tx_size,
-                  MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT), CCTX_NONE,
-                  &txfm_param);
-  av2_setup_quant(tx_size, 1, AV2_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
-                  &quant_param);
-
-  for (int idx = 0; idx < PRIMARY_TX_TYPES; idx++) {
-    primary_tx_type = idx;
-    int rate_cost = 0;
-    int64_t dist = 0, sse = 0;
-    if (!(allowed_tx_mask & (1 << primary_tx_type))) {
-      txk_map[last] = primary_tx_type;
-      last--;
-      continue;
-    }
-    txfm_param.primary_tx_type = primary_tx_type;
-
-    // do txfm and quantization
-    av2_xform_quant(0, cm, x, plane, block, blk_row, blk_col, plane_bsize,
-                    &txfm_param, &quant_param);
-    // estimate rate cost
-    rate_cost = av2_cost_coeffs_txb_laplacian(
-        cm, x, plane, block, tx_size,
-        MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(primary_tx_type), CCTX_NONE, txb_ctx,
-        reduced_tx_set_used, 0);
-    // tx domain dist
-    dist_block_tx_domain(x, plane, block, tx_size, &dist, &sse);
-
-    txk_map[num_cand] = primary_tx_type;
-    rds[num_cand] = RDCOST(x->rdmult, rate_cost, dist);
-    if (rds[num_cand] == 0) rds[num_cand] = 1;
-    num_cand++;
-  }
-
-  if (num_cand == 0) return (uint16_t)0xFFFF;
-
-  sort_rd(rds, txk_map, num_cand);
-  uint16_t prune = (uint16_t)(~(1 << txk_map[0]));
-
-  // 0 < prune_factor <= 1000 controls aggressiveness
-  int64_t factor = 0;
-  for (int idx = 1; idx < num_cand; idx++) {
-    factor = 1000 * (rds[idx] - rds[0]) / rds[0];
-    if (factor < (int64_t)prune_factor)
-      prune &= ~(1 << txk_map[idx]);
-    else
-      break;
-  }
-  return prune;
 }
 
 // These thresholds were calibrated to provide a certain number of TX types
@@ -1723,12 +1494,13 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
   *allowed_tx_mask = allow_bitmask;
 }
 
-static AVM_INLINE uint16_t
-get_tx_mask(const AV2_COMP *cpi, MACROBLOCK *x, int plane, int block,
-            int blk_row, int blk_col, BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
-            const TXB_CTX *const txb_ctx, FAST_TX_SEARCH_MODE ftxs_mode,
-            int64_t ref_best_rd, int dc_only_blk,
-            PRIMARY_TX_TYPE *allowed_txk_types, PRIMARY_TX_TYPE *txk_map) {
+static AVM_INLINE uint16_t get_tx_mask(const AV2_COMP *cpi, MACROBLOCK *x,
+                                       int plane, int blk_row, int blk_col,
+                                       BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
+                                       FAST_TX_SEARCH_MODE ftxs_mode,
+                                       int dc_only_blk,
+                                       PRIMARY_TX_TYPE *allowed_txk_types,
+                                       PRIMARY_TX_TYPE *txk_map) {
   if (dc_only_blk) {
     *allowed_txk_types = DCT_DCT;
     return ALLOW_TX_MASK(DCT_DCT);
@@ -1861,42 +1633,13 @@ get_tx_mask(const AV2_COMP *cpi, MACROBLOCK *x, int plane, int block,
     }
     assert(num_allowed > 0);
 
-#if CONFIG_DEBUG
-    if (plane) {
-      const CctxType cctx_type = av2_get_cctx_type(xd, blk_row, blk_col);
-      assert(cctx_type == CCTX_NONE);
-      (void)cctx_type;
-    }
-#endif  // CONFIG_DEBUG
-
-    if (num_allowed > 2 && cpi->sf.tx_sf.tx_type_search.prune_tx_type_est_rd) {
-      int pf = prune_factors[txfm_params->prune_2d_txfm_mode];
-      int mf = mul_factors[txfm_params->prune_2d_txfm_mode];
-      if (num_allowed <= 7) {
-        const uint16_t prune =
-            prune_txk_type(cpi, x, plane, block, tx_size, blk_row, blk_col,
-                           plane_bsize, txk_map, allowed_tx_mask, pf, txb_ctx,
-                           cm->features.reduced_tx_set_used);
-        allowed_tx_mask &= (~prune);
-      } else if (tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
-        const int num_sel = (num_allowed * mf + 50) / 100;
-        const uint16_t prune = prune_txk_type_separ(
-            cpi, x, plane, block, tx_size, blk_row, blk_col, plane_bsize,
-            txk_map, allowed_tx_mask, pf, txb_ctx,
-            cm->features.reduced_tx_set_used, ref_best_rd, num_sel);
-
-        allowed_tx_mask &= (~prune);
-      }
-    } else {
-      assert(num_allowed > 0);
-      int allowed_tx_count =
-          (txfm_params->prune_2d_txfm_mode >= TX_TYPE_PRUNE_4) ? 1 : 5;
-      // !fast_tx_search && txk_end != txk_start && plane == 0
-      if (txfm_params->prune_2d_txfm_mode >= TX_TYPE_PRUNE_1 && is_inter &&
-          num_allowed > allowed_tx_count) {
-        prune_tx_2D(x, plane_bsize, tx_size, blk_row, blk_col, tx_set_type,
-                    txfm_params->prune_2d_txfm_mode, txk_map, &allowed_tx_mask);
-      }
+    int allowed_tx_count =
+        (txfm_params->prune_2d_txfm_mode >= TX_TYPE_PRUNE_4) ? 1 : 5;
+    // !fast_tx_search && txk_end != txk_start && plane == 0
+    if (txfm_params->prune_2d_txfm_mode >= TX_TYPE_PRUNE_1 && is_inter &&
+        num_allowed > allowed_tx_count) {
+      prune_tx_2D(x, plane_bsize, tx_size, blk_row, blk_col, tx_set_type,
+                  txfm_params->prune_2d_txfm_mode, txk_map, &allowed_tx_mask);
     }
   }
 
@@ -2799,9 +2542,9 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
   }
 
   // Bit mask to indicate which transform types are allowed in the RD search.
-  uint16_t allowed_tx_mask = get_tx_mask(
-      cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size, txb_ctx,
-      ftxs_mode, ref_best_rd, dc_only_blk, &txk_allowed, txk_map);
+  uint16_t allowed_tx_mask =
+      get_tx_mask(cpi, x, plane, blk_row, blk_col, plane_bsize, tx_size,
+                  ftxs_mode, dc_only_blk, &txk_allowed, txk_map);
 
   block_sse = ROUND_POWER_OF_TWO(block_sse, (xd->bd - 8) * 2);
   block_mse_q8 = ROUND_POWER_OF_TWO(block_mse_q8, (xd->bd - 8) * 2);

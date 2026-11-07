@@ -1317,7 +1317,6 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.skip_tx_search_max_eob = 1024;
   tx_sf->tx_type_search.disable_inter_ist = false;
   tx_sf->tx_type_search.prune_tx_type_using_stats = 0;
-  tx_sf->tx_type_search.prune_tx_type_est_rd = 0;
   tx_sf->tx_type_search.winner_mode_tx_type_pruning = 0;
   tx_sf->txb_split_cap = 1;
   tx_sf->skip_pixel_dist_calc_using_tx_dist = false;
