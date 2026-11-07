@@ -297,15 +297,14 @@ void bru_set_default_inter_mb_mode_info(const AV2_COMMON *const cm,
   } else {
     mbmi->tx_size = tx_size_from_tx_mode(bsize, cm->features.tx_mode);
   }
+  const int bw = mi_size_wide[bsize];
+  const int bh = mi_size_high[bsize];
   for (int plane = 0; plane < 1; plane++) {
     bru_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, xd->tree_type,
-                              &mbmi->chroma_ref_info, plane, MAX_MIB_SIZE,
-                              MAX_MIB_SIZE);
+                              &mbmi->chroma_ref_info, plane, bw, bh);
   }
   if (cm->seg.enabled) {
     const int mi_offset = xd->mi_row * cm->mi_params.mi_cols + xd->mi_col;
-    const int bw = mi_size_wide[bsize];
-    const int bh = mi_size_high[bsize];
     const int x_inside_boundary =
         AVMMIN(cm->mi_params.mi_cols - xd->mi_col, bw);
     const int y_inside_boundary =
