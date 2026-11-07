@@ -829,13 +829,6 @@ Error:
   avm_free(arrbuf2);
 }
 
-#define LANCZOS_A_ENC_NONNORMATIVE_HOR_Y 5  // Non-normative hor Lanczos a Luma
-#define LANCZOS_A_ENC_NONNORMATIVE_HOR_C \
-  5  // Non-normative hor Lanczos a Chroma
-#define LANCZOS_A_ENC_NONNORMATIVE_VER_Y 5  // Non-normative ver Lanczos a Luma
-#define LANCZOS_A_ENC_NONNORMATIVE_VER_C \
-  5  // Non-normative ver Lanczos a Chroma
-
 // Non-normative encoder helper: replicates the outermost active [0..width) x
 // [0..height) samples of a 16-bit-backed plane outward by the specified top,
 // left, bottom, and right border widths.
@@ -904,6 +897,62 @@ static void extend_resized_frame_borders(YV12_BUFFER_CONFIG *const ybf,
                               crop_h, top, left, bottom, right);
   }
 }
+
+#if CONFIG_LANCZOS_RESAMPLE
+static void resize_lanczos_hv_and_extend_frame(const YV12_BUFFER_CONFIG *src,
+                                               YV12_BUFFER_CONFIG *dst, int bd,
+                                               int num_planes, int subx,
+                                               int suby, int denom_hor,
+                                               int num_hor, int denom_ver,
+                                               int num_ver) {
+  for (int i = 0; i < AVMMIN(num_planes, MAX_MB_PLANE); ++i) {
+    const int is_uv = i > 0;
+    const int lanczos_a_hor = is_uv ? LANCZOS_A_ENC_NONNORMATIVE_HOR_C
+                                    : LANCZOS_A_ENC_NONNORMATIVE_HOR_Y;
+    const int lanczos_a_ver = is_uv ? LANCZOS_A_ENC_NONNORMATIVE_VER_C
+                                    : LANCZOS_A_ENC_NONNORMATIVE_VER_Y;
+    av2_resample_plane_2d_lanczos_hv(
+        src->buffers[i], src->crop_heights[is_uv], src->crop_widths[is_uv],
+        src->strides[is_uv], dst->buffers[i], dst->crop_heights[is_uv],
+        dst->crop_widths[is_uv], dst->strides[is_uv], is_uv ? subx : 0,
+        is_uv ? suby : 0, bd, denom_hor, num_hor, denom_ver, num_ver,
+        lanczos_a_hor, lanczos_a_ver);
+  }
+  extend_resized_frame_borders(dst, num_planes);
+}
+
+bool av2_try_resize_lanczos_and_extend_frame(const YV12_BUFFER_CONFIG *src,
+                                             YV12_BUFFER_CONFIG *dst, int bd,
+                                             int num_planes) {
+  if (src == NULL || dst == NULL || src->y_crop_width <= 0 ||
+      src->y_crop_height <= 0 || dst->y_crop_width <= 0 ||
+      dst->y_crop_height <= 0 || src->subsampling_x != dst->subsampling_x ||
+      src->subsampling_y != dst->subsampling_y) {
+    return false;
+  }
+
+  int num_hor = 1;
+  int denom_hor = 1;
+  if (dst->y_crop_width != src->y_crop_width) {
+    av2_derive_scale_factor(dst->y_crop_width, src->y_crop_width, &num_hor,
+                            &denom_hor);
+    if (num_hor <= 0 || denom_hor <= 0) return false;
+  }
+
+  int num_ver = 1;
+  int denom_ver = 1;
+  if (dst->y_crop_height != src->y_crop_height) {
+    av2_derive_scale_factor(dst->y_crop_height, src->y_crop_height, &num_ver,
+                            &denom_ver);
+    if (num_ver <= 0 || denom_ver <= 0) return false;
+  }
+
+  resize_lanczos_hv_and_extend_frame(src, dst, bd, num_planes,
+                                     src->subsampling_x, src->subsampling_y,
+                                     denom_hor, num_hor, denom_ver, num_ver);
+  return true;
+}
+#endif  // CONFIG_LANCZOS_RESAMPLE
 
 // Resize the frame using Lanczos filter
 void av2_resize_lanczos_and_extend_frame(const YV12_BUFFER_CONFIG *src,
@@ -1052,6 +1101,11 @@ void av2_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
                                               YV12_BUFFER_CONFIG *dst, int bd,
                                               const int num_planes) {
   // TODO(dkovalev): replace YV12_BUFFER_CONFIG with avm_image_t
+#if CONFIG_LANCZOS_RESAMPLE
+  if (av2_try_resize_lanczos_and_extend_frame(src, dst, bd, num_planes)) {
+    return;
+  }
+#endif  // CONFIG_LANCZOS_RESAMPLE
 
   // We use AVMMIN(num_planes, MAX_MB_PLANE) instead of num_planes to quiet
   // the static analysis warnings.
@@ -1077,16 +1131,8 @@ YV12_BUFFER_CONFIG *av2_scale_if_required(AV2_COMMON *cm,
   if (scaling_required) {
     const int num_planes = av2_num_planes(cm);
 #if CONFIG_LANCZOS_RESAMPLE
-    int scale_denom = -1;
-    int scale_num = -1;
-    av2_derive_scale_factor(scaled->y_crop_width, unscaled->y_crop_width,
-                            &scale_num, &scale_denom);
-    if (scale_denom > 0 && scale_num > 0) {
-      av2_resize_lanczos_and_extend_frame(
-          unscaled, scaled, (int)cm->seq_params.bit_depth, num_planes,
-          unscaled->subsampling_x, unscaled->subsampling_y, scale_denom,
-          scale_num);
-    } else {
+    if (!av2_try_resize_lanczos_and_extend_frame(
+            unscaled, scaled, (int)cm->seq_params.bit_depth, num_planes)) {
 #endif  // CONFIG_LANCZOS_RESAMPLE
       if (use_optimized_scaler && cm->seq_params.bit_depth == AVM_BITS_8) {
         av2_resize_and_extend_frame(unscaled, scaled, filter, phase,

@@ -510,12 +510,20 @@ void av2_scale_references(AV2_COMP *cpi, const InterpFilter filter,
             avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
           }
-          if (use_optimized_scaler && cm->seq_params.bit_depth == AVM_BITS_8)
-            av2_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
-                                        num_planes);
-          else
-            av2_resize_and_extend_frame_nonnormative(
-                ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
+#if CONFIG_LANCZOS_RESAMPLE
+          if (!av2_try_resize_lanczos_and_extend_frame(
+                  ref, &new_fb->buf, (int)cm->seq_params.bit_depth,
+                  num_planes)) {
+#endif  // CONFIG_LANCZOS_RESAMPLE
+            if (use_optimized_scaler && cm->seq_params.bit_depth == AVM_BITS_8)
+              av2_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
+                                          num_planes);
+            else
+              av2_resize_and_extend_frame_nonnormative(
+                  ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
+#if CONFIG_LANCZOS_RESAMPLE
+          }
+#endif  // CONFIG_LANCZOS_RESAMPLE
           cpi->scaled_ref_buf[ref_frame] = new_fb;
           alloc_frame_mvs(cm, new_fb);
         }

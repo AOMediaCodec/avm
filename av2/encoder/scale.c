@@ -12,6 +12,8 @@
 
 #include <string.h>
 
+#include "config/avm_config.h"
+
 #include "av2/common/resize.h"
 #include "av2/encoder/encoder_alloc.h"
 #include "av2/encoder/random.h"
@@ -19,6 +21,9 @@
 #include "av2/encoder/scale.h"
 #include "avm_dsp/psnr.h"
 #include "avm_ports/system_state.h"
+#if CONFIG_LANCZOS_RESAMPLE
+#include "common/lanczos_resample.h"
+#endif  // CONFIG_LANCZOS_RESAMPLE
 
 // Preliminary thresholds on (Luma resampling MSE / Qstep^2) for
 // RESIZE_DYNAMIC and RESIZE_DYNAMIC_SUBGOP denominator selection on
@@ -77,6 +82,38 @@ static uint8_t get_resolution_bridge_frame_pattern(const int frame_count) {
 
 static int dimension_is_ok(int orig_dim, int resized_dim, int denom) {
   return (resized_dim * SCALE_NUMERATOR >= orig_dim * denom / 2);
+}
+
+// Performs an 8/d downscale followed by a d/8 upscale on a single plane using
+// Lanczos-5 resampling when enabled (falling back to av2_highbd_resize_plane
+// otherwise), matching encoder source downscaling and decoder output upscaling.
+static void resample_plane_roundtrip(const uint16_t *src, int orig_h,
+                                     int orig_w, int src_stride,
+                                     uint16_t *scratch_dn, int scaled_h,
+                                     int scaled_w, uint16_t *dst_up, int subx,
+                                     int suby, int d, avm_bit_depth_t bit_depth,
+                                     int is_uv) {
+#if CONFIG_LANCZOS_RESAMPLE
+  const int a_hor = is_uv ? LANCZOS_A_ENC_NONNORMATIVE_HOR_C
+                          : LANCZOS_A_ENC_NONNORMATIVE_HOR_Y;
+  const int a_ver = is_uv ? LANCZOS_A_ENC_NONNORMATIVE_VER_C
+                          : LANCZOS_A_ENC_NONNORMATIVE_VER_Y;
+  av2_resample_plane_2d_lanczos(
+      src, orig_h, orig_w, src_stride, scratch_dn, scaled_h, scaled_w, scaled_w,
+      subx, suby, (int)bit_depth, d, SCALE_NUMERATOR, a_hor, a_ver);
+  av2_resample_plane_2d_lanczos(
+      scratch_dn, scaled_h, scaled_w, scaled_w, dst_up, orig_h, orig_w, orig_w,
+      subx, suby, (int)bit_depth, SCALE_NUMERATOR, d, a_hor, a_ver);
+#else
+  (void)subx;
+  (void)suby;
+  (void)d;
+  (void)is_uv;
+  av2_highbd_resize_plane(src, orig_h, orig_w, src_stride, scratch_dn, scaled_h,
+                          scaled_w, scaled_w, (int)bit_depth);
+  av2_highbd_resize_plane(scratch_dn, scaled_h, scaled_w, scaled_w, dst_up,
+                          orig_h, orig_w, orig_w, (int)bit_depth);
+#endif  // CONFIG_LANCZOS_RESAMPLE
 }
 
 // Preliminary dynamic resize scale decision for RESIZE_DYNAMIC:
@@ -179,11 +216,10 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
     const double qstep_sq = qstep * qstep;
 
     // Downsample original Luma by 8/d, then upsample back to (orig_w, orig_h).
-    av2_highbd_resize_plane(unscaled->y_buffer, orig_h, orig_w,
-                            unscaled->y_stride, downscaled_y, scaled_h,
-                            scaled_w, scaled_w, (int)bit_depth);
-    av2_highbd_resize_plane(downscaled_y, scaled_h, scaled_w, scaled_w,
-                            upscaled_y, orig_h, orig_w, orig_w, (int)bit_depth);
+    resample_plane_roundtrip(unscaled->y_buffer, orig_h, orig_w,
+                             unscaled->y_stride, downscaled_y, scaled_h,
+                             scaled_w, upscaled_y, /*subx=*/0, /*suby=*/0, d,
+                             bit_depth, /*is_uv=*/0);
 
     YV12_BUFFER_CONFIG upscaled_buf;
     memset(&upscaled_buf, 0, sizeof(upscaled_buf));
@@ -389,12 +425,10 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
       if (src->y_crop_width != orig_w || src->y_crop_height != orig_h) {
         continue;
       }
-      av2_highbd_resize_plane(src->y_buffer, orig_h, orig_w, src->y_stride,
-                              downscaled_y, scaled_h, scaled_w, scaled_w,
-                              (int)bit_depth);
-      av2_highbd_resize_plane(downscaled_y, scaled_h, scaled_w, scaled_w,
-                              upscaled_y, orig_h, orig_w, orig_w,
-                              (int)bit_depth);
+      resample_plane_roundtrip(src->y_buffer, orig_h, orig_w, src->y_stride,
+                               downscaled_y, scaled_h, scaled_w, upscaled_y,
+                               /*subx=*/0, /*suby=*/0, d, bit_depth,
+                               /*is_uv=*/0);
 
       const int64_t sse = avm_highbd_get_y_sse(src, &upscaled_buf);
       avm_clear_system_state();
