@@ -458,6 +458,7 @@ list(
   "${AVM_ROOT}/av2/encoder/arm/neon/intra_mode_mlp_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/rdopt_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/encodetxb_neon.c"
+  "${AVM_ROOT}/av2/encoder/arm/neon/fwd_stxfm_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/hybrid_fwd_txfm_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/trellis_quant_neon.c"
   "${AVM_ROOT}/av2/encoder/arm/neon/hash_neon.c"
@@ -475,6 +476,7 @@ list(
   "${AVM_ROOT}/av2/common/arm/highbd_inv_txfm_neon.c"
   "${AVM_ROOT}/av2/common/arm/reconinter_neon.c"
   "${AVM_ROOT}/av2/common/arm/highbd_warp_affine_neon.c"
+  "${AVM_ROOT}/av2/common/arm/stxfm_neon.c"
   "${AVM_ROOT}/av2/common/cdef_block_neon.c"
   "${AVM_ROOT}/av2/common/arm/highbd_wiener_convolve_neon.c")
 
