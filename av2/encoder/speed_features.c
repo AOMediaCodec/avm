@@ -724,6 +724,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 4 : 3;
     sf->inter_sf.prune_comp_mode_eval_using_est_rd = 2;
     sf->inter_sf.prune_warp_delta_by_ref_idx = 2;
+    sf->inter_sf.prune_warpmv_by_pyr_lvl = cm->current_frame.pyramid_level > 3;
     sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
         cm->current_frame.pyramid_level >= 2 ? 1 : 0;
     sf->inter_sf.prune_motion_mode_level = boosted ? 2 : 3;
@@ -790,6 +791,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_cwp_search = 1;
     sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
         boosted ? (cm->current_frame.pyramid_level >= 2 ? 1 : 0) : 1;
+    sf->inter_sf.prune_warpmv_by_pyr_lvl = cm->current_frame.pyramid_level > 2;
     sf->inter_sf.prune_motion_mode_level = 3;
     // Unconditionally enable the pre-RD gate at speed >= 5: apply to all
     // frame types including boosted (KF/GF/ARF) frames.
@@ -1270,6 +1272,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_refinemv_by_ref_idx = 0;
   inter_sf->prune_interintra_by_ref_idx = 0;
   inter_sf->disable_interintra = false;
+  inter_sf->prune_warpmv_by_pyr_lvl = false;
   inter_sf->prune_warp_delta_by_ref_idx = 0;
   inter_sf->prune_warp_extend_sse_pct = 0;
   inter_sf->prune_comp_using_best_single_mode_ref = 0;

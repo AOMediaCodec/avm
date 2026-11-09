@@ -944,6 +944,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Disable INTERINTRA motion mode and warp interintra search.
   bool disable_interintra;
 
+  // Skip WARPMV mode for frames at a higher pyramid level. Enabled at
+  // speed >= 4.
+  bool prune_warpmv_by_pyr_lvl;
+
   // Skip WARP_DELTA motion mode when ref_frame[0] > 2. Enabled at
   // speed >= 1.
   int prune_warp_delta_by_ref_idx;

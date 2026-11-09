@@ -10176,7 +10176,9 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         x->may_consume_dry_pass_info && x->dry_static_256 &&
         bsize == BLOCK_256X256 && this_mode != NEARMV)
       continue;
-    if (this_mode == WARPMV && !warpmv_allowed) continue;
+    if (this_mode == WARPMV &&
+        (!warpmv_allowed || inter_sf->prune_warpmv_by_pyr_lvl))
+      continue;
     if (this_mode == WARP_NEWMV && (!warpmv_allowed || !warp_newmv_allowed))
       continue;
     if (this_mode >= NEAR_NEARMV_OPTFLOW && !opfl_modes_allowed) continue;
