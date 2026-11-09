@@ -256,7 +256,8 @@ if(CONFIG_AV2_ENCODER)
     "${AVM_ROOT}/avm_dsp/arm/highbd_variance_neon.c"
     "${AVM_ROOT}/avm_dsp/arm/sse_neon.c"
     "${AVM_ROOT}/avm_dsp/arm/sum_squares_neon.c"
-    "${AVM_ROOT}/avm_dsp/arm/highbd_quantize_neon.c")
+    "${AVM_ROOT}/avm_dsp/arm/highbd_quantize_neon.c"
+    "${AVM_ROOT}/avm_dsp/arm/highbd_sad4d_neon.c")
 
   if(CONFIG_INTERNAL_STATS)
     list(APPEND AVM_DSP_ENCODER_SOURCES "${AVM_ROOT}/avm_dsp/fastssim.c"

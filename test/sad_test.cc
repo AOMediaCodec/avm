@@ -276,6 +276,113 @@ class SADx4Test : public ::testing::WithParamInterface<SadMxNx4Param>,
   SADx4Test() : SADTestBase(GET_PARAM(0), GET_PARAM(1), GET_PARAM(3)) {}
 
  protected:
+  // Buffers of the layout tests (the x4d TEST_Ps after DISABLED_Speed): one
+  // source plane and one reference plane, sized for the largest stride
+  // (width + 32, which covers width + 16 plus a +3 element offset), the
+  // largest block (256x256) and kX4Margin rows of window above and below.
+  static const int kX4MaxStride = kMaxDim + 32;
+  static const int kX4Margin = 8;
+  static const int kX4MaxDx = 16;
+  static const int kX4Slack = 64;
+  static const int kX4SrcElems = kX4MaxStride * kMaxDim + kX4Slack;
+  // One region per ref when the refs are disjoint; all four regions form one
+  // reference window when the refs overlap.
+  static const int kX4RegionElems =
+      kX4MaxStride * (kMaxDim + 2 * kX4Margin) + kX4Slack;
+  static const int kX4RefElems = 4 * kX4RegionElems;
+  static const int kX4Iterations = 1000;
+
+  virtual void SetUp() {
+    SADTestBase::SetUp();
+    x4_src_ = reinterpret_cast<uint16_t *>(
+        avm_memalign(kDataAlignment, kX4SrcElems * sizeof(uint16_t)));
+    x4_ref_ = reinterpret_cast<uint16_t *>(
+        avm_memalign(kDataAlignment, kX4RefElems * sizeof(uint16_t)));
+    ASSERT_NE(x4_src_, nullptr);
+    ASSERT_NE(x4_ref_, nullptr);
+    memset(x4_src_, 0, kX4SrcElems * sizeof(uint16_t));
+    memset(x4_ref_, 0, kX4RefElems * sizeof(uint16_t));
+  }
+
+  virtual void TearDown() {
+    avm_free(x4_src_);
+    x4_src_ = NULL;
+    avm_free(x4_ref_);
+    x4_ref_ = NULL;
+    SADTestBase::TearDown();
+  }
+
+  // SAD of the width_ x height_ block at src against the one at ref (the C
+  // reference's definition, sad4d.c).
+  unsigned int BlockSad(const uint16_t *src, int src_stride,
+                        const uint16_t *ref, int ref_stride) const {
+    unsigned int sad = 0;
+    for (int r = 0; r < height_; ++r) {
+      for (int c = 0; c < width_; ++c) {
+        sad += abs(src[r * src_stride + c] - ref[r * ref_stride + c]);
+      }
+    }
+    return sad;
+  }
+
+  // Calls the function under test once and compares each of the four SADs
+  // with BlockSad of its own reference: a kernel that reuses ref 0, swaps
+  // two outputs or reads with the wrong stride fails.
+  void CheckX4(const uint16_t *src, int src_stride,
+               const uint16_t *const refs[4], int ref_stride, const char *what,
+               int iter) {
+    uint32_t got[4] = { 0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef };
+    ASM_REGISTER_STATE_CHECK(
+        GET_PARAM(2)(src, src_stride, refs, ref_stride, got));
+    for (int i = 0; i < 4; ++i) {
+      ASSERT_EQ(BlockSad(src, src_stride, refs[i], ref_stride), got[i])
+          << what << ": ref=" << i << " w=" << width_ << " h=" << height_
+          << " bd=" << bd_ << " iter=" << iter << " src_stride=" << src_stride
+          << " ref_stride=" << ref_stride << " ref_off=" << (refs[i] - refs[0]);
+    }
+  }
+
+  // Ref i in its own region of the reference plane, at element offset
+  // off[i] from the region's aligned row kX4Margin; the regions are taken in
+  // the order {2, 0, 3, 1}, so ref memory order is not ref index order.
+  void DisjointRefs(const int off[4], const uint16_t *refs[4]) const {
+    static const int kOrder[4] = { 2, 0, 3, 1 };
+    for (int i = 0; i < 4; ++i) {
+      refs[i] = x4_ref_ + kOrder[i] * kX4RegionElems +
+                kX4Margin * kX4MaxStride + off[i];
+    }
+  }
+
+  // The encoder's layout: the four candidates in one reference window,
+  // ref_array[i] = center + dy[i] * stride + dx[i] (|dy| <= kX4Margin,
+  // |dx| <= kX4MaxDx), so neighbouring refs overlap.
+  const uint16_t *WindowCenter(int stride, int align) const {
+    return x4_ref_ + kX4Margin * stride + 2 * kX4MaxDx + align;
+  }
+  void WindowRefs(int stride, int align, const int dy[4], const int dx[4],
+                  const uint16_t *refs[4]) const {
+    const uint16_t *center = WindowCenter(stride, align);
+    for (int i = 0; i < 4; ++i) refs[i] = center + dy[i] * stride + dx[i];
+  }
+  // Every pixel any WindowRefs candidate can read, from x4_ref_ on.
+  int WindowElems(int stride) const {
+    return (height_ + 2 * kX4Margin) * stride + 4 * kX4MaxDx + 4;
+  }
+
+  // Fills the width_ x height_ block at p, pixel (r, c) = f(r, c).
+  template <typename F>
+  void FillBlock(uint16_t *p, int stride, F f) {
+    for (int r = 0; r < height_; ++r) {
+      for (int c = 0; c < width_; ++c) p[r * stride + c] = f(r, c);
+    }
+  }
+  void FillRandomN(uint16_t *p, int n) {
+    for (int i = 0; i < n; ++i) p[i] = rnd_.Rand16() & mask_;
+  }
+
+  uint16_t *x4_src_ = nullptr;
+  uint16_t *x4_ref_ = nullptr;
+
   void SADs(unsigned int *results) {
     const uint16_t *references[] = { GetReference(0), GetReference(1),
                                      GetReference(2), GetReference(3) };
@@ -1041,6 +1148,340 @@ TEST_P(SADx4Test, DISABLED_Speed) {
   FillRandom(GetReference(2), reference_stride_);
   FillRandom(GetReference(3), reference_stride_);
   SpeedSAD();
+}
+
+// x4d layout tests. Each uses the fixture's own planes (x4_src_, x4_ref_),
+// sized for the largest stride and offset at 256x256, and checks all four
+// SADs against BlockSad. Accumulator stress: the widest sum is src all-max
+// against ref all-zero (or the reverse). MaxSrc and MaxRef above (up to
+// 256x256 at 12 bits: 65536 * 4095 per ref) and ExtremesPerRefDistinct below
+// reach it with refs in separate blocks, which no shared-row layout matches;
+// OverlappingRefsSearchStepsExtremes reaches it with the refs sharing rows
+// (diamond and square at 2- and 4-row distances).
+
+// Four refs with different data at different offsets in separate regions:
+// a kernel reusing ref 0's data or pointer, or writing the SADs out of
+// order, gets at least one wrong.
+TEST_P(SADx4Test, DistinctRefsDistinctOffsets) {
+  const int off[4] = { 0, 5, 2, 7 };
+  const uint16_t *refs[4];
+  DisjointRefs(off, refs);
+  const int ss = width_ + 16, rs = width_ + 8;
+  FillBlock(x4_src_, ss, [&](int, int) { return rnd_.Rand16() & mask_; });
+  for (int i = 0; i < 4; ++i) {
+    // Ref i is src plus a per-ref bias, clamped: distinct SADs per ref.
+    uint16_t *ref = const_cast<uint16_t *>(refs[i]);
+    FillBlock(ref, rs, [&](int r, int c) {
+      const int v = x4_src_[r * ss + c] + (i + 1) * 3 * ((r + c) % 3 == 0);
+      return static_cast<uint16_t>(v > mask_ ? mask_ : v);
+    });
+  }
+  CheckX4(x4_src_, ss, refs, rs, "distinct refs", 0);
+}
+
+// Encoder-like overlapping refs: ref_array[i] = center + small offsets in
+// one reference window (a diamond step: up, left, right, down), the window
+// random.
+TEST_P(SADx4Test, OverlappingRefsDiamond) {
+  const int rs = kX4MaxStride;
+  const int ss = width_;
+  FillRandomN(x4_ref_, WindowElems(rs));
+  FillBlock(x4_src_, ss, [&](int, int) { return rnd_.Rand16() & mask_; });
+  const int dy[4] = { -1, 0, 0, 1 };
+  const int dx[4] = { 0, -1, 1, 0 };
+  const uint16_t *refs[4];
+  WindowRefs(rs, 0, dy, dx, refs);
+  CheckX4(x4_src_, ss, refs, rs, "diamond", 0);
+  // A wider pattern with negative offsets past the block (mesh/int_pro).
+  const int dy2[4] = { 0, -kX4Margin, 3, kX4Margin };
+  const int dx2[4] = { 0, kX4MaxDx, -kX4MaxDx, -3 };
+  WindowRefs(rs, 1, dy2, dx2, refs);
+  CheckX4(x4_src_, ss, refs, rs, "wide window", 1);
+}
+
+// The motion search's step layouts in the encoder's ref order, where refs
+// share rows: diamond (ref 1 = ref 0 + 2s rows) and square (refs 3 and 1 =
+// refs 0 and 2 + s rows) at 2- and 4-row distances, a 3-row diamond and
+// square, and the diamond with refs 0 and 1 swapped (ref 1 above ref 0), each
+// at two strides and an aligned and an odd window base.
+TEST_P(SADx4Test, OverlappingRefsSearchSteps) {
+  struct Step {
+    const char *name;
+    int dy[4], dx[4];
+  };
+  static const Step kSteps[] = {
+    { "diamond d=2", { -1, 1, 0, 0 }, { 0, 0, -1, 1 } },
+    { "diamond d=4", { -2, 2, 0, 0 }, { 0, 0, -2, 2 } },
+    { "square d=2", { -1, 1, -1, 1 }, { -1, 1, 1, -1 } },
+    { "square d=4", { -2, 2, -2, 2 }, { -2, 2, 2, -2 } },
+    { "diamond d=3", { -1, 2, 0, 0 }, { 0, 0, -1, 1 } },
+    { "square d=3", { -1, 2, -1, 2 }, { -1, 2, 2, -1 } },
+    { "diamond swapped", { 1, -1, 0, 0 }, { 0, 0, -1, 1 } },
+    { "square d=4, ref 1 off", { -2, 2, -2, 2 }, { -2, 3, 2, -2 } },
+  };
+  const int strides[2] = { kX4MaxStride, width_ + 16 };
+  const int ss = width_ + 8;
+  int iter = 0;
+  for (const Step &st : kSteps) {
+    for (int k = 0; k < 2; ++k) {
+      const int rs = strides[k];
+      FillRandomN(x4_ref_, WindowElems(rs));
+      FillBlock(x4_src_, ss, [&](int, int) { return rnd_.Rand16() & mask_; });
+      const uint16_t *refs[4];
+      WindowRefs(rs, k, st.dy, st.dx, refs);
+      ASSERT_NO_FATAL_FAILURE(CheckX4(x4_src_, ss, refs, rs, st.name, iter));
+      ++iter;
+    }
+  }
+}
+
+// OverlappingRefsSearchSteps' row-sharing layouts (diamond and square at 2-
+// and 4-row distances) with extreme values: src all-max against an all-zero
+// window, then src all-zero against an all-max window, so every SAD is
+// w * h * max and each uint16 lane of a row-sharing kernel takes its largest
+// sum before widening (at 8x32 and up for 8-wide blocks: a 32-row batch).
+TEST_P(SADx4Test, OverlappingRefsSearchStepsExtremes) {
+  struct Step {
+    const char *name;
+    int dy[4], dx[4];
+  };
+  static const Step kSteps[] = {
+    { "diamond d=2", { -1, 1, 0, 0 }, { 0, 0, -1, 1 } },
+    { "diamond d=4", { -2, 2, 0, 0 }, { 0, 0, -2, 2 } },
+    { "square d=2", { -1, 1, -1, 1 }, { -1, 1, 1, -1 } },
+    { "square d=4", { -2, 2, -2, 2 }, { -2, 2, 2, -2 } },
+  };
+  const int strides[2] = { kX4MaxStride, width_ + 16 };
+  const int ss = width_ + 8;
+  const uint16_t m = static_cast<uint16_t>(mask_);
+  const uint16_t src_v[2] = { m, 0 };
+  const uint16_t ref_v[2] = { 0, m };
+  int iter = 0;
+  for (const Step &st : kSteps) {
+    for (int k = 0; k < 2; ++k) {
+      const int rs = strides[k];
+      for (int v = 0; v < 2; ++v) {
+        const int n = WindowElems(rs);
+        for (int i = 0; i < n; ++i) x4_ref_[i] = ref_v[v];
+        FillBlock(x4_src_, ss, [&](int, int) { return src_v[v]; });
+        const uint16_t *refs[4];
+        WindowRefs(rs, k, st.dy, st.dx, refs);
+        ASSERT_NO_FATAL_FAILURE(CheckX4(x4_src_, ss, refs, rs, st.name, iter));
+        ++iter;
+      }
+    }
+  }
+}
+
+// src at +1 and +3 elements from an aligned base; refs aligned.
+TEST_P(SADx4Test, MisalignedSrc) {
+  const int off[4] = { 0, 0, 0, 0 };
+  const uint16_t *refs[4];
+  DisjointRefs(off, refs);
+  const int rs = width_;
+  for (int i = 0; i < 4; ++i) {
+    FillRandom(const_cast<uint16_t *>(refs[i]), rs);
+  }
+  const int src_off[2] = { 1, 3 };
+  for (int k = 0; k < 2; ++k) {
+    uint16_t *src = x4_src_ + src_off[k];
+    const int ss = width_ + 16;
+    FillRandom(src, ss);
+    CheckX4(src, ss, refs, rs, "src misaligned", src_off[k]);
+  }
+}
+
+// Each ref at +1 or +3 elements from an aligned base (different per ref);
+// src aligned.
+TEST_P(SADx4Test, MisalignedRefs) {
+  const int offs[2][4] = { { 1, 3, 3, 1 }, { 3, 1, 1, 3 } };
+  const int ss = width_;
+  FillRandom(x4_src_, ss);
+  for (int k = 0; k < 2; ++k) {
+    const uint16_t *refs[4];
+    DisjointRefs(offs[k], refs);
+    const int rs = width_ + 16;
+    for (int i = 0; i < 4; ++i) {
+      FillRandom(const_cast<uint16_t *>(refs[i]), rs);
+    }
+    CheckX4(x4_src_, ss, refs, rs, "refs misaligned", k);
+  }
+}
+
+// src and refs misaligned together: src +1 with refs +3, src +3 with refs +1,
+// and src +3 with overlapping window refs at an odd base.
+TEST_P(SADx4Test, MisalignedSrcAndRefs) {
+  const int src_off[2] = { 1, 3 };
+  const int ref_off[2] = { 3, 1 };
+  for (int k = 0; k < 2; ++k) {
+    const int off[4] = { ref_off[k], ref_off[k], ref_off[k], ref_off[k] };
+    const uint16_t *refs[4];
+    DisjointRefs(off, refs);
+    const int rs = width_ + 16;
+    for (int i = 0; i < 4; ++i) {
+      FillRandom(const_cast<uint16_t *>(refs[i]), rs);
+    }
+    uint16_t *src = x4_src_ + src_off[k];
+    FillRandom(src, width_);
+    CheckX4(src, width_, refs, rs, "src and refs misaligned", k);
+  }
+  const int rs = kX4MaxStride - 1;
+  FillRandomN(x4_ref_, WindowElems(rs));
+  const int dy[4] = { 0, 1, -2, 2 };
+  const int dx[4] = { 0, 1, 2, -1 };
+  const uint16_t *refs[4];
+  WindowRefs(rs, 3, dy, dx, refs);
+  uint16_t *src = x4_src_ + 3;
+  FillRandom(src, width_ + 16);
+  CheckX4(src, width_ + 16, refs, rs, "src and window refs misaligned", 2);
+}
+
+// Extremes: everything zero, then everything at the bit-depth maximum (both
+// SADs 0); src = max with ref = 0 and the reverse are MaxSrc and MaxRef.
+TEST_P(SADx4Test, ExtremesAllZeroAllMax) {
+  const int off[4] = { 0, 1, 2, 3 };
+  const uint16_t *refs[4];
+  DisjointRefs(off, refs);
+  const uint16_t vals[2] = { 0, static_cast<uint16_t>(mask_) };
+  for (int k = 0; k < 2; ++k) {
+    FillConstant(x4_src_, width_, vals[k]);
+    for (int i = 0; i < 4; ++i) {
+      FillConstant(const_cast<uint16_t *>(refs[i]), width_, vals[k]);
+    }
+    CheckX4(x4_src_, width_, refs, width_, k ? "all max" : "all zero", k);
+  }
+}
+
+// Per-ref extremes in one call: src all-max against refs {0, max, 0, max-1}
+// (the accumulator-stress sum on refs 0 and 2), then src all-zero against
+// {max, 0, 1, max}: the four SADs differ, so a swap is caught.
+TEST_P(SADx4Test, ExtremesPerRefDistinct) {
+  const int off[4] = { 2, 0, 3, 1 };
+  const uint16_t *refs[4];
+  DisjointRefs(off, refs);
+  const int ss = width_ + 16, rs = width_;
+  const uint16_t m = static_cast<uint16_t>(mask_);
+  const uint16_t src_v[2] = { m, 0 };
+  const uint16_t ref_v[2][4] = { { 0, m, 0, static_cast<uint16_t>(m - 1) },
+                                 { m, 0, 1, m } };
+  for (int k = 0; k < 2; ++k) {
+    FillConstant(x4_src_, ss, src_v[k]);
+    for (int i = 0; i < 4; ++i) {
+      FillConstant(const_cast<uint16_t *>(refs[i]), rs, ref_v[k][i]);
+    }
+    // One pixel of ref 3 at 0 in the first case: its SAD is w * h + max - 1.
+    if (k == 0) const_cast<uint16_t *>(refs[3])[(height_ - 1) * rs] = 0;
+    CheckX4(x4_src_, ss, refs, rs, "per-ref extremes", k);
+  }
+}
+
+// Bit-depth midpoint: src every pixel 1 << (bd - 1), refs {0, max, mid,
+// mid - 1}.
+TEST_P(SADx4Test, BitDepthMidpoint) {
+  const int off[4] = { 1, 0, 3, 2 };
+  const uint16_t *refs[4];
+  DisjointRefs(off, refs);
+  const uint16_t mid = static_cast<uint16_t>(1 << (bd_ - 1));
+  const uint16_t ref_v[4] = { 0, static_cast<uint16_t>(mask_), mid,
+                              static_cast<uint16_t>(mid - 1) };
+  FillConstant(x4_src_, width_, mid);
+  for (int i = 0; i < 4; ++i) {
+    FillConstant(const_cast<uint16_t *>(refs[i]), width_ + 16, ref_v[i]);
+  }
+  CheckX4(x4_src_, width_, refs, width_ + 16, "midpoint", 0);
+}
+
+// Checkerboard of 0 and max: src (r + c) % 2, refs the inverse (the maximum
+// SAD), the same pattern (0), a row-alternating pattern, and the midpoint.
+TEST_P(SADx4Test, BitDepthCheckerboard) {
+  const int rs = kX4MaxStride;
+  const int off[4] = { 0, 0, 0, 0 };
+  const uint16_t *refs[4];
+  DisjointRefs(off, refs);
+  const uint16_t m = static_cast<uint16_t>(mask_);
+  FillBlock(x4_src_, width_, [&](int r, int c) {
+    return static_cast<uint16_t>((r + c) % 2 ? m : 0);
+  });
+  FillBlock(const_cast<uint16_t *>(refs[0]), rs, [&](int r, int c) {
+    return static_cast<uint16_t>((r + c) % 2 ? 0 : m);
+  });
+  FillBlock(const_cast<uint16_t *>(refs[1]), rs, [&](int r, int c) {
+    return static_cast<uint16_t>((r + c) % 2 ? m : 0);
+  });
+  FillBlock(const_cast<uint16_t *>(refs[2]), rs,
+            [&](int r, int) { return static_cast<uint16_t>(r % 2 ? m : 0); });
+  FillBlock(const_cast<uint16_t *>(refs[3]), rs,
+            [&](int, int) { return static_cast<uint16_t>(1 << (bd_ - 1)); });
+  CheckX4(x4_src_, width_, refs, rs, "checkerboard", 0);
+}
+
+// Strides: both == width (no padding), then width + 16 on one side and
+// width on the other, both ways round (swapped strides are caught).
+TEST_P(SADx4Test, StrideEdgeCases) {
+  const int off[4] = { 0, 3, 1, 2 };
+  const uint16_t *refs[4];
+  DisjointRefs(off, refs);
+  const int strides[3][2] = { { width_, width_ },
+                              { width_ + 16, width_ },
+                              { width_, width_ + 16 } };
+  for (int k = 0; k < 3; ++k) {
+    const int ss = strides[k][0], rs = strides[k][1];
+    FillRandom(x4_src_, ss);
+    for (int i = 0; i < 4; ++i) {
+      FillRandom(const_cast<uint16_t *>(refs[i]), rs);
+    }
+    CheckX4(x4_src_, ss, refs, rs, "strides", k);
+  }
+}
+
+// Random: kX4Iterations per parameter, each a fresh layout (disjoint refs at
+// random +0..3 offsets, or overlapping window refs at random dy, dx), random
+// src offset and strides (width, width + 16, or width + 0..31; src and ref
+// drawn apart), and pixels from one of four value modes (full range, near
+// max, near zero, either extreme).
+TEST_P(SADx4Test, RandomLayouts) {
+  for (int iter = 0; iter < kX4Iterations; ++iter) {
+    const int mode = iter % 4;
+    auto pixel = [&]() -> uint16_t {
+      switch (mode) {
+        case 0: return rnd_.Rand16() & mask_;
+        case 1: return static_cast<uint16_t>(mask_ - rnd_(16));
+        case 2: return static_cast<uint16_t>(rnd_(16));
+        default: return rnd_(2) ? static_cast<uint16_t>(mask_) : 0;
+      }
+    };
+    auto stride = [&]() {
+      switch (rnd_(3)) {
+        case 0: return width_;
+        case 1: return width_ + 16;
+        default: return width_ + static_cast<int>(rnd_(32));
+      }
+    };
+    const int ss = stride();
+    const int rs = stride();
+    uint16_t *src = x4_src_ + rnd_(4);
+    FillBlock(src, ss, [&](int, int) { return pixel(); });
+    const uint16_t *refs[4];
+    if (iter % 2) {
+      int off[4];
+      for (int i = 0; i < 4; ++i) off[i] = rnd_(4);
+      DisjointRefs(off, refs);
+      for (int i = 0; i < 4; ++i) {
+        FillBlock(const_cast<uint16_t *>(refs[i]), rs,
+                  [&](int, int) { return pixel(); });
+      }
+    } else {
+      const int n = WindowElems(rs);
+      for (int i = 0; i < n; ++i) x4_ref_[i] = pixel();
+      int dy[4], dx[4];
+      for (int i = 0; i < 4; ++i) {
+        dy[i] = static_cast<int>(rnd_(2 * kX4Margin + 1)) - kX4Margin;
+        dx[i] = static_cast<int>(rnd_(2 * kX4MaxDx + 1)) - kX4MaxDx;
+      }
+      WindowRefs(rs, rnd_(4), dy, dx, refs);
+    }
+    ASSERT_NO_FATAL_FAILURE(CheckX4(src, ss, refs, rs, "random", iter));
+  }
 }
 
 // SADSkipx4
@@ -2477,5 +2918,108 @@ const SadMxNx4Param x4d_avx2_tests[] = {
 };
 INSTANTIATE_TEST_SUITE_P(AVX2, SADx4Test, ::testing::ValuesIn(x4d_avx2_tests));
 #endif  // HAVE_AVX2
+
+#if HAVE_NEON
+// Every plain highbd x4d size (avm_dsp_rtcd_defs.pl, all 31), at 8, 10 and
+// 12 bits.
+const SadMxNx4Param x4d_neon_tests[] = {
+  make_tuple(256, 256, &avm_highbd_sad256x256x4d_neon, 8),
+  make_tuple(256, 128, &avm_highbd_sad256x128x4d_neon, 8),
+  make_tuple(128, 256, &avm_highbd_sad128x256x4d_neon, 8),
+  make_tuple(128, 128, &avm_highbd_sad128x128x4d_neon, 8),
+  make_tuple(128, 64, &avm_highbd_sad128x64x4d_neon, 8),
+  make_tuple(64, 128, &avm_highbd_sad64x128x4d_neon, 8),
+  make_tuple(64, 64, &avm_highbd_sad64x64x4d_neon, 8),
+  make_tuple(64, 32, &avm_highbd_sad64x32x4d_neon, 8),
+  make_tuple(32, 64, &avm_highbd_sad32x64x4d_neon, 8),
+  make_tuple(32, 32, &avm_highbd_sad32x32x4d_neon, 8),
+  make_tuple(32, 16, &avm_highbd_sad32x16x4d_neon, 8),
+  make_tuple(16, 32, &avm_highbd_sad16x32x4d_neon, 8),
+  make_tuple(16, 16, &avm_highbd_sad16x16x4d_neon, 8),
+  make_tuple(16, 8, &avm_highbd_sad16x8x4d_neon, 8),
+  make_tuple(8, 16, &avm_highbd_sad8x16x4d_neon, 8),
+  make_tuple(8, 8, &avm_highbd_sad8x8x4d_neon, 8),
+  make_tuple(8, 4, &avm_highbd_sad8x4x4d_neon, 8),
+  make_tuple(4, 8, &avm_highbd_sad4x8x4d_neon, 8),
+  make_tuple(4, 4, &avm_highbd_sad4x4x4d_neon, 8),
+  make_tuple(4, 16, &avm_highbd_sad4x16x4d_neon, 8),
+  make_tuple(16, 4, &avm_highbd_sad16x4x4d_neon, 8),
+  make_tuple(8, 32, &avm_highbd_sad8x32x4d_neon, 8),
+  make_tuple(32, 8, &avm_highbd_sad32x8x4d_neon, 8),
+  make_tuple(16, 64, &avm_highbd_sad16x64x4d_neon, 8),
+  make_tuple(64, 16, &avm_highbd_sad64x16x4d_neon, 8),
+  make_tuple(4, 32, &avm_highbd_sad4x32x4d_neon, 8),
+  make_tuple(32, 4, &avm_highbd_sad32x4x4d_neon, 8),
+  make_tuple(8, 64, &avm_highbd_sad8x64x4d_neon, 8),
+  make_tuple(64, 8, &avm_highbd_sad64x8x4d_neon, 8),
+  make_tuple(4, 64, &avm_highbd_sad4x64x4d_neon, 8),
+  make_tuple(64, 4, &avm_highbd_sad64x4x4d_neon, 8),
+
+  make_tuple(256, 256, &avm_highbd_sad256x256x4d_neon, 10),
+  make_tuple(256, 128, &avm_highbd_sad256x128x4d_neon, 10),
+  make_tuple(128, 256, &avm_highbd_sad128x256x4d_neon, 10),
+  make_tuple(128, 128, &avm_highbd_sad128x128x4d_neon, 10),
+  make_tuple(128, 64, &avm_highbd_sad128x64x4d_neon, 10),
+  make_tuple(64, 128, &avm_highbd_sad64x128x4d_neon, 10),
+  make_tuple(64, 64, &avm_highbd_sad64x64x4d_neon, 10),
+  make_tuple(64, 32, &avm_highbd_sad64x32x4d_neon, 10),
+  make_tuple(32, 64, &avm_highbd_sad32x64x4d_neon, 10),
+  make_tuple(32, 32, &avm_highbd_sad32x32x4d_neon, 10),
+  make_tuple(32, 16, &avm_highbd_sad32x16x4d_neon, 10),
+  make_tuple(16, 32, &avm_highbd_sad16x32x4d_neon, 10),
+  make_tuple(16, 16, &avm_highbd_sad16x16x4d_neon, 10),
+  make_tuple(16, 8, &avm_highbd_sad16x8x4d_neon, 10),
+  make_tuple(8, 16, &avm_highbd_sad8x16x4d_neon, 10),
+  make_tuple(8, 8, &avm_highbd_sad8x8x4d_neon, 10),
+  make_tuple(8, 4, &avm_highbd_sad8x4x4d_neon, 10),
+  make_tuple(4, 8, &avm_highbd_sad4x8x4d_neon, 10),
+  make_tuple(4, 4, &avm_highbd_sad4x4x4d_neon, 10),
+  make_tuple(4, 16, &avm_highbd_sad4x16x4d_neon, 10),
+  make_tuple(16, 4, &avm_highbd_sad16x4x4d_neon, 10),
+  make_tuple(8, 32, &avm_highbd_sad8x32x4d_neon, 10),
+  make_tuple(32, 8, &avm_highbd_sad32x8x4d_neon, 10),
+  make_tuple(16, 64, &avm_highbd_sad16x64x4d_neon, 10),
+  make_tuple(64, 16, &avm_highbd_sad64x16x4d_neon, 10),
+  make_tuple(4, 32, &avm_highbd_sad4x32x4d_neon, 10),
+  make_tuple(32, 4, &avm_highbd_sad32x4x4d_neon, 10),
+  make_tuple(8, 64, &avm_highbd_sad8x64x4d_neon, 10),
+  make_tuple(64, 8, &avm_highbd_sad64x8x4d_neon, 10),
+  make_tuple(4, 64, &avm_highbd_sad4x64x4d_neon, 10),
+  make_tuple(64, 4, &avm_highbd_sad64x4x4d_neon, 10),
+
+  make_tuple(256, 256, &avm_highbd_sad256x256x4d_neon, 12),
+  make_tuple(256, 128, &avm_highbd_sad256x128x4d_neon, 12),
+  make_tuple(128, 256, &avm_highbd_sad128x256x4d_neon, 12),
+  make_tuple(128, 128, &avm_highbd_sad128x128x4d_neon, 12),
+  make_tuple(128, 64, &avm_highbd_sad128x64x4d_neon, 12),
+  make_tuple(64, 128, &avm_highbd_sad64x128x4d_neon, 12),
+  make_tuple(64, 64, &avm_highbd_sad64x64x4d_neon, 12),
+  make_tuple(64, 32, &avm_highbd_sad64x32x4d_neon, 12),
+  make_tuple(32, 64, &avm_highbd_sad32x64x4d_neon, 12),
+  make_tuple(32, 32, &avm_highbd_sad32x32x4d_neon, 12),
+  make_tuple(32, 16, &avm_highbd_sad32x16x4d_neon, 12),
+  make_tuple(16, 32, &avm_highbd_sad16x32x4d_neon, 12),
+  make_tuple(16, 16, &avm_highbd_sad16x16x4d_neon, 12),
+  make_tuple(16, 8, &avm_highbd_sad16x8x4d_neon, 12),
+  make_tuple(8, 16, &avm_highbd_sad8x16x4d_neon, 12),
+  make_tuple(8, 8, &avm_highbd_sad8x8x4d_neon, 12),
+  make_tuple(8, 4, &avm_highbd_sad8x4x4d_neon, 12),
+  make_tuple(4, 8, &avm_highbd_sad4x8x4d_neon, 12),
+  make_tuple(4, 4, &avm_highbd_sad4x4x4d_neon, 12),
+  make_tuple(4, 16, &avm_highbd_sad4x16x4d_neon, 12),
+  make_tuple(16, 4, &avm_highbd_sad16x4x4d_neon, 12),
+  make_tuple(8, 32, &avm_highbd_sad8x32x4d_neon, 12),
+  make_tuple(32, 8, &avm_highbd_sad32x8x4d_neon, 12),
+  make_tuple(16, 64, &avm_highbd_sad16x64x4d_neon, 12),
+  make_tuple(64, 16, &avm_highbd_sad64x16x4d_neon, 12),
+  make_tuple(4, 32, &avm_highbd_sad4x32x4d_neon, 12),
+  make_tuple(32, 4, &avm_highbd_sad32x4x4d_neon, 12),
+  make_tuple(8, 64, &avm_highbd_sad8x64x4d_neon, 12),
+  make_tuple(64, 8, &avm_highbd_sad64x8x4d_neon, 12),
+  make_tuple(4, 64, &avm_highbd_sad4x64x4d_neon, 12),
+  make_tuple(64, 4, &avm_highbd_sad64x4x4d_neon, 12),
+};
+INSTANTIATE_TEST_SUITE_P(NEON, SADx4Test, ::testing::ValuesIn(x4d_neon_tests));
+#endif  // HAVE_NEON
 
 }  // namespace
