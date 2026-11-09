@@ -83,6 +83,13 @@ typedef struct TipFirst {
   int64_t normal_sse[TIP_FIRST_LEVELS];
   /*! Per pyramid level: qindex of that frame. */
   int normal_qindex[TIP_FIRST_LEVELS];
+  /*! Pyramid level of the frame being encoded, and whether it ended as TIP
+   * direct output. */
+  int cur_level;
+  int cur_tip;
+  /*! The same for the frame encoded before it. */
+  int prev_level;
+  int prev_tip;
   /*! The current frame skips its normal encode (and is coded as TIP direct
    * output). */
   int skip_normal_encode;
