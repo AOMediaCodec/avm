@@ -58,48 +58,16 @@ int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm) {
 /* Pad the border of a frame */
 void extend_ccso_border(const YV12_BUFFER_CONFIG *frame, uint16_t *buf,
                         const int d) {
-  int s = frame->y_width + (CCSO_PADDING_SIZE << 1);
-  int h = frame->y_height;
-  int w = frame->y_width;
-  uint16_t *p = &buf[d * s + d];
-  for (int y = 0; y < h; y++) {
-    for (int x = 0; x < d; x++) {
-      *(p - d + x) = p[0];
-      p[w + x] = p[w - 1];
-    }
-    p += s;
-  }
-  p -= (s + d);
-  for (int y = 0; y < d; y++) {
-    memcpy(p + (y + 1) * s, p, sizeof(uint16_t) * (w + (d << 1)));
-  }
-  p -= ((h - 1) * s);
-  for (int y = 0; y < d; y++) {
-    memcpy(p - (y + 1) * s, p, sizeof(uint16_t) * (w + (d << 1)));
-  }
+  const int s = frame->y_width + (CCSO_PADDING_SIZE << 1);
+  avm_extend_plane_high(&buf[d * s + d], s, frame->y_width, frame->y_height, d,
+                        d, d, d);
 }
 
 void extend_ccso_tile_border(const int tile_height, const int tile_width,
                              const int tile_stride, uint16_t *buf,
                              const int d) {
-  uint16_t *p = &buf[d * tile_stride + d];
-  for (int y = 0; y < tile_height; y++) {
-    for (int x = 0; x < d; x++) {
-      *(p - d + x) = p[0];
-      p[tile_width + x] = p[tile_width - 1];
-    }
-    p += tile_stride;
-  }
-  p -= (tile_stride + d);
-  for (int y = 0; y < d; y++) {
-    memcpy(p + (y + 1) * tile_stride, p,
-           sizeof(uint16_t) * (tile_width + (d << 1)));
-  }
-  p -= ((tile_height - 1) * tile_stride);
-  for (int y = 0; y < d; y++) {
-    memcpy(p - (y + 1) * tile_stride, p,
-           sizeof(uint16_t) * (tile_width + (d << 1)));
-  }
+  avm_extend_plane_high(&buf[d * tile_stride + d], tile_stride, tile_width,
+                        tile_height, d, d, d, d);
 }
 
 /* Derive the quantized index, later it can be used for retriving offset values

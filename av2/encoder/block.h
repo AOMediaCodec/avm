@@ -1353,6 +1353,12 @@ typedef struct macroblock {
   uint16_t *cctx_recon;
   //! Scratch for the one-sided OPFL MV refinement: 6 * MAX_SB_SQUARE.
   int16_t *omvs_scratch;
+  //! Scratch eobs used by compute_residual_stats().
+  uint16_t *resi_stat_eobs;
+  //! Scratch bobs used by compute_residual_stats().
+  uint16_t *resi_stat_bobs;
+  //! Scratch entropy-ctx used by compute_residual_stats().
+  uint8_t *resi_stat_txb_entropy_ctx;
   /**@}*/
 
   /*****************************************************************************

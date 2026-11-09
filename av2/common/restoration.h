@@ -485,9 +485,6 @@ void av2_alloc_restoration_struct(struct AV2Common *cm, RestorationInfo *rsi,
                                   int is_uv);
 void av2_free_restoration_struct(RestorationInfo *rst_info);
 
-void av2_extend_frame(uint16_t *data, int width, int height, int stride,
-                      int border_horz, int border_vert);
-
 /*!\endcond */
 
 /*!\brief Function for applying loop restoration filter to a single unit.

@@ -41,21 +41,15 @@ void compute_residual_stats(AV2_COMP *const cpi, ThreadData *td, MACROBLOCK *x,
   const int dst_stride = xd->plane[0].dst.stride;
   out->var = cpi->fn_ptr[bsize].vf(src, src_stride, dst, dst_stride, &out->sse);
 
-  const int num_blk = mi_size_wide[bsize] * mi_size_high[bsize];
-  struct avm_internal_error_info error;
-  AVM_CHECK_MEM_ERROR(&error, p->eobs,
-                      avm_memalign(32, num_blk * sizeof(p->eobs[0])));
+  p->eobs = x->resi_stat_eobs;
   p->coeff = td->shared_coeff_buf.coeff_buf[plane];
   p->qcoeff = td->shared_coeff_buf.qcoeff_buf[plane];
   p->dqcoeff = td->shared_coeff_buf.dqcoeff_buf[plane];
   tran_low_t *const dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
   tran_low_t *const qcoeff = p->qcoeff + BLOCK_OFFSET(block);
   tran_low_t *const coeff = p->coeff + BLOCK_OFFSET(block);
-  AVM_CHECK_MEM_ERROR(&error, p->bobs,
-                      avm_memalign(32, num_blk * sizeof(p->bobs[0])));
-  AVM_CHECK_MEM_ERROR(
-      &error, p->txb_entropy_ctx,
-      avm_memalign(32, num_blk * sizeof(p->txb_entropy_ctx[0])));
+  p->bobs = x->resi_stat_bobs;
+  p->txb_entropy_ctx = x->resi_stat_txb_entropy_ctx;
 
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
@@ -102,15 +96,11 @@ void compute_residual_stats(AV2_COMP *const cpi, ThreadData *td, MACROBLOCK *x,
       ((double)sse) / (block_size_high[bsize] * block_size_wide[bsize]);
   out->psnr = (float)(sse == 0 ? 70 : AVMMIN(70, 20 * log10(255 / sqrt(mse))));
 
-  // TODO: figure out the way to do it w/o allocations
   p->coeff = NULL;
   p->qcoeff = NULL;
   p->dqcoeff = NULL;
-  avm_free(p->eobs);
   p->eobs = NULL;
-  avm_free(p->bobs);
   p->bobs = NULL;
-  avm_free(p->txb_entropy_ctx);
   p->txb_entropy_ctx = NULL;
   xd->tree_type = old_tree_type;
 }

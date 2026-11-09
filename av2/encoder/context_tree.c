@@ -161,39 +161,68 @@ PICK_MODE_CONTEXT *av2_alloc_pmc(const AV2_COMMON *cm, TREE_TYPE tree_type,
   ctx->num_4x4_blk = num_blk;
   ctx->num_4x4_blk_chroma = num_pix_bize_base / 16;
 
-  AVM_CHECK_MEM_ERROR(&error, ctx->tx_type_map,
-                      avm_calloc(num_blk, sizeof(*ctx->tx_type_map)));
-  AVM_CHECK_MEM_ERROR(
-      &error, ctx->cctx_type_map,
-      avm_calloc(ctx->num_4x4_blk_chroma, sizeof(*ctx->cctx_type_map)));
+#define ALIGN_16(x) (((x) + 15) & ~15)
+#define ALIGN_32(x) (((x) + 31) & ~31)
+  size_t total_size = 0;
+  for (int i = 0; i < num_planes; ++i) {
+    const int num_blk_plane =
+        (i == 0) ? ctx->num_4x4_blk : ctx->num_4x4_blk_chroma;
+    total_size += ALIGN_32(num_blk_plane * sizeof(*ctx->blk_skip[i])) +
+                  ALIGN_32(num_blk_plane * sizeof(*ctx->eobs[i])) +
+                  ALIGN_32(num_blk_plane * sizeof(*ctx->bobs[i])) +
+                  ALIGN_32(num_blk_plane * sizeof(*ctx->txb_entropy_ctx[i]));
+  }
+  const int alloc_palette = (num_pix <= MAX_PALETTE_SQUARE);
+  if (alloc_palette) {
+    for (int i = 0; i < 2; ++i) {
+      const int color_map_size = (i == 0) ? num_pix : num_pix_bize_base;
+      total_size += ALIGN_32(color_map_size * sizeof(*ctx->color_index_map[i]));
+    }
+  }
+  total_size += ALIGN_16(ctx->num_4x4_blk * sizeof(*ctx->tx_type_map));
+  total_size += ALIGN_16(ctx->num_4x4_blk_chroma * sizeof(*ctx->cctx_type_map));
 
+  uint8_t *chunk = NULL;
+  AVM_CHECK_MEM_ERROR(&error, chunk, avm_memalign(32, total_size));
+  uint8_t *offset_ptr = chunk;
   for (int i = 0; i < num_planes; ++i) {
     ctx->coeff[i] = shared_bufs->coeff_buf[i];
     ctx->qcoeff[i] = shared_bufs->qcoeff_buf[i];
     ctx->dqcoeff[i] = shared_bufs->dqcoeff_buf[i];
     const int num_blk_plane =
         (i == 0) ? ctx->num_4x4_blk : ctx->num_4x4_blk_chroma;
-    AVM_CHECK_MEM_ERROR(&error, ctx->blk_skip[i],
-                        avm_calloc(num_blk_plane, sizeof(*ctx->blk_skip[i])));
-    AVM_CHECK_MEM_ERROR(
-        &error, ctx->eobs[i],
-        avm_memalign(32, num_blk_plane * sizeof(*ctx->eobs[i])));
-    AVM_CHECK_MEM_ERROR(
-        &error, ctx->bobs[i],
-        avm_memalign(32, num_blk_plane * sizeof(*ctx->bobs[i])));
-    AVM_CHECK_MEM_ERROR(
-        &error, ctx->txb_entropy_ctx[i],
-        avm_memalign(32, num_blk_plane * sizeof(*ctx->txb_entropy_ctx[i])));
+    const size_t blk_skip_bytes = num_blk_plane * sizeof(*ctx->blk_skip[i]);
+    ctx->blk_skip[i] = (void *)offset_ptr;
+    memset(ctx->blk_skip[i], 0, blk_skip_bytes);
+    offset_ptr += ALIGN_32(blk_skip_bytes);
+
+    ctx->eobs[i] = (void *)offset_ptr;
+    offset_ptr += ALIGN_32(num_blk_plane * sizeof(*ctx->eobs[i]));
+
+    ctx->bobs[i] = (void *)offset_ptr;
+    offset_ptr += ALIGN_32(num_blk_plane * sizeof(*ctx->bobs[i]));
+
+    ctx->txb_entropy_ctx[i] = (void *)offset_ptr;
+    offset_ptr += ALIGN_32(num_blk_plane * sizeof(*ctx->txb_entropy_ctx[i]));
   }
 
-  if (num_pix <= MAX_PALETTE_SQUARE) {
+  if (alloc_palette) {
     for (int i = 0; i < 2; ++i) {
       const int color_map_size = (i == 0) ? num_pix : num_pix_bize_base;
-      AVM_CHECK_MEM_ERROR(
-          &error, ctx->color_index_map[i],
-          avm_memalign(32, color_map_size * sizeof(*ctx->color_index_map[i])));
+      ctx->color_index_map[i] = (void *)offset_ptr;
+      offset_ptr += ALIGN_32(color_map_size * sizeof(*ctx->color_index_map[i]));
     }
   }
+
+  const size_t tx_map_bytes = ctx->num_4x4_blk * sizeof(*ctx->tx_type_map);
+  ctx->tx_type_map = (void *)offset_ptr;
+  memset(ctx->tx_type_map, 0, tx_map_bytes);
+  offset_ptr += ALIGN_16(tx_map_bytes);
+  ctx->cctx_type_map = offset_ptr;
+  memset(ctx->cctx_type_map, 0,
+         ctx->num_4x4_blk_chroma * sizeof(*ctx->cctx_type_map));
+#undef ALIGN_16
+#undef ALIGN_32
   av2_invalid_rd_stats(&ctx->rd_stats);
   return ctx;
 }
@@ -214,33 +243,13 @@ void av2_reset_pmc(PICK_MODE_CONTEXT *ctx) {
 }
 
 void av2_free_pmc(PICK_MODE_CONTEXT *ctx, int num_planes) {
+  (void)num_planes;
   if (ctx == NULL) return;
 
-  for (int i = 0; i < MAX_MB_PLANE; ++i) {
-    avm_free(ctx->blk_skip[i]);
-    ctx->blk_skip[i] = NULL;
-  }
-  avm_free(ctx->tx_type_map);
-  ctx->tx_type_map = NULL;
-  avm_free(ctx->cctx_type_map);
-  ctx->cctx_type_map = NULL;
-  for (int i = 0; i < num_planes; ++i) {
-    ctx->coeff[i] = NULL;
-    ctx->qcoeff[i] = NULL;
-    ctx->dqcoeff[i] = NULL;
-    avm_free(ctx->eobs[i]);
-    ctx->eobs[i] = NULL;
-    avm_free(ctx->bobs[i]);
-    ctx->bobs[i] = NULL;
-    avm_free(ctx->txb_entropy_ctx[i]);
-    ctx->txb_entropy_ctx[i] = NULL;
-  }
-
-  for (int i = 0; i < 2; ++i) {
-    avm_free(ctx->color_index_map[i]);
-    ctx->color_index_map[i] = NULL;
-  }
-
+  // av2_alloc_pmc() allocates for all fields as one collective slab. The base
+  // address of the slab is assigned to blk_skip[0]. Freeing this should free
+  // memory of all fields.
+  avm_free(ctx->blk_skip[0]);
   avm_free(ctx);
 }
 

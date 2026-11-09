@@ -177,6 +177,21 @@ int avm_realloc_frame_buffer(YV12_BUFFER_CONFIG *ybf, int width, int height,
 
 int avm_free_frame_buffer(YV12_BUFFER_CONFIG *ybf);
 
+/*!\brief Pad a plane by replicating its edge samples.
+ *
+ * \param[in,out] src             Top-left sample of the plane
+ * \param[in]     src_stride      Stride of the plane
+ * \param[in]     width           Width of the plane
+ * \param[in]     height          Height of the plane
+ * \param[in]     extend_top      Rows to pad above the plane
+ * \param[in]     extend_left     Columns to pad left of the plane
+ * \param[in]     extend_bottom   Rows to pad below the plane
+ * \param[in]     extend_right    Columns to pad right of the plane
+ */
+void avm_extend_plane_high(uint16_t *const src, int src_stride, int width,
+                           int height, int extend_top, int extend_left,
+                           int extend_bottom, int extend_right);
+
 /*!\endcond */
 /*!\brief Removes metadata from YUV_BUFFER_CONFIG struct.
  *

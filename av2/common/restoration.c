@@ -389,35 +389,10 @@ void set_restoration_unit_size(struct AV2Common *cm, int width, int height,
   rst[2].restoration_unit_size = rst[2].min_restoration_unit_size;
 }
 
-static void extend_frame_highbd(uint16_t *data, int width, int height,
-                                int stride, int border_horz, int border_vert) {
-  uint16_t *data_p;
-  int i, j;
-  for (i = 0; i < height; ++i) {
-    data_p = data + i * stride;
-    for (j = -border_horz; j < 0; ++j) data_p[j] = data_p[0];
-    for (j = width; j < width + border_horz; ++j) data_p[j] = data_p[width - 1];
-  }
-  data_p = data - border_horz;
-  for (i = -border_vert; i < 0; ++i) {
-    memcpy(data_p + i * stride, data_p,
-           (width + 2 * border_horz) * sizeof(uint16_t));
-  }
-  for (i = height; i < height + border_vert; ++i) {
-    memcpy(data_p + i * stride, data_p + (height - 1) * stride,
-           (width + 2 * border_horz) * sizeof(uint16_t));
-  }
-}
-
 static void copy_tile_highbd(int width, int height, const uint16_t *src,
                              int src_stride, uint16_t *dst, int dst_stride) {
   for (int i = 0; i < height; ++i)
     memcpy(dst + i * dst_stride, src + i * src_stride, width * sizeof(*dst));
-}
-
-void av2_extend_frame(uint16_t *data, int width, int height, int stride,
-                      int border_horz, int border_vert) {
-  extend_frame_highbd(data, width, height, stride, border_horz, border_vert);
 }
 
 void copy_tile(int width, int height, const uint16_t *src, int src_stride,
@@ -432,8 +407,8 @@ void copy_tile(int width, int height, const uint16_t *src, int src_stride,
 // rules:
 //
 // * At a frame boundary, we copy the outermost row of CDEF pixels three times.
-//   This extension is done by a call to av2_extend_frame() at the start of the
-//   loop restoration process, so the value of copy_above/copy_below doesn't
+//   This extension is done by a call to avm_extend_plane_high() at the start of
+//   the loop restoration process, so the value of copy_above/copy_below doesn't
 //   strictly matter. However, by setting *copy_above = *copy_below = 1 whenever
 //   loop filtering across tiles is disabled, we can allow
 //   {setup,restore}_processing_stripe_boundary to assume that the top/bottom
@@ -1738,8 +1713,9 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV2Common *cm,
   }
   // extend border by replication
   int internal_luma_height = resized_luma_height - 2 * WIENERNS_UV_BRD;
-  av2_extend_frame(*luma_hbd, width_uv, internal_luma_height,
-                   resized_luma_stride, WIENERNS_UV_BRD, WIENERNS_UV_BRD);
+  avm_extend_plane_high(*luma_hbd, resized_luma_stride, width_uv,
+                        internal_luma_height, WIENERNS_UV_BRD, WIENERNS_UV_BRD,
+                        WIENERNS_UV_BRD, WIENERNS_UV_BRD);
 
   return ext_luma;
 }
@@ -1758,7 +1734,8 @@ uint16_t *wienerns_copy_luma_highbd(struct AV2Common *cm, const uint16_t *dgd,
                         cm->seq_params.cfl_ds_filter_index, height_uv, width_uv,
                         cm->seq_params.subsampling_x,
                         cm->seq_params.subsampling_y);
-  av2_extend_frame(*luma_hbd, width_uv, height_uv, out_stride, border, border);
+  avm_extend_plane_high(*luma_hbd, out_stride, width_uv, height_uv, border,
+                        border, border, border);
 
   return ext_luma;
 }
@@ -2048,9 +2025,10 @@ void av2_loop_restoration_filter_frame_init(AV2LrStruct *lr_ctxt,
     const int plane_height = frame->heights[is_uv];
     FilterFrameCtxt *lr_plane_ctxt = &lr_ctxt->ctxt[plane];
 
-    av2_extend_frame(frame->buffers[plane], plane_width, plane_height,
-                     frame->strides[is_uv], RESTORATION_BORDER_HORZ,
-                     RESTORATION_BORDER_VERT);
+    avm_extend_plane_high(frame->buffers[plane], frame->strides[is_uv],
+                          plane_width, plane_height, RESTORATION_BORDER_VERT,
+                          RESTORATION_BORDER_HORZ, RESTORATION_BORDER_VERT,
+                          RESTORATION_BORDER_HORZ);
 
     lr_plane_ctxt->rsi = rsi;
     lr_plane_ctxt->ss_x = is_uv && seq_params->subsampling_x;

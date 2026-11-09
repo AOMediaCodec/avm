@@ -196,9 +196,9 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
     }
     gi.inp_ptr =
         gi.inp_pad_ptr + top_buf * input_stride + GDF_TEST_EXTRA_HOR_BORDER;
-    gdf_extend_frame_highbd(gi.inp_ptr, rec_width, rec_height, input_stride,
-                            GDF_TEST_EXTRA_HOR_BORDER,
-                            GDF_TEST_EXTRA_VER_BORDER);
+    avm_extend_plane_high(gi.inp_ptr, input_stride, rec_width, rec_height,
+                          GDF_TEST_EXTRA_VER_BORDER, GDF_TEST_EXTRA_HOR_BORDER,
+                          GDF_TEST_EXTRA_VER_BORDER, GDF_TEST_EXTRA_HOR_BORDER);
 
     for (int y_pos = -GDF_TEST_STRIPE_OFF; y_pos < height;
          y_pos += gi.gdf_block_size) {

@@ -1761,6 +1761,10 @@ typedef struct ThreadData {
   uint16_t *cctx_recon;
   // Scratch for the one-sided OPFL MV refinement.
   int16_t *omvs_scratch;
+  // Scratch eobs/bobs/entropy-ctx arrays used by compute_residual_stats().
+  uint16_t *resi_stat_eobs;
+  uint16_t *resi_stat_bobs;
+  uint8_t *resi_stat_txb_entropy_ctx;
   int intrabc_used;
   int deltaq_used;
   FRAME_CONTEXT *tctx;
@@ -2460,6 +2464,29 @@ static const int enc_txsize_to_bsize[TX_SIZES_ALL] = {
 };
 
 /*!\endcond */
+
+/*!
+ * \brief Scratch buffers of the GDF rate-distortion search.
+ */
+typedef struct {
+  /*! Squared error of the block before filtering */
+  int64_t *rec_pic_error;
+  /*! Squared error of the block after filtering, per scale and QP candidate */
+  int64_t *flg_pic_error[GDF_RDO_SCALE_NUM][GDF_RDO_QP_NUM];
+  /*! Single allocation that all flg_pic_error arrays point into */
+  int64_t *flg_pic_error_buf;
+  /*! 1 if the block lies in an inactive area and cannot use GDF */
+  int *bru_skip_blk;
+  /*! Blocks in the order their on/off flags are coded */
+  int *block_ids;
+  /*! On/off flags of the candidate being evaluated */
+  int *block_flags;
+  /*! Number of entries allocated for each array */
+  int alloc_block_num;
+} GdfRdoBuffers;
+
+/*!\brief Frees the GDF rate-distortion search buffers */
+void av2_gdf_rdo_buffers_free(GdfRdoBuffers *bufs);
 
 /*!
  * \brief Top level encoder structure.
@@ -3254,6 +3281,11 @@ typedef struct AV2_COMP {
    * freed at encoder close).
    */
   CcsoCtx ccso_ctx;
+  /*!
+   * GDF rate-distortion search buffers (allocated on first use, freed at
+   * encoder close).
+   */
+  GdfRdoBuffers gdf_rdo_bufs;
   /*!
    * distortion between source and ccso input at sb level
    */

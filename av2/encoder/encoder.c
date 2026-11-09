@@ -1396,6 +1396,22 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
         cm, x->omvs_scratch,
         avm_memalign(32, 6 * MAX_SB_SQUARE * sizeof(*x->omvs_scratch)));
   }
+  if (x->resi_stat_eobs == NULL) {
+    CHECK_MEM_ERROR(
+        cm, x->resi_stat_eobs,
+        avm_memalign(32, MAX_MIB_SQUARE * sizeof(*x->resi_stat_eobs)));
+  }
+  if (x->resi_stat_bobs == NULL) {
+    CHECK_MEM_ERROR(
+        cm, x->resi_stat_bobs,
+        avm_memalign(32, MAX_MIB_SQUARE * sizeof(*x->resi_stat_bobs)));
+  }
+  if (x->resi_stat_txb_entropy_ctx == NULL) {
+    CHECK_MEM_ERROR(
+        cm, x->resi_stat_txb_entropy_ctx,
+        avm_memalign(32,
+                     MAX_MIB_SQUARE * sizeof(*x->resi_stat_txb_entropy_ctx)));
+  }
 
   av2_reset_segment_features(cm);
 
@@ -1885,6 +1901,12 @@ static AVM_INLINE void free_thread_data(AV2_COMP *cpi) {
     thread_data->td->cctx_recon = NULL;
     avm_free(thread_data->td->omvs_scratch);
     thread_data->td->omvs_scratch = NULL;
+    avm_free(thread_data->td->resi_stat_eobs);
+    thread_data->td->resi_stat_eobs = NULL;
+    avm_free(thread_data->td->resi_stat_bobs);
+    thread_data->td->resi_stat_bobs = NULL;
+    avm_free(thread_data->td->resi_stat_txb_entropy_ctx);
+    thread_data->td->resi_stat_txb_entropy_ctx = NULL;
     avm_free(thread_data->td->mb.inter_modes_info);
     for (int x = 0; x < 2; x++) {
       for (int y = 0; y < 2; y++) {
@@ -3088,6 +3110,48 @@ static void gdf_run_jobs(AV2_COMP *cpi, GdfStripeBuf *bufs, int num_bufs,
   if (!ok) avm_internal_error(&cm->error, AVM_CODEC_ERROR, "GDF job failed");
 }
 
+static void gdf_alloc_rdo_buffers(AV2_COMMON *cm, GdfRdoBuffers *bufs,
+                                  int block_num) {
+  const size_t flg_pic_error_count =
+      (size_t)GDF_RDO_SCALE_NUM * GDF_RDO_QP_NUM * block_num;
+  if (block_num > bufs->alloc_block_num) {
+    av2_gdf_rdo_buffers_free(bufs);
+    CHECK_MEM_ERROR(cm, bufs->rec_pic_error,
+                    avm_malloc(block_num * sizeof(*bufs->rec_pic_error)));
+    CHECK_MEM_ERROR(
+        cm, bufs->flg_pic_error_buf,
+        avm_malloc(flg_pic_error_count * sizeof(*bufs->flg_pic_error_buf)));
+    CHECK_MEM_ERROR(cm, bufs->bru_skip_blk,
+                    avm_malloc(block_num * sizeof(*bufs->bru_skip_blk)));
+    CHECK_MEM_ERROR(cm, bufs->block_ids,
+                    avm_malloc(block_num * sizeof(*bufs->block_ids)));
+    CHECK_MEM_ERROR(cm, bufs->block_flags,
+                    avm_malloc(block_num * sizeof(*bufs->block_flags)));
+    bufs->alloc_block_num = block_num;
+  }
+  av2_zero_array(bufs->rec_pic_error, block_num);
+  av2_zero_array(bufs->flg_pic_error_buf, flg_pic_error_count);
+  int64_t *flg_pic_error = bufs->flg_pic_error_buf;
+  for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
+    for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM;
+         qp_idx++, flg_pic_error += block_num) {
+      bufs->flg_pic_error[scale_idx][qp_idx] = flg_pic_error;
+    }
+  }
+  av2_zero_array(bufs->bru_skip_blk, block_num);
+  av2_zero_array(bufs->block_ids, block_num);
+  av2_zero_array(bufs->block_flags, block_num);
+}
+
+void av2_gdf_rdo_buffers_free(GdfRdoBuffers *bufs) {
+  avm_free(bufs->rec_pic_error);
+  avm_free(bufs->flg_pic_error_buf);
+  avm_free(bufs->bru_skip_blk);
+  avm_free(bufs->block_ids);
+  avm_free(bufs->block_flags);
+  memset(bufs, 0, sizeof(*bufs));
+}
+
 /*!\brief Function to perform rate-distortion optimization for GDF
  */
 static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
@@ -3097,31 +3161,19 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
   const int bit_depth = cm->seq_params.bit_depth;
   const int qp_idx_start = gdf_search_qp_idx_start(cpi);
 
-  // init to zero
-  int *bru_skip_blk;
-  CHECK_MEM_ERROR(cm, bru_skip_blk,
-                  (int *)avm_calloc(cm->gdf_info.gdf_block_num, sizeof(int)));
-
+  GdfRdoBuffers *const rdo_bufs = &cpi->gdf_rdo_bufs;
+  gdf_alloc_rdo_buffers(cm, rdo_bufs, cm->gdf_info.gdf_block_num);
+  int *const bru_skip_blk = rdo_bufs->bru_skip_blk;
+  int64_t *const rec_pic_error = rdo_bufs->rec_pic_error;
   GdfSearchErrors errors;
-  int64_t *rec_pic_error;
-  int64_t *(*flg_pic_error)[GDF_RDO_QP_NUM] = errors.flg_pic_error;
-  CHECK_MEM_ERROR(
-      cm, rec_pic_error,
-      (int64_t *)avm_calloc(cm->gdf_info.gdf_block_num, sizeof(int64_t)));
   errors.rec_pic_error = rec_pic_error;
-  for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
-    for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
-      CHECK_MEM_ERROR(
-          cm, flg_pic_error[scale_idx][qp_idx],
-          (int64_t *)avm_calloc(cm->gdf_info.gdf_block_num, sizeof(int64_t)));
-    }
-  }
+  memcpy(errors.flg_pic_error, rdo_bufs->flg_pic_error,
+         sizeof(errors.flg_pic_error));
+  int64_t *(*flg_pic_error)[GDF_RDO_QP_NUM] = errors.flg_pic_error;
   const int64_t rdmult =
       av2_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
 
-  int *block_ids;
-  CHECK_MEM_ERROR(cm, block_ids,
-                  (int *)avm_calloc(cm->gdf_info.gdf_block_num, sizeof(int)));
+  int *const block_ids = rdo_bufs->block_ids;
   int ctx_idx = 0, sb_size = cm->mib_size << MI_SIZE_LOG2;
   for (int y_pos = 0; y_pos < rec_height; y_pos += sb_size) {
     for (int x_pos = 0; x_pos < rec_width; x_pos += sb_size) {
@@ -3169,9 +3221,7 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
       rdmult, (double)slice_rate / 16, slice_error, bit_depth);
   cm->gdf_info.gdf_mode = 0;
 
-  int *block_flags;
-  CHECK_MEM_ERROR(cm, block_flags,
-                  (int *)avm_calloc(cm->gdf_info.gdf_block_num, sizeof(int)));
+  int *const block_flags = rdo_bufs->block_flags;
   int gdf_enable_max_plus_1 = (cm->gdf_info.gdf_block_num <= 1) ? 2 : 3;
   int gdf_block_enable_bit = 1;
   avm_cdf_prob gdf_cdf[CDF_SIZE(2)];
@@ -3235,15 +3285,6 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
       }
     }
   }
-  avm_free(rec_pic_error);
-  for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
-    for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
-      avm_free(flg_pic_error[scale_idx][qp_idx]);
-    }
-  }
-  avm_free(block_flags);
-  avm_free(bru_skip_blk);
-  avm_free(block_ids);
 }
 
 // Returns at least num_bufs GDF scratch buffers kept in cpi, made again only
@@ -3514,7 +3555,6 @@ static void cdef_restoration_frame(AV2_COMP *cpi, AV2_COMMON *cm,
 #if CONFIG_MISMATCH_DEBUG
     mismatch_record_frame(&cm->cur_frame->buf, num_planes, 4);
 #endif
-    gdf_free_guided_frame(cm);
   }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING

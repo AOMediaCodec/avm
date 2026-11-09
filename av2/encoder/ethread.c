@@ -683,6 +683,19 @@ static AVM_INLINE void create_enc_workers(AV2_COMP *cpi, int num_workers) {
               32, 6 * MAX_SB_SQUARE * sizeof(*thread_data->td->omvs_scratch)));
 
       CHECK_MEM_ERROR(
+          cm, thread_data->td->resi_stat_eobs,
+          avm_memalign(
+              32, MAX_MIB_SQUARE * sizeof(*thread_data->td->resi_stat_eobs)));
+      CHECK_MEM_ERROR(
+          cm, thread_data->td->resi_stat_bobs,
+          avm_memalign(
+              32, MAX_MIB_SQUARE * sizeof(*thread_data->td->resi_stat_bobs)));
+      CHECK_MEM_ERROR(
+          cm, thread_data->td->resi_stat_txb_entropy_ctx,
+          avm_memalign(
+              32, MAX_MIB_SQUARE *
+                      sizeof(*thread_data->td->resi_stat_txb_entropy_ctx)));
+      CHECK_MEM_ERROR(
           cm, thread_data->td->mbmi_ext,
           avm_calloc(sb_mi_size, sizeof(*thread_data->td->mbmi_ext)));
 
@@ -957,6 +970,10 @@ static AVM_INLINE void prepare_enc_workers(AV2_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb.cctx_scratch = thread_data->td->cctx_scratch;
       thread_data->td->mb.cctx_recon = thread_data->td->cctx_recon;
       thread_data->td->mb.omvs_scratch = thread_data->td->omvs_scratch;
+      thread_data->td->mb.resi_stat_eobs = thread_data->td->resi_stat_eobs;
+      thread_data->td->mb.resi_stat_bobs = thread_data->td->resi_stat_bobs;
+      thread_data->td->mb.resi_stat_txb_entropy_ctx =
+          thread_data->td->resi_stat_txb_entropy_ctx;
       thread_data->td->mb.e_mbd.tmp_conv_dst = thread_data->td->mb.tmp_conv_dst;
       thread_data->td->mb.e_mbd.tmp_upsample_pred =
           thread_data->td->mb.upsample_pred;
@@ -1005,6 +1022,10 @@ static AVM_INLINE void fp_prepare_enc_workers(AV2_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb.cctx_scratch = thread_data->td->cctx_scratch;
       thread_data->td->mb.cctx_recon = thread_data->td->cctx_recon;
       thread_data->td->mb.omvs_scratch = thread_data->td->omvs_scratch;
+      thread_data->td->mb.resi_stat_eobs = thread_data->td->resi_stat_eobs;
+      thread_data->td->mb.resi_stat_bobs = thread_data->td->resi_stat_bobs;
+      thread_data->td->mb.resi_stat_txb_entropy_ctx =
+          thread_data->td->resi_stat_txb_entropy_ctx;
       thread_data->td->mb.e_mbd.tmp_upsample_pred =
           thread_data->td->mb.upsample_pred;
       thread_data->td->mb.joint_mvd_pred.buf =
@@ -1451,6 +1472,10 @@ static AVM_INLINE void prepare_tpl_workers(AV2_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb.cctx_scratch = thread_data->td->cctx_scratch;
       thread_data->td->mb.cctx_recon = thread_data->td->cctx_recon;
       thread_data->td->mb.omvs_scratch = thread_data->td->omvs_scratch;
+      thread_data->td->mb.resi_stat_eobs = thread_data->td->resi_stat_eobs;
+      thread_data->td->mb.resi_stat_bobs = thread_data->td->resi_stat_bobs;
+      thread_data->td->mb.resi_stat_txb_entropy_ctx =
+          thread_data->td->resi_stat_txb_entropy_ctx;
       thread_data->td->mb.e_mbd.tmp_upsample_pred =
           thread_data->td->mb.upsample_pred;
       thread_data->td->mb.joint_mvd_pred.buf =

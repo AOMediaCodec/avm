@@ -47,11 +47,6 @@ void free_gdf_buffers(GdfInfo *gi);
  */
 void gdf_print_info(AV2_COMMON *cm, char *info, int poc);
 
-/*!\brief Function to extend - pad - the copy guided frame of GDF
- */
-void gdf_extend_frame_highbd(uint16_t *data, int width, int height, int stride,
-                             int border_horz, int border_vert);
-
 /*!\brief Scratch buffers of one GDF thread, including a private copy of the
  * guided frame rows around one stripe.
  */

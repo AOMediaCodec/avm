@@ -9890,7 +9890,6 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
                              cm->current_frame.display_order_hint, num_planes,
                              4);
 #endif
-        gdf_free_guided_frame(cm);
       }
 
     } else {
