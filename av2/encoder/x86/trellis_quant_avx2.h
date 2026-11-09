@@ -160,6 +160,28 @@ static AVM_FORCE_INLINE __m256i tcq_dist(__m256i qc, __m256i dqv,
   return _mm256_slli_epi64(dist, RDDIV_BITS);
 }
 
+// tcq_dist() of a coefficient of magnitude abs_tc.
+static AVM_FORCE_INLINE __m256i tcq_dist_coef(__m256i qc, int abs_tc, int dqv,
+                                              int log_scale) {
+  const __m256i dq_shift = _mm256_set1_epi64x(QUANT_TABLE_BITS + log_scale);
+  // Shift only the low 32 bits of each lane, like av2_pre_quant_c().
+  const __m256i sh_shift = _mm256_set1_epi64x(log_scale - 1);
+  const int32_t abs_sh = abs_tc * (1 << (log_scale - 1));
+  // Zero-extended so that the compiler emits single vpmul[u]dq.
+  const __m256i v_abs_sh = _mm256_set1_epi64x((uint32_t)abs_sh);
+  const __m256i v_dqv = _mm256_set1_epi64x((uint32_t)dqv);
+  const __m256i dist0 = _mm256_mul_epi32(v_abs_sh, v_abs_sh);
+  return tcq_dist(qc, v_dqv, v_abs_sh, dist0, dq_shift, sh_shift);
+}
+
+// Rates of the 2 new eob candidates from the base eob table eob_tbl.
+static AVM_FORCE_INLINE __m128i tcq_eob_rate(const uint16_t *eob_tbl,
+                                             int block_eob_rate) {
+  return _mm_add_epi32(
+      _mm_cvtepu16_epi32(_mm_cvtsi32_si128((int)loadu_uint32(eob_tbl))),
+      _mm_set1_epi32(block_eob_rate));
+}
+
 // Permutes the 4 candidate levels qIdx + j (j = 0..3) of the general path into
 // the even and odd lanes of the a / b vectors, per qIdx & 3.
 DECLARE_ALIGNED(32, static const int32_t, kFullPerm[4][2][8]) = {
@@ -244,9 +266,7 @@ static AVM_FORCE_INLINE void tcq_prepare_full(const TcqFullConsts *f,
   const int eob_ctx = 1 + (scan_pos > f->eob_thr1) + (scan_pos > f->eob_thr2);
   const uint16_t *eob_tbl = lf ? tc->base_lf_eob_cost_tbl[idx][eob_ctx]
                                : tc->base_eob_cost_tbl[idx][eob_ctx];
-  __m128i rate_eob = _mm_add_epi32(
-      _mm_cvtepu16_epi32(_mm_cvtsi32_si128((int)loadu_uint32(eob_tbl))),
-      _mm_set1_epi32(f->block_eob_rate[scan_pos]));
+  __m128i rate_eob = tcq_eob_rate(eob_tbl, f->block_eob_rate[scan_pos]);
   __m256i gol = _mm256_setzero_si256();
   if (mid_idx >= 0) {
     const uint16_t *mid_eob = lf ? tc->mid_lf_cost_tbl[mid_idx][7][0]
@@ -300,6 +320,16 @@ static AVM_FORCE_INLINE int64_t tcq_dq_level(int dqv, int qc, int log_scale) {
          << (log_scale - 1);
 }
 
+// Distortion change (vs. zero) of quantization index qc (1 or 2) of a
+// coefficient of magnitude abs_tc.
+static AVM_FORCE_INLINE int64_t tcq_dist_q1(int abs_tc, int dqv, int qc,
+                                            int log_scale) {
+  const int32_t abs_sh = abs_tc * (1 << (log_scale - 1));
+  // (dqc - a)^2 - a^2 = dqc * (dqc - 2a).
+  const int64_t dqc = tcq_dq_level(dqv, qc, log_scale);
+  return dqc * (dqc - 2 * (int64_t)abs_sh);
+}
+
 // Inputs of the q1 path at one position (scalar code, used with quantization
 // matrices).
 static AVM_FORCE_INLINE void tcq_prepare_q1(const tcq_param_t *p, int scan_pos,
@@ -309,13 +339,9 @@ static AVM_FORCE_INLINE void tcq_prepare_q1(const tcq_param_t *p, int scan_pos,
   const int log_scale = p->log_scale;
   const int abs_tc = abs(p->tcoeff[blk_pos]);
   const int dqv = get_dqv(p->dequant, blk_pos, p->iqmatrix);
-  const int32_t abs_sh = abs_tc * (1 << (log_scale - 1));
-  // (dqc - a)^2 - a^2 = dqc * (dqc - 2a).
-  const int64_t dqc1 = tcq_dq_level(dqv, 1, log_scale);
-  const int64_t dqc2 = tcq_dq_level(dqv, 2, log_scale);
-  const int64_t dist2 = dqc2 * (dqc2 - 2 * (int64_t)abs_sh);
+  const int64_t dist2 = tcq_dist_q1(abs_tc, dqv, 2, log_scale);
   d->dist[i][0] = dist2 * (1 << RDDIV_BITS);
-  d->dist[i][1] = dqc1 * (dqc1 - 2 * (int64_t)abs_sh) * (1 << RDDIV_BITS);
+  d->dist[i][1] = tcq_dist_q1(abs_tc, dqv, 1, log_scale) * (1 << RDDIV_BITS);
   if (p->sharpness == 0) {
     const int eob_ctx =
         get_lower_levels_ctx_eob(p->bwl, p->txb_height, scan_pos);

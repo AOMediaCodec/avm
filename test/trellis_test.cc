@@ -1094,22 +1094,40 @@ static void InitTcqCtxDiagonal(tcq_ctx_t *tcq_ctx, int blk_pos, int bwl) {
   }
 }
 
+typedef int (*FindBestPathFunc)(const struct tcq_node_t *trellis,
+                                const int16_t *scan, const int32_t *dequant,
+                                const qm_val_t *iqmatrix,
+                                const tran_low_t *tcoeff, int first_scan_pos,
+                                int log_scale, tran_low_t *qcoeff,
+                                tran_low_t *dqcoeff, int *min_rate,
+                                int64_t *min_cost);
+
+// Backtracks trellis_ref with ref_func and trellis_tst with tst_func, and
+// compares the results.
 static void CompareBestPath(const tcq_node_t *trellis_ref,
                             const tcq_node_t *trellis_tst, const int16_t *scan,
                             const int32_t *dequant, const qm_val_t *iqmatrix,
                             const tran_low_t *tcoeff, int first_scan_pos,
                             int log_scale, int bwl, int num_coeffs,
-                            const std::string &ctx) {
-  tran_low_t qc_ref[MAX_TRELLIS] = { 0 }, qc_tst[MAX_TRELLIS] = { 0 };
-  tran_low_t dq_ref[MAX_TRELLIS] = { 0 }, dq_tst[MAX_TRELLIS] = { 0 };
+                            const std::string &ctx,
+                            FindBestPathFunc ref_func = av2_find_best_path,
+                            FindBestPathFunc tst_func = av2_find_best_path) {
+  // Pre-filled with 7, so a position that only one version writes shows up.
+  tran_low_t qc_ref[MAX_TRELLIS], qc_tst[MAX_TRELLIS];
+  tran_low_t dq_ref[MAX_TRELLIS], dq_tst[MAX_TRELLIS];
+  for (int i = 0; i < MAX_TRELLIS; ++i) {
+    qc_ref[i] = qc_tst[i] = dq_ref[i] = dq_tst[i] = 7;
+  }
   int rate_ref = 0, rate_tst = 0;
   int64_t cost_ref = INT64_MAX, cost_tst = INT64_MAX;
-  const int eob_ref = av2_find_best_path(trellis_ref, scan, dequant, iqmatrix,
-                                         tcoeff, first_scan_pos, log_scale,
-                                         qc_ref, dq_ref, &rate_ref, &cost_ref);
-  const int eob_tst = av2_find_best_path(trellis_tst, scan, dequant, iqmatrix,
-                                         tcoeff, first_scan_pos, log_scale,
-                                         qc_tst, dq_tst, &rate_tst, &cost_tst);
+  const int eob_ref =
+      ref_func(trellis_ref, scan, dequant, iqmatrix, tcoeff, first_scan_pos,
+               log_scale, qc_ref, dq_ref, &rate_ref, &cost_ref);
+  int eob_tst = 0;
+  ASM_REGISTER_STATE_CHECK(eob_tst =
+                               tst_func(trellis_tst, scan, dequant, iqmatrix,
+                                        tcoeff, first_scan_pos, log_scale,
+                                        qc_tst, dq_tst, &rate_tst, &cost_tst));
   ASSERT_EQ(eob_ref, eob_tst) << "best-path eob " << ctx;
   ASSERT_EQ(rate_ref, rate_tst) << "best-path rate " << ctx;
   ASSERT_EQ(cost_ref, cost_tst) << "best-path cost " << ctx;
@@ -1968,6 +1986,121 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(TcqDecideStatesTestFuncs(av2_decide_states_q1_c,
                                                av2_decide_states_q1_neon)));
 #endif  // HAVE_NEON
+
+#if HAVE_AVX2
+// av2_find_best_path_avx2() against the C version on random trellises.
+TEST(TcqFindBestPathTest, MatchesC) {
+  libavm_test::ACMRandom rnd(libavm_test::ACMRandom::DeterministicSeed());
+  static const TX_SIZE kSizes[] = { TX_4X4, TX_8X8, TX_16X16, TX_32X32,
+                                    TX_8X32 };
+  // Largest dequantizer: 12-bit, qindex MAXQ_12_BITS (see get_q()).
+  const int kMaxDequant = 60 << 14;
+  // Largest absLevel of a node (24-bit field).
+  const int kMaxAbsLevel = (1 << 23) - 1;
+  std::unique_ptr<tcq_node_t[]> trellis(
+      new tcq_node_t[MAX_TRELLIS * TCQ_MAX_STATES]);
+  DECLARE_ALIGNED(32, tran_low_t, tcoeff[MAX_TRELLIS]);
+  qm_val_t iqmatrix[MAX_TRELLIS];
+  for (const TX_SIZE tx_size : kSizes) {
+    const int16_t *scan = get_default_scan(tx_size, DCT_DCT)->scan;
+    const int num = av2_get_max_eob(tx_size);
+    const int bwl = get_txb_bwl(tx_size);
+    for (int iter = 0; iter < 2000; ++iter) {
+      // Every 4th iteration uses large dequantizers, the next one large
+      // levels, and every 8th one a quantization matrix (entries up to 255).
+      const int32_t max_dequant = (iter % 4 == 0)   ? kMaxDequant
+                                  : (iter % 4 == 1) ? 127
+                                                    : (1 << 14) + 3;
+      const int32_t dequant[2] = { 4 + rnd(max_dequant - 3),
+                                   4 + rnd(max_dequant - 3) };
+      const qm_val_t *qm = NULL;
+      if (iter % 8 == 2) {
+        for (int i = 0; i < num; ++i) iqmatrix[i] = (qm_val_t)(5 + rnd(251));
+        qm = iqmatrix;
+      }
+      // Keep 2 * absLevel * dqv below 2^31: real levels stay far below that
+      // (|tcoeff| < 2^19), and C casts the dequantized level to int32.
+      const int64_t max_dqv =
+          (qm ? (255 * (int64_t)AVMMAX(dequant[0], dequant[1]) +
+                 (1 << (AVM_QM_BITS - 1))) >>
+                    AVM_QM_BITS
+              : AVMMAX(dequant[0], dequant[1]));
+      const int max_abs_level =
+          (int)AVMMIN(kMaxAbsLevel, ((INT64_C(1) << 30) - 1) / max_dqv);
+      const int first_scan_pos = rnd(num);
+      for (int pos = 0; pos <= first_scan_pos; ++pos) {
+        for (int st = 0; st < TCQ_MAX_STATES; ++st) {
+          tcq_node_t *node = &trellis[(pos << TCQ_N_STATES_LOG) + st];
+          node->rdCost = ((int64_t)rnd.Rand31() << 16) | rnd.Rand16();
+          node->rate = rnd.Rand16();
+          node->absLevel = (rnd(4) == 0) ? 0
+                           : (rnd(4) == 0)
+                               ? max_abs_level - rnd(16)
+                               : rnd(AVMMIN(max_abs_level, 1 << 12) + 1);
+          node->prevId =
+              (pos == first_scan_pos || rnd(16) == 0) ? -1 : rnd(TCQ_N_STATES);
+        }
+      }
+      for (int i = 0; i < num; ++i) {
+        tcoeff[i] = (int32_t)rnd.Rand31() - (1 << 30);
+      }
+      // Like av2_get_tx_scale() + 1 in av2_trellis_quant().
+      const int log_scale = 1 + rnd(3);
+      std::ostringstream ctx;
+      ctx << "tx_size " << tx_size << " iter " << iter;
+      ASSERT_NO_FATAL_FAILURE(CompareBestPath(
+          trellis.get(), trellis.get(), scan, dequant, qm, tcoeff,
+          first_scan_pos, log_scale, bwl, num, ctx.str(), av2_find_best_path_c,
+          av2_find_best_path_avx2));
+    }
+  }
+}
+
+// Backtrack of a path through every scan position (eob = number of coeffs).
+TEST(TcqFindBestPathTest, DISABLED_Speed) {
+  libavm_test::ACMRandom rnd(libavm_test::ACMRandom::DeterministicSeed());
+  static const TX_SIZE kSizes[] = { TX_4X4, TX_8X8, TX_16X16, TX_32X32 };
+  std::unique_ptr<tcq_node_t[]> trellis(
+      new tcq_node_t[MAX_TRELLIS * TCQ_MAX_STATES]);
+  DECLARE_ALIGNED(32, tran_low_t, tcoeff[MAX_TRELLIS]);
+  DECLARE_ALIGNED(32, tran_low_t, qcoeff[MAX_TRELLIS]);
+  DECLARE_ALIGNED(32, tran_low_t, dqcoeff[MAX_TRELLIS]);
+  for (const TX_SIZE tx_size : kSizes) {
+    const int16_t *scan = get_default_scan(tx_size, DCT_DCT)->scan;
+    const int num = av2_get_max_eob(tx_size);
+    const int first_scan_pos = num - 1;
+    for (int pos = 0; pos <= first_scan_pos; ++pos) {
+      for (int st = 0; st < TCQ_MAX_STATES; ++st) {
+        tcq_node_t *node = &trellis[(pos << TCQ_N_STATES_LOG) + st];
+        node->rdCost = rnd.Rand31();
+        node->rate = rnd.Rand16();
+        node->absLevel = rnd(64);
+        node->prevId = (pos == first_scan_pos) ? -1 : rnd(TCQ_N_STATES);
+      }
+    }
+    for (int i = 0; i < num; ++i) tcoeff[i] = (int32_t)rnd.Rand31() - (1 << 30);
+    const int32_t dequant[2] = { 1200, 1300 };
+    const int iters = (1 << 22) / num;
+    int rate;
+    int64_t cost;
+    int64_t elapsed[2];
+    for (int k = 0; k < 2; ++k) {
+      avm_usec_timer timer;
+      avm_usec_timer_start(&timer);
+      for (int i = 0; i < iters; ++i) {
+        (k ? av2_find_best_path_avx2 : av2_find_best_path_c)(
+            trellis.get(), scan, dequant, NULL, tcoeff, first_scan_pos, 1,
+            qcoeff, dqcoeff, &rate, &cost);
+      }
+      avm_usec_timer_mark(&timer);
+      elapsed[k] = avm_usec_timer_elapsed(&timer);
+    }
+    printf("tx_size %2d (%4d coeffs): c %8d us  avx2 %8d us  %.2fx\n", tx_size,
+           num, (int)elapsed[0], (int)elapsed[1],
+           (double)elapsed[0] / elapsed[1]);
+  }
+}
+#endif  // HAVE_AVX2
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(TcqDecideStatesTest);
 

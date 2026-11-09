@@ -45,16 +45,12 @@ static AVM_FORCE_INLINE void get_coeff_ctx_neon(const struct tcq_ctx_t *tcq_ctx,
 static AVM_FORCE_INLINE void pre_quant_neon(tran_low_t tqc,
                                             struct prequant_t *pq, int dqv,
                                             int log_scale) {
-  static const int32_t kInc[4][4] = {
-    { 0, 1, 2, 3 }, { 3, 0, 1, 2 }, { 2, 3, 0, 1 }, { 1, 2, 3, 0 }
-  };
-
   int32_t abs_tqc = abs(tqc);
   pq->qIdx = AVMMAX(pq->orig_qIdx - 2, 1);
   int32_t qIdx = pq->qIdx;
 
   int32x4_t base_qc = vdupq_n_s32(qIdx);
-  int32x4_t qc_inc = vld1q_s32(kInc[qIdx & 3]);
+  int32x4_t qc_inc = vld1q_s32(kTcqQcInc[qIdx & 3]);
   int32x4_t qc_idx = vaddq_s32(base_qc, qc_inc);
   int32x4_t abslev = vshrq_n_s32(vaddq_s32(qc_idx, vdupq_n_s32(1)), 1);
   vst1q_s32(pq->absLevel, abslev);

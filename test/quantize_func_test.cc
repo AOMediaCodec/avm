@@ -66,7 +66,8 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
  protected:
   QuantizeTest()
       : quant_ref_(GET_PARAM(0)), quant_(GET_PARAM(1)), tx_size_(GET_PARAM(2)),
-        type_(GET_PARAM(3)), bd_(GET_PARAM(4)), LogScale_(GET_PARAM(5)) {}
+        type_(GET_PARAM(3)), bd_(GET_PARAM(4)), LogScale_(GET_PARAM(5)),
+        boost_(0) {}
 
   virtual ~QuantizeTest() {}
 
@@ -127,12 +128,12 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
 
       memset(qcoeff_ref, 0, 5 * n_coeffs * sizeof(*qcoeff_ref));
 
-      quant_ref_(0, coeff_ptr, n_coeffs, zbin, round, quant, quant_shift,
+      quant_ref_(boost_, coeff_ptr, n_coeffs, zbin, round, quant, quant_shift,
                  qcoeff_ref, dqcoeff_ref, dequant, &eob[0], sc->scan, sc->iscan,
                  log_scale);
 
       ASM_REGISTER_STATE_CHECK(quant_(
-          0, coeff_ptr, n_coeffs, zbin, round, quant, quant_shift, qcoeff,
+          boost_, coeff_ptr, n_coeffs, zbin, round, quant, quant_shift, qcoeff,
           dqcoeff, dequant, &eob[1], sc->scan, sc->iscan, log_scale));
 
       for (int j = 0; j < n_coeffs; ++j) {
@@ -198,6 +199,18 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
     coeff_[0] = GetRandomCoeff();
   }
 
+  // Coefficients around the TCQ dead zone threshold.
+  void FillCoeffNearDeadzone(int q) {
+    const int n_coeffs = coeff_num();
+    const int32_t *dequant = qtab_->dequant.y_dequant_QTX[q];
+    for (int i = 0; i < n_coeffs; ++i) {
+      const int thr =
+          (dequant[i != 0] >> (1 + LogScale_ + QUANT_TABLE_BITS)) + 1;
+      const int abs_coeff = rnd_.Rand16() % (2 * thr + 1);
+      coeff_[i] = (rnd_.Rand8() & 1) ? -abs_coeff : abs_coeff;
+    }
+  }
+
   void FillDcLargeNegative() {
     FillCoeffZero();
     // Generate a qcoeff which contains 512/-512 (0x0100/0xFE00) to catch issues
@@ -228,6 +241,7 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
   QuantType type_;
   avm_bit_depth_t bd_;
   LogScale LogScale_;
+  int boost_;  // use_tcq_deadzone_boost
 };
 
 TEST_P(QuantizeTest, ZeroInput) {
@@ -258,6 +272,32 @@ TEST_P(QuantizeTest, MultipleQ) {
 TEST_P(QuantizeTest, CoeffHalfDequant) {
   FillCoeff(16);
   QuantizeRun(false, 25, 1);
+}
+
+// The fp quantizer with the TCQ dead zone boost.
+class QuantizeBoostTest : public QuantizeTest {
+ protected:
+  QuantizeBoostTest() { boost_ = 1; }
+};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(QuantizeBoostTest);
+
+TEST_P(QuantizeBoostTest, RandomInput) { QuantizeRun(true, 0, kTestNum); }
+
+TEST_P(QuantizeBoostTest, MultipleQ) {
+  for (int q = 0; q < (QINDEX_RANGE_8_BITS + (bd_ - AVM_BITS_8) * MAXQ_OFFSET);
+       ++q) {
+    QuantizeRun(true, q, 100);
+  }
+}
+
+TEST_P(QuantizeBoostTest, NearDeadzone) {
+  for (int q = 0; q < (QINDEX_RANGE_8_BITS + (bd_ - AVM_BITS_8) * MAXQ_OFFSET);
+       ++q) {
+    for (int i = 0; i < 20; ++i) {
+      FillCoeffNearDeadzone(q);
+      QuantizeRun(false, q, 1);
+    }
+  }
 }
 
 TEST_P(QuantizeTest, DISABLED_Speed) {
@@ -434,6 +474,27 @@ const QuantizeParam kQParamArrayAvx2[] = {
 
 INSTANTIATE_TEST_SUITE_P(AVX2, QuantizeTest,
                          ::testing::ValuesIn(kQParamArrayAvx2));
+
+// The fp quantizers with the TCQ dead zone boost.
+const QuantizeParam kQParamArrayFpBoostAvx2[] = {
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_4X4), TYPE_FP, AVM_BITS_10, LOGSCALE_0),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AVM_BITS_8, LOGSCALE_0),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AVM_BITS_10, LOGSCALE_0),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AVM_BITS_12, LOGSCALE_0),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_8X32), TYPE_FP, AVM_BITS_10, LOGSCALE_0),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AVM_BITS_10, LOGSCALE_1),
+  make_tuple(&av2_highbd_quantize_fp_c, &av2_highbd_quantize_fp_avx2,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AVM_BITS_10, LOGSCALE_2),
+};
+
+INSTANTIATE_TEST_SUITE_P(AVX2, QuantizeBoostTest,
+                         ::testing::ValuesIn(kQParamArrayFpBoostAvx2));
 #endif  // HAVE_AVX2
 
 #if HAVE_SSE2
