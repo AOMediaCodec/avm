@@ -1111,10 +1111,10 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV2_COMP *cpi,
   const uint16_t *dst_c2 = &pd_c2->dst.buf[dst_idx_c2];
   // p_c1->dqcoeff and p_c2->dqcoeff must remain unchanged here because the best
   // dqcoeff in the CCTX domain may be used in the search later.
+  // Past the four search_cctx_type buffers, which are live here.
   tran_low_t *tmp_dqcoeff_c1 =
-      avm_memalign(32, MAX_TX_SQUARE * sizeof(tran_low_t));
-  tran_low_t *tmp_dqcoeff_c2 =
-      avm_memalign(32, MAX_TX_SQUARE * sizeof(tran_low_t));
+      x->cctx_scratch + 2 * MAX_SB_SQUARE + 2 * MAX_TX_SQUARE;
+  tran_low_t *tmp_dqcoeff_c2 = tmp_dqcoeff_c1 + MAX_TX_SQUARE;
   memcpy(tmp_dqcoeff_c1, p_c1->dqcoeff + BLOCK_OFFSET(block),
          sizeof(tran_low_t) * eob_max);
   memcpy(tmp_dqcoeff_c2, p_c2->dqcoeff + BLOCK_OFFSET(block),
@@ -1124,8 +1124,8 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV2_COMP *cpi,
   assert(cpi != NULL);
   assert(tx_size_wide_log2[0] == tx_size_high_log2[0]);
 
-  uint16_t *recon_c1 = avm_memalign(16, MAX_TX_SQUARE * sizeof(uint16_t));
-  uint16_t *recon_c2 = avm_memalign(16, MAX_TX_SQUARE * sizeof(uint16_t));
+  uint16_t *recon_c1 = x->cctx_recon;
+  uint16_t *recon_c2 = x->cctx_recon + MAX_TX_SQUARE;
 
   avm_highbd_convolve_copy(dst_c1, pd_c1->dst.stride, recon_c1, MAX_TX_SIZE,
                            bsw, bsh);
@@ -1150,8 +1150,6 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV2_COMP *cpi,
       replace_adst_by_ddt(cpi->common.seq_params.enable_inter_ddt,
                           cpi->common.features.allow_screen_content_tools, xd),
       cpi->common.features.reduced_tx_set_used);
-  avm_free(tmp_dqcoeff_c1);
-  avm_free(tmp_dqcoeff_c2);
 
   int64_t dist_c1 =
       pixel_dist(cpi, x, AVM_PLANE_U, src_c1, p_c1->src.stride, recon_c1,
@@ -1159,8 +1157,6 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV2_COMP *cpi,
   int64_t dist_c2 =
       pixel_dist(cpi, x, AVM_PLANE_V, src_c2, p_c2->src.stride, recon_c2,
                  MAX_TX_SIZE, blk_row, blk_col, tx_size);
-  avm_free(recon_c1);
-  avm_free(recon_c2);
 
   return 16 * (dist_c1 + dist_c2);
 }
@@ -2924,10 +2920,10 @@ static void search_cctx_type(const AV2_COMP *cpi, MACROBLOCK *x, int block,
   const int max_sb_square_uv =
       max_sb_square_y >>
       (cm->seq_params.subsampling_x + cm->seq_params.subsampling_y);
-  tran_low_t *this_dqcoeff_c1 =
-      avm_memalign(32, max_sb_square_uv * sizeof(tran_low_t));
-  tran_low_t *this_dqcoeff_c2 =
-      avm_memalign(32, max_sb_square_uv * sizeof(tran_low_t));
+  assert(max_sb_square_uv <= MAX_SB_SQUARE);
+  (void)max_sb_square_uv;
+  tran_low_t *this_dqcoeff_c1 = x->cctx_scratch;
+  tran_low_t *this_dqcoeff_c2 = x->cctx_scratch + MAX_SB_SQUARE;
   memcpy(this_dqcoeff_c1 + BLOCK_OFFSET(block),
          p_c1->dqcoeff + BLOCK_OFFSET(block), sizeof(tran_low_t) * max_eob);
   memcpy(this_dqcoeff_c2 + BLOCK_OFFSET(block),
@@ -2944,10 +2940,8 @@ static void search_cctx_type(const AV2_COMP *cpi, MACROBLOCK *x, int block,
 
   // CCTX is performed in-place, so these buffers are needed to store original
   // transform coefficients.
-  tran_low_t *orig_coeff_c1 =
-      avm_memalign(32, MAX_TX_SQUARE * sizeof(tran_low_t));
-  tran_low_t *orig_coeff_c2 =
-      avm_memalign(32, MAX_TX_SQUARE * sizeof(tran_low_t));
+  tran_low_t *orig_coeff_c1 = x->cctx_scratch + 2 * MAX_SB_SQUARE;
+  tran_low_t *orig_coeff_c2 = orig_coeff_c1 + MAX_TX_SQUARE;
   memcpy(orig_coeff_c1, p_c1->coeff + BLOCK_OFFSET(block),
          sizeof(tran_low_t) * max_eob);
   memcpy(orig_coeff_c2, p_c2->coeff + BLOCK_OFFSET(block),
@@ -3084,11 +3078,6 @@ static void search_cctx_type(const AV2_COMP *cpi, MACROBLOCK *x, int block,
               AVMMAX(best_eob_c1, best_eob_c2));
   p_c1->dqcoeff = orig_dqcoeff_c1;
   p_c2->dqcoeff = orig_dqcoeff_c2;
-
-  avm_free(this_dqcoeff_c1);
-  avm_free(this_dqcoeff_c2);
-  avm_free(orig_coeff_c1);
-  avm_free(orig_coeff_c2);
 }
 
 // Reconstruct a chroma transform block with CCTX_NONE from the quantized
@@ -3910,13 +3899,23 @@ static AVM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
                                      int blk_col, BLOCK_SIZE plane_bsize,
                                      TX_SIZE tx_size, void *arg) {
   struct rdcost_block_args *args = arg;
+  MACROBLOCK *const x = args->x;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  // The luma prediction intra_model_yrd() left in dst is valid only for the
+  // first block of a TX_PARTITION_NONE search at the size it predicted.
+  int reuse_intra_y_pred = 0;
+  if (plane == AVM_PLANE_Y && x->intra_y_pred_ready) {
+    const MB_MODE_INFO *const mbmi = xd->mi[0];
+    reuse_intra_y_pred =
+        blk_row == 0 && blk_col == 0 && tx_size == x->intra_y_pred_tx &&
+        mbmi->tx_partition_type[0] == TX_PARTITION_NONE && mbmi->txb_idx == 0;
+    x->intra_y_pred_ready = 0;
+  }
   if (args->exit_early) {
     args->incomplete_exit = 1;
     return;
   }
 
-  MACROBLOCK *const x = args->x;
-  MACROBLOCKD *const xd = &x->e_mbd;
   const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
   const AV2_COMP *cpi = args->cpi;
   ENTROPY_CONTEXT *a = args->t_above + blk_col;
@@ -3925,7 +3924,7 @@ static AVM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
   RD_STATS this_rd_stats;
   av2_init_rd_stats(&this_rd_stats);
 
-  if (!is_inter) {
+  if (!is_inter && !reuse_intra_y_pred) {
     av2_predict_intra_block_facade(cm, xd, plane, blk_col, blk_row, tx_size);
   }
   av2_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size, cm->width,

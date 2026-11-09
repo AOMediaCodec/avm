@@ -461,7 +461,7 @@ typedef struct {
 } JOINT_AMVDNEWMV_STATS;
 
 int opfl_refine_fullpel_mv_one_sided(
-    const AV2_COMMON *cm, MACROBLOCKD *xd,
+    const AV2_COMMON *cm, MACROBLOCK *x, MACROBLOCKD *xd,
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
     const FULLPEL_MV *const smv, int_mv *mv_refined, BLOCK_SIZE bsize);
 
@@ -472,6 +472,7 @@ int joint_mvd_search(const AV2_COMMON *const cm, MACROBLOCKD *xd,
                      unsigned int *sse1, int ref_idx, MV *other_mv,
                      MV *best_other_mv, uint16_t *second_pred,
                      InterPredParams *inter_pred_params,
+                     JointMvdPredCache *pred_cache,
                      int_mv *last_mv_search_list);
 
 // motion search for 2/4/8 pel precision for joint MVD coding
@@ -481,7 +482,8 @@ int low_precision_joint_mvd_search(const AV2_COMMON *const cm, MACROBLOCKD *xd,
                                    int *distortion, unsigned int *sse1,
                                    int ref_idx, MV *other_mv, MV *best_other_mv,
                                    uint16_t *second_pred,
-                                   InterPredParams *inter_pred_params);
+                                   InterPredParams *inter_pred_params,
+                                   JointMvdPredCache *pred_cache);
 
 // motion search for near_new and new_near mode when adaptive MVD resolution is
 // applied
@@ -498,7 +500,8 @@ int av2_joint_amvd_motion_search(const AV2_COMMON *const cm, MACROBLOCKD *xd,
                                  int *distortion, unsigned int *sse1,
                                  int ref_idx, MV *other_mv, MV *best_other_mv,
                                  uint16_t *second_pred,
-                                 InterPredParams *inter_pred_params);
+                                 InterPredParams *inter_pred_params,
+                                 JointMvdPredCache *pred_cache);
 
 void av2_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                        const struct AV2_COMP *cpi,

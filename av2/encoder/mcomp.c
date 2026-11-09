@@ -272,7 +272,7 @@ int get_opfl_mv_iterations(const AV2_COMP *cpi, const MB_MODE_INFO *mbmi) {
 // and one predicted block (P0) to derives an MV delta, which is by itself
 // relative to P0.
 int opfl_refine_fullpel_mv_one_sided(
-    const AV2_COMMON *cm, MACROBLOCKD *xd,
+    const AV2_COMMON *cm, MACROBLOCK *x, MACROBLOCKD *xd,
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
     const FULLPEL_MV *const smv, int_mv *mv_refined, BLOCK_SIZE bsize) {
   (void)cm;
@@ -288,20 +288,18 @@ int opfl_refine_fullpel_mv_one_sided(
   int vx0, vx1, vy0, vy1;
   int16_t *gx0, *gy0;
   uint16_t *dst0 = NULL, *dst1 = NULL;
-  gx0 = (int16_t *)avm_memalign(16, bw * bh * sizeof(int16_t));
-  gy0 = (int16_t *)avm_memalign(16, bw * bh * sizeof(int16_t));
-  dst0 = (uint16_t *)avm_memalign(32, bw * bh * sizeof(uint16_t));
-  dst1 = (uint16_t *)avm_memalign(32, bw * bh * sizeof(uint16_t));
+  gx0 = x->omvs_scratch;
+  gy0 = x->omvs_scratch + MAX_SB_SQUARE;
+  dst0 = (uint16_t *)(x->omvs_scratch + 2 * MAX_SB_SQUARE);
+  dst1 = (uint16_t *)(x->omvs_scratch + 3 * MAX_SB_SQUARE);
 
   // Obrain Pred as dst0 and Cur as dst1
   avm_highbd_convolve_copy(pred_ptr, pred->stride, dst0, bw, bw, bh);
   avm_highbd_convolve_copy(src->buf, src->stride, dst1, bw, bw, bh);
 
   int grad_prec_bits;
-  int16_t *tmp0 =
-      (int16_t *)avm_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
-  int16_t *tmp1 =
-      (int16_t *)avm_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
+  int16_t *tmp0 = x->omvs_scratch + 4 * MAX_SB_SQUARE;
+  int16_t *tmp1 = x->omvs_scratch + 5 * MAX_SB_SQUARE;
   // tmp0 = (P0 + Cur) / 2, tmp1 = P0 - Cur
   if (bw < 8)
     av2_copy_pred_array_highbd_c(dst0, dst1, bw, tmp0, tmp1, bw, bh, 1, -1,
@@ -331,12 +329,6 @@ int opfl_refine_fullpel_mv_one_sided(
                          bits, &vx0, &vy0, &vx1, &vy1);
 #endif
 
-  avm_free(tmp0);
-  avm_free(tmp1);
-  avm_free(dst0);
-  avm_free(dst1);
-  avm_free(gx0);
-  avm_free(gy0);
   mv_refined[0].as_mv.row += vy0;
   mv_refined[0].as_mv.col += vx0;
   return 0;
@@ -3514,6 +3506,26 @@ static AVM_INLINE int setup_center_error_facade(
   }
 }
 
+// Returns the other-list prediction for mv, built only on the first request
+// for this cache key. Builds into fallback, uncached, once the cache is full.
+static const uint16_t *get_joint_mvd_pred(JointMvdPredCache *cache,
+                                          const MV *mv, uint16_t *fallback,
+                                          InterPredParams *inter_pred_params,
+                                          int w) {
+  int_mv key;
+  key.as_mv = *mv;
+  for (int i = 0; i < cache->num_filled; ++i) {
+    if (cache->mv[i] == key.as_int) return cache->buf + i * cache->slot_pels;
+  }
+  uint16_t *dst = fallback;
+  if (cache->num_filled < cache->num_slots) {
+    dst = cache->buf + cache->num_filled * cache->slot_pels;
+    cache->mv[cache->num_filled++] = key.as_int;
+  }
+  av2_enc_build_one_inter_predictor(dst, w, mv, inter_pred_params);
+  return dst;
+}
+
 // motion search for joint mvd coding
 int joint_mvd_search(const AV2_COMMON *const cm, MACROBLOCKD *xd,
                      SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV ref_mv,
@@ -3521,6 +3533,7 @@ int joint_mvd_search(const AV2_COMMON *const cm, MACROBLOCKD *xd,
                      unsigned int *sse1, int ref_idx, MV *other_mv,
                      MV *best_other_mv, uint16_t *second_pred,
                      InterPredParams *inter_pred_params,
+                     JointMvdPredCache *pred_cache,
                      int_mv *last_mv_search_list) {
   const int forced_stop = ms_params->forced_stop;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
@@ -3616,8 +3629,9 @@ int joint_mvd_search(const AV2_COMMON *const cm, MACROBLOCKD *xd,
         other_cand_mv.row = (int)(other_mv->row + other_mvd.row);
         other_cand_mv.col = (int)(other_mv->col + other_mvd.col);
         if (av2_is_subpelmv_in_range(mv_limits, other_cand_mv) == 0) continue;
-        av2_enc_build_one_inter_predictor(second_pred, block_size_wide[bsize],
-                                          &other_cand_mv, inter_pred_params);
+        ms_params->var_params.ms_buffers.second_pred =
+            get_joint_mvd_pred(pred_cache, &other_cand_mv, second_pred,
+                               inter_pred_params, block_size_wide[bsize]);
         unsigned int sad =
             check_better(xd, cm, &cur_mv, bestmv, mv_limits, var_params,
                          mv_cost_params, &besterr, sse1, distortion, &dummy);
@@ -3692,8 +3706,9 @@ int joint_mvd_search(const AV2_COMMON *const cm, MACROBLOCKD *xd,
       candidate_mv[1].row = (int)(other_mv->row + other_mvd.row);
       candidate_mv[1].col = (int)(other_mv->col + other_mvd.col);
       if (av2_is_subpelmv_in_range(mv_limits, candidate_mv[1]) == 0) continue;
-      av2_enc_build_one_inter_predictor(second_pred, block_size_wide[bsize],
-                                        &candidate_mv[1], inter_pred_params);
+      ms_params->var_params.ms_buffers.second_pred =
+          get_joint_mvd_pred(pred_cache, &candidate_mv[1], second_pred,
+                             inter_pred_params, block_size_wide[bsize]);
       mvcost[i] =
           check_better(xd, cm, &candidate_mv[0], bestmv, mv_limits, var_params,
                        mv_cost_params, &besterr, sse1, distortion, &dummy);
@@ -3720,7 +3735,8 @@ int low_precision_joint_mvd_search(const AV2_COMMON *const cm, MACROBLOCKD *xd,
                                    int *distortion, unsigned int *sse1,
                                    int ref_idx, MV *other_mv, MV *best_other_mv,
                                    uint16_t *second_pred,
-                                   InterPredParams *inter_pred_params) {
+                                   InterPredParams *inter_pred_params,
+                                   JointMvdPredCache *pred_cache) {
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
   const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
@@ -3788,8 +3804,9 @@ int low_precision_joint_mvd_search(const AV2_COMMON *const cm, MACROBLOCKD *xd,
         other_cand_mv.row = (int)(other_mv->row + other_mvd.row);
         other_cand_mv.col = (int)(other_mv->col + other_mvd.col);
         if (av2_is_subpelmv_in_range(mv_limits, other_cand_mv) == 0) continue;
-        av2_enc_build_one_inter_predictor(second_pred, block_size_wide[bsize],
-                                          &other_cand_mv, inter_pred_params);
+        ms_params->var_params.ms_buffers.second_pred =
+            get_joint_mvd_pred(pred_cache, &other_cand_mv, second_pred,
+                               inter_pred_params, block_size_wide[bsize]);
         unsigned int sad =
             check_better(xd, cm, &cur_mv, bestmv, mv_limits, var_params,
                          mv_cost_params, &besterr, sse1, distortion, &dummy);
@@ -3872,6 +3889,9 @@ void av2_amvd_joint_motion_search(const AV2_COMP *cpi, MACROBLOCK *x,
 
   cur_mv[0] = av2_get_ref_mv(x, 0);
   cur_mv[1] = av2_get_ref_mv(x, 1);
+  // Other-list MV that second_pred was built from when list id was last
+  // searched.
+  int_mv searched_other_mv[2] = { { 0 }, { 0 } };
 
   // Allow joint search multiple times iteratively for each reference frame
   // and break out of the search loop if it couldn't find a better mv.
@@ -3882,6 +3902,11 @@ void av2_amvd_joint_motion_search(const AV2_COMP *cpi, MACROBLOCK *x,
     // search in the second. The predictor found for the 'other' reference
     // frame is factored in.
     int id = ite % 2;
+    // The list-id search depends only on ref_mv[id] and cur_mv[!id]. ite >= 2
+    // runs only if ite - 2 was accepted, so with cur_mv[!id] unchanged the
+    // search would repeat, fail bestsme < last_besterr[id] and break.
+    if (ite >= 2 && cur_mv[!id].as_int == searched_other_mv[id].as_int) break;
+    searched_other_mv[id] = cur_mv[!id];
 
     for (ref = 0; ref < 2; ++ref) {
       ref_mv[ref] = av2_get_ref_mv(x, ref);
@@ -4090,7 +4115,8 @@ int av2_joint_amvd_motion_search(const AV2_COMMON *const cm, MACROBLOCKD *xd,
                                  int *distortion, unsigned int *sse1,
                                  int ref_idx, MV *other_mv, MV *best_other_mv,
                                  uint16_t *second_pred,
-                                 InterPredParams *inter_pred_params) {
+                                 InterPredParams *inter_pred_params,
+                                 JointMvdPredCache *pred_cache) {
   // const int iters_per_step = ms_params->iters_per_step;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
   const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
@@ -4161,8 +4187,9 @@ int av2_joint_amvd_motion_search(const AV2_COMMON *const cm, MACROBLOCKD *xd,
       candidate_mv[1].row = (int)(other_mv->row + other_mvd.row);
       candidate_mv[1].col = (int)(other_mv->col + other_mvd.col);
       if (av2_is_subpelmv_in_range(mv_limits, candidate_mv[1]) == 0) continue;
-      av2_enc_build_one_inter_predictor(second_pred, block_size_wide[bsize],
-                                        &candidate_mv[1], inter_pred_params);
+      ms_params->var_params.ms_buffers.second_pred =
+          get_joint_mvd_pred(pred_cache, &candidate_mv[1], second_pred,
+                             inter_pred_params, block_size_wide[bsize]);
       check_better(xd, cm, &candidate_mv[0], bestmv, mv_limits, var_params,
                    mv_cost_params, &besterr, sse1, distortion, &dummy);
 
@@ -5415,16 +5442,31 @@ static AVM_INLINE void search_warp_delta_params(
   bool can_refine_mv = (mbmi->mode == WARP_NEWMV);
 
   const float cost_cmp_thr = cost_cmp_thr_speed;
+  // Inside this call only wmmat[param_index_test] changes ([4] and [5] follow
+  // [3] and [2] for 4-param models; center_mv and best_mv are fixed) and each
+  // move strictly lowers *best_rd, so after a move one neighbour is the old
+  // center, whose rd is known. This needs the luma WARP_PRED output not to
+  // depend on mbmi->mv[0], which refine_translational_mv leaves stale: revisit
+  // if BAWP, OPFL, refinemv or TIP is ever allowed for WARP_NEWMV. An rd above
+  // UINT32_MAX comes from the int-typed initial cost and is not reused.
+  int has_prev_center = 0;
+  int32_t prev_center_value = 0;
+  uint64_t prev_center_rd = UINT64_MAX;
   for (int iter = 0; iter < number_of_iterations; iter++) {
     int center_best_so_far = 1;
 
     int param_index = param_index_test;
+    const int32_t center_value = best_wm_params->wmmat[param_index];
+    const uint64_t center_rd = *best_rd;
     // Try increasing the parameter
     *params = *best_wm_params;
     params->wmmat[param_index] += step_size;
     delta = params->wmmat[param_index] - base_params->wmmat[param_index];
     if (abs(delta) > max_warp_delta_value) {
       inc_rd = UINT64_MAX;
+    } else if (has_prev_center && prev_center_rd <= UINT32_MAX &&
+               params->wmmat[param_index] == prev_center_value) {
+      inc_rd = prev_center_rd;
     } else {
       if (!mbmi->six_param_warp_model_flag) {
         params->wmmat[4] = -params->wmmat[3];
@@ -5443,6 +5485,9 @@ static AVM_INLINE void search_warp_delta_params(
     delta = params->wmmat[param_index] - base_params->wmmat[param_index];
     if (abs(delta) > max_warp_delta_value) {
       dec_rd = UINT64_MAX;
+    } else if (has_prev_center && prev_center_rd <= UINT32_MAX &&
+               params->wmmat[param_index] == prev_center_value) {
+      dec_rd = prev_center_rd;
     } else {
       if (!mbmi->six_param_warp_model_flag) {
         params->wmmat[4] = -params->wmmat[3];
@@ -5473,6 +5518,12 @@ static AVM_INLINE void search_warp_delta_params(
       if (dec_rd * cost_cmp_thr < *best_rd) center_best_so_far = 0;
       *best_wm_params = dec_params;
       *best_rd = dec_rd;
+    }
+
+    if (*best_rd != center_rd) {
+      has_prev_center = 1;
+      prev_center_value = center_value;
+      prev_center_rd = center_rd;
     }
 
     if (center_best_so_far) {
@@ -5786,6 +5837,8 @@ int av2_pick_warp_delta(
     this_warp_stats.is_valid = 1;
     this_warp_stats.step_size = step_size;
     this_warp_stats.prev_wm_params = best_wm_params;
+    // mbmi_stats.wm_params is the last candidate tried, possibly unscored;
+    // the chosen model is prev_wm_params.
     this_warp_stats.mbmi_stats = *mbmi;
     update_warp_stats_buffer(&this_warp_stats, prev_best_models);
   }
