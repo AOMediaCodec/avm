@@ -996,6 +996,12 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 0: off
   int dry_pass_skip_warp_min_pyr_level;
 
+  // Prune TIP_FRAME evaluation in the partition search dry pass (the wet pass
+  // is unchanged):
+  // 0: off (search both NEARMV and NEWMV on TIP_FRAME at all block sizes)
+  // 1: skip NEWMV on TIP_FRAME (keep NEARMV on TIP_FRAME at all block sizes)
+  int dry_pass_prune_tip;
+
   // Only enable wedge search if the variance is above this threshold.
   unsigned int disable_wedge_search_var_thresh;
 
