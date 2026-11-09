@@ -240,6 +240,8 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   avm_free_frame_buffer(&cpi->last_frame_uf);
   av2_free_restoration_buffers(cm);
   free_gdf_buffers(&cm->gdf_info);
+  gdf_free_guided_frame(cm);
+  av2_gdf_rdo_buffers_free(&cpi->gdf_rdo_bufs);
   const int use_cdef = cpi->oxcf.tool_cfg.enable_cdef;
   if (!is_stat_generation_stage(cpi) && use_cdef) {
     MultiThreadInfo *const mt_info = &cpi->mt_info;
@@ -292,6 +294,12 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   cpi->td.mb.cctx_recon = NULL;
   avm_free(cpi->td.mb.omvs_scratch);
   cpi->td.mb.omvs_scratch = NULL;
+  avm_free(cpi->td.mb.resi_stat_eobs);
+  cpi->td.mb.resi_stat_eobs = NULL;
+  avm_free(cpi->td.mb.resi_stat_bobs);
+  cpi->td.mb.resi_stat_bobs = NULL;
+  avm_free(cpi->td.mb.resi_stat_txb_entropy_ctx);
+  cpi->td.mb.resi_stat_txb_entropy_ctx = NULL;
 
 #if CONFIG_DENOISE
   if (cpi->denoise_and_model) {

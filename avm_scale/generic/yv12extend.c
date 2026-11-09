@@ -20,9 +20,9 @@
 #include "avm_ports/mem.h"
 #include "avm_scale/yv12config.h"
 
-static void extend_plane_high(uint16_t *const src, int src_stride, int width,
-                              int height, int extend_top, int extend_left,
-                              int extend_bottom, int extend_right) {
+void avm_extend_plane_high(uint16_t *const src, int src_stride, int width,
+                           int height, int extend_top, int extend_left,
+                           int extend_bottom, int extend_right) {
   int i;
   const int linesize = extend_left + extend_right + width;
   assert(linesize <= src_stride);
@@ -77,9 +77,9 @@ static void extend_frame(YV12_BUFFER_CONFIG *const ybf, int ext_size,
     const int left = ext_size >> (is_uv ? ss_x : 0);
     const int bottom = top;
     const int right = left;
-    extend_plane_high(ybf->buffers[plane], ybf->strides[is_uv],
-                      ybf->widths[is_uv], ybf->heights[is_uv], top, left,
-                      bottom, right);
+    avm_extend_plane_high(ybf->buffers[plane], ybf->strides[is_uv],
+                          ybf->widths[is_uv], ybf->heights[is_uv], top, left,
+                          bottom, right);
   }
 }
 
@@ -105,8 +105,8 @@ void avm_extend_frame_borders_y_c(YV12_BUFFER_CONFIG *ybf) {
   assert(ybf->y_height - ybf->y_crop_height >= 0);
   assert(ybf->y_width - ybf->y_crop_width >= 0);
 
-  extend_plane_high(ybf->y_buffer, ybf->y_stride, ybf->y_width, ybf->y_height,
-                    ext_size, ext_size, ext_size, ext_size);
+  avm_extend_plane_high(ybf->y_buffer, ybf->y_stride, ybf->y_width,
+                        ybf->y_height, ext_size, ext_size, ext_size, ext_size);
 }
 
 // Copies the source image into the destination image and updates the

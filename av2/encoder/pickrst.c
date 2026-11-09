@@ -4351,9 +4351,10 @@ static void search_plane_restoration(AV2_COMP *const cpi, RestSearchCtxt *rsc,
     return;
   }
 
-  av2_extend_frame(rsc->dgd_buffer, rsc->plane_width, rsc->plane_height,
-                   rsc->dgd_stride, RESTORATION_BORDER_HORZ,
-                   RESTORATION_BORDER_VERT);
+  avm_extend_plane_high(rsc->dgd_buffer, rsc->dgd_stride, rsc->plane_width,
+                        rsc->plane_height, RESTORATION_BORDER_VERT,
+                        RESTORATION_BORDER_HORZ, RESTORATION_BORDER_VERT,
+                        RESTORATION_BORDER_HORZ);
 
   int min_ru_size = rsi->min_restoration_unit_size;
   int max_ru_size = rsi->max_restoration_unit_size;

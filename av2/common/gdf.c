@@ -159,26 +159,6 @@ void gdf_print_info(AV2_COMMON *cm, char *info, int poc) {
 }
 #undef GDF_PRINT_INT
 
-void gdf_extend_frame_highbd(uint16_t *data, int width, int height, int stride,
-                             int border_horz, int border_vert) {
-  uint16_t *data_p;
-  int i, j;
-  for (i = 0; i < height; ++i) {
-    data_p = data + i * stride;
-    for (j = -border_horz; j < 0; ++j) data_p[j] = data_p[0];
-    for (j = width; j < width + border_horz; ++j) data_p[j] = data_p[width - 1];
-  }
-  data_p = data - border_horz;
-  for (i = -border_vert; i < 0; ++i) {
-    memcpy(data_p + i * stride, data_p,
-           (width + 2 * border_horz) * sizeof(uint16_t));
-  }
-  for (i = height; i < height + border_vert; ++i) {
-    memcpy(data_p + i * stride, data_p + (height - 1) * stride,
-           (width + 2 * border_horz) * sizeof(uint16_t));
-  }
-}
-
 void gdf_copy_guided_frame(AV2_COMMON *cm) {
   int top_buf = GDF_TEST_EXTRA_VER_BORDER;
   int bot_buf = GDF_TEST_EXTRA_VER_BORDER;
@@ -191,9 +171,17 @@ void gdf_copy_guided_frame(AV2_COMMON *cm) {
                                 // 16: AVX2 vector length
   cm->gdf_info.inp_stride = input_stride;
 
-  cm->gdf_info.inp_pad_ptr =
-      (uint16_t *)avm_memalign(32, (top_buf + rec_height + bot_buf + 4) *
-                                       input_stride * sizeof(uint16_t));
+  const size_t inp_size =
+      (size_t)(top_buf + rec_height + bot_buf + 4) * input_stride;
+  if (cm->gdf_info.inp_pad_ptr == NULL ||
+      inp_size > cm->gdf_info.alloc_inp_size) {
+    avm_free(cm->gdf_info.inp_pad_ptr);
+    cm->gdf_info.inp_pad_ptr = NULL;
+    cm->gdf_info.alloc_inp_size = 0;
+    CHECK_MEM_ERROR(cm, cm->gdf_info.inp_pad_ptr,
+                    (uint16_t *)avm_memalign(32, inp_size * sizeof(uint16_t)));
+    cm->gdf_info.alloc_inp_size = inp_size;
+  }
   for (int i = top_buf; i < top_buf + rec_height; i++) {
     memcpy(
         cm->gdf_info.inp_pad_ptr + i * input_stride + GDF_TEST_EXTRA_HOR_BORDER,
@@ -211,9 +199,10 @@ void gdf_copy_guided_frame(AV2_COMMON *cm) {
   }
   cm->gdf_info.inp_ptr = cm->gdf_info.inp_pad_ptr + top_buf * input_stride +
                          GDF_TEST_EXTRA_HOR_BORDER;
-  gdf_extend_frame_highbd(cm->gdf_info.inp_ptr, rec_width, rec_height,
-                          input_stride, GDF_TEST_EXTRA_HOR_BORDER,
-                          GDF_TEST_EXTRA_VER_BORDER);
+  avm_extend_plane_high(cm->gdf_info.inp_ptr, input_stride, rec_width,
+                        rec_height, GDF_TEST_EXTRA_VER_BORDER,
+                        GDF_TEST_EXTRA_HOR_BORDER, GDF_TEST_EXTRA_VER_BORDER,
+                        GDF_TEST_EXTRA_HOR_BORDER);
 }
 
 void gdf_setup_processing_stripe_leftright_boundary(
@@ -381,8 +370,9 @@ static void gdf_put_boundary_line(const AV2_COMMON *cm, uint16_t *dst,
       dst[j] >>= diff_bit_depth;
     }
   }
-  gdf_extend_frame_highbd(dst, rec_width, 1, cm->gdf_info.inp_stride,
-                          GDF_TEST_EXTRA_HOR_BORDER, 0);
+  avm_extend_plane_high(dst, cm->gdf_info.inp_stride, rec_width, 1, 0,
+                        GDF_TEST_EXTRA_HOR_BORDER, 0,
+                        GDF_TEST_EXTRA_HOR_BORDER);
 }
 
 void gdf_load_stripe(const AV2_COMMON *cm, GdfStripeBuf *sb, int i_min,
@@ -424,6 +414,9 @@ void gdf_load_stripe(const AV2_COMMON *cm, GdfStripeBuf *sb, int i_min,
 
 void gdf_free_guided_frame(AV2_COMMON *cm) {
   avm_free(cm->gdf_info.inp_pad_ptr);
+  cm->gdf_info.inp_pad_ptr = NULL;
+  cm->gdf_info.inp_ptr = NULL;
+  cm->gdf_info.alloc_inp_size = 0;
 }
 
 int gdf_get_block_idx(const AV2_COMMON *cm, int y_h, int y_w) {
