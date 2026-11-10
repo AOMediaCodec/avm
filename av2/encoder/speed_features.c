@@ -1647,9 +1647,6 @@ void av2_set_speed_features_framesize_dependent(AV2_COMP *cpi, int speed) {
     }
     cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 =
         max_ratio == 2 ? 0 : (max_ratio == 4 ? 1 : 2);
-  }
-
-  if (!cpi->seq_params_locked) {
     cpi->common.seq_params.enable_uneven_4way_partitions =
         oxcf->part_cfg.enable_uneven_4way_partitions &&
         !sf->part_sf.disable_uneven_4way_partitions;
