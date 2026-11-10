@@ -908,7 +908,7 @@ static void set_good_speed_features_framesize_independent(
 
   if (sf->mv_sf.fast_mv_search) sf->mv_sf.search_method = DIAMOND;
 
-  if (cpi->is_screen_content_type) {
+  if (cpi->is_screen_content_type && cpi->oxcf.mode == GOOD) {
     if (speed >= 3) {
       // Sub-pel refinement is critical for sharp synthetic edges and text.
       sf->mv_sf.subpel_search_method = SUBPEL_TREE;

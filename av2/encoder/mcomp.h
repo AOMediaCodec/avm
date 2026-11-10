@@ -314,6 +314,7 @@ void av2_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv,
 #define OMVS_AVG_POOLING 1
 #define OMVS_RANGE_THR 2
 #define OMVS_BIG_STEP 4
+#define OMVS_SAD_THR 8
 
 // Obtain the bits of upshift for the MVD derived by optical flow based MV
 // search. The purpose for upscaling the MVD is to increase the search range and
@@ -461,7 +462,7 @@ typedef struct {
 } JOINT_AMVDNEWMV_STATS;
 
 int opfl_refine_fullpel_mv_one_sided(
-    const AV2_COMMON *cm, MACROBLOCK *x, MACROBLOCKD *xd,
+    const struct AV2_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
     const FULLPEL_MV *const smv, int_mv *mv_refined, BLOCK_SIZE bsize);
 
