@@ -272,10 +272,10 @@ int get_opfl_mv_iterations(const AV2_COMP *cpi, const MB_MODE_INFO *mbmi) {
 // and one predicted block (P0) to derives an MV delta, which is by itself
 // relative to P0.
 int opfl_refine_fullpel_mv_one_sided(
-    const AV2_COMMON *cm, MACROBLOCK *x, MACROBLOCKD *xd,
+    const AV2_COMP *cpi, MACROBLOCK *x, MACROBLOCKD *xd,
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
     const FULLPEL_MV *const smv, int_mv *mv_refined, BLOCK_SIZE bsize) {
-  (void)cm;
+  const AV2_COMMON *const cm = &cpi->common;
   (void)xd;
   (void)mbmi;
   int bw = block_size_wide[bsize];
@@ -284,6 +284,12 @@ int opfl_refine_fullpel_mv_one_sided(
   const struct buf_2d *const pred = ms_params->ms_buffers.ref;
   const struct buf_2d *const src = ms_params->ms_buffers.src;
   uint16_t *pred_ptr = &pred->buf[smv->row * pred->stride + smv->col];
+
+  if (cpi->oxcf.mode == REALTIME || cpi->speed >= 6) {
+    const int sad =
+        ms_params->vfp->sdf(src->buf, src->stride, pred_ptr, pred->stride);
+    if (sad < bw * bh * OMVS_SAD_THR) return 1;
+  }
 
   int vx0, vx1, vy0, vy1;
   int16_t *gx0, *gy0;

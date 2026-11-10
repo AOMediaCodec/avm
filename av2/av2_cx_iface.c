@@ -670,6 +670,7 @@ static struct av2_extracfg default_extra_cfg_rt = {
   .enable_tip_refinemv = 0,
   .enable_mv_traj = 0,
   .enable_high_motion = 0,
+  .enable_opfl_mv_search = 2,
   .enable_bawp = 0,
   .enable_cwp = 0,
   .enable_imp_msk_bld = 0,
