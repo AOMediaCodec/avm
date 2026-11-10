@@ -119,6 +119,8 @@ static std::vector<uint8_t> BuildTdObu() {
   return td;
 }
 
+constexpr size_t kMaxLeb128Size = 8;
+
 // This function read a temporal unit from a merged bitstream,
 // writes the temporal unit into each sub-stream.
 void ExtractTU(const uint8_t *data, int length, int *obu_overhead_bytes,
@@ -145,6 +147,7 @@ void ExtractTU(const uint8_t *data, int length, int *obu_overhead_bytes,
       fprintf(stderr,
               "OBU parse error. Did not consume all data, %d bytes remain.\n",
               remaining);
+      break;
     }
 
     int obu_header_size = 0;
@@ -156,34 +159,42 @@ void ExtractTU(const uint8_t *data, int length, int *obu_overhead_bytes,
     if (avm_uleb_decode(data + consumed, remaining, &obu_total_size,
                         &length_field_size) != 0) {
       fprintf(stderr, "OBU size parsing failed at offset %d.\n", consumed);
+      break;
+    }
+    if (obu_total_size == 0 ||
+        length_field_size + obu_total_size > static_cast<uint64_t>(remaining)) {
+      fprintf(stderr, "OBU parsing failed: not enough OBU data.\n");
+      break;
     }
 
     const uint8_t obu_header_byte = *(data + consumed + length_field_size);
     if (!ParseAV2ObuHeader(obu_header_byte, &obu_header)) {
       fprintf(stderr, "OBU parsing failed at offset %d.\n",
               consumed + static_cast<int>(length_field_size));
+      break;
     }
     ++obu_overhead;
     ++obu_header_size;
 
     if (obu_header.obu_header_extension_flag) {
+      if (obu_total_size < 2) {
+        fprintf(stderr, "OBU header extension truncated at offset %d.\n",
+                static_cast<int>(consumed + length_field_size +
+                                 kObuHeaderSizeBytes));
+        break;
+      }
       const uint8_t obu_header_ext_byte =
           *(data + consumed + length_field_size + kObuHeaderSizeBytes);
       if (!ParseAV2ObuHeaderExtension(obu_header_ext_byte, &obu_header)) {
         fprintf(stderr, "OBU header extension parsing failed at offset %d.\n",
                 static_cast<int>(consumed + length_field_size +
                                  kObuHeaderSizeBytes));
+        break;
       }
       ++obu_overhead;
       ++obu_header_size;
     }
 
-    int current_obu_length = static_cast<int>(obu_total_size) - obu_header_size;
-    if (obu_header_size + static_cast<int>(length_field_size) +
-            current_obu_length >
-        remaining) {
-      fprintf(stderr, "OBU parsing failed: not enough OBU data.\n");
-    }
     consumed +=
         static_cast<int>(obu_total_size) + static_cast<int>(length_field_size);
 
@@ -196,12 +207,12 @@ void ExtractTU(const uint8_t *data, int length, int *obu_overhead_bytes,
 
     if (obu_header.type == OBU_TEMPORAL_DELIMITER) {
       // Save the TD; we'll prepend it to each stream's output later.
-      std::vector<uint8_t> obu_size_data(length_field_size);
-      size_t coded_obu_size;
-      avm_uleb_encode(obu_total_size, sizeof(obu_total_size),
-                      obu_size_data.data(), &coded_obu_size);
-      td_obu.insert(td_obu.end(), obu_size_data.begin(),
-                    obu_size_data.begin() + coded_obu_size);
+      uint8_t obu_size_data[kMaxLeb128Size] = {};
+      size_t coded_obu_size = 0;
+      avm_uleb_encode(obu_total_size, sizeof(obu_size_data), obu_size_data,
+                      &coded_obu_size);
+      td_obu.insert(td_obu.end(), obu_size_data,
+                    obu_size_data + coded_obu_size);
       td_obu.insert(td_obu.end(), obu_tmp.begin(), obu_tmp.end());
 
     } else if (obu_header.type == OBU_MULTI_STREAM_DECODER_OPERATION) {
@@ -209,6 +220,7 @@ void ExtractTU(const uint8_t *data, int length, int *obu_overhead_bytes,
           &rb, data_ptr + obu_header_size + static_cast<int>(length_field_size),
           data_ptr + obu_total_size + length_field_size);
       *num_streams = read_multi_stream_decoder_operation(&rb, stream_ids);
+      if (*num_streams < 0) return;
       per_stream_obus.resize(*num_streams);
     } else {
       // Determine which stream this OBU belongs to.
@@ -226,7 +238,9 @@ void ExtractTU(const uint8_t *data, int length, int *obu_overhead_bytes,
         }
       }
 
-      if (idx >= (int)per_stream_obus.size()) per_stream_obus.resize(idx + 1);
+      if (idx >= static_cast<int>(per_stream_obus.size())) {
+        per_stream_obus.resize(idx + 1);
+      }
 
       // If this is the first OBU for this stream in this TU, prepend a TD.
       if (!stream_seen[idx]) {
@@ -243,25 +257,23 @@ void ExtractTU(const uint8_t *data, int length, int *obu_overhead_bytes,
       }
 
       // Rewrite OBU header: strip stream_id (xlayer) from header.
-      std::vector<uint8_t> obu_size_data(length_field_size);
-      size_t coded_obu_size;
+      uint8_t obu_size_data[kMaxLeb128Size] = {};
+      size_t coded_obu_size = 0;
       avm_uleb_encode(obu_total_size - (obu_header.obu_mlayer_id == 0),
-                      sizeof(obu_total_size), obu_size_data.data(),
-                      &coded_obu_size);
-      per_stream_obus[idx].insert(per_stream_obus[idx].end(),
-                                  obu_size_data.begin(),
-                                  obu_size_data.begin() + coded_obu_size);
+                      sizeof(obu_size_data), obu_size_data, &coded_obu_size);
+      per_stream_obus[idx].insert(per_stream_obus[idx].end(), obu_size_data,
+                                  obu_size_data + coded_obu_size);
 
-      std::vector<uint8_t> obu_header_data(1 + (obu_header.obu_mlayer_id != 0));
+      uint8_t obu_header_data[2] = {};
+      const size_t new_hdr_size = 1 + (obu_header.obu_mlayer_id != 0);
       if (!obu_header.obu_mlayer_id)
-        write_obu_header_without_stream_id(obu_header_data.data(), &obu_header);
+        write_obu_header_without_stream_id(obu_header_data, &obu_header);
       else
-        write_obu_header_extension_without_stream_id(obu_header_data.data(),
+        write_obu_header_extension_without_stream_id(obu_header_data,
                                                      &obu_header);
 
-      per_stream_obus[idx].insert(per_stream_obus[idx].end(),
-                                  obu_header_data.begin(),
-                                  obu_header_data.end());
+      per_stream_obus[idx].insert(per_stream_obus[idx].end(), obu_header_data,
+                                  obu_header_data + new_hdr_size);
       per_stream_obus[idx].insert(per_stream_obus[idx].end(),
                                   obu_tmp.begin() + obu_header_size,
                                   obu_tmp.end());
@@ -273,39 +285,33 @@ void ExtractTU(const uint8_t *data, int length, int *obu_overhead_bytes,
   if (obu_overhead_bytes != nullptr) *obu_overhead_bytes = obu_overhead;
 }
 
-void generate_filenames(char *base_filename, int num_files, char **file_names) {
-  char *dot_pos;
+static std::vector<std::string> GenerateFilenames(
+    const std::string &base_filename, int num_files) {
+  std::vector<std::string> file_names(num_files);
 #if PRINT_TU_INFO
-  printf("generate_filenames : base filne name :%s, num of riles: %d\n",
-         base_filename, num_files);
+  printf("GenerateFilenames : base file name :%s, num of files: %d\n",
+         base_filename.c_str(), num_files);
 #endif  // PRINT_TU_INFO
-  // Find the position of the last dot (extension)
-  dot_pos = strrchr(base_filename, '.');
+  // Only treat '.' after the last path separator as a filename extension.
+  const size_t slash_pos = base_filename.find_last_of("/\\");
+  const size_t dot_pos = base_filename.find_last_of('.');
+  const bool has_ext = dot_pos != std::string::npos &&
+                       (slash_pos == std::string::npos || dot_pos > slash_pos);
 
-  // Generate filenames for the specified number of files
-  for (int index = 0; index < num_files; index++) {
-    if (dot_pos != NULL) {
-      // Copy the part before the extension
-      strncpy(file_names[index], base_filename, dot_pos - base_filename);
-      file_names[index][dot_pos - base_filename] = '\0';
-
-      // Add the index
-      sprintf(file_names[index] + strlen(file_names[index]), "_");
-      sprintf(file_names[index] + strlen(file_names[index]), "%d", index);
-
-      // Add the extension
-      strcat(file_names[index], dot_pos);
+  for (int index = 0; index < num_files; ++index) {
+    const std::string suffix = "_" + std::to_string(index);
+    if (has_ext) {
+      file_names[index] = base_filename.substr(0, dot_pos) + suffix +
+                          base_filename.substr(dot_pos);
     } else {
-      // No extension in the base filename
-      strcpy(file_names[index], base_filename);
-      sprintf(file_names[index] + strlen(file_names[index]), "_");
-      sprintf(file_names[index] + strlen(file_names[index]), "%d", index);
+      file_names[index] = base_filename + suffix;
     }
   }
 #if PRINT_TU_INFO
-  for (int index = 0; index < num_files; index++)
-    printf("File name: %s\n", file_names[index]);
+  for (int index = 0; index < num_files; ++index)
+    printf("File name: %s\n", file_names[index].c_str());
 #endif  // PRINT_TU_INFO
+  return file_names;
 }
 
 int main(int argc, const char *argv[]) {
@@ -316,16 +322,12 @@ int main(int argc, const char *argv[]) {
 
   int num_streams = 1;
   int stream_ids[AVM_MAX_NUM_STREAMS] = { -1, -1, -1, -1 };
-  char base_filename[100];
-  strcpy(base_filename, argv[2]);
+  const std::string base_filename = argv[2];
 
   // Initialize file read for the merged stream
-  FILE *fin;
-  fin = fopen(argv[1], "rb");
-
+  FILE *fin = fopen(argv[1], "rb");
   if (fin == nullptr) {
-    fprintf(stderr, "Error: failed to open the output file: %s",
-            argv[argc - 1]);
+    fprintf(stderr, "Error: failed to open the input file: %s\n", argv[1]);
     exit(1);
   }
 
@@ -350,30 +352,26 @@ int main(int argc, const char *argv[]) {
       reinterpret_cast<uint8_t *>(calloc(kInitialBufferSize, 1));
   if (!input_ctx.unit_buffer) {
     fprintf(stderr, "Error: No memory, can't alloc input buffer.\n");
+    fclose(fin);
     exit(1);
   }
   input_ctx.unit_buffer_size = kInitialBufferSize;
 
   // Initialize file write for each stream
-  char *output_file_names[AVM_MAX_NUM_STREAMS];
-  for (int i = 0; i < AVM_MAX_NUM_STREAMS; ++i) {
-    output_file_names[i] = (char *)malloc(100 * sizeof(char));
-    if (output_file_names[i] == NULL) {
-      fprintf(stderr, "Error: No memory, can't alloc output_file_names.\n");
-      exit(1);
-    }
-  }
-
-  FILE *fout[AVM_MAX_NUM_STREAMS];
-
-  generate_filenames(base_filename, AVM_MAX_NUM_STREAMS, output_file_names);
+  const std::vector<std::string> output_file_names =
+      GenerateFilenames(base_filename, AVM_MAX_NUM_STREAMS);
+  FILE *fout[AVM_MAX_NUM_STREAMS] = {};
 
   for (int i = 0; i < num_streams; ++i) {
-    fout[i] = fopen(output_file_names[i], "wb");
+    fout[i] = fopen(output_file_names[i].c_str(), "wb");
 
     if (fout[i] == nullptr) {
-      fprintf(stderr, "Error: failed to open the output file: %s",
-              output_file_names[i]);
+      fprintf(stderr, "Error: failed to open the output file: %s\n",
+              output_file_names[i].c_str());
+      for (int j = 0; j < i; ++j) {
+        if (fout[j] != nullptr) fclose(fout[j]);
+      }
+      fclose(fin);
       exit(1);
     }
   }
@@ -381,7 +379,7 @@ int main(int argc, const char *argv[]) {
   printf("\n ========== Start demuxing bitstreams =============\n\n");
 #endif  // PRINT_TU_INFO
 
-  // Multiplex TUs of multi-streams
+  // Demultiplex TUs of multi-streams
   int num_tu_read = 1;
   int num_total_tus = 0;
   int unit_number[AVM_MAX_NUM_STREAMS];
@@ -409,13 +407,21 @@ int main(int argc, const char *argv[]) {
           fprintf(stderr,
                   "Error: the parameters in multi_stream header OBU do not "
                   "fullfill the requirements.\n");
+          for (int i = 0; i < num_streams; ++i) {
+            if (fout[i] != nullptr) fclose(fout[i]);
+          }
+          fclose(fin);
           return -1;
         } else if (updated_num_streams > num_streams) {
           for (int i = num_streams; i < updated_num_streams; ++i) {
-            fout[i] = fopen(output_file_names[i], "wb");
+            fout[i] = fopen(output_file_names[i].c_str(), "wb");
             if (fout[i] == nullptr) {
-              fprintf(stderr, "Error: failed to open the output file: %s",
-                      output_file_names[i]);
+              fprintf(stderr, "Error: failed to open the output file: %s\n",
+                      output_file_names[i].c_str());
+              for (int j = 0; j < i; ++j) {
+                if (fout[j] != nullptr) fclose(fout[j]);
+              }
+              fclose(fin);
               exit(1);
             }
           }
@@ -444,6 +450,7 @@ int main(int argc, const char *argv[]) {
   }
 
   for (int i = 0; i < num_streams; ++i) num_total_tus += unit_number[i];
+  (void)num_total_tus;
 #if PRINT_TU_INFO
   printf("  Total number of TUs: %d\n\n", num_total_tus);
   for (int i = 0; i < num_streams; ++i)
@@ -451,11 +458,10 @@ int main(int argc, const char *argv[]) {
            unit_number[i]);
   printf("\n ========= Completed demuxing bitstreams ========= \n\n");
 #endif  // PRINT_TU_INFO
-  for (int i = 0; i < num_streams; ++i) fclose(fout[i]);
-
-  for (int i = 0; i < AVM_MAX_NUM_STREAMS; ++i) {
-    free(output_file_names[i]);
+  for (int i = 0; i < num_streams; ++i) {
+    if (fout[i] != nullptr) fclose(fout[i]);
   }
+  fclose(fin);
 
   return EXIT_SUCCESS;
 }

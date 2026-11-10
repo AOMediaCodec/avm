@@ -35,6 +35,7 @@
 #include "av2/decoder/decoder.h"
 #include "av2/decoder/decodeframe.h"
 #include "av2/decoder/obu.h"
+#include "av2/decoder/annexD.h"
 
 #include "avm_dsp/bitwriter_buffer.h"
 #include "av2/common/enums.h"
@@ -62,11 +63,12 @@ struct avm_codec_alg_priv {
   int local_ops_selections[MAX_NUM_XLAYERS - 1][3];
   int num_local_ops_selections;
   int output_all_layers;
+  int compose_annex_d;
 
   AVxWorker *frame_worker;
 
   avm_image_t image_with_grain;
-  avm_codec_frame_buffer_t grain_image_frame_buffers[REF_FRAMES + 1];
+  avm_codec_frame_buffer_t grain_image_frame_buffers[MAX_NUM_XLAYERS];
   size_t num_grain_image_frame_buffers;
   int need_resync;  // wait for key/intra-only frame
   // BufferPool that holds all reference frames. Shared by all the FrameWorkers.
@@ -140,6 +142,23 @@ static avm_codec_err_t decoder_destroy(avm_codec_alg_priv_t *ctx) {
     AVxWorker *const worker = ctx->frame_worker;
     FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
     avm_get_worker_interface()->end(worker);
+    {
+      // Release Annex D atlas composition resources before pool teardown.
+      AV2Decoder *const adp = frame_worker_data->pbi;
+      BufferPool *const pool = ctx->buffer_pool;
+      lock_buffer_pool(pool);
+      for (int xl = 0; xl < MAX_NUM_XLAYERS; ++xl) {
+        if (adp->annex_d_last_frame[xl] != NULL) {
+          decrease_ref_count(adp->annex_d_last_frame[xl], pool);
+          adp->annex_d_last_frame[xl] = NULL;
+        }
+      }
+      unlock_buffer_pool(pool);
+      if (adp->annex_d_canvas_allocated) {
+        avm_free_frame_buffer(&adp->annex_d_canvas);
+        adp->annex_d_canvas_allocated = 0;
+      }
+    }
     avm_free(frame_worker_data->pbi->common.tpl_mvs);
     avm_free(frame_worker_data->pbi->common.tpl_mvs_rows);
     frame_worker_data->pbi->common.tpl_mvs = NULL;
@@ -473,6 +492,7 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
     }
   }
   frame_worker_data->pbi->output_all_layers = ctx->output_all_layers;
+  frame_worker_data->pbi->compose_annex_d = ctx->compose_annex_d;
   frame_worker_data->pbi->row_mt = ctx->row_mt;
   frame_worker_data->pbi->is_fwd_kf_present = 0;
   frame_worker_data->pbi->enable_subgop_stats = ctx->enable_subgop_stats;
@@ -1148,6 +1168,11 @@ static avm_image_t *add_grain_if_needed(avm_codec_alg_priv_t *ctx,
   const int h_even = ALIGN_POWER_OF_TWO(img->d_h, 1);
 
   BufferPool *const pool = ctx->buffer_pool;
+  if (ctx->num_grain_image_frame_buffers >=
+      sizeof(ctx->grain_image_frame_buffers) /
+          sizeof(ctx->grain_image_frame_buffers[0])) {
+    return NULL;
+  }
   avm_codec_frame_buffer_t *fb =
       &ctx->grain_image_frame_buffers[ctx->num_grain_image_frame_buffers];
   AllocCbParam param;
@@ -1207,6 +1232,186 @@ static void copy_frame_hash_metadata_to_img(
   }
 }
 
+// Applies film grain to a single Annex D segment's source frame, if that
+// frame carries grain params and grain is not globally disabled. Allocates a
+// standalone temporary avm_image_t so arbitrarily many segments (up to
+// MAX_NUM_ATLAS_SEGMENTS) can carry film grain without touching
+// ctx->grain_image_frame_buffers[] or mutating live reference / cached frames.
+static YV12_BUFFER_CONFIG *apply_segment_grain(AV2Decoder *pbi,
+                                               RefCntBuffer *rb,
+                                               avm_image_t *grain_img,
+                                               int *grain_allocated,
+                                               YV12_BUFFER_CONFIG *grain_yv12) {
+  avm_film_grain_t grain_params = rb->film_grain_params;
+  if (pbi->skip_film_grain) grain_params.apply_grain = 0;
+  if (!grain_params.apply_grain) return &rb->buf;
+
+  avm_image_t src_img;
+  memset(&src_img, 0, sizeof(src_img));
+  memset(grain_img, 0, sizeof(*grain_img));
+  yuvconfig2image(&src_img, &rb->buf, NULL);
+  const int w_even = ALIGN_POWER_OF_TWO(src_img.d_w, 1);
+  const int h_even = ALIGN_POWER_OF_TWO(src_img.d_h, 1);
+  if (!avm_img_alloc(grain_img, src_img.fmt, w_even, h_even, 16)) return NULL;
+  if (av2_add_film_grain(&grain_params, &src_img, grain_img)) {
+    avm_img_free(grain_img);
+    return NULL;
+  }
+  *grain_allocated = 1;
+  image2yuvconfig(grain_img, grain_yv12);
+  grain_yv12->bit_depth = grain_img->bit_depth;
+  return grain_yv12;
+}
+
+static void free_segment_grain_images(avm_image_t *grain_imgs,
+                                      int *grain_allocated, int count) {
+  for (int i = 0; i < count; ++i) {
+    if (grain_allocated[i]) {
+      avm_img_free(&grain_imgs[i]);
+      grain_allocated[i] = 0;
+    }
+  }
+}
+
+// Composes all extended-layer frames of the next temporal unit into a single
+// canvas frame (Annex D). Consumes the whole TU from the output queue and
+// returns one composite image, or NULL when the queue is exhausted.
+static avm_image_t *compose_annex_d_frame(avm_codec_alg_priv_t *ctx,
+                                          AV2Decoder *pbi,
+                                          AtlasSegmentInfo *atlas,
+                                          uintptr_t *index, int update_iter,
+                                          void *user_priv) {
+  if (*index >= pbi->num_output_frames) return NULL;
+
+  BufferPool *const pool = ctx->buffer_pool;
+  // Composition requires monotonic_output_order_flag == 1 (enforced at frame
+  // decode) and the application feeds one temporal unit per decode call, so
+  // every currently queued output frame belongs to the same time instance.
+  size_t start = *index, end = pbi->num_output_frames;
+
+  // Refresh the per-xlayer last-frame cache from this TU's frames (retaining a
+  // reference so a frame can be reused when a stream is absent in a later TU).
+  lock_buffer_pool(pool);
+  for (size_t k = start; k < end; ++k) {
+    RefCntBuffer *const rb = pbi->output_frames[k];
+    const int xl = rb->xlayer_id;
+    if (xl >= 0 && xl < MAX_NUM_XLAYERS && pbi->annex_d_last_frame[xl] != rb) {
+      if (pbi->annex_d_last_frame[xl] != NULL)
+        decrease_ref_count(pbi->annex_d_last_frame[xl], pool);
+      pbi->annex_d_last_frame[xl] = rb;
+      ++rb->ref_count;
+    }
+  }
+  unlock_buffer_pool(pool);
+
+  // Resolve each segment's source frame: this TU's frame for the stream, else
+  // its previous frame, else NULL (segment left as background).
+  const AtlasBasicInfo *const bi = atlas->ats_basic_info;
+  const int num_seg =
+      AVMMIN(bi->ats_num_atlas_segments_minus_1 + 1, MAX_NUM_ATLAS_SEGMENTS);
+  const int is_alpha_mode =
+      atlas->atlas_segment_mode_idc == MULTISTREAM_ALPHA_ATLAS;
+  YV12_BUFFER_CONFIG *seg_src[MAX_NUM_ATLAS_SEGMENTS];
+  YV12_BUFFER_CONFIG *any = NULL;  // first frame of any kind
+  // Canvas format derived from the texture (non-alpha) frames: max bit depth,
+  // common chroma format. Alpha mattes are excluded.
+  int tex_count = 0;
+  int tex_subX = 0, tex_subY = 0, tex_mono = 0, tex_bd_max = 0;
+  int chroma_mismatch = 0;
+  // Backing storage for any per-segment grained copies; freed on every exit
+  // path after av2_annex_d_compose_tu() finishes.
+  avm_image_t grain_imgs[MAX_NUM_ATLAS_SEGMENTS];
+  int grain_allocated[MAX_NUM_ATLAS_SEGMENTS] = { 0 };
+  YV12_BUFFER_CONFIG grain_yv12[MAX_NUM_ATLAS_SEGMENTS];
+  for (int i = 0; i < num_seg; ++i) {
+    const int stream = bi->ats_input_stream_id[i];
+    RefCntBuffer *rb = NULL;
+    for (size_t k = start; k < end; ++k) {
+      if (pbi->output_frames[k]->xlayer_id == stream) {
+        rb = pbi->output_frames[k];
+        break;
+      }
+    }
+    if (rb == NULL && stream >= 0 && stream < MAX_NUM_XLAYERS &&
+        pbi->annex_d_last_frame[stream] != NULL) {
+      rb = pbi->annex_d_last_frame[stream];
+    }
+    YV12_BUFFER_CONFIG *src = NULL;
+    if (rb != NULL) {
+      src = apply_segment_grain(pbi, rb, &grain_imgs[i], &grain_allocated[i],
+                                &grain_yv12[i]);
+      if (src == NULL) {
+        free_segment_grain_images(grain_imgs, grain_allocated, i);
+        avm_internal_error(&pbi->common.error, AVM_CODEC_MEM_ERROR,
+                           "Failed to apply film grain to atlas segment");
+      }
+    }
+    seg_src[i] = src;
+    if (src != NULL) {
+      if (any == NULL) any = src;
+      const int is_alpha = is_alpha_mode && bi->ats_alpha_segment_flag[i] == 1;
+      if (!is_alpha) {
+        if (tex_count == 0) {
+          tex_subX = src->subsampling_x;
+          tex_subY = src->subsampling_y;
+          tex_mono = src->monochrome;
+        } else if (src->subsampling_x != tex_subX ||
+                   src->subsampling_y != tex_subY ||
+                   (!!src->monochrome) != (!!tex_mono)) {
+          chroma_mismatch = 1;
+        }
+        if ((int)src->bit_depth > tex_bd_max) tex_bd_max = (int)src->bit_depth;
+        ++tex_count;
+      }
+    }
+  }
+
+  if (update_iter) *index = end;
+  if (any == NULL || tex_count == 0) {
+    free_segment_grain_images(grain_imgs, grain_allocated, num_seg);
+    return NULL;
+  }
+  if (chroma_mismatch) {
+    free_segment_grain_images(grain_imgs, grain_allocated, num_seg);
+    avm_internal_error(&pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
+                       "multistream composition: mixed chroma formats across "
+                       "texture layers are not supported");
+  }
+
+  // Canvas: atlas dimensions, bit depth = max texture depth, chroma = common
+  // texture chroma format.
+  const int c_subX = tex_subX, c_subY = tex_subY, c_mono = tex_mono;
+  const int c_bd = tex_bd_max;
+
+  // (Re)allocate the canvas to the atlas size in the chosen color format.
+  if (avm_realloc_frame_buffer(
+          &pbi->annex_d_canvas, bi->ats_atlas_width, bi->ats_atlas_height,
+          c_subX, c_subY, AVM_DEC_BORDER_IN_PIXELS,
+          /*byte_alignment=*/0, /*fb=*/NULL, /*cb=*/NULL, /*cb_priv=*/NULL,
+          /*alloc_pyramid=*/false)) {
+    free_segment_grain_images(grain_imgs, grain_allocated, num_seg);
+    avm_internal_error(&pbi->common.error, AVM_CODEC_MEM_ERROR,
+                       "Failed to allocate atlas composition canvas");
+  }
+  pbi->annex_d_canvas.bit_depth = c_bd;
+  pbi->annex_d_canvas.monochrome = c_mono;
+  pbi->annex_d_canvas_allocated = 1;
+
+  const int compose_rc =
+      av2_annex_d_compose_tu(atlas, seg_src, num_seg, &pbi->annex_d_canvas);
+  free_segment_grain_images(grain_imgs, grain_allocated, num_seg);
+  if (compose_rc != 0) {
+    avm_internal_error(&pbi->common.error, AVM_CODEC_UNSUP_BITSTREAM,
+                       "Atlas composition failed (incompatible inputs)");
+  }
+
+  avm_img_remove_metadata(&ctx->img);
+  yuvconfig2image(&ctx->img, &pbi->annex_d_canvas, user_priv);
+  ctx->img.xlayer_id = GLOBAL_XLAYER_ID;
+  ctx->img.stream_id = -1;
+  return &ctx->img;
+}
+
 static avm_image_t *decoder_get_frame_(avm_codec_alg_priv_t *ctx,
                                        avm_codec_iter_t *iter,
                                        int update_iter) {
@@ -1231,6 +1436,15 @@ static avm_image_t *decoder_get_frame_(avm_codec_alg_priv_t *ctx,
       if (frame_worker_data->received_frame == 1) {
         frame_worker_data->received_frame = 0;
         check_resync(ctx, frame_worker_data->pbi);
+      }
+      if (pbi->compose_annex_d && !ctx->need_resync &&
+          pbi->active_multistream_atlas != NULL) {
+        // A multistream atlas is active (persisted across TUs): return one
+        // composited frame per TU (or NULL when the queue is drained); never
+        // the per-xlayer frames.
+        return compose_annex_d_frame(ctx, pbi, pbi->active_multistream_atlas,
+                                     index, update_iter,
+                                     frame_worker_data->user_priv);
       }
       YV12_BUFFER_CONFIG *sd;
       avm_film_grain_t *grain_params;
@@ -1977,6 +2191,12 @@ static avm_codec_err_t ctrl_set_output_all_layers(avm_codec_alg_priv_t *ctx,
   return AVM_CODEC_OK;
 }
 
+static avm_codec_err_t ctrl_set_compose_annex_d(avm_codec_alg_priv_t *ctx,
+                                                va_list args) {
+  ctx->compose_annex_d = va_arg(args, int);
+  return AVM_CODEC_OK;
+}
+
 static avm_codec_err_t ctrl_set_sub_bitstream_extraction(
     avm_codec_alg_priv_t *ctx, va_list args) {
   ctx->enable_sub_bitstream_extraction = va_arg(args, int);
@@ -2037,6 +2257,7 @@ static avm_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV2D_SET_SUB_BITSTREAM_EXTRACTION, ctrl_set_sub_bitstream_extraction },
   { AV2D_SET_SELECTED_LOCAL_OPS, ctrl_set_selected_local_ops },
   { AV2D_SET_OUTPUT_ALL_LAYERS, ctrl_set_output_all_layers },
+  { AV2D_SET_COMPOSE_ANNEX_D, ctrl_set_compose_annex_d },
   { AV2_SET_INSPECTION_CALLBACK, ctrl_set_inspection_callback },
   { AV2D_SET_ROW_MT, ctrl_set_row_mt },
   { AV2D_SET_SKIP_FILM_GRAIN, ctrl_set_skip_film_grain },

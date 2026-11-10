@@ -1,0 +1,19 @@
+{
+  "atlas_multistream_info": {
+    "atlas_segment_id": 0,
+    "atlas_segment_mode_idc": "MULTISTREAM_ATLAS",
+    "msi_width": 256,
+    "msi_height": 128,
+    "background": { "red_value": 200, "green_value": 100, "blue_value": 50 },
+    "segments": [
+      { "input_stream_id": 0, "top_left_pos_x": 0,   "top_left_pos_y": 0,   "width": 64, "height": 64 },
+      { "input_stream_id": 1, "top_left_pos_x": 64,  "top_left_pos_y": 0,   "width": 64, "height": 64 },
+      { "input_stream_id": 2, "top_left_pos_x": 128, "top_left_pos_y": 0,   "width": 64, "height": 64 },
+      { "input_stream_id": 3, "top_left_pos_x": 192, "top_left_pos_y": 0,   "width": 64, "height": 64 },
+      { "input_stream_id": 4, "top_left_pos_x": 0,   "top_left_pos_y": 64,  "width": 64, "height": 64 },
+      { "input_stream_id": 5, "top_left_pos_x": 64,  "top_left_pos_y": 64,  "width": 64, "height": 64 },
+      { "input_stream_id": 6, "top_left_pos_x": 128, "top_left_pos_y": 64,  "width": 64, "height": 64 },
+      { "input_stream_id": 7, "top_left_pos_x": 192, "top_left_pos_y": 64,  "width": 64, "height": 64 }
+    ]
+  }
+}

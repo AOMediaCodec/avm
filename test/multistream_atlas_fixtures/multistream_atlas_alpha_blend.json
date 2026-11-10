@@ -1,0 +1,14 @@
+{
+  "emit_policy": "with_msdo",
+  "atlas_multistream_info": {
+    "atlas_segment_id": 0,
+    "atlas_segment_mode_idc": "MULTISTREAM_ALPHA_ATLAS",
+    "alpha_segments_present": true,
+    "msi_width": 64,
+    "msi_height": 64,
+    "segments": [
+      { "input_stream_id": 0, "top_left_pos_x": 0, "top_left_pos_y": 0, "width": 64, "height": 64, "alpha_segment": true },
+      { "input_stream_id": 1, "top_left_pos_x": 0, "top_left_pos_y": 0, "width": 64, "height": 64 }
+    ]
+  }
+}

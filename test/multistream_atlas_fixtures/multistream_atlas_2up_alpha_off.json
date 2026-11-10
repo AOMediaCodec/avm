@@ -1,0 +1,14 @@
+{
+  "emit_policy": "every_tu",
+  "atlas_multistream_info": {
+    "atlas_segment_id": 0,
+    "atlas_segment_mode_idc": "MULTISTREAM_ALPHA_ATLAS",
+    "alpha_segments_present": false,
+    "msi_width": 128,
+    "msi_height": 64,
+    "segments": [
+      { "input_stream_id": 0, "top_left_pos_x": 0,  "top_left_pos_y": 0, "width": 64, "height": 64 },
+      { "input_stream_id": 1, "top_left_pos_x": 64, "top_left_pos_y": 0, "width": 64, "height": 64 }
+    ]
+  }
+}
