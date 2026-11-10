@@ -274,7 +274,7 @@ specialize "avm_highbd_blend_a64_d16_mask", qw/sse4_1 avx2/;
 # Block subtraction
 #
 add_proto qw/void avm_highbd_subtract_block/, "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint16_t *src_ptr, ptrdiff_t src_stride, const uint16_t *pred_ptr, ptrdiff_t pred_stride, int bd";
-specialize qw/avm_highbd_subtract_block sse2/;
+specialize qw/avm_highbd_subtract_block sse2 avx2/;
 
 add_proto qw/void avm_highbd_subtract_block_vert/, "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint16_t *src_ptr, ptrdiff_t src_stride, const uint16_t *pred_ptr, ptrdiff_t pred_stride, int bd";
 add_proto qw/void avm_highbd_subtract_block_horz/, "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint16_t *src_ptr, ptrdiff_t src_stride, const uint16_t *pred_ptr, ptrdiff_t pred_stride, int bd";

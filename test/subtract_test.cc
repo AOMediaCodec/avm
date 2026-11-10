@@ -38,25 +38,30 @@ using std::get;
 using std::make_tuple;
 using std::tuple;
 
-// <width, height, bit_dpeth, subtract>
-typedef tuple<int, int, int, HBDSubtractFunc> Params;
+// <<width, height>, bit_depth, subtract>
+typedef tuple<int, int> BlockSize;
+typedef tuple<BlockSize, int, HBDSubtractFunc> Params;
+
+// Stride of src; it differs from the width of most blocks.
+const int kMaxWidth = 256;
+// Extra stride of pred, so that pred_stride differs from diff_stride.
+const int kPredPad = 16;
 
 class AV2HBDSubtractBlockTest : public ::testing::TestWithParam<Params> {
  public:
   virtual void SetUp() {
-    block_width_ = GET_PARAM(0);
-    block_height_ = GET_PARAM(1);
-    bit_depth_ = static_cast<avm_bit_depth_t>(GET_PARAM(2));
-    func_ = GET_PARAM(3);
+    block_width_ = get<0>(GET_PARAM(0));
+    block_height_ = get<1>(GET_PARAM(0));
+    bit_depth_ = static_cast<avm_bit_depth_t>(GET_PARAM(1));
+    func_ = GET_PARAM(2);
 
     rnd_.Reset(ACMRandom::DeterministicSeed());
 
-    const size_t max_width = 128;
-    const size_t max_block_size = max_width * max_width;
+    const size_t max_block_size = kMaxWidth * kMaxWidth;
     src_ = reinterpret_cast<uint16_t *>(
         avm_memalign(16, max_block_size * sizeof(uint16_t)));
-    pred_ = reinterpret_cast<uint16_t *>(
-        avm_memalign(16, max_block_size * sizeof(uint16_t)));
+    pred_ = reinterpret_cast<uint16_t *>(avm_memalign(
+        16, (kMaxWidth + kPredPad) * kMaxWidth * sizeof(uint16_t)));
     diff_ = reinterpret_cast<int16_t *>(
         avm_memalign(16, max_block_size * sizeof(int16_t)));
   }
@@ -85,24 +90,25 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2HBDSubtractBlockTest);
 
 void AV2HBDSubtractBlockTest::CheckResult() {
   const int test_num = 100;
-  const size_t max_width = 128;
-  const int max_block_size = max_width * max_width;
   const int mask = (1 << bit_depth_) - 1;
-  int i, j;
+  const int pred_stride = block_width_ + kPredPad;
 
-  for (i = 0; i < test_num; ++i) {
-    for (j = 0; j < max_block_size; ++j) {
+  for (int i = 0; i < test_num; ++i) {
+    for (int j = 0; j < block_height_ * kMaxWidth; ++j) {
       src_[j] = rnd_.Rand16() & mask;
+    }
+    for (int j = 0; j < block_height_ * pred_stride; ++j) {
       pred_[j] = rnd_.Rand16() & mask;
     }
 
-    func_(block_height_, block_width_, diff_, block_width_, src_, block_width_,
-          pred_, block_width_, bit_depth_);
+    ASM_REGISTER_STATE_CHECK(func_(block_height_, block_width_, diff_,
+                                   block_width_, src_, kMaxWidth, pred_,
+                                   pred_stride, bit_depth_));
 
     for (int r = 0; r < block_height_; ++r) {
       for (int c = 0; c < block_width_; ++c) {
         EXPECT_EQ(diff_[r * block_width_ + c],
-                  (src_[r * block_width_ + c] - pred_[r * block_width_ + c]))
+                  (src_[r * kMaxWidth + c] - pred_[r * pred_stride + c]))
             << "r = " << r << ", c = " << c << ", test: " << i;
       }
     }
@@ -113,8 +119,7 @@ TEST_P(AV2HBDSubtractBlockTest, CheckResult) { CheckResult(); }
 
 void AV2HBDSubtractBlockTest::RunForSpeed() {
   const int test_num = 200000;
-  const size_t max_width = 128;
-  const int max_block_size = max_width * max_width;
+  const int max_block_size = kMaxWidth * kMaxWidth;
   const int mask = (1 << bit_depth_) - 1;
   int i, j;
 
@@ -131,43 +136,37 @@ void AV2HBDSubtractBlockTest::RunForSpeed() {
 
 TEST_P(AV2HBDSubtractBlockTest, DISABLED_Speed) { RunForSpeed(); }
 
-#if HAVE_SSE2
-const Params kAV2HBDSubtractBlock_sse2[] = {
-  make_tuple(4, 4, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(4, 4, 12, &avm_highbd_subtract_block_c),
-  make_tuple(4, 8, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(4, 8, 12, &avm_highbd_subtract_block_c),
-  make_tuple(8, 4, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(8, 4, 12, &avm_highbd_subtract_block_c),
-  make_tuple(8, 8, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(8, 8, 12, &avm_highbd_subtract_block_c),
-  make_tuple(8, 16, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(8, 16, 12, &avm_highbd_subtract_block_c),
-  make_tuple(16, 8, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(16, 8, 12, &avm_highbd_subtract_block_c),
-  make_tuple(16, 16, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(16, 16, 12, &avm_highbd_subtract_block_c),
-  make_tuple(16, 32, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(16, 32, 12, &avm_highbd_subtract_block_c),
-  make_tuple(32, 16, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(32, 16, 12, &avm_highbd_subtract_block_c),
-  make_tuple(32, 32, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(32, 32, 12, &avm_highbd_subtract_block_c),
-  make_tuple(32, 64, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(32, 64, 12, &avm_highbd_subtract_block_c),
-  make_tuple(64, 32, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(64, 32, 12, &avm_highbd_subtract_block_c),
-  make_tuple(64, 64, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(64, 64, 12, &avm_highbd_subtract_block_c),
-  make_tuple(64, 128, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(64, 128, 12, &avm_highbd_subtract_block_c),
-  make_tuple(128, 64, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(128, 64, 12, &avm_highbd_subtract_block_c),
-  make_tuple(128, 128, 12, &avm_highbd_subtract_block_sse2),
-  make_tuple(128, 128, 12, &avm_highbd_subtract_block_c)
+// Block sizes run for every kernel.
+const BlockSize kBlockSizes[] = {
+  make_tuple(4, 4),     make_tuple(4, 8),     make_tuple(8, 4),
+  make_tuple(8, 8),     make_tuple(8, 16),    make_tuple(16, 8),
+  make_tuple(16, 16),   make_tuple(16, 32),   make_tuple(32, 16),
+  make_tuple(32, 32),   make_tuple(32, 64),   make_tuple(64, 32),
+  make_tuple(64, 64),   make_tuple(64, 128),  make_tuple(128, 64),
+  make_tuple(128, 128), make_tuple(128, 256), make_tuple(256, 128),
+  make_tuple(256, 256), make_tuple(4, 16),    make_tuple(16, 4),
+  make_tuple(8, 32),    make_tuple(32, 8),    make_tuple(16, 64),
+  make_tuple(64, 16),   make_tuple(4, 32),    make_tuple(32, 4),
+  make_tuple(8, 64),    make_tuple(64, 8),    make_tuple(4, 64),
+  make_tuple(64, 4),
 };
 
-INSTANTIATE_TEST_SUITE_P(SSE2, AV2HBDSubtractBlockTest,
-                         ::testing::ValuesIn(kAV2HBDSubtractBlock_sse2));
+INSTANTIATE_TEST_SUITE_P(
+    C, AV2HBDSubtractBlockTest,
+    ::testing::Combine(::testing::ValuesIn(kBlockSizes), ::testing::Values(12),
+                       ::testing::Values(&avm_highbd_subtract_block_c)));
+
+#if HAVE_SSE2
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, AV2HBDSubtractBlockTest,
+    ::testing::Combine(::testing::ValuesIn(kBlockSizes), ::testing::Values(12),
+                       ::testing::Values(&avm_highbd_subtract_block_sse2)));
 #endif  // HAVE_SSE2
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV2HBDSubtractBlockTest,
+    ::testing::Combine(::testing::ValuesIn(kBlockSizes), ::testing::Values(12),
+                       ::testing::Values(&avm_highbd_subtract_block_avx2)));
+#endif  // HAVE_AVX2
 }  // namespace
