@@ -517,25 +517,24 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.warp_mv_refine_early_term = boosted ? false : true;
     sf->part_sf.prune_rect_split_by_rd = 2;
 
-    sf->lpf_sf.ccso_terminate_search_luma_pass_count = 10;
-    sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 20;
-    // Empirically, it is seen that in EO pass, bands 1 and 8 are preferred.
-    sf->lpf_sf.ccso_eo_band_mask = 9;
-    sf->part_sf.partition_pruning_with_mlp = 1;
-    sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
-
     sf->part_sf.disable_uneven_4way_partitions = true;
     sf->part_sf.disable_extended_sdp = true;
 
     if (cpi->is_screen_content_type) {
       sf->mv_sf.exhaustive_searches_thresh = (1 << 21);
     }
-    sf->mv_sf.subpel_search_type = USE_4_TAPS;
+    if (!is_4k_or_larger) {
+      sf->mv_sf.subpel_search_type = USE_4_TAPS;
+      sf->inter_sf.prune_comp_type_by_model_rd = boosted ? 0 : 1;
+      sf->inter_sf.reuse_inter_intra_mode = 1;
+      sf->inter_sf.skip_repeated_newmv = 1;
+      sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
+      // Effective at speeds 2-3 only; inter IST is disabled at speed >= 4.
+      sf->tx_sf.prune_inter_ist_by_dct_rd = true;
+    }
 
     sf->inter_sf.disable_switchable_refinemv = 1;
     sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
-    sf->inter_sf.prune_comp_type_by_comp_avg = 1;
-    sf->inter_sf.prune_comp_type_by_model_rd = boosted ? 0 : 1;
     sf->inter_sf.prune_motion_mode_level = 2;
     sf->inter_sf.enable_four_param_warp_in_winner_mode =
         cm->current_frame.pyramid_level >= 4;
@@ -543,12 +542,16 @@ static void set_good_speed_features_framesize_independent(
         (frame_is_intra_only(&cpi->common) || (allow_screen_content_tools))
             ? 0
             : (boosted ? 1 : 2);
-    sf->inter_sf.reuse_inter_intra_mode = 1;
     sf->inter_sf.selective_ref_frame = 2;
-    sf->inter_sf.skip_repeated_newmv = 1;
     sf->inter_sf.prune_amvd_newmv = 2;
-    sf->inter_sf.skip_eval_intrabc_in_inter_frame =
-        cm->features.allow_screen_content_tools ? 0 : 1;
+    if (is_4k_or_larger) {
+      sf->lpf_sf.ccso_terminate_search_luma_pass_count = 10;
+      sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 20;
+      // Empirically, it is seen that in EO pass, bands 1 and 8 are preferred.
+      sf->lpf_sf.ccso_eo_band_mask = 9;
+      sf->inter_sf.skip_eval_intrabc_in_inter_frame =
+          cm->features.allow_screen_content_tools ? 0 : 1;
+    }
     sf->inter_sf.reduce_max_drl_refmvs = 1;
     if (!allow_screen_content_tools) {
       // When reduce_max_drl_refmvs is enabled, keep newmv_drl_search_limit at 2
@@ -565,9 +568,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
     sf->tx_sf.model_based_prune_tx_search_level = 0;
-    sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
-    // Effective at speeds 2-3 only; inter IST is disabled at speed >= 4.
-    sf->tx_sf.prune_inter_ist_by_dct_rd = true;
 
     sf->rd_sf.perform_coeff_opt = boosted ? 2 : 3;
     sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
@@ -589,6 +589,19 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.disable_ext_partitions =
         !cpi->is_screen_content_type ||
         !cpi->oxcf.part_cfg.enable_ext_partitions;
+    // Empirically, it is seen that in EO pass, bands 1 and 8 are preferred.
+    sf->lpf_sf.ccso_eo_band_mask = 9;
+    sf->part_sf.partition_pruning_with_mlp = 1;
+    sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
+    sf->mv_sf.subpel_search_type = USE_4_TAPS;
+    sf->inter_sf.prune_comp_type_by_model_rd = boosted ? 0 : 1;
+    sf->inter_sf.reuse_inter_intra_mode = 1;
+    sf->inter_sf.skip_repeated_newmv = 1;
+    sf->inter_sf.skip_eval_intrabc_in_inter_frame =
+        cm->features.allow_screen_content_tools ? 0 : 1;
+    sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
+    // Effective at speed 3 only; inter IST is disabled at speed >= 4.
+    sf->tx_sf.prune_inter_ist_by_dct_rd = true;
     // --- End ---
 
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
@@ -2163,7 +2176,7 @@ static AVM_INLINE void set_speed3_like_features(AV2_COMP *cpi) {
 
   sf->inter_sf.disable_interintra = true;
   sf->inter_sf.disable_wedge_search_var_thresh = 100;
-  sf->inter_sf.prune_comp_type_by_comp_avg = 2;
+  if (cpi->speed == 1) sf->inter_sf.prune_comp_type_by_comp_avg = 2;
   sf->inter_sf.disable_sb_level_mv_cost_upd = 1;
   sf->inter_sf.perform_best_rd_based_gating_for_chroma = 1;
   sf->inter_sf.prune_inter_modes_based_on_tpl = 1;
