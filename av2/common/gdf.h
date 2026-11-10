@@ -162,7 +162,7 @@ static inline int gdf_search_fu_skipped(const AV2_COMMON *cm,
       cm, (x_pos + tile_rect->left) >> MI_SIZE_LOG2,
       (AVMMIN(y_pos + GDF_TEST_STRIPE_OFF,
               cm->cur_frame->buf.y_height - GDF_TEST_FRAME_BOUNDARY_SIZE) +
-       tile_rect->left) >>
+       tile_rect->top) >>
           MI_SIZE_LOG2,
       blk_mi_size, blk_mi_size);
 }
