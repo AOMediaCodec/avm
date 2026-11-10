@@ -224,48 +224,48 @@ class MetadataEncodeTest
   virtual void DecompressedFrameHook(const avm_image_t &img,
                                      avm_codec_pts_t pts) {
     ASSERT_TRUE(img.metadata != nullptr);
-    unsigned n_meta = pts == 0 ? 4 : 2;
+    // Four units on every frame. On the keyframe all four are signaled in the
+    // temporal unit, in insertion order. On later frames only T35 and
+    // USER_DATA_UNREGISTERED are re-signaled; MDCV and CLL are carried
+    // forward from the keyframe by metadata persistence and are appended
+    // after the signaled units in OBU_METADATA_TYPE order, so CLL precedes
+    // MDCV.
+    const size_t kExpectedUnits = 4;
+    ASSERT_EQ(img.metadata->sz, kExpectedUnits);
 
-    ASSERT_EQ(img.metadata->sz, n_meta);
+    const bool is_keyframe = pts == 0;
+    const size_t idx_t35 = 0;
+    const size_t idx_cll = 2;
+    const size_t idx_mdcv = is_keyframe ? 1 : 3;
+    const size_t idx_udu = is_keyframe ? 3 : 1;
 
-    ASSERT_EQ(kMetadataPayloadSizeT35, img.metadata->metadata_array[0]->sz);
-    EXPECT_EQ(
-        memcmp(kMetadataPayloadT35, img.metadata->metadata_array[0]->payload,
-               kMetadataPayloadSizeT35),
-        0);
+    ASSERT_EQ(kMetadataPayloadSizeT35,
+              img.metadata->metadata_array[idx_t35]->sz);
+    EXPECT_EQ(memcmp(kMetadataPayloadT35,
+                     img.metadata->metadata_array[idx_t35]->payload,
+                     kMetadataPayloadSizeT35),
+              0);
 
-    if (n_meta == 4) {
-      // Check keyframe-only metadata
-      ASSERT_EQ(kMetadataPayloadSizeMdcv, img.metadata->metadata_array[1]->sz);
-      EXPECT_EQ(
-          memcmp(kMetadataPayloadMdcv, img.metadata->metadata_array[1]->payload,
-                 kMetadataPayloadSizeMdcv),
-          0);
+    ASSERT_EQ(kMetadataPayloadSizeMdcv,
+              img.metadata->metadata_array[idx_mdcv]->sz);
+    EXPECT_EQ(memcmp(kMetadataPayloadMdcv,
+                     img.metadata->metadata_array[idx_mdcv]->payload,
+                     kMetadataPayloadSizeMdcv),
+              0);
 
-      ASSERT_EQ(kMetadataPayloadSizeCll, img.metadata->metadata_array[2]->sz);
-      EXPECT_EQ(
-          memcmp(kMetadataPayloadCll, img.metadata->metadata_array[2]->payload,
-                 kMetadataPayloadSizeCll),
-          0);
+    ASSERT_EQ(kMetadataPayloadSizeCll,
+              img.metadata->metadata_array[idx_cll]->sz);
+    EXPECT_EQ(memcmp(kMetadataPayloadCll,
+                     img.metadata->metadata_array[idx_cll]->payload,
+                     kMetadataPayloadSizeCll),
+              0);
 
-      // Check USER_DATA_UNREGISTERED metadata (present on all frames, index 3
-      // on keyframes)
-      ASSERT_EQ(kMetadataPayloadSizeUserDataUnregistered,
-                img.metadata->metadata_array[3]->sz);
-      EXPECT_EQ(memcmp(kMetadataPayloadUserDataUnregistered,
-                       img.metadata->metadata_array[3]->payload,
-                       kMetadataPayloadSizeUserDataUnregistered),
-                0);
-    } else {
-      // Check USER_DATA_UNREGISTERED metadata (present on all frames, index 1
-      // on non-keyframes)
-      ASSERT_EQ(kMetadataPayloadSizeUserDataUnregistered,
-                img.metadata->metadata_array[1]->sz);
-      EXPECT_EQ(memcmp(kMetadataPayloadUserDataUnregistered,
-                       img.metadata->metadata_array[1]->payload,
-                       kMetadataPayloadSizeUserDataUnregistered),
-                0);
-    }
+    ASSERT_EQ(kMetadataPayloadSizeUserDataUnregistered,
+              img.metadata->metadata_array[idx_udu]->sz);
+    EXPECT_EQ(memcmp(kMetadataPayloadUserDataUnregistered,
+                     img.metadata->metadata_array[idx_udu]->payload,
+                     kMetadataPayloadSizeUserDataUnregistered),
+              0);
   }
 
   int set_cpu_used_;
