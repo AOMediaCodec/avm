@@ -705,18 +705,11 @@ static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
 // reconstructed up to (excluding) SB column c + d + 1 for the row at distance
 // d >= 1; SB row r itself is covered by the normative rules (previous SBs of
 // the same thread / is_mi_coded within the SB).
-static INLINE int av2_enc_is_dv_valid(const MV dv, const AV2_COMMON *cm,
-                                      const MACROBLOCKD *xd, int mi_row,
-                                      int mi_col, BLOCK_SIZE bsize,
-                                      int mib_size_log2) {
-  if (!av2_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, mib_size_log2))
-    return 0;
-  const MACROBLOCK *const x =
-      (const MACROBLOCK *)((const char *)xd - offsetof(MACROBLOCK, e_mbd));
-  if (!x->rowmt_ibc_restrict) return 1;
-
+static INLINE int rowmt_dv_ready(const MV dv, const MACROBLOCKD *xd, int mi_row,
+                                 int mi_col, BLOCK_SIZE bsize,
+                                 int mib_size_log2) {
   const TileInfo *const tile = &xd->tile;
-  const int sb_px = MI_SIZE << mib_size_log2;
+  const int sb_log2 = MI_SIZE_LOG2 + mib_size_log2;
   const int off_col = dv.col & 7, off_row = dv.row & 7;
   // Source area in tile-relative luma pixels. The right/bottom edges include
   // the sub-pel interpolation border and 2 more pixels for a possible
@@ -731,12 +724,26 @@ static INLINE int av2_enc_is_dv_valid(const MV dv, const AV2_COMMON *cm,
                       (off_col ? IBC_RIGHT_INTERP_BORDER : 0) + 2;
   const int cur_sb_row = (mi_row - tile->mi_row_start) >> mib_size_log2;
   const int cur_sb_col = (mi_col - tile->mi_col_start) >> mib_size_log2;
-  const int src_sb_row_top = y_top / sb_px;
-  if (y_top < 0 || src_sb_row_top >= cur_sb_row) return 1;
+  if ((y_top >> sb_log2) >= cur_sb_row) return 1;
   // The part of the source closest to the current SB row binds.
-  const int src_sb_row = AVMMIN((y_bot - 1) / sb_px, cur_sb_row - 1);
+  const int src_sb_row = AVMMIN((y_bot - 1) >> sb_log2, cur_sb_row - 1);
   const int d = cur_sb_row - src_sb_row;
-  return x_right <= (cur_sb_col + d + 1) * sb_px;
+  return x_right <= ((cur_sb_col + d + 1) << sb_log2);
+}
+
+static INLINE int av2_enc_is_dv_valid(const MV dv, const AV2_COMMON *cm,
+                                      const MACROBLOCKD *xd, int mi_row,
+                                      int mi_col, BLOCK_SIZE bsize,
+                                      int mib_size_log2) {
+  const MACROBLOCK *const x =
+      (const MACROBLOCK *)((const char *)xd - offsetof(MACROBLOCK, e_mbd));
+  // rowmt_dv_ready() is cheaper than av2_is_dv_valid(), so it runs first. It
+  // only checks what av2_is_dv_valid() does not: a source outside the tile can
+  // give any result there, as av2_is_dv_valid() rejects it anyway.
+  if (x->rowmt_ibc_restrict &&
+      !rowmt_dv_ready(dv, xd, mi_row, mi_col, bsize, mib_size_log2))
+    return 0;
+  return av2_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, mib_size_log2);
 }
 
 // Check if the MV is valid for IBC mode
