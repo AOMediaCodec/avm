@@ -213,6 +213,10 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
 
   assert(pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id]
                                      [OBU_CONTENT_INTERPRETATION]);
+  // Remember that this layer has received a CI OBU, independently of how the
+  // OBUs were split into frame units (see AV2Decoder::ci_obu_received).
+  assert(cm->xlayer_id >= 0 && cm->xlayer_id < MAX_NUM_XLAYERS);
+  pbi->ci_obu_received[cm->xlayer_id][obu_tlayer_id][obu_mlayer_id] = true;
   // this CI OBU is signalled with a KEY OBU in the frame data unit
   int ci_is_with_keyobu =
       (pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id]
