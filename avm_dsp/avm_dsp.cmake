@@ -109,6 +109,7 @@ list(
   "${AVM_ROOT}/avm_dsp/x86/convolve_avx2.h"
   "${AVM_ROOT}/avm_dsp/x86/fft_avx2.c"
   "${AVM_ROOT}/avm_dsp/x86/highbd_convolve_avx2.c"
+  "${AVM_ROOT}/avm_dsp/x86/highbd_subtract_avx2.c"
   "${AVM_ROOT}/avm_dsp/x86/intrapred_avx2.c"
   "${AVM_ROOT}/avm_dsp/x86/blend_a64_mask_avx2.c"
   "${AVM_ROOT}/avm_dsp/x86/avg_intrin_avx2.c"
