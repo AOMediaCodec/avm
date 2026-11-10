@@ -132,7 +132,7 @@ TEST_P(RtcTest, RtcCyclicRefreshMultiRefTest) {
   cfg_.rc_target_bitrate = 500;
   for (int explicit_ref_frame_map : { 0, 1 }) {
     explicit_ref_frame_map_ = explicit_ref_frame_map;
-    ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0, 50);
+    ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0, 70);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
   }
 }

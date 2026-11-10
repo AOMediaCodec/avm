@@ -325,6 +325,7 @@ void av2_rc_init(const AV2EncoderConfig *oxcf, RATE_CONTROL *rc) {
   rc->next_key_frame_forced = 0;
 
   rc->high_source_sad = 0;
+  rc->lt_ref_disp_order = -1;
   rc->avg_source_sad = 0;
   rc->prev_avg_source_sad = 0;
   rc->frame_source_sad = 0;

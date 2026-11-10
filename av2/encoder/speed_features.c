@@ -1069,10 +1069,24 @@ static void set_rt_speed_features_framesize_independent(
     }
     sf->intra_sf.skip_intra_in_interframe = 2;
     sf->rt_sf.prune_intra_mode_in_interframe = 2;
+    sf->rt_sf.rtc_use_lt_ref =
+        !cpi->is_screen_content_type && cpi->common.number_tlayers == 1 &&
+        cpi->common.number_mlayers == 1 &&
+        cpi->common.seq_params.max_mlayer_id == 0 &&
+        !cpi->common.seq_params.enable_explicit_ref_frame_map &&
+        !cpi->oxcf.unit_test_cfg.multi_layers_lag_test &&
+        !cpi->oxcf.kf_cfg.enable_sframe &&
+        cpi->oxcf.gf_cfg.lag_in_frames == 0 &&
+        cpi->oxcf.rc_cfg.drop_frames_water_mark == 0 &&
+        cpi->oxcf.ref_frm_cfg.max_reference_frames >= 3 &&
+        cpi->common.seq_params.ref_frames >= 3 &&
+        cpi->common.seq_params.ref_frames <=
+            (int)cpi->oxcf.ref_frm_cfg.max_reference_frames;
     if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
       sf->intra_sf.skip_intra_in_interframe = 1;
       sf->rt_sf.prune_intra_mode_in_interframe = 1;
       sf->rt_sf.prune_intrabc_on_keyframe = 1;
+      sf->rt_sf.rtc_use_lt_ref = 0;
       // For screen content with --enable-intrabc-ext, selectively enable
       // pruned IntraBC evaluation on high-SAD delta frames (scene/slide
       // changes) when scene detection is active, or on all delta frames when
@@ -1469,6 +1483,7 @@ static AVM_INLINE void init_rt_sf(REALTIME_SPEED_FEATURES *rt_sf) {
   rt_sf->estimate_motion_for_var_based_partition = 0;
   rt_sf->prune_intrabc_on_keyframe = 0;
   rt_sf->rtc_enable_bru = 0;
+  rt_sf->rtc_use_lt_ref = 0;
 }
 
 // Speed >= 6 partition search breakout tuning: left shift applied to the
