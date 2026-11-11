@@ -50,9 +50,13 @@ extern "C" {
 
 #define MAX_ARF_LAYERS 6
 
-// Preliminary qindex offset applied per resize denominator step above
-// SCALE_NUMERATOR (8). For example, denom = 10 shifts base_qindex by -4.
-#define RESIZE_QP_OFFSET_PER_STEP (-2)
+// Returns the logarithmic base_qindex offset for a frame downscaled by
+// SCALE_NUMERATOR / resize_scale_denom (denom in 8..16).
+int av2_get_resize_qp_offset(int resize_scale_denom);
+
+// Returns the Q12 (4096 == 1.0) Lagrangian RDMULT scaling factor for a frame
+// downscaled by SCALE_NUMERATOR / resize_scale_denom (denom in 8..16).
+int av2_get_resize_rdmult_q12(int resize_scale_denom);
 
 enum {
   INTER_NORMAL,

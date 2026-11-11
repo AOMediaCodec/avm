@@ -1288,6 +1288,37 @@ static int apply_tcq_qp_offset(const AV2_COMP *cpi, int qp_tcq) {
   return clamp(qp_tcq + tcq_qp_offset_shift, 0, max_qp);
 }
 
+// Logarithmic base_qindex offsets for resize denominators d = 8..16:
+// round(-24 * log2(d / 8)), matching AV2's 24-steps-per-octave quantizer table
+// so Qstep(d) scales with 8 / d (matching full-resolution pixel area (d /
+// 8)^2).
+static const int kResizeQpOffset[SCALE_NUMERATOR + 1] = { 0,   -4,  -8,
+                                                          -11, -14, -17,
+                                                          -19, -22, -24 };
+
+// Q12 RDMULT scaling factors (4096 == 1.0) for resize denominators d = 8..16:
+// round(4096 * sqrt(8 / d) * 2^(-(kResizeQpOffset[d - 8] - dq_exact) / 12)),
+// cancelling integer qindex rounding residual in Qstep^2 while scaling RDMULT
+// by sqrt(8 / d) on spatially decimated frames to account for lower inter-pixel
+// correlation and avoid over-skipping detail covering (d / 8)^2 output pixels.
+static const int kResizeRdmultQ12[SCALE_NUMERATOR + 1] = { 4096, 3844, 3722,
+                                                           3488, 3337, 3249,
+                                                           3030, 3032, 2896 };
+
+int av2_get_resize_qp_offset(int resize_scale_denom) {
+  if (resize_scale_denom <= SCALE_NUMERATOR) return 0;
+  const int step =
+      AVMMIN(resize_scale_denom - SCALE_NUMERATOR, SCALE_NUMERATOR);
+  return kResizeQpOffset[step];
+}
+
+int av2_get_resize_rdmult_q12(int resize_scale_denom) {
+  if (resize_scale_denom <= SCALE_NUMERATOR) return 4096;
+  const int step =
+      AVMMIN(resize_scale_denom - SCALE_NUMERATOR, SCALE_NUMERATOR);
+  return kResizeRdmultQ12[step];
+}
+
 // Adjust the coded frame's base_qindex when downscaled by
 // SCALE_NUMERATOR / resize_scale_denom. Clamps lossy frames to >= 1 so a
 // negative offset never inadvertently triggers lossless coding (qindex == 0).
@@ -1295,8 +1326,7 @@ static int apply_resize_qp_offset(const AV2_COMP *cpi, int q, int *bottom_index,
                                   int *top_index) {
   if (q == 0 || is_lossless_requested(&cpi->oxcf.rc_cfg)) return q;
   if (cpi->resize_scale_denom <= SCALE_NUMERATOR) return q;
-  const int offset =
-      RESIZE_QP_OFFSET_PER_STEP * (cpi->resize_scale_denom - SCALE_NUMERATOR);
+  const int offset = av2_get_resize_qp_offset(cpi->resize_scale_denom);
   const int max_qp = MAXQ_FOR_GIVEN_BIT_DEPTH(cpi->common.seq_params.bit_depth);
   q = clamp(q + offset, 1, max_qp);
   if (bottom_index != NULL && *bottom_index > q) *bottom_index = q;

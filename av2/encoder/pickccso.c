@@ -2177,7 +2177,11 @@ void av2_ccso_search(struct AV2_COMP *cpi, const uint16_t *ext_rec_y,
     av2_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                          NULL);
     for (int plane = num_planes - 1; plane >= AVM_PLANE_Y; --plane) {
+      // Apply Parseval resized-area rdmult scaling to chroma CCSO search only
+      // (luma CCSO keeps baseline rdmult).
       int rdmult_plane = (plane == AVM_PLANE_Y) ? rdmult : ((rdmult * 7) >> 3);
+      rdmult_plane =
+          av2_scale_resized_lpf_rdmult(cpi, rdmult_plane, plane != AVM_PLANE_Y);
       derive_ccso_filter(cpi, plane, org_uv[plane], ext_rec_y, rec_uv[plane],
                          rdmult_plane, error_resilient_frame_seen);
       cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[plane];

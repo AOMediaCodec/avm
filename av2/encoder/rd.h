@@ -329,6 +329,11 @@ int av2_get_adaptive_rdmult(const struct AV2_COMP *cpi, double beta);
 
 int av2_get_deltaq_offset(const struct AV2_COMP *cpi, int qindex, double beta);
 
+// Scales encoder rdmult for chroma (is_uv != 0) in-loop filter RD search on
+// spatially downscaled frames to match full-resolution Parseval pixel area.
+int av2_scale_resized_lpf_rdmult(const struct AV2_COMP *cpi, int rdmult,
+                                 int is_uv);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

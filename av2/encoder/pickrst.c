@@ -4655,9 +4655,15 @@ void av2_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV2_COMP *cpi) {
   }
 
   RestSearchCtxt *rsc = alloc_rst_search_context(cpi, src, max_ntile);
+  // Scale x->rdmult for chroma Loop Restoration search on downscaled frames
+  // while keeping luma restoration at base_rdmult and restoring x->rdmult.
+  const int base_rdmult = cpi->rd.RDMULT;
   for (int plane = AVM_PLANE_Y; plane <= (is_mono ? AVM_PLANE_Y : AVM_PLANE_V);
        ++plane) {
+    x->rdmult =
+        av2_scale_resized_lpf_rdmult(cpi, base_rdmult, plane != AVM_PLANE_Y);
     search_plane_restoration(cpi, rsc, plane);
   }
+  x->rdmult = base_rdmult;
   free_rst_search_context(rsc);
 }

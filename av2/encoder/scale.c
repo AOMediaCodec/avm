@@ -121,7 +121,7 @@ static void resample_plane_roundtrip(const uint16_t *src, int orig_h,
 // For each d, downsamples the source Luma plane by 8/d and upsamples it back
 // to the original dimensions by d/8, then compares MSE / Qstep^2(d) (where
 // Qstep(d) includes the candidate resize QP offset
-// RESIZE_QP_OFFSET_PER_STEP * (d - 8) on top of the frame's full-resolution
+// av2_get_resize_qp_offset(d) on top of the frame's full-resolution
 // base_qindex) against a frame-type-dependent threshold
 // (RESIZE_DYNAMIC_THRESH_KF for key/intra-only frames, RESIZE_DYNAMIC_THRESH
 // otherwise). Continues while the ratio is below the threshold and stops at
@@ -208,8 +208,7 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
     // full-resolution qindex. av2_convert_qindex_to_q() normalizes Qstep to
     // 8-bit scale; scale by 2^(bit_depth - 8) so Qstep matches the native
     // pixel domain of unscaled, making MSE / Qstep^2 bit-depth invariant.
-    const int qindex_d = clamp(
-        qindex + RESIZE_QP_OFFSET_PER_STEP * (d - SCALE_NUMERATOR), 1, max_qp);
+    const int qindex_d = clamp(qindex + av2_get_resize_qp_offset(d), 1, max_qp);
     avm_clear_system_state();
     const double qstep = av2_convert_qindex_to_q(qindex_d, bit_depth) *
                          (1 << (bit_depth - AVM_BITS_8));
@@ -249,7 +248,7 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
 // Evaluates candidate denominators d = 9..16 (downscale factor 8/d) in order.
 // For each d, computes the round-trip Luma resampling MSE / Qstep^2(d) for
 // every frame in the current subgop (where Qstep(d) adds the candidate resize
-// QP offset RESIZE_QP_OFFSET_PER_STEP * (d - 8) on top of each frame's
+// QP offset av2_get_resize_qp_offset(d) on top of each frame's
 // full-resolution pyramid-level base_qindex) and averages those ratios across
 // the subgop. Continues while the average ratio is below
 // RESIZE_DYNAMIC_SUBGOP_THRESH and stops at the first d that meets or exceeds
@@ -434,9 +433,8 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
       avm_clear_system_state();
       // Apply the candidate scale's QP offset on top of frame f's baseline
       // pyramid-level qindex and convert to native-bit-depth Qstep(d).
-      const int qindex_d = clamp(
-          subgop_qindex[f] + RESIZE_QP_OFFSET_PER_STEP * (d - SCALE_NUMERATOR),
-          1, max_qp);
+      const int qindex_d =
+          clamp(subgop_qindex[f] + av2_get_resize_qp_offset(d), 1, max_qp);
       const double qstep = av2_convert_qindex_to_q(qindex_d, bit_depth) *
                            (1 << (bit_depth - AVM_BITS_8));
       const double qstep_sq = qstep * qstep;
@@ -609,8 +607,8 @@ static void setup_frame_size_from_params(AV2_COMP *cpi,
                                          const size_params_type *rsz) {
   int encode_width = rsz->resize_width;
   int encode_height = rsz->resize_height;
-  // Record the chosen resize denominator on cpi so rate control can apply the
-  // corresponding per-step QP offset when picking the coded frame's qindex.
+  // Record the chosen resize denominator on cpi so rate control and RD setup
+  // can apply the corresponding logarithmic resize QP offset and RDMULT scale.
   cpi->resize_scale_denom = rsz->resize_denom;
   av2_set_frame_size(cpi, encode_width, encode_height);
 }

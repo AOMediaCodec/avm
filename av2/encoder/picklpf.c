@@ -442,6 +442,11 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
       int *delta_side[MAX_MB_PLANE] = { NULL, &lf->delta_side_u,
                                         &lf->delta_side_v };
 
+      // Scale chroma deblocking RD multiplier by resized pixel-area ratio and
+      // restore shared td.mb.rdmult afterward so subsequent stages stay intact.
+      const int saved_rdmult = cpi->td.mb.rdmult;
+      cpi->td.mb.rdmult =
+          av2_scale_resized_lpf_rdmult(cpi, saved_rdmult, /*is_uv=*/1);
       for (int plane = AVM_PLANE_U; plane < num_planes; ++plane) {
         no_deblocking_sse =
             get_sse_plane_active_region(cm, sd, &cm->cur_frame->buf, plane);
@@ -476,6 +481,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
           best_filter_sse[plane] = zero_filter_sse[plane];
         }
       }
+      cpi->td.mb.rdmult = saved_rdmult;
     } else {
       lf->apply_deblocking_filter_u = 0;
       lf->apply_deblocking_filter_v = 0;
