@@ -126,19 +126,7 @@ static int shared_source_init(SharedSourceReader *src,
   // are 10-bit) rather than silently assuming 8-bit, and make sure the
   // HIGHBITDEPTH flag is set whenever samples are >8-bit so read_yuv_frame()
   // reads 2 bytes/sample instead of 1.
-  if (src->input.bit_depth <= 0) {
-    int src_idx = (int)(inp - mcfg->input_sources);
-    src->input.bit_depth = 10;
-    for (int i = 0; i < mcfg->num_xlayers; i++) {
-      if (mcfg->xlayers[i].input_source_idx == src_idx) {
-#if CONFIG_TESTONLY_12BIT_SUPPORT
-        if (mcfg->xlayers[i].profile == TEST_ONLY_12BIT_PROFILE)
-          src->input.bit_depth = 12;
-#endif
-        break;
-      }
-    }
-  }
+  if (src->input.bit_depth <= 0) src->input.bit_depth = 10;
   if (src->input.bit_depth > 8) src->input.fmt |= AVM_IMG_FMT_HIGHBITDEPTH;
 
   // Allocate full-resolution raw frame
@@ -363,10 +351,6 @@ static int init_xlayer_encoder(XLayerEncoderState *state,
 
   // Set bit depth based on profile (all standard AV2 profiles are 10-bit)
   state->cfg.g_bit_depth = AVM_BITS_10;
-#if CONFIG_TESTONLY_12BIT_SUPPORT
-  if (xlcfg->profile == TEST_ONLY_12BIT_PROFILE)
-    state->cfg.g_bit_depth = AVM_BITS_12;
-#endif
   // Default an unspecified raw-input bit depth to the encoding bit depth
   // (rather than assuming 8-bit) and make sure the HIGHBITDEPTH flag is set
   // whenever samples are >8-bit, so read_yuv_frame() reads 2 bytes/sample
