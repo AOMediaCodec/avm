@@ -1258,6 +1258,12 @@ INSTANTIATE_TEST_SUITE_P(
     GetCompoundCopyLumaTestParams(av2_highbd_cwp_convolve_2d_copy_avx2));
 #endif
 
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, AV2Convolve2DCopyHighbdCompoundTest,
+    GetCompoundCopyLumaTestParams(av2_highbd_cwp_convolve_2d_copy_avx512));
+#endif
+
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, AV2Convolve2DCopyHighbdCompoundTest,
