@@ -18,6 +18,22 @@
 
 #include <assert.h>
 
+#include "config/avm_config.h"
+
+#if ARCH_X86
+// On 32-bit x86, scalar float operations run on the x87 unit, which rounds to
+// 64 bits by default. Round to 24 bits like the SSE float operations of the
+// SIMD kernels, so av2_intra_mlp_layer() gives the same results whether the C
+// or a SIMD version is used. x86-64 already does scalar float math in SSE.
+#include "avm_ports/x86.h"
+#define FLOATING_POINT_SET_SINGLE_PRECISION \
+  unsigned short x87_orig_mode = x87_set_single_precision();
+#define FLOATING_POINT_RESTORE_PRECISION x87_set_control_word(x87_orig_mode);
+#else
+#define FLOATING_POINT_SET_SINGLE_PRECISION
+#define FLOATING_POINT_RESTORE_PRECISION
+#endif  // ARCH_X86
+
 /* Per-bsize HORZ threshold LUT: [bsize_slot]
  * bsize_slot: 0=128x128, 1=64x64, 2=32x32, 3=16x16, 4=8x8 */
 #define SMS_N_BSIZE_SLOTS 5
@@ -280,6 +296,8 @@ static float sms_w1_t[SMS_N_BSIZE_SLOTS]
                      [SMS_UNIFIED_IN_DIM * SMS_UNIFIED_H1_DIM];
 static float sms_w2_t[SMS_N_BSIZE_SLOTS]
                      [SMS_UNIFIED_H1_DIM * SMS_UNIFIED_H2_DIM];
+static float sms_w3_t[SMS_N_BSIZE_SLOTS]
+                     [SMS_UNIFIED_N_CLASSES * SMS_UNIFIED_H2_DIM];
 
 static void transpose_weights(const float *w, int num_out, int num_in,
                               float *w_t) {
@@ -294,6 +312,8 @@ static void init_sms_nn_weights_t(void) {
                       sms_w1_t[s]);
     transpose_weights(cfg->weights[1], SMS_UNIFIED_H2_DIM, SMS_UNIFIED_H1_DIM,
                       sms_w2_t[s]);
+    transpose_weights(cfg->weights[2], SMS_UNIFIED_N_CLASSES,
+                      SMS_UNIFIED_H2_DIM, sms_w3_t[s]);
   }
 }
 
@@ -302,17 +322,14 @@ static void sms_nn_predict(int slot, const float *feat, float *out) {
   avm_once(init_sms_nn_weights_t);
   const NN_CONFIG *cfg = &sms_nn_configs[slot];
   float h1[SMS_UNIFIED_H1_DIM], h2[SMS_UNIFIED_H2_DIM];
+  FLOATING_POINT_SET_SINGLE_PRECISION
   av2_intra_mlp_layer(feat, SMS_UNIFIED_IN_DIM, sms_w1_t[slot], cfg->bias[0],
                       h1, SMS_UNIFIED_H1_DIM, 1);
   av2_intra_mlp_layer(h1, SMS_UNIFIED_H1_DIM, sms_w2_t[slot], cfg->bias[1], h2,
                       SMS_UNIFIED_H2_DIM, 1);
-  // 10 outputs: not a multiple of the SIMD widths of av2_intra_mlp_layer().
-  for (int o = 0; o < SMS_UNIFIED_N_CLASSES; o++) {
-    float sum = cfg->bias[2][o];
-    for (int i = 0; i < SMS_UNIFIED_H2_DIM; i++)
-      sum += h2[i] * cfg->weights[2][o * SMS_UNIFIED_H2_DIM + i];
-    out[o] = sum;
-  }
+  av2_intra_mlp_layer(h2, SMS_UNIFIED_H2_DIM, sms_w3_t[slot], cfg->bias[2], out,
+                      SMS_UNIFIED_N_CLASSES, 0);
+  FLOATING_POINT_RESTORE_PRECISION
   av2_nn_output_prec_reduce(out, SMS_UNIFIED_N_CLASSES);
 }
 
