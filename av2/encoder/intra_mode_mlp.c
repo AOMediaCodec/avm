@@ -17,7 +17,30 @@
 #include "av2/encoder/intra_mode_mlp.h"
 #include "av2/encoder/intra_mode_mlp_weights.h"
 
+#include "config/avm_config.h"
 #include "config/av2_rtcd.h"
+
+#if ARCH_X86
+// On 32-bit x86, scalar float operations run on the x87 unit, which rounds to
+// 64 bits by default. Round to 24 bits like the SSE float operations of the
+// SIMD kernels, so av2_intra_mlp_layer() gives the same results whether the C
+// or a SIMD version is used. x86-64 already does scalar float math in SSE.
+#include "avm_ports/x86.h"
+#define FLOATING_POINT_SET_SINGLE_PRECISION \
+  unsigned short x87_orig_mode = x87_set_single_precision();
+#define FLOATING_POINT_RESTORE_PRECISION x87_set_control_word(x87_orig_mode);
+#else
+#define FLOATING_POINT_SET_SINGLE_PRECISION
+#define FLOATING_POINT_RESTORE_PRECISION
+#endif  // ARCH_X86
+
+// GCC and Clang switch off fusing floating-point a * b + c into FMA instruction
+// using option '-ffp-contract=off'. For MSVC 2022 and newer, /fp:precise is the
+// default and does not fuse. For MSVC 2019 and older, pragma directive
+// addresses this.
+#if !defined(__clang__) && defined(_MSC_VER) && _MSC_VER < 1930
+#pragma fp_contract(off)
+#endif
 
 void intra_mode_mlp_prepare_features(
     const uint16_t *src, int src_stride, int bd, int bw, int bh, int qp,
@@ -119,17 +142,14 @@ void av2_intra_mlp_layer_c(const float *input, int in_dim, const float *weights,
 
 void intra_mode_mlp_predict(const float *features, float *logits) {
   float h1[MLP_H1_DIM], h2[MLP_H2_DIM], h3[MLP_H3_DIM];
+  FLOATING_POINT_SET_SINGLE_PRECISION
   av2_intra_mlp_layer(features, MLP_INPUT_DIM, mlp_w1, mlp_b1, h1, MLP_H1_DIM,
                       1);
   av2_intra_mlp_layer(h1, MLP_H1_DIM, mlp_w2, mlp_b2, h2, MLP_H2_DIM, 1);
   av2_intra_mlp_layer(h2, MLP_H2_DIM, mlp_w3, mlp_b3, h3, MLP_H3_DIM, 1);
-  // Layer 4: output dim=13, not a multiple of the SIMD widths above — scalar.
-  for (int i = 0; i < MLP_OUTPUT_DIM; i++) {
-    float sum = mlp_b4[i];
-    for (int j = 0; j < MLP_H3_DIM; j++)
-      sum += h3[j] * mlp_w4[j * MLP_OUTPUT_DIM + i];
-    logits[i] = sum;
-  }
+  av2_intra_mlp_layer(h3, MLP_H3_DIM, mlp_w4, mlp_b4, logits, MLP_OUTPUT_DIM,
+                      0);
+  FLOATING_POINT_RESTORE_PRECISION
 }
 
 void intra_mode_mlp_get_topk(const float *logits, int k, int *modes) {

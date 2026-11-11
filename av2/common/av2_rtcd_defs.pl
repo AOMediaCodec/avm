@@ -323,9 +323,7 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   }
 
   add_proto qw/void av2_intra_mlp_layer/, " const float *input, int in_dim, const float *weights, const float *bias, float *output, int out_dim, int apply_relu";
-  if (avm_config("CONFIG_EXCLUDE_SIMD_MISMATCH") ne "yes") {
-    specialize qw/av2_intra_mlp_layer sse2 avx2 neon/;
-  }
+  specialize qw/av2_intra_mlp_layer sse2 avx2 neon/;
 }
 # end encoder functions
 

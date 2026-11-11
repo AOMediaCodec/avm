@@ -390,6 +390,12 @@ static INLINE unsigned int x87_set_double_precision(void) {
   return mode;
 }
 
+static INLINE unsigned int x87_set_single_precision(void) {
+  unsigned int mode = x87_get_control_word();
+  x87_set_control_word(mode & ~0x300);
+  return mode;
+}
+
 extern void avm_reset_mmx_state(void);
 
 #ifdef __cplusplus
