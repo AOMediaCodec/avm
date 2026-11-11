@@ -246,8 +246,12 @@ int avm_yv12_realloc_with_new_border_c(YV12_BUFFER_CONFIG *ybf, int new_border,
     if (new_border == ybf->border) return 0;
     YV12_BUFFER_CONFIG new_buf;
     memset(&new_buf, 0, sizeof(new_buf));
+    // Pass y_crop_width/y_crop_height (rather than 8-aligned y_width/y_height)
+    // so reallocating an encoder cross-scale reference buffer with a thicker
+    // border preserves active non-multiple-of-8 resized crop metadata while
+    // allocating identical 8-aligned plane storage.
     const int error = avm_alloc_frame_buffer(
-        &new_buf, ybf->y_width, ybf->y_height, ybf->subsampling_x,
+        &new_buf, ybf->y_crop_width, ybf->y_crop_height, ybf->subsampling_x,
         ybf->subsampling_y, new_border, byte_alignment, alloc_pyramid);
     if (error) return error;
     // Copy image buffer

@@ -476,7 +476,7 @@ class ResizeDynamicAndSubgopTest
       encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(AV2E_SET_MIN_GF_INTERVAL, kSubgopInterval);
       encoder->Control(AV2E_SET_MAX_GF_INTERVAL, kSubgopInterval);
-      encoder->Control(AVME_SET_QP, 180);
+      encoder->Control(AVME_SET_QP, 210);
     }
   }
 

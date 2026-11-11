@@ -685,6 +685,16 @@ int av2_compute_rd_mult_based_on_qindex(const AV2_COMP *cpi, int qindex) {
       assert(0 && "bit_depth should be AVM_BITS_8, AVM_BITS_10 or AVM_BITS_12");
       return -1;
   }
+  // On spatially downscaled frames, apply av2_get_resize_rdmult_q12() to
+  // cancel integer base_qindex rounding wobble and scale block/mode RDMULT by
+  // sqrt(8 / d) so finer partition/residual detail spanning (d / 8)^2 output
+  // pixels is not prematurely skipped.
+  if (cpi->resize_scale_denom > SCALE_NUMERATOR &&
+      (cpi->common.width != cpi->oxcf.frm_dim_cfg.width ||
+       cpi->common.height != cpi->oxcf.frm_dim_cfg.height)) {
+    const int scale_q12 = av2_get_resize_rdmult_q12(cpi->resize_scale_denom);
+    rdmult = ROUND_POWER_OF_TWO_64(rdmult * scale_q12, 12);
+  }
   return (int)(rdmult > 0 ? rdmult : 1);
 }
 
@@ -700,6 +710,46 @@ int av2_compute_rd_mult(const AV2_COMP *cpi, int qindex) {
     rdmult += ((rdmult * rd_boost_factor[boost_index]) >> 7);
   }
   return (int)rdmult;
+}
+
+// Scales down encoder rdmult for chroma in-loop filters (deblocking, CCSO, and
+// Loop Restoration) on spatially downscaled frames to match Parseval upscaled
+// distortion energy: each resized chroma sample spans ~(orig_w * orig_h) /
+// (w * h) ~= (d/8)^2 full-resolution area, while
+// av2_compute_rd_mult_based_on_qindex() already scaled baseline rdmult by
+// s_q12 ~= (8/d)^0.5, leaving three factors of s_q12 (~(8/d)^1.5) to reach
+// full (8/d)^2 area weighting against fixed filter signaling bits.
+int av2_scale_resized_lpf_rdmult(const AV2_COMP *cpi, int rdmult, int is_uv) {
+  if (!is_uv || rdmult <= 1) return rdmult;
+  const AV2_COMMON *const cm = &cpi->common;
+  const int orig_w =
+      (cpi->unscaled_source != NULL && cpi->unscaled_source->y_crop_width > 0)
+          ? cpi->unscaled_source->y_crop_width
+          : cpi->oxcf.frm_dim_cfg.width;
+  const int orig_h =
+      (cpi->unscaled_source != NULL && cpi->unscaled_source->y_crop_height > 0)
+          ? cpi->unscaled_source->y_crop_height
+          : cpi->oxcf.frm_dim_cfg.height;
+  if (cm->features.coded_lossless || cm->width <= 0 || cm->height <= 0 ||
+      orig_w <= 0 || orig_h <= 0 ||
+      (cm->width >= orig_w && cm->height >= orig_h)) {
+    return rdmult;
+  }
+
+  int s_q12 = 4096;
+  if (cpi->resize_scale_denom > SCALE_NUMERATOR) {
+    s_q12 = av2_get_resize_rdmult_q12(cpi->resize_scale_denom);
+  } else {
+    const double area_r = ((double)cm->width * (double)cm->height) /
+                          ((double)orig_w * (double)orig_h);
+    s_q12 = clamp((int)rint(4096.0 * pow(area_r, 0.25)), 2048, 4096);
+  }
+
+  int64_t scaled = rdmult;
+  for (int i = 0; i < 3; ++i) {
+    scaled = ROUND_POWER_OF_TWO_64(scaled * s_q12, 12);
+  }
+  return (int)AVMMAX(scaled, 1);
 }
 
 int av2_get_deltaq_offset(const AV2_COMP *cpi, int qindex, double beta) {

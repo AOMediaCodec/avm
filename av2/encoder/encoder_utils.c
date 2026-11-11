@@ -510,12 +510,20 @@ void av2_scale_references(AV2_COMP *cpi, const InterpFilter filter,
             avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
           }
-          if (use_optimized_scaler && cm->seq_params.bit_depth == AVM_BITS_8)
-            av2_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
-                                        num_planes);
-          else
-            av2_resize_and_extend_frame_nonnormative(
-                ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
+#if CONFIG_LANCZOS_RESAMPLE
+          if (!av2_try_resize_lanczos_and_extend_frame(
+                  ref, &new_fb->buf, (int)cm->seq_params.bit_depth,
+                  num_planes)) {
+#endif  // CONFIG_LANCZOS_RESAMPLE
+            if (use_optimized_scaler && cm->seq_params.bit_depth == AVM_BITS_8)
+              av2_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
+                                          num_planes);
+            else
+              av2_resize_and_extend_frame_nonnormative(
+                  ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
+#if CONFIG_LANCZOS_RESAMPLE
+          }
+#endif  // CONFIG_LANCZOS_RESAMPLE
           cpi->scaled_ref_buf[ref_frame] = new_fb;
           alloc_frame_mvs(cm, new_fb);
         }
@@ -546,13 +554,18 @@ BLOCK_SIZE av2_select_sb_size(const AV2_COMP *const cpi) {
 
   BLOCK_SIZE chosen;
   if (oxcf->resize_cfg.resize_mode != RESIZE_NONE) {
-    // Use the configured size (top resolution) for spatial layers or
-    // on resize.
-    chosen = AVMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) >= 720
-                 ? BLOCK_256X256
-             : AVMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) > 480
-                 ? BLOCK_128X128
-                 : BLOCK_64X64;
+    // Use the configured size (top resolution) on resize so superblock size
+    // stays constant across frames and passes, while matching the RESIZE_NONE
+    // speed heuristic at the top resolution.
+    const int top_short_side =
+        AVMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height);
+    if (oxcf->speed > 1 && !av2_wants_two_pass_partition(oxcf)) {
+      chosen = top_short_side > 480 ? BLOCK_128X128 : BLOCK_64X64;
+    } else {
+      chosen = top_short_side >= 720  ? BLOCK_256X256
+               : top_short_side > 480 ? BLOCK_128X128
+                                      : BLOCK_64X64;
+    }
   } else if (oxcf->speed > 1 && !av2_wants_two_pass_partition(oxcf)) {
     // TODO(any): Possibly could improve this with a heuristic.
     // When resize is on, 'cm->width / height' can change between calls, so we

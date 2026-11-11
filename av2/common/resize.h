@@ -72,6 +72,22 @@ YV12_BUFFER_CONFIG *av2_scale_if_required(AV2_COMMON *cm,
                                           const int phase,
                                           const bool use_optimized_scaler);
 
+#define LANCZOS_A_ENC_NONNORMATIVE_HOR_Y 5  // Non-normative hor Lanczos a Luma
+#define LANCZOS_A_ENC_NONNORMATIVE_HOR_C \
+  5  // Non-normative hor Lanczos a Chroma
+#define LANCZOS_A_ENC_NONNORMATIVE_VER_Y 5  // Non-normative ver Lanczos a Luma
+#define LANCZOS_A_ENC_NONNORMATIVE_VER_C \
+  5  // Non-normative ver Lanczos a Chroma
+
+#if CONFIG_LANCZOS_RESAMPLE
+// Non-normative encoder frame/reference resampler using anisotropic rational
+// Lanczos-5 and active-crop border extension. Returns false if horizontal or
+// vertical scale factors exceed rational resampler bounds.
+bool av2_try_resize_lanczos_and_extend_frame(const YV12_BUFFER_CONFIG *src,
+                                             YV12_BUFFER_CONFIG *dst, int bd,
+                                             int num_planes);
+#endif  // CONFIG_LANCZOS_RESAMPLE
+
 void av2_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
                                               YV12_BUFFER_CONFIG *dst, int bd,
                                               const int num_planes);

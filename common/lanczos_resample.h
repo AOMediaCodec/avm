@@ -28,6 +28,16 @@ void av2_resample_plane_2d_lanczos(const uint16_t *const input, int height,
                                    int subx, int suby, int bd, int denom,
                                    int num, int lanczos_a_hor,
                                    int lanczos_a_ver);
+// Non-normative 2D rational Lanczos resampler accepting independent horizontal
+// (num_hor / denom_hor) and vertical (num_ver / denom_ver) rational scale
+// factors when integer-rounded dimensions have slightly anisotropic ratios.
+void av2_resample_plane_2d_lanczos_hv(const uint16_t *const input, int height,
+                                      int width, int in_stride,
+                                      uint16_t *output, int height2, int width2,
+                                      int out_stride, int subx, int suby,
+                                      int bd, int denom_hor, int num_hor,
+                                      int denom_ver, int num_ver,
+                                      int lanczos_a_hor, int lanczos_a_ver);
 void av2_resample_plane_2d_8b_lanczos(const uint8_t *const input, int height,
                                       int width, int in_stride, uint8_t *output,
                                       int height2, int width2, int out_stride,
