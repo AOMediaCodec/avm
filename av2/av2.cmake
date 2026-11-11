@@ -479,6 +479,7 @@ list(
   "${AVM_ROOT}/av2/common/arm/highbd_warp_affine_neon.c"
   "${AVM_ROOT}/av2/common/arm/stxfm_neon.c"
   "${AVM_ROOT}/av2/common/cdef_block_neon.c"
+  "${AVM_ROOT}/av2/common/arm/highbd_dr_prediction_neon.c"
   "${AVM_ROOT}/av2/common/arm/highbd_wiener_convolve_neon.c")
 
 list(APPEND AVM_AV2_ENCODER_INTRIN_SSE4_2
