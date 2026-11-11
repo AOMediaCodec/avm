@@ -22,6 +22,7 @@
 #include "avm_dsp/avm_dsp_common.h"
 #include "avm_dsp/avm_filter.h"
 #include "av2/common/convolve.h"
+#include "av2/common/x86/highbd_jnt_convolve_avx2.h"
 
 #define CONVOLVE_CWP_VERT_FILTER_8TAP                                          \
   const __m256i s0 =                                                           \
@@ -596,42 +597,14 @@
     }                                                                          \
   }
 
-static INLINE __m128i loadh_epi64(const void *const src, __m128i s) {
-  return _mm_castps_si128(
-      _mm_loadh_pi(_mm_castsi128_ps(s), (const __m64 *)src));
+static INLINE __m128i load_pair_epi64(const void *lo, const void *hi) {
+  return _mm_unpacklo_epi64(_mm_loadl_epi64((const __m128i *)lo),
+                            _mm_loadl_epi64((const __m128i *)hi));
 }
 
-static INLINE void _mm_storeh_epi64(__m128i *const d, __m128i s) {
-  _mm_storeh_pi((__m64 *)d, _mm_castsi128_ps(s));
-}
-
-static INLINE void highbd_cwp_convolve_2d_copy_do_average(
-    __m256i data, __m256i zero, __m256i res, const __m256i *offset_const,
-    const __m256i *wt0, const __m256i *wt1, int use_wtd_comp_avg,
-    const __m256i *const rounding_const, int rounding_shift,
-    __m256i clip_pixel_to_bd, __m256i *res_clip) {
-  const __m256i data_ref_0_lo = _mm256_unpacklo_epi16(data, zero);
-  const __m256i data_ref_0_hi = _mm256_unpackhi_epi16(data, zero);
-
-  const __m256i res_32b_lo = _mm256_unpacklo_epi16(res, zero);
-  const __m256i res_unsigned_lo = _mm256_add_epi32(res_32b_lo, *offset_const);
-
-  const __m256i comp_avg_res_lo = highbd_comp_avg(
-      &data_ref_0_lo, &res_unsigned_lo, wt0, wt1, use_wtd_comp_avg);
-
-  const __m256i res_32b_hi = _mm256_unpackhi_epi16(res, zero);
-  const __m256i res_unsigned_hi = _mm256_add_epi32(res_32b_hi, *offset_const);
-
-  const __m256i comp_avg_res_hi = highbd_comp_avg(
-      &data_ref_0_hi, &res_unsigned_hi, wt0, wt1, use_wtd_comp_avg);
-
-  const __m256i round_result_lo = highbd_convolve_rounding(
-      &comp_avg_res_lo, offset_const, rounding_const, rounding_shift);
-  const __m256i round_result_hi = highbd_convolve_rounding(
-      &comp_avg_res_hi, offset_const, rounding_const, rounding_shift);
-
-  const __m256i res_16b = _mm256_packus_epi32(round_result_lo, round_result_hi);
-  *res_clip = _mm256_min_epi16(res_16b, clip_pixel_to_bd);
+static INLINE void store_pair_epi64(void *lo, void *hi, __m128i s) {
+  _mm_storel_epi64((__m128i *)lo, s);
+  _mm_storel_epi64((__m128i *)hi, _mm_srli_si128(s, 8));
 }
 
 void av2_highbd_cwp_convolve_2d_copy_avx2(const uint16_t *src, int src_stride,
@@ -641,47 +614,30 @@ void av2_highbd_cwp_convolve_2d_copy_avx2(const uint16_t *src, int src_stride,
   CONV_BUF_TYPE *dst = conv_params->dst;
   int dst_stride = conv_params->dst_stride;
 
-  const int bits =
-      FILTER_BITS * 2 - conv_params->round_1 - conv_params->round_0;
-  const __m128i left_shift = _mm_cvtsi32_si128(bits);
-  const int do_average = conv_params->do_average;
-  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
-  const int w0 = conv_params->fwd_offset;
-  const int w1 = conv_params->bck_offset;
-  const __m256i wt0 = _mm256_set1_epi32(w0);
-  const __m256i wt1 = _mm256_set1_epi32(w1);
-  const __m256i zero = _mm256_setzero_si256();
-  int i, j;
-
-  const int offset_0 =
-      bd + 2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
-  const int offset = (1 << offset_0) + (1 << (offset_0 - 1));
-  const __m256i offset_const = _mm256_set1_epi32(offset);
-  const __m256i offset_const_16b = _mm256_set1_epi16(offset);
-  const int rounding_shift =
-      2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
-  const __m256i rounding_const = _mm256_set1_epi32((1 << rounding_shift) >> 1);
   const __m256i clip_pixel_to_bd =
       _mm256_set1_epi16(bd == 10 ? 1023 : (bd == 12 ? 4095 : 255));
+  const HighbdCwpCopyScale sc = highbd_cwp_copy_scale(conv_params, bd);
+  const __m128i left_shift = _mm_cvtsi32_si128(sc.bits);
+  const __m256i offset_const_16b = _mm256_set1_epi16(sc.offset);
+  const __m256i weights = _mm256_set1_epi32(sc.weight_pair);
+  const __m256i c3 = _mm256_set1_epi32(sc.fused_c3);
+  int i, j;
 
-  assert(bits <= 4);
   assert((w % 4) == 0);
 
-  if (do_average) {
+  if (conv_params->do_average) {
     if (!(w % 16)) {
       __m256i res_clip;
       for (i = 0; i < h; i += 1) {
         for (j = 0; j < w; j += 16) {
           const __m256i src_16bit =
               _mm256_loadu_si256((__m256i *)(&src[i * src_stride + j]));
-
-          const __m256i res = _mm256_sll_epi16(src_16bit, left_shift);
           const __m256i data_0 =
               _mm256_loadu_si256((__m256i *)(&dst[i * dst_stride + j]));
 
-          highbd_cwp_convolve_2d_copy_do_average(
-              data_0, zero, res, &offset_const, &wt0, &wt1, use_wtd_comp_avg,
-              &rounding_const, rounding_shift, clip_pixel_to_bd, &res_clip);
+          highbd_cwp_convolve_2d_copy_do_average(data_0, src_16bit, &weights,
+                                                 &c3, sc.fused_shift,
+                                                 clip_pixel_to_bd, &res_clip);
 
           _mm256_storeu_si256((__m256i *)(&dst0[i * dst_stride0 + j]),
                               res_clip);
@@ -698,9 +654,6 @@ void av2_highbd_cwp_convolve_2d_copy_avx2(const uint16_t *src, int src_stride,
           // since not all compilers yet support _mm256_set_m128i()
           const __m256i src_10 = _mm256_insertf128_si256(
               _mm256_castsi128_si256(src_row_0), src_row_1, 1);
-
-          const __m256i res = _mm256_sll_epi16(src_10, left_shift);
-
           const __m256i data_0 = _mm256_castsi128_si256(
               _mm_loadu_si128((__m128i *)(&dst[i * dst_stride + j])));
           const __m256i data_1 = _mm256_castsi128_si256(_mm_loadu_si128(
@@ -708,9 +661,9 @@ void av2_highbd_cwp_convolve_2d_copy_avx2(const uint16_t *src, int src_stride,
           const __m256i data_01 =
               _mm256_permute2x128_si256(data_0, data_1, 0x20);
 
-          highbd_cwp_convolve_2d_copy_do_average(
-              data_01, zero, res, &offset_const, &wt0, &wt1, use_wtd_comp_avg,
-              &rounding_const, rounding_shift, clip_pixel_to_bd, &res_clip);
+          highbd_cwp_convolve_2d_copy_do_average(data_01, src_10, &weights, &c3,
+                                                 sc.fused_shift,
+                                                 clip_pixel_to_bd, &res_clip);
 
           const __m128i res_0 = _mm256_castsi256_si128(res_clip);
           const __m128i res_1 = _mm256_extracti128_si256(res_clip, 1);
@@ -725,43 +678,33 @@ void av2_highbd_cwp_convolve_2d_copy_avx2(const uint16_t *src, int src_stride,
       __m256i res_clip;
       for (i = 0; i < h; i += 4) {
         for (j = 0; j < w; j += 8) {
-          const __m128i src_row_0 = loadh_epi64(
-              (__m128i *)(&src[(i + 1) * src_stride + j]),
-              _mm_loadl_epi64((__m128i *)(&src[i * src_stride + j])));
-          const __m128i src_row_1 = loadh_epi64(
-              (__m128i *)(&src[(i + 3) * src_stride + j]),
-              _mm_loadl_epi64((__m128i *)(&src[(i + 2) * src_stride + j])));
+          const __m128i src_row_0 = load_pair_epi64(
+              &src[i * src_stride + j], &src[(i + 1) * src_stride + j]);
+          const __m128i src_row_1 = load_pair_epi64(
+              &src[(i + 2) * src_stride + j], &src[(i + 3) * src_stride + j]);
 
           // since not all compilers yet support _mm256_set_m128i()
           const __m256i src_10 = _mm256_insertf128_si256(
               _mm256_castsi128_si256(src_row_0), src_row_1, 1);
-
-          const __m256i res = _mm256_sll_epi16(src_10, left_shift);
-
-          const __m256i data_0 = _mm256_castsi128_si256(loadh_epi64(
-              (__m128i *)(&dst[(i + 1) * dst_stride + j]),
-              _mm_loadl_epi64((__m128i *)(&dst[i * dst_stride + j]))));
-          const __m256i data_1 = _mm256_castsi128_si256(loadh_epi64(
-              (__m128i *)(&dst[(i + 3) * dst_stride + j]),
-              _mm_loadl_epi64((__m128i *)(&dst[(i + 2) * dst_stride + j]))));
+          const __m256i data_0 = _mm256_castsi128_si256(load_pair_epi64(
+              &dst[i * dst_stride + j], &dst[(i + 1) * dst_stride + j]));
+          const __m256i data_1 = _mm256_castsi128_si256(load_pair_epi64(
+              &dst[(i + 2) * dst_stride + j], &dst[(i + 3) * dst_stride + j]));
 
           const __m256i data_01 =
               _mm256_permute2x128_si256(data_0, data_1, 0x20);
 
-          highbd_cwp_convolve_2d_copy_do_average(
-              data_01, zero, res, &offset_const, &wt0, &wt1, use_wtd_comp_avg,
-              &rounding_const, rounding_shift, clip_pixel_to_bd, &res_clip);
+          highbd_cwp_convolve_2d_copy_do_average(data_01, src_10, &weights, &c3,
+                                                 sc.fused_shift,
+                                                 clip_pixel_to_bd, &res_clip);
 
           const __m128i res_0 = _mm256_castsi256_si128(res_clip);
           const __m128i res_1 = _mm256_extracti128_si256(res_clip, 1);
 
-          _mm_storel_epi64((__m128i *)(&dst0[i * dst_stride0 + j]), res_0);
-          _mm_storeh_epi64((__m128i *)(&dst0[(i + 1) * dst_stride0 + j]),
-                           res_0);
-          _mm_storel_epi64((__m128i *)(&dst0[(i + 2) * dst_stride0 + j]),
-                           res_1);
-          _mm_storeh_epi64((__m128i *)(&dst0[(i + 3) * dst_stride0 + j]),
-                           res_1);
+          store_pair_epi64(&dst0[i * dst_stride0 + j],
+                           &dst0[(i + 1) * dst_stride0 + j], res_0);
+          store_pair_epi64(&dst0[(i + 2) * dst_stride0 + j],
+                           &dst0[(i + 3) * dst_stride0 + j], res_1);
         }
       }
     }
@@ -807,12 +750,10 @@ void av2_highbd_cwp_convolve_2d_copy_avx2(const uint16_t *src, int src_stride,
       // !(w % 4)
       for (i = 0; i < h; i += 4) {
         for (j = 0; j < w; j += 8) {
-          const __m128i src_row_0 = loadh_epi64(
-              (__m128i *)(&src[(i + 1) * src_stride + j]),
-              _mm_loadl_epi64((__m128i *)(&src[i * src_stride + j])));
-          const __m128i src_row_1 = loadh_epi64(
-              (__m128i *)(&src[(i + 3) * src_stride + j]),
-              _mm_loadl_epi64((__m128i *)(&src[(i + 2) * src_stride + j])));
+          const __m128i src_row_0 = load_pair_epi64(
+              &src[i * src_stride + j], &src[(i + 1) * src_stride + j]);
+          const __m128i src_row_1 = load_pair_epi64(
+              &src[(i + 2) * src_stride + j], &src[(i + 3) * src_stride + j]);
 
           // since not all compilers yet support _mm256_set_m128i()
           const __m256i src_10 = _mm256_insertf128_si256(
@@ -824,10 +765,10 @@ void av2_highbd_cwp_convolve_2d_copy_avx2(const uint16_t *src, int src_stride,
               _mm256_adds_epu16(res, offset_const_16b);
           const __m128i res_0 = _mm256_castsi256_si128(res_unsigned_16b);
           const __m128i res_1 = _mm256_extracti128_si256(res_unsigned_16b, 1);
-          _mm_storel_epi64((__m128i *)(&dst[i * dst_stride + j]), res_0);
-          _mm_storeh_epi64((__m128i *)(&dst[(i + 1) * dst_stride + j]), res_0);
-          _mm_storel_epi64((__m128i *)(&dst[(i + 2) * dst_stride + j]), res_1);
-          _mm_storeh_epi64((__m128i *)(&dst[(i + 3) * dst_stride + j]), res_1);
+          store_pair_epi64(&dst[i * dst_stride + j],
+                           &dst[(i + 1) * dst_stride + j], res_0);
+          store_pair_epi64(&dst[(i + 2) * dst_stride + j],
+                           &dst[(i + 3) * dst_stride + j], res_1);
         }
       }
     }
