@@ -697,23 +697,31 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
     avm_clear_system_state();
     const double qstep = av2_convert_qindex_to_q(qindex_d, bit_depth) * bds;
     const double qstep_sq = qstep * qstep;
+    const double dec_frac =
+        1.0 - (double)(SCALE_NUMERATOR * SCALE_NUMERATOR) / (double)(d * d);
 
     resample_plane_roundtrip(unscaled->y_buffer, orig_h, orig_w,
                              unscaled->y_stride, downscaled_buf, scaled_h,
                              scaled_w, upscaled_y, /*subx=*/0, /*suby=*/0, d,
                              bit_depth, /*is_uv=*/0);
-    const double uv_mse = compute_resample_chroma_mse(
-        unscaled, orig_w, orig_h, scaled_w, scaled_h, d, bit_depth,
-        downscaled_buf, upscaled_uv);
-
     avm_clear_system_state();
     double luma_mse = 0.0;
     double ac_ratio = 0.0;
     compute_nonflat_resample_mse_and_ac(unscaled, upscaled_y, orig_w, orig_h,
                                         bit_depth, &luma_mse, &ac_ratio);
+    const int luma_content_ok =
+        have_mc ? (luma_mse / mc_eff < mc_thresh) : (ac_ratio < ac_thresh_kf);
+    const int luma_bg_ok =
+        !have_mc || pel_ratio <= 1.0 || (luma_mse < dec_frac * mc_bg);
+    if (luma_mse / qstep_sq >= thresh || !luma_content_ok || !luma_bg_ok) {
+      break;
+    }
+
+    const double uv_mse = compute_resample_chroma_mse(
+        unscaled, orig_w, orig_h, scaled_w, scaled_h, d, bit_depth,
+        downscaled_buf, upscaled_uv);
+    avm_clear_system_state();
     const double dist = luma_mse + RESIZE_DYNAMIC_CHROMA_WEIGHT * uv_mse;
-    const double dec_frac =
-        1.0 - (double)(SCALE_NUMERATOR * SCALE_NUMERATOR) / (double)(d * d);
     const int content_ok =
         have_mc ? (dist / mc_eff < mc_thresh) : (ac_ratio < ac_thresh_kf);
     const int bg_ok = !have_mc || pel_ratio <= 1.0 || (dist < dec_frac * mc_bg);
@@ -1042,7 +1050,16 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   int still_contiguous = 1;
   uint8_t raw_best = SCALE_NUMERATOR;
 
-  for (int d = SCALE_NUMERATOR + 1; d <= SCALE_NUMERATOR * 2; ++d) {
+  int total_valid_frames = 0;
+  for (int f = 0; f < num_subgop_frames; ++f) {
+    const YV12_BUFFER_CONFIG *const src = subgop_srcs[f];
+    if (src->y_crop_width == orig_w && src->y_crop_height == orig_h) {
+      ++total_valid_frames;
+    }
+  }
+
+  for (int d = SCALE_NUMERATOR + 1;
+       total_valid_frames > 0 && d <= SCALE_NUMERATOR * 2; ++d) {
     int scaled_w = orig_w;
     int scaled_h = orig_h;
     av2_calculate_scaled_size(&scaled_w, &scaled_h, d);
@@ -1050,6 +1067,19 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
         !dimension_is_ok(orig_h, scaled_h, SCALE_NUMERATOR)) {
       break;
     }
+
+    const double dec_frac =
+        1.0 - (double)(SCALE_NUMERATOR * SCALE_NUMERATOR) / (double)(d * d);
+    // All terms accumulated across the subgop are non-negative, so dividing
+    // the running sum by total_valid_frames forms a monotonic lower bound on
+    // the full-subgop average. Once any metric reaches the maximum active
+    // threshold multiplier for denominator d (1.0 when only contiguous pass is
+    // relevant, or max(1.0, hyst_keep) when d <= prev_denom can be held via
+    // hysteresis), the remaining frames cannot prevent d from failing.
+    const double max_mult =
+        (prev_denom > SCALE_NUMERATOR && d <= (int)prev_denom)
+            ? AVMMAX(1.0, hyst_keep)
+            : 1.0;
 
     double sum_ratio = 0.0;
     double sum_dist = 0.0;
@@ -1064,33 +1094,64 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
                                downscaled_buf, scaled_h, scaled_w, upscaled_y,
                                /*subx=*/0, /*suby=*/0, d, bit_depth,
                                /*is_uv=*/0);
-      const double uv_mse = compute_resample_chroma_mse(
-          src, orig_w, orig_h, scaled_w, scaled_h, d, bit_depth, downscaled_buf,
-          upscaled_uv);
-
       avm_clear_system_state();
       double luma_mse = 0.0;
       double ac_ratio = 0.0;
       compute_nonflat_resample_mse_and_ac(src, upscaled_y, orig_w, orig_h,
                                           bit_depth, &luma_mse, &ac_ratio);
-      const double dist = luma_mse + RESIZE_DYNAMIC_CHROMA_WEIGHT * uv_mse;
       const int qindex_d =
           clamp(subgop_qindex[f] + av2_get_resize_qp_offset(d), 1, max_qp);
       const double qstep = av2_convert_qindex_to_q(qindex_d, bit_depth) * bds;
       const double qstep_sq = qstep * qstep;
+      sum_ac_ratio += ac_ratio;
+
+      const double luma_avg_ratio =
+          (sum_ratio + luma_mse / qstep_sq) / (double)total_valid_frames;
+      const double luma_avg_dist =
+          (sum_dist + luma_mse) / (double)total_valid_frames;
+      const double cur_avg_ac_ratio = sum_ac_ratio / (double)total_valid_frames;
+      const double luma_content_ratio =
+          have_mc ? (luma_avg_dist / mc_eff) : cur_avg_ac_ratio;
+      const double luma_bg_ratio = (have_mc && pel_ratio > 1.0)
+                                       ? (luma_avg_dist / (dec_frac * mc_bg))
+                                       : 0.0;
+      if (luma_avg_ratio >= max_mult * subgop_thresh ||
+          luma_content_ratio >= max_mult * content_thresh ||
+          luma_bg_ratio >= max_mult) {
+        sum_ratio += luma_mse / qstep_sq;
+        sum_dist += luma_mse;
+        ++valid_frames;
+        break;
+      }
+
+      const double uv_mse = compute_resample_chroma_mse(
+          src, orig_w, orig_h, scaled_w, scaled_h, d, bit_depth, downscaled_buf,
+          upscaled_uv);
+      avm_clear_system_state();
+      const double dist = luma_mse + RESIZE_DYNAMIC_CHROMA_WEIGHT * uv_mse;
       sum_ratio += dist / qstep_sq;
       sum_dist += dist;
-      sum_ac_ratio += ac_ratio;
       ++valid_frames;
+      if (valid_frames < total_valid_frames) {
+        const double cur_avg_ratio = sum_ratio / (double)total_valid_frames;
+        const double cur_avg_dist = sum_dist / (double)total_valid_frames;
+        const double cur_content_ratio =
+            have_mc ? (cur_avg_dist / mc_eff) : cur_avg_ac_ratio;
+        const double cur_bg_ratio = (have_mc && pel_ratio > 1.0)
+                                        ? (cur_avg_dist / (dec_frac * mc_bg))
+                                        : 0.0;
+        if (cur_avg_ratio >= max_mult * subgop_thresh ||
+            cur_content_ratio >= max_mult * content_thresh ||
+            cur_bg_ratio >= max_mult) {
+          break;
+        }
+      }
     }
-    if (valid_frames == 0) break;
 
-    const double avg_ratio = sum_ratio / (double)valid_frames;
-    const double avg_dist = sum_dist / (double)valid_frames;
-    const double avg_ac_ratio = sum_ac_ratio / (double)valid_frames;
+    const double avg_ratio = sum_ratio / (double)total_valid_frames;
+    const double avg_dist = sum_dist / (double)total_valid_frames;
+    const double avg_ac_ratio = sum_ac_ratio / (double)total_valid_frames;
     const double content_ratio = have_mc ? (avg_dist / mc_eff) : avg_ac_ratio;
-    const double dec_frac =
-        1.0 - (double)(SCALE_NUMERATOR * SCALE_NUMERATOR) / (double)(d * d);
     const double bg_ratio =
         (have_mc && pel_ratio > 1.0) ? (avg_dist / (dec_frac * mc_bg)) : 0.0;
     avg_ratio_arr[d] = avg_ratio;
