@@ -435,6 +435,7 @@ void av2_gop_setup_structure(AV2_COMP *cpi) {
       first_frame_update_type);
   cpi->rc.level1_qp = -1;        // Set to uninitialized.
   cpi->resize_subgop_denom = 0;  // Reset subgop resize scale for new GF group.
+  if (key_frame) cpi->resize_prev_subgop_denom = 0;
 
 #if CHECK_GF_PARAMETER
   check_frame_params(gf_group, rc->baseline_gf_interval);

@@ -1117,6 +1117,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   resize_pending_params->height = 0;
   cpi->resize_scale_denom = SCALE_NUMERATOR;
   cpi->resize_subgop_denom = 0;
+  cpi->resize_prev_subgop_denom = 0;
 
   // Setup identity scale factor
   av2_setup_scale_factors_for_frame(&cm->sf_identity, 1, 1, 1, 1);

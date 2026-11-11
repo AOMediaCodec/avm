@@ -2883,6 +2883,13 @@ typedef struct AV2_COMP {
   uint8_t resize_subgop_denom;
 
   /*!
+   * Resize scale denominator chosen for the preceding subgop in the current
+   * closed GOP in RESIZE_DYNAMIC_SUBGOP mode (0 if none / reset at keyframe),
+   * used for Schmitt-trigger scale hysteresis across consecutive subgops.
+   */
+  uint8_t resize_prev_subgop_denom;
+
+  /*!
    * Pointer to struct holding adaptive data/contexts/models for the tile during
    * encoding.
    */
