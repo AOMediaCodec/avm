@@ -65,6 +65,7 @@ TEST(XLayerConfig, InitDefaults) {
     EXPECT_EQ(cfg.xlayers[i].num_temporal_layers, 1);
     EXPECT_EQ(cfg.xlayers[i].num_embedded_layers, 1);
     EXPECT_EQ(cfg.xlayers[i].view_type, VIEW_UNSPECIFIED);
+    EXPECT_EQ(cfg.xlayers[i].view_id, -1);
   }
 }
 
@@ -311,6 +312,25 @@ TEST(XLayerConfigParse, MissingInputField) {
   EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);
 }
 
+TEST(XLayerConfigParse, ViewId) {
+  const char *json = R"({
+    "xlayers": [
+      { "xlayer_id": 0, "input": "a.raw", "view_type": "explicit",
+        "view_id": 3 },
+      { "xlayer_id": 1, "input": "b.raw", "view_type": "left" }
+    ]
+  })";
+  const char *path = WriteTempJson(json);
+  ASSERT_NE(path, nullptr);
+
+  MultiXLayerConfig cfg;
+  ASSERT_EQ(parse_multi_xlayer_config(path, &cfg), 0);
+  EXPECT_EQ(cfg.xlayers[0].view_type, VIEW_EXPLICIT);
+  EXPECT_EQ(cfg.xlayers[0].view_id, 3);
+  EXPECT_EQ(cfg.xlayers[1].view_id, -1);
+  EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+}
+
 // --- Validation Tests ---
 
 TEST(XLayerConfigValidate, ValidTwoLayers) {
@@ -323,6 +343,59 @@ TEST(XLayerConfigValidate, ValidTwoLayers) {
   snprintf(cfg.xlayers[1].input_filename, PATH_MAX, "b.raw");
 
   EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+}
+
+TEST(XLayerConfigValidate, ViewId) {
+  MultiXLayerConfig cfg;
+  xlayer_config_init(&cfg);
+  cfg.num_xlayers = 2;
+  cfg.xlayers[0].xlayer_id = 0;
+  snprintf(cfg.xlayers[0].input_filename, PATH_MAX, "a.raw");
+  cfg.xlayers[1].xlayer_id = 1;
+  snprintf(cfg.xlayers[1].input_filename, PATH_MAX, "b.raw");
+
+  // VIEW_EXPLICIT requires view_id in 0-255.
+  cfg.xlayers[0].view_type = VIEW_EXPLICIT;
+  EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);  // view_id not set
+  cfg.xlayers[0].view_id = 256;
+  EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);
+  cfg.xlayers[0].view_id = 0;
+  EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+  cfg.xlayers[0].view_id = 255;
+  EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+
+  // Other view types do not need view_id; a value is only warned about.
+  cfg.xlayers[0].view_type = VIEW_LEFT;
+  cfg.xlayers[0].view_id = -1;
+  EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+  cfg.xlayers[0].view_id = 300;
+  EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+}
+
+TEST(XLayerConfigViewId, SignalledLcrViewId) {
+  MultiXLayerConfig cfg;
+  xlayer_config_init(&cfg);
+  XLayerEncConfig *xl = &cfg.xlayers[0];
+
+  // Not signalled (-1) for every view type other than VIEW_EXPLICIT, even if
+  // view_id is set.
+  for (int vt = VIEW_UNSPECIFIED; vt < VIEW_EXPLICIT; ++vt) {
+    xl->view_type = vt;
+    xl->view_id = -1;
+    EXPECT_EQ(xlayer_config_lcr_view_id(xl), -1);
+    xl->view_id = 7;
+    EXPECT_EQ(xlayer_config_lcr_view_id(xl), -1);
+  }
+  // VIEW_EXPLICIT: the configured value if valid, -1 otherwise.
+  xl->view_type = VIEW_EXPLICIT;
+  xl->view_id = 0;
+  EXPECT_EQ(xlayer_config_lcr_view_id(xl), 0);
+  xl->view_id = 255;
+  EXPECT_EQ(xlayer_config_lcr_view_id(xl), 255);
+  xl->view_id = -1;
+  EXPECT_EQ(xlayer_config_lcr_view_id(xl), -1);
+  xl->view_id = 256;
+  EXPECT_EQ(xlayer_config_lcr_view_id(xl), -1);
 }
 
 TEST(XLayerConfigValidate, DuplicateXlayerId) {

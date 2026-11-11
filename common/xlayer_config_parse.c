@@ -248,6 +248,8 @@ static int parse_xlayer_entry(const cJSON *entry, XLayerEncConfig *xlcfg) {
 
   const char *vt = json_get_string(entry, "view_type", NULL);
   if (vt) xlcfg->view_type = parse_view_type(vt);
+  // lcr_view_id is signalled only when lcr_view_type is VIEW_EXPLICIT.
+  xlcfg->view_id = json_get_int(entry, "view_id", -1);
 
   xlcfg->num_temporal_layers = json_get_int(entry, "num_temporal_layers", 1);
   xlcfg->num_embedded_layers = json_get_int(entry, "num_embedded_layers", 1);
@@ -483,6 +485,7 @@ static int parse_xlayer_entry(const cJSON *entry, XLayerEncConfig *xlcfg) {
       "layer_type",
       "auxiliary_type",
       "view_type",
+      "view_id",
       "num_temporal_layers",
       "num_embedded_layers",
       "color_primaries",
@@ -988,6 +991,30 @@ int validate_multi_xlayer_config(const MultiXLayerConfig *cfg) {
       return -1;
     }
     seen[id] = 1;
+  }
+
+  // lcr_view_id is an 8-bit field that is only signalled for VIEW_EXPLICIT,
+  // where it is required. view_id is -1 when it is not set.
+  for (int i = 0; i < cfg->num_xlayers; i++) {
+    const XLayerEncConfig *xl = &cfg->xlayers[i];
+    if (xl->view_type == VIEW_EXPLICIT) {
+      if (xl->view_id < 0) {
+        fprintf(stderr,
+                "Error: xlayer %d has view_type \"explicit\" but no view_id\n",
+                i);
+        return -1;
+      }
+      if (xl->view_id > 255) {
+        fprintf(stderr, "Error: xlayer %d has invalid view_id %d (0-255)\n", i,
+                xl->view_id);
+        return -1;
+      }
+    } else if (xl->view_id != -1) {
+      fprintf(stderr,
+              "Warning: xlayer %d sets view_id %d but view_type is not "
+              "\"explicit\"; view_id is not signalled\n",
+              i, xl->view_id);
+    }
   }
 
   // Validate input source names are unique and non-empty
