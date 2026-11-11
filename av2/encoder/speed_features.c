@@ -877,7 +877,9 @@ static void set_good_speed_features_framesize_independent(
 
     sf->gm_sf.downsample_level = 2;
 
-    sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
+    if (!cm->features.is_scc_content_by_detector) {
+      sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
+    }
     sf->mv_sf.use_bsize_dependent_search_method = 1;
     sf->mv_sf.fast_mv_search = 1;
 
@@ -886,7 +888,11 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
     sf->tx_sf.disable_cctx_dry_pass = true;
-    sf->tx_sf.enable_tx_partition = false;
+    if (cm->features.is_scc_content_by_detector) {
+      sf->tx_sf.restrict_tx_partition_type_search = 3;
+    } else {
+      sf->tx_sf.enable_tx_partition = false;
+    }
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 4 : 6;
 
@@ -1633,19 +1639,14 @@ void av2_set_speed_features_framesize_dependent(AV2_COMP *cpi, int speed) {
     sf->tx_sf.enable_tx_partition = false;
   }
 
-  if (speed >= 4 && !cpi->is_screen_content_type && !is_270p_or_lesser &&
-      !cpi->seq_params_locked) {
-    sf->part_sf.force_max_pb_aspect_ratio = 4;
-    if (sf->part_sf.force_max_pb_aspect_ratio) {
-      const unsigned int new_max_ratio =
-          AVMMIN(sf->part_sf.force_max_pb_aspect_ratio,
-                 oxcf->part_cfg.max_partition_aspect_ratio);
-      cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 =
-          new_max_ratio == 2 ? 0 : (new_max_ratio == 4 ? 1 : 2);
-    }
-  }
-
   if (!cpi->seq_params_locked) {
+    unsigned int max_ratio = oxcf->part_cfg.max_partition_aspect_ratio;
+    if (speed >= 4 && !cpi->is_screen_content_type && !is_270p_or_lesser) {
+      sf->part_sf.force_max_pb_aspect_ratio = 4;
+      max_ratio = AVMMIN(max_ratio, sf->part_sf.force_max_pb_aspect_ratio);
+    }
+    cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 =
+        max_ratio == 2 ? 0 : (max_ratio == 4 ? 1 : 2);
     cpi->common.seq_params.enable_uneven_4way_partitions =
         oxcf->part_cfg.enable_uneven_4way_partitions &&
         !sf->part_sf.disable_uneven_4way_partitions;
@@ -1942,6 +1943,9 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
 
     if (sf->inter_sf.disable_interintra) {
       cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << INTERINTRA);
+    } else if (oxcf->motion_mode_cfg.seq_enabled_motion_modes &
+               (1 << INTERINTRA)) {
+      cpi->common.seq_params.seq_enabled_motion_modes |= (1 << INTERINTRA);
     }
 
     // Disable tcq modes in sequence header when cpu-used >= 2
@@ -2302,7 +2306,9 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     // Speed-4 values.
     sf->gm_sf.downsample_level = 1;
 
-    sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+    if (!cpi->is_screen_content_type) {
+      sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+    }
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
     sf->mv_sf.newmv_drl_search_limit = 1;
     set_mesh_patterns(sf, 4);
@@ -2356,7 +2362,9 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     // Speed-6 values.
     sf->gm_sf.downsample_level = 2;
 
-    sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
+    if (!cm->features.is_scc_content_by_detector) {
+      sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
+    }
     sf->mv_sf.use_bsize_dependent_search_method = 1;
 
     sf->inter_sf.dry_pass_skip_warp_min_pyr_level =
@@ -2369,7 +2377,11 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
     sf->tx_sf.disable_cctx_dry_pass = true;
-    sf->tx_sf.enable_tx_partition = false;
+    if (cm->features.is_scc_content_by_detector) {
+      sf->tx_sf.restrict_tx_partition_type_search = 3;
+    } else {
+      sf->tx_sf.enable_tx_partition = false;
+    }
 
     sf->rd_sf.perform_coeff_opt = is_arf2 ? 4 : 6;
 
@@ -2454,12 +2466,14 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
       if (cm->quant_params.base_qindex <= (frame_is_intra_only(&cpi->common)
                                                ? qindex_thresh2
                                                : qindex_thresh)) {
-        sf->tx_sf.restrict_tx_partition_type_search = 2;
+        sf->tx_sf.restrict_tx_partition_type_search =
+            AVMMAX(sf->tx_sf.restrict_tx_partition_type_search, 2);
       }
     } else {
       if (cm->quant_params.base_qindex <=
           ((speed < 1) ? qindex_thresh2 : qindex_thresh4)) {
-        sf->tx_sf.restrict_tx_partition_type_search = 1;
+        sf->tx_sf.restrict_tx_partition_type_search =
+            AVMMAX(sf->tx_sf.restrict_tx_partition_type_search, 1);
       }
 
       if (speed >= 1 && cm->quant_params.base_qindex <= qindex_thresh2) {
