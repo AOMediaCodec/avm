@@ -310,10 +310,20 @@ void av2_cyclic_refresh_postencode(AV2_COMP *const cpi) {
   cr->cnt_zeromv =
       100 * x->cnt_zeromv / (mi_params->mi_rows * mi_params->mi_cols);
 
-  cr->avg_frame_low_motion =
-      (cm->current_frame.frame_number == 0 || rc->frames_since_key < 4)
-          ? (double)cr->cnt_zeromv
-          : (3 * cr->avg_frame_low_motion + (double)cr->cnt_zeromv) / 4;
+  const int bd_shift = cm->seq_params.bit_depth - 8;
+  // In 10-15fps screen captures padded to 30fps, duplicate frames
+  // (frame_source_sad == 0) interleaved with active scrolling should not
+  // inflate avg_frame_low_motion while rolling source SAD remains elevated.
+  const bool is_dup_screen_motion_frame =
+      cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN &&
+      rc->frames_since_key > 30 && rc->frame_source_sad == 0 &&
+      rc->avg_source_sad > ((uint64_t)(64 * 64) << bd_shift);
+  if (!is_dup_screen_motion_frame) {
+    cr->avg_frame_low_motion =
+        (cm->current_frame.frame_number == 0 || rc->frames_since_key < 4)
+            ? (double)cr->cnt_zeromv
+            : (3 * cr->avg_frame_low_motion + (double)cr->cnt_zeromv) / 4;
+  }
 
   if (frame_is_intra_only(cm) || !cr->apply_cyclic_refresh) {
     cr->actual_num_seg1_blocks = 0;
@@ -477,6 +487,9 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
 }
 
 static int is_scene_change_detected(const AV2_COMP *const cpi) {
+  if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
+    return cpi->rc.high_source_sad;
+  }
   const uint64_t sad_thresh = 50000ULL
                               << (cpi->common.seq_params.bit_depth - 8);
   return cpi->rc.high_source_sad ||
@@ -518,6 +531,14 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
           ? rc->frames_since_key
           : AVMMIN(rc->frames_since_key, cr->counter_encode_maxq_scene_change);
 
+  const int bd_shift = cm->seq_params.bit_depth - 8;
+  const bool high_motion_screen_off =
+      is_screen_content && rc->frames_since_key > 30 &&
+      (cr->avg_frame_low_motion < 25 ||
+       (cr->avg_frame_low_motion < 35 && frames_since_scene_change > 3) ||
+       (rc->frame_source_sad > ((uint64_t)(18 * 64 * 64) << bd_shift) &&
+        cr->avg_frame_low_motion < 70));
+
   // Cases to turn off cyclic refresh:
   // 1) Frame is intra-only or lossless
   // 2) Preceding frames have low average qindex (< qp_thresh)
@@ -526,6 +547,7 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
   // 5) Content with sustained motion (low zero-MV block percentage).
   if (frame_is_intra_only(cm) || is_lossless_requested(&cpi->oxcf.rc_cfg) ||
       scene_change_detected || rc->avg_frame_qindex[INTER_FRAME] < qp_thresh ||
+      high_motion_screen_off ||
       (frames_since_scene_change > 20 &&
        rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||
       (cr->avg_frame_low_motion < (is_screen_content ? 30 : 45) &&
@@ -544,7 +566,9 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
 
   cr->apply_cyclic_refresh = 1;
   cr->percent_refresh = 10 + cr->percent_refresh_adjustment;
-  cr->max_qdelta_perc = 60;
+  const bool is_le_720p_sc =
+      is_screen_content && (cm->width * cm->height <= 1280 * 720);
+  cr->max_qdelta_perc = is_le_720p_sc ? 40 : 60;
   cr->time_for_refresh = 0;
   cr->use_block_sad_scene_det =
       (cm->sb_size == BLOCK_64X64 || cm->sb_size == BLOCK_128X128 ||
@@ -566,13 +590,16 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
         cr->rate_ratio_qdelta = 2.25 + cr->rate_ratio_qdelta_adjustment;
       }
     } else {
+      // Screen content (is_screen_content is true).
+      const double ratio_base = is_le_720p_sc ? 1.85 : 3.0;
       const double distance_from_sc_factor =
           AVMMIN(0.75, (int)(frames_since_scene_change / 10) * 0.1);
       cr->rate_ratio_qdelta =
-          3.0 + cr->rate_ratio_qdelta_adjustment - distance_from_sc_factor;
+          AVMMAX(1.25, ratio_base + cr->rate_ratio_qdelta_adjustment -
+                           distance_from_sc_factor);
       if (frames_since_scene_change < 10 &&
           (rc->rc_1_frame < 0 || rc->rc_2_frame < 0)) {
-        cr->rate_ratio_qdelta -= 0.25;
+        cr->rate_ratio_qdelta = AVMMAX(1.25, cr->rate_ratio_qdelta - 0.25);
       }
     }
   } else {

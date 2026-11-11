@@ -4019,9 +4019,32 @@ static int encode_without_recode(AV2_COMP *cpi) {
   // Update some stats from cyclic refresh.
   // TODO(jianj): Enable cyclic refresh on partial-active BRU frames
   // (cm->bru.enabled && !cm->bru.frame_inactive_flag).
-  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ &&
-      !(cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled)) {
-    av2_cyclic_refresh_postencode(cpi);
+  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) {
+    if (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled) {
+      CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
+      if (cr != NULL) {
+        cr->actual_num_seg1_blocks = 0;
+        cr->actual_num_seg2_blocks = 0;
+        if (cm->bru.total_units > 0) {
+          cr->cnt_zeromv =
+              (int)(100 * cm->bru.blocks_skipped / cm->bru.total_units);
+          const int bd_shift = cm->seq_params.bit_depth - 8;
+          const bool is_dup_screen_motion_frame =
+              cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN &&
+              cpi->rc.frames_since_key > 30 && cpi->rc.frame_source_sad == 0 &&
+              cpi->rc.avg_source_sad > ((uint64_t)(64 * 64) << bd_shift);
+          if (!is_dup_screen_motion_frame) {
+            cr->avg_frame_low_motion = (cpi->rc.frames_since_key < 4)
+                                           ? (double)cr->cnt_zeromv
+                                           : (3.0 * cr->avg_frame_low_motion +
+                                              (double)cr->cnt_zeromv) /
+                                                 4.0;
+          }
+        }
+      }
+    } else {
+      av2_cyclic_refresh_postencode(cpi);
+    }
   }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
