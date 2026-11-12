@@ -268,21 +268,31 @@ void av2_detect_cbr_bru_regions(AV2_COMP *cpi,
 
   int q_boost_thresh = -1;
   if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
-      cpi->cyclic_refresh != NULL &&
-      cpi->cyclic_refresh->apply_cyclic_refresh &&
-      cpi->cyclic_refresh->percent_refresh > 0) {
+      cpi->cyclic_refresh != NULL) {
     const CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
-    const avm_bit_depth_t bit_depth = cm->seq_params.bit_depth;
-    const int bd_offset = MAXQ_FOR_GIVEN_BIT_DEPTH(bit_depth) - MAXQ_8_BITS;
-    const int q_base = AVMMAX(0, target_q - bd_offset);
-    int qdelta = av2_compute_qdelta_by_rate(
-        &cpi->rc, cm->current_frame.frame_type, target_q, cr->rate_ratio_qdelta,
-        cpi->is_screen_content_type, bit_depth);
-    const int max_deltaq = AVMMIN(cr->max_qdelta_perc * q_base / 100,
-                                  (cr->max_qdelta_perc * 3) >> 2);
-    if ((-qdelta) > max_deltaq) qdelta = -max_deltaq;
-    if (qdelta < -4) {
-      q_boost_thresh = target_q + (qdelta >> 1);
+    const int frames_since_sc =
+        (cpi->oxcf.tune_cfg.content != AVM_CONTENT_SCREEN)
+            ? cpi->rc.frames_since_key
+            : AVMMIN(cpi->rc.frames_since_key,
+                     cr->counter_encode_maxq_scene_change);
+    const int max_holdoff_frames =
+        2 * (100 / AVMMAX(1, cr->percent_refresh)) + 4;
+    if (cr->apply_cyclic_refresh && cr->percent_refresh > 0 &&
+        frames_since_sc <= max_holdoff_frames) {
+      const avm_bit_depth_t bit_depth = cm->seq_params.bit_depth;
+      const int bd_offset = MAXQ_FOR_GIVEN_BIT_DEPTH(bit_depth) - MAXQ_8_BITS;
+      const int ref_base_q =
+          AVMMAX(target_q, cpi->rc.avg_frame_qindex[INTER_FRAME]);
+      const int q_base = AVMMAX(0, ref_base_q - bd_offset);
+      int qdelta = av2_compute_qdelta_by_rate(
+          &cpi->rc, cm->current_frame.frame_type, ref_base_q,
+          cr->rate_ratio_qdelta, cpi->is_screen_content_type, bit_depth);
+      const int max_deltaq = AVMMIN(cr->max_qdelta_perc * q_base / 100,
+                                    (cr->max_qdelta_perc * 3) >> 2);
+      if ((-qdelta) > max_deltaq) qdelta = -max_deltaq;
+      if (qdelta < -4) {
+        q_boost_thresh = ref_base_q + (qdelta >> 1);
+      }
     }
   }
 
@@ -310,9 +320,9 @@ void av2_detect_cbr_bru_regions(AV2_COMP *cpi,
     }
   }
 
-  // When cyclic refresh is actively boosting static blocks, hold off BRU until
-  // at least 75% of inactive superblocks have been boosted so whole-frame BRU
-  // skips do not lock in unboosted static slides.
+  // When cyclic refresh is actively boosting static blocks after a keyframe or
+  // scene change, hold off BRU until at least 75% of inactive superblocks have
+  // been boosted so whole-frame BRU skips do not lock in unboosted slides.
   if (inactive_units > 0 && unboosted_static_sbs * 4 > inactive_units) {
     bru_info->blocks_skipped = 0;
     bru_info->num_active_regions = MAX_ACTIVE_REGION + 1;
@@ -341,7 +351,11 @@ void av2_update_rt_bru_lookahead_disp_order(
       !cpi->sf.rt_sf.rtc_enable_bru || !cpi->common.seq_params.enable_bru) {
     return;
   }
-  source->disp_order_hint = cur_frame_disp;
+  source->disp_order_hint =
+      (av2_is_shown_keyframe(cpi, frame_type) &&
+       !cpi->oxcf.unit_test_cfg.single_seq_header_for_all_test)
+          ? 0
+          : cur_frame_disp;
   if (frame_type == KEY_FRAME && cpi->lookahead != NULL) {
     for (int i = 0; i < cpi->lookahead->max_sz; ++i) {
       if (&cpi->lookahead->buf[i] != source) {
@@ -405,7 +419,7 @@ void av2_disable_rtc_bru_segmentation(AV2_COMP *const cpi) {
   // skipped BRU superblocks in av2_cyclic_refresh_postencode().
   av2_disable_segmentation(&cm->seg);
   if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
-      cpi->cyclic_refresh != NULL && !cm->bru.frame_inactive_flag) {
+      cpi->cyclic_refresh != NULL) {
     cpi->cyclic_refresh->apply_cyclic_refresh = 0;
   }
 }
@@ -574,6 +588,34 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
       is_cbr_bru_slot_valid(cpi, prev_slot, total_units);
   const bool has_per_block_q =
       cm->delta_q_info.delta_q_present_flag || cm->seg.enabled;
+  const bool check_multi_slot_q =
+      (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ);
+  const YV12_BUFFER_CONFIG *slot_src[REF_FRAMES] = { NULL };
+  bool any_slot_src = false;
+  if (check_multi_slot_q && !frame_is_intra_only(cm) &&
+      cpi->lookahead != NULL && cpi->source != NULL &&
+      cpi->source == cpi->unscaled_source &&
+      cpi->source->y_crop_width == cm->width &&
+      cpi->source->y_crop_height == cm->height) {
+    for (int s = 0; s < cm->seq_params.ref_frames; ++s) {
+      if (!is_cbr_bru_slot_valid(cpi, s, total_units) ||
+          cm->ref_frame_map[s]->is_restricted) {
+        continue;
+      }
+      const int slot_disp = (int)cm->ref_frame_map[s]->display_order_hint;
+      for (int k = 0; k < cpi->lookahead->max_sz; ++k) {
+        if (&cpi->lookahead->buf[k].img != cpi->unscaled_source &&
+            cpi->lookahead->buf[k].disp_order_hint >= 0 &&
+            cpi->lookahead->buf[k].disp_order_hint == slot_disp &&
+            cpi->lookahead->buf[k].img.y_crop_width == cm->width &&
+            cpi->lookahead->buf[k].img.y_crop_height == cm->height) {
+          slot_src[s] = &cpi->lookahead->buf[k].img;
+          any_slot_src = true;
+          break;
+        }
+      }
+    }
+  }
   const int mi_stride = cm->mi_params.mi_stride;
   const avm_bit_depth_t bit_depth = cm->seq_params.bit_depth;
 
@@ -591,7 +633,7 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
         continue;
       }
 
-      if (!has_per_block_q && !prev_slot_valid) {
+      if (!has_per_block_q && !prev_slot_valid && !any_slot_src) {
         cpi->rc.rtc_bru.cur_sb_q[u] = (uint16_t)cm->quant_params.base_qindex;
         continue;
       }
@@ -601,6 +643,10 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
       int sb_max_q = 0;
       bool found_block = false;
       bool can_inherit_prev_q = prev_slot_valid;
+      int8_t slot_same[REF_FRAMES];
+      if (any_slot_src) {
+        memset(slot_same, -1, sizeof(slot_same));
+      }
       for (int rr = 0; rr < mi_rows_in_sb; ++rr) {
         int row_step = 1;
         for (int cc = 0; cc < mi_cols_in_sb;) {
@@ -609,6 +655,12 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
                   .mi_grid_base[(mi_row + rr) * mi_stride + (mi_col + cc)];
           if (mbmi == NULL) {
             can_inherit_prev_q = false;
+            if (any_slot_src) {
+              if (!found_block || cm->quant_params.base_qindex > sb_max_q) {
+                sb_max_q = cm->quant_params.base_qindex;
+                found_block = true;
+              }
+            }
             ++cc;
             continue;
           }
@@ -632,15 +684,35 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
               can_inherit_prev_q = false;
             }
           }
-          if (has_per_block_q) {
+          if (has_per_block_q || any_slot_src) {
             const int base_q = cm->delta_q_info.delta_q_present_flag
                                    ? mbmi->current_qindex
                                    : cm->quant_params.base_qindex;
-            int cert_q =
-                av2_get_qindex(&cm->seg, mbmi->segment_id, base_q, bit_depth);
+            int cert_q = has_per_block_q
+                             ? av2_get_qindex(&cm->seg, mbmi->segment_id,
+                                              base_q, bit_depth)
+                             : base_q;
             if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
                 q_init < cert_q && is_zero_mv_skip_inter) {
               cert_q = q_init;
+            }
+            if (any_slot_src && is_zero_mv_skip_inter) {
+              const int ref_slot =
+                  get_ref_frame_map_idx(cm, mbmi->ref_frame[0]);
+              if (ref_slot >= 0 && ref_slot < REF_FRAMES &&
+                  slot_src[ref_slot] != NULL &&
+                  cpi->rc.rtc_bru.sb_q[ref_slot][u] < cert_q) {
+                if (slot_same[ref_slot] < 0) {
+                  slot_same[ref_slot] =
+                      av2_sb_planes_identical(
+                          cpi, cpi->source, slot_src[ref_slot], mi_row, mi_col)
+                          ? 1
+                          : 0;
+                }
+                if (slot_same[ref_slot] == 1) {
+                  cert_q = cpi->rc.rtc_bru.sb_q[ref_slot][u];
+                }
+              }
             }
             if (!found_block || cert_q > sb_max_q) {
               sb_max_q = cert_q;
@@ -654,8 +726,9 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
         }
         rr += row_step - 1;
       }
-      int sb_q = has_per_block_q && found_block ? sb_max_q
-                                                : cm->quant_params.base_qindex;
+      int sb_q = (has_per_block_q || any_slot_src) && found_block
+                     ? sb_max_q
+                     : cm->quant_params.base_qindex;
       if (can_inherit_prev_q && cpi->rc.rtc_bru.sb_q[prev_slot][u] < sb_q &&
           av2_sb_planes_identical(cpi, cpi->source, cpi->last_source, mi_row,
                                   mi_col)) {

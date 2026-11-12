@@ -409,7 +409,13 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
   // current frame is low (less than half of optimal). For such inter frames,
   // if frame_source_sad is non-trivial, relax max_delta_up and bypass the
   // oscillation clamp below so Q can increase rapidly.
+  const bool is_cbr_bru_frame = cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled;
+  const bool suppress_bru_overshoot =
+      is_cbr_bru_frame && cpi->is_screen_content_type &&
+      cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cm->bru.total_units > 0 &&
+      cm->bru.blocks_skipped * 4 >= cm->bru.total_units * 3;
   const bool overshoot_buffer_low =
+      !suppress_bru_overshoot &&
       (rc->rc_1_frame == -1 && rc->frame_source_sad > 1000 &&
        rc->buffer_level < (rc->optimal_buffer_level >> 1) &&
        rc->frames_since_key > 4);
@@ -421,15 +427,22 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
   int max_delta_up;
   if (cpi->is_screen_content_type) {
     max_delta_up = overshoot_buffer_low ? 120 : 16;
+    const bool bru_keep_cr_adj =
+        is_cbr_bru_frame && !rc->high_source_sad &&
+        (cm->bru.frame_inactive_flag || cm->width * cm->height <= 1280 * 720);
     if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
-        cpi->cyclic_refresh->apply_cyclic_refresh) {
+        (cpi->cyclic_refresh->apply_cyclic_refresh || bru_keep_cr_adj)) {
+      const int bd_q_offset = ((int)cm->seq_params.bit_depth - 8) * 24;
       // For static screen type content limit the Q drop till the start of the
       // next refresh cycle (including the first frame after a scene change,
       // where sb_index == last_sb_index == 0 starts the initial cycle).
-      if (cpi->cyclic_refresh->sb_index > cpi->cyclic_refresh->last_sb_index ||
+      if (is_cbr_bru_frame ||
+          cpi->cyclic_refresh->sb_index > cpi->cyclic_refresh->last_sb_index ||
           (rc->frames_since_key > 1 &&
            cpi->cyclic_refresh->counter_encode_maxq_scene_change == 0)) {
-        max_delta_down = clamp(rc->q_1_frame / 32, 1, 8);
+        max_delta_down = (rc->q_1_frame > 120 + bd_q_offset)
+                             ? clamp(rc->q_1_frame / 16, 1, 12)
+                             : clamp(rc->q_1_frame / 32, 1, 8);
       } else {
         max_delta_down = clamp(rc->q_1_frame / 8, 1, 16);
       }
