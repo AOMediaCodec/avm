@@ -325,6 +325,12 @@ if(BUILD_SHARED_LIBS)
 endif()
 
 add_library(lanczos_resample OBJECT ${AVM_LANCZOS_RESAMPLE_SOURCES})
+if(HAVE_SSE2)
+  set(AVM_LANCZOS_RESAMPLE_INTRIN_SSE2
+      "${AVM_ROOT}/common/x86/lanczos_resample_sse2.c")
+  add_intrinsics_source_to_target("-msse2" "lanczos_resample"
+                                  "AVM_LANCZOS_RESAMPLE_INTRIN_SSE2")
+endif()
 list(APPEND AVM_LIB_TARGETS lanczos_resample)
 target_sources(avm PRIVATE $<TARGET_OBJECTS:lanczos_resample>)
 if(BUILD_SHARED_LIBS)
