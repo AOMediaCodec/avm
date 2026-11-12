@@ -1793,6 +1793,8 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
   first_frame_stats.frame_coded_error = this_frame->coded_error;
   first_frame_stats.frame_sr_coded_error = this_frame->sr_coded_error;
   first_frame_stats.frame_tr_coded_error = this_frame->tr_coded_error;
+  const double first_frame_intra_skip_pct = this_frame->intra_skip_pct;
+  const double first_frame_inactive_zone_rows = this_frame->inactive_zone_rows;
 
   // TODO(urvang): Try logic to vary min and max interval based on q.
   const int active_min_gf_interval = rc->min_gf_interval;
@@ -1826,6 +1828,21 @@ static void define_gf_group(AV2_COMP *cpi, FIRSTPASS_STATS *this_frame,
 
     *this_frame = next_frame;
   }
+  // For the gf group starting with a key frame, the key frame's stats are
+  // accumulated above, but its error score has already been accounted for in
+  // find_next_key_frame(): kf_group_error_left excludes it and its bits are
+  // allocated separately. Remove it from the group totals so the key frame is
+  // not counted twice in the kf group, and does not inflate the group
+  // complexity used to estimate active_worst_quality.
+  if (is_intra_only) {
+    gf_stats.gf_group_err -= first_frame_stats.frame_err;
+#if GROUP_ADAPTIVE_MAXQ
+    gf_stats.gf_group_raw_error -= first_frame_stats.frame_coded_error;
+#endif
+    gf_stats.gf_group_skip_pct -= first_frame_intra_skip_pct;
+    gf_stats.gf_group_inactive_zone_rows -= first_frame_inactive_zone_rows;
+  }
+
   // save the errs for the last frame
   last_frame_stats.frame_coded_error = next_frame.coded_error;
   last_frame_stats.frame_sr_coded_error = next_frame.sr_coded_error;
