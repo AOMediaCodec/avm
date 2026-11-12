@@ -296,6 +296,44 @@ void av2_detect_cbr_bru_regions(AV2_COMP *cpi,
     }
   }
 
+  // With LTR enabled in NO_AQ mode, one DPB slot holds the LTR while the two
+  // short-term slots alternate across even/odd frames. Locate the newer
+  // short-term slot (prev_slot) so that if it just refined an identical SB to a
+  // lower sb_q (even if target_q bounced up after an overshoot), bru_slot can
+  // synchronize via a cheap 0-MV skip copy rather than leapfrogging later.
+  int prev_slot = -1;
+  const YV12_BUFFER_CONFIG *prev_src = NULL;
+  if (cpi->sf.rt_sf.rtc_use_lt_ref && cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
+      cpi->lookahead != NULL) {
+    const int cur_disp = (int)cm->current_frame.display_order_hint;
+    for (int s = 0; s < cm->seq_params.ref_frames; ++s) {
+      if (s == bru_slot || cm->ref_frame_map[s] == NULL ||
+          cm->ref_frame_map[s]->is_restricted ||
+          cm->ref_frame_map[s]->buf.y_crop_width != cm->width ||
+          cm->ref_frame_map[s]->buf.y_crop_height != cm->height ||
+          cpi->rc.rtc_bru.sb_q[s] == NULL ||
+          cpi->rc.rtc_bru.sb_q[s][0] == UINT16_MAX) {
+        continue;
+      }
+      const int slot_disp = (int)cm->ref_frame_map[s]->display_order_hint;
+      if (slot_disp == cpi->rc.lt_ref_disp_order ||
+          slot_disp <= cm->bru.ref_disp_order || slot_disp >= cur_disp) {
+        continue;
+      }
+      for (int k = 0; k < cpi->lookahead->max_sz; ++k) {
+        if (&cpi->lookahead->buf[k].img != cur_src &&
+            cpi->lookahead->buf[k].disp_order_hint == slot_disp &&
+            cpi->lookahead->buf[k].img.y_crop_width == cm->width &&
+            cpi->lookahead->buf[k].img.y_crop_height == cm->height) {
+          prev_slot = s;
+          prev_src = &cpi->lookahead->buf[k].img;
+          break;
+        }
+      }
+      if (prev_slot >= 0) break;
+    }
+  }
+
   int inactive_units = 0;
   int unboosted_static_sbs = 0;
   for (int r = 0, mi_row = 0, unit_idx = 0; r < unit_rows;
@@ -306,10 +344,16 @@ void av2_detect_cbr_bru_regions(AV2_COMP *cpi,
           !av2_sb_planes_identical(cpi, cur_src, bru_src, mi_row, mi_col);
       if (!is_active) {
         const int bru_q = cpi->rc.rtc_bru.sb_q[bru_slot][unit_idx];
-        // Refine if CBR's target quantizer has stepped down substantially
-        // below the certified quantizer of the BRU reference slot.
+        // Refine if CBR's target quantizer (or the synchronized short-term
+        // slot's certified quantizer) is substantially below bru_slot's sb_q.
         const int q_margin = (bru_q > 104 + bd_q_offset) ? 4 : 6;
-        if (bru_q > target_q + q_margin) {
+        int ref_target_q = target_q;
+        if (prev_slot >= 0 && prev_src != NULL &&
+            av2_sb_planes_identical(cpi, cur_src, prev_src, mi_row, mi_col)) {
+          ref_target_q =
+              AVMMIN(target_q, (int)cpi->rc.rtc_bru.sb_q[prev_slot][unit_idx]);
+        }
+        if (bru_q > ref_target_q + q_margin) {
           is_active = true;
         } else if (q_boost_thresh >= 0 && bru_q > q_boost_thresh) {
           ++unboosted_static_sbs;
@@ -399,6 +443,11 @@ int av2_find_rtc_cbr_bru_slot(
       continue;
     }
     ++valid_dpb_refs;
+    // Never select the LTR DPB slot as a BRU update target.
+    if (cpi->sf.rt_sf.rtc_use_lt_ref &&
+        (int)buf->display_order_hint == cpi->rc.lt_ref_disp_order) {
+      continue;
+    }
     if (buf->base_qindex > 0 &&
         (int)buf->display_order_hint == cm->bru.ref_disp_order &&
         total_units > 0 && total_units == cpi->rc.rtc_bru.sb_units &&
@@ -647,6 +696,8 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
       if (any_slot_src) {
         memset(slot_same, -1, sizeof(slot_same));
       }
+      int inherited_q = prev_slot_valid ? cpi->rc.rtc_bru.sb_q[prev_slot][u]
+                                        : cm->quant_params.base_qindex;
       for (int rr = 0; rr < mi_rows_in_sb; ++rr) {
         int row_step = 1;
         for (int cc = 0; cc < mi_cols_in_sb;) {
@@ -670,18 +721,33 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
           if (cc == 0 && bw_mi >= mi_cols_in_sb && bsize < BLOCK_SIZES_ALL) {
             row_step = AVMMAX(1, mi_size_high[bsize]);
           }
-          const bool is_zero_mv_skip_inter =
+          const bool is_zero_mv_inter =
               mbmi->tree_type == SHARED_PART && !mbmi->use_intrabc[0] &&
               !mbmi->use_intrabc[1] && is_inter_ref_frame(mbmi->ref_frame[0]) &&
               !is_tip_ref_frame(mbmi->ref_frame[0]) &&
               !is_inter_ref_frame(mbmi->ref_frame[1]) &&
               mbmi->motion_mode == SIMPLE_TRANSLATION && !mbmi->bawp_flag[0] &&
-              !mbmi->bawp_flag[1] && mbmi->skip_txfm[0] &&
-              mbmi->mv[0].as_int == 0;
+              !mbmi->bawp_flag[1] && mbmi->mv[0].as_int == 0;
+          const bool is_zero_mv_skip_inter =
+              is_zero_mv_inter && mbmi->skip_txfm[0];
           if (can_inherit_prev_q) {
-            if (!is_zero_mv_skip_inter ||
-                get_ref_frame_map_idx(cm, mbmi->ref_frame[0]) != prev_slot) {
+            // Allow 0-MV translational inter blocks referencing any valid DPB
+            // slot to inherit prev_slot's sb_q on identical SBs. Exclude the
+            // LTR slot when raising inherited_q so static background blocks
+            // matching the LTR do not lose a lower sb_q already certified by
+            // prev_slot.
+            const int ref_slot =
+                (cpi->sf.rt_sf.rtc_use_lt_ref ? is_zero_mv_inter
+                                              : is_zero_mv_skip_inter)
+                    ? get_ref_frame_map_idx(cm, mbmi->ref_frame[0])
+                    : -1;
+            if (!is_cbr_bru_slot_valid(cpi, ref_slot, total_units)) {
               can_inherit_prev_q = false;
+            } else if ((!cpi->sf.rt_sf.rtc_use_lt_ref ||
+                        (int)cm->ref_frame_map[ref_slot]->display_order_hint !=
+                            cpi->rc.lt_ref_disp_order) &&
+                       cpi->rc.rtc_bru.sb_q[ref_slot][u] > inherited_q) {
+              inherited_q = cpi->rc.rtc_bru.sb_q[ref_slot][u];
             }
           }
           if (has_per_block_q || any_slot_src) {
@@ -692,8 +758,14 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
                              ? av2_get_qindex(&cm->seg, mbmi->segment_id,
                                               base_q, bit_depth)
                              : base_q;
+            // On skip_txfm blocks, segment_id is spatially predicted rather
+            // than signaled; keep q_init when an unboosted SB (q_init > cert_q)
+            // inherits a predicted boost segment without being quantized at
+            // cert_q, or when a 0-MV skip preserves a better prior q_init.
             if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
-                q_init < cert_q && is_zero_mv_skip_inter) {
+                ((cpi->sf.rt_sf.rtc_use_lt_ref && q_init > cert_q &&
+                  mbmi->skip_txfm[0]) ||
+                 (q_init < cert_q && is_zero_mv_skip_inter))) {
               cert_q = q_init;
             }
             if (any_slot_src && is_zero_mv_skip_inter) {
@@ -729,10 +801,10 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
       int sb_q = (has_per_block_q || any_slot_src) && found_block
                      ? sb_max_q
                      : cm->quant_params.base_qindex;
-      if (can_inherit_prev_q && cpi->rc.rtc_bru.sb_q[prev_slot][u] < sb_q &&
+      if (can_inherit_prev_q && inherited_q < sb_q &&
           av2_sb_planes_identical(cpi, cpi->source, cpi->last_source, mi_row,
                                   mi_col)) {
-        sb_q = cpi->rc.rtc_bru.sb_q[prev_slot][u];
+        sb_q = inherited_q;
       }
       cpi->rc.rtc_bru.cur_sb_q[u] = (uint16_t)sb_q;
     }

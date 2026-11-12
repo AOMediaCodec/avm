@@ -1257,7 +1257,26 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
 
     const int block_width = mi_size_wide[cm->seq_params.sb_size];
     const int block_height = mi_size_high[cm->seq_params.sb_size];
-    if (source_sad == 0 && mi_col + block_width <= tile->mi_col_end &&
+    // When a slide reverts or uncovers static background (source_sad > 0
+    // relative to the previous frame), setup_planes() may pick a distant LTR
+    // (ref_frame_distance > 2) with an exact zero-MV luma match (y_sad == 0).
+    // Relax VBP thresholds to kZeroSad and allow the whole-SB early exit so
+    // matching LTR superblocks are not over-partitioned.
+    const bool used_lt_ref =
+        cpi->sf.rt_sf.rtc_use_lt_ref && is_inter_ref_frame(x->vbp_ref_frame) &&
+        cm->ref_frames_info.ref_frame_distance[x->vbp_ref_frame] > 2 &&
+        y_sad == 0;
+    if (used_lt_ref && source_sad_level > kZeroSad) {
+      set_vbp_thresholds(cpi, thresholds, qindex, kZeroSad,
+                         is_segment_id_boosted);
+      if (qindex != cm->quant_params.base_qindex || is_segment_id_boosted) {
+        set_vbp_thresholds(cpi, thresholds_base, cm->quant_params.base_qindex,
+                           kZeroSad, 0);
+      }
+    }
+
+    if ((source_sad == 0 || used_lt_ref) &&
+        mi_col + block_width <= tile->mi_col_end &&
         mi_row + block_height <= tile->mi_row_end) {
       if (y_sad == 0 ||
           (is_screen && !is_segment_id_boosted &&
