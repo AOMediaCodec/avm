@@ -934,9 +934,9 @@ static int adjust_boost_bits_for_target_level(const AV2_COMP *const cpi,
 // Allocate bits to each frame in a GF / ARF group
 double layer_fraction[MAX_ARF_LAYERS + 1] = { 1.0,  0.70, 0.55, 0.60,
                                               0.60, 1.0,  1.0 };
-static void allocate_gf_group_bits(GF_GROUP *gf_group, RATE_CONTROL *const rc,
-                                   int64_t gf_group_bits, int gf_arf_bits,
-                                   int key_frame, int use_arf) {
+static void allocate_gf_group_bits(GF_GROUP *gf_group, int64_t gf_group_bits,
+                                   int gf_arf_bits, int key_frame,
+                                   int use_arf) {
   int64_t total_group_bits = gf_group_bits;
   int base_frame_bits;
   const int gf_group_size = gf_group->size;
@@ -945,37 +945,38 @@ static void allocate_gf_group_bits(GF_GROUP *gf_group, RATE_CONTROL *const rc,
   // For key frames the frame target rate is already set and it
   // is also the golden frame.
   // === [frame_index == 0] ===
-  int frame_index = !!key_frame;
+  const int frame_index = !!key_frame;
 
   // Subtract the extra bits set aside for ARF frames from the Group Total
-  if (use_arf) total_group_bits -= gf_arf_bits;
+  if (use_arf)
+    total_group_bits -= gf_arf_bits;
+  else
+    gf_arf_bits = 0;
 
-  int num_frames =
-      AVMMAX(1, rc->baseline_gf_interval - (rc->frames_since_key == 0));
-  base_frame_bits = (int)(total_group_bits / num_frames);
-
-  if (use_arf) {
-    for (; frame_index < gf_group->size; ++frame_index) {
-      if (gf_group->update_type[frame_index] == ARF_UPDATE) {
-        gf_group->bit_allocation[frame_index] = gf_arf_bits;
-        ++frame_index;
-        break;
-      }
-    }
-  }
-
-  // Check the number of frames in each layer in case we have a
-  // non standard group length.
-  int max_arf_layer = gf_group->max_layer_depth - 1;
+  // Count the frames that receive a share of the base bits (i.e. all frames
+  // except overlays), and the number of ARF frames in each layer in case we
+  // have a non standard group length. The top level ARF is included in layer
+  // 1, so that the boost bits are fully accounted for within the group
+  // budget.
+  int num_frames = 0;
   for (int idx = frame_index; idx < gf_group_size; ++idx) {
-    if ((gf_group->update_type[idx] == ARF_UPDATE) ||
-        (gf_group->update_type[idx] == KFFLT_UPDATE) ||
-        (gf_group->update_type[idx] == INTNL_ARF_UPDATE)) {
-      layer_frames[gf_group->layer_depth[idx]]++;
+    switch (gf_group->update_type[idx]) {
+      case INTNL_OVERLAY_UPDATE:
+      case KFFLT_OVERLAY_UPDATE:
+      case OVERLAY_UPDATE: break;
+      case ARF_UPDATE:
+      case KFFLT_UPDATE:
+      case INTNL_ARF_UPDATE:
+        layer_frames[gf_group->layer_depth[idx]]++;
+        ++num_frames;
+        break;
+      default: ++num_frames; break;
     }
   }
+  base_frame_bits = (int)(total_group_bits / AVMMAX(1, num_frames));
 
   // Allocate extra bits to each ARF layer
+  const int max_arf_layer = gf_group->max_layer_depth - 1;
   int i;
   int layer_extra_bits[MAX_ARF_LAYERS + 1] = { 0 };
   for (i = 1; i <= max_arf_layer; ++i) {
@@ -2073,7 +2074,7 @@ void av2_gop_bit_allocation(const AV2_COMP *cpi, RATE_CONTROL *const rc,
                                                    gf_group_bits, 1);
 
   // Allocate bits to each of the frames in the GF group.
-  allocate_gf_group_bits(gf_group, rc, gf_group_bits, gf_arf_bits, is_key_frame,
+  allocate_gf_group_bits(gf_group, gf_group_bits, gf_arf_bits, is_key_frame,
                          use_arf);
 }
 
