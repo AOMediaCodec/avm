@@ -321,20 +321,6 @@ static void set_good_speed_feature_framesize_dependent(
   sf->part_sf.use_square_partition_only_threshold = BLOCK_LARGEST;
 }
 
-static void set_rt_speed_feature_framesize_dependent(AV2_COMP *const cpi,
-                                                     SPEED_FEATURES *const sf,
-                                                     int speed) {
-  const AV2_COMMON *const cm = &cpi->common;
-  if (speed >= 6) {
-    if (cm->width * cm->height >= 640 * 360) {
-      sf->rd_sf.tx_domain_dist_thres_level = 1;
-      memcpy(cpi->winner_mode_params.tx_domain_dist_threshold,
-             tx_domain_dist_thresholds[sf->rd_sf.tx_domain_dist_thres_level],
-             sizeof(cpi->winner_mode_params.tx_domain_dist_threshold));
-    }
-  }
-}
-
 static void set_good_speed_features_lowdelay_framesize_independent(
     AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   // TODO: implement low-delay speed features
@@ -1206,7 +1192,8 @@ static void set_rt_speed_features_framesize_independent(
     sf->mv_sf.search_method = DIAMOND;
     sf->part_sf.partition_pruning_with_mlp = 0;
     sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
-    sf->rd_sf.tx_domain_dist_thres_level = 2;
+    sf->rd_sf.disable_tcq = true;
+    sf->rd_sf.tx_domain_dist_thres_level = 1;
     sf->rt_sf.use_nonrd_partition = 1;
     sf->rt_sf.source_metrics_sb = 1;
     sf->rt_sf.disable_primary_ref_frame_search = 1;
@@ -1251,6 +1238,38 @@ static void set_rt_speed_features_framesize_independent(
     if (can_enable_cbr_bru(cpi, speed)) {
       sf->rt_sf.rtc_enable_bru = 1;
     }
+  }
+}
+
+static void set_speed_feature_params(AV2_COMP *cpi);
+
+static void set_rt_speed_features_framesize_dependent(AV2_COMP *const cpi,
+                                                      SPEED_FEATURES *const sf,
+                                                      int speed) {
+  const AV2_COMMON *const cm = &cpi->common;
+  if (speed >= 6) {
+    sf->rd_sf.optimize_coefficients = NO_TRELLIS_OPT;
+    sf->tx_sf.prune_tx_part_stationarity = true;
+    sf->mv_sf.subpel_iters_per_step = 1;
+    sf->mv_sf.newmv_drl_search_limit = 1;
+    sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+    if (cm->width * cm->height < 640 * 360) {
+      const uint64_t frame_sad = cpi->rc.frame_source_sad;
+      if (cpi->oxcf.algo_cfg.enable_trellis_quant &&
+          cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
+          !is_lossless_requested(&cpi->oxcf.rc_cfg)) {
+        sf->rd_sf.optimize_coefficients = FINAL_PASS_TRELLIS_OPT;
+      }
+      sf->tx_sf.prune_tx_part_stationarity = false;
+      if (frame_sad > 10000) {
+        sf->mv_sf.subpel_iters_per_step = 2;
+        sf->mv_sf.newmv_drl_search_limit = 2;
+        if (frame_sad >= 15000) {
+          sf->mv_sf.subpel_search_method = SUBPEL_TREE;
+        }
+      }
+    }
+    set_speed_feature_params(cpi);
   }
 }
 
@@ -1735,7 +1754,7 @@ void av2_set_speed_features_framesize_dependent(AV2_COMP *cpi, int speed) {
   if (oxcf->mode == GOOD) {
     set_good_speed_feature_framesize_dependent(cpi, sf, speed);
   } else if (oxcf->mode == REALTIME) {
-    set_rt_speed_feature_framesize_dependent(cpi, sf, speed);
+    set_rt_speed_features_framesize_dependent(cpi, sf, speed);
   }
 
   // This is only used in motion vector unit test.

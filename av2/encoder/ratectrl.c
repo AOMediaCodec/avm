@@ -495,9 +495,13 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
   if (cm->current_frame.frame_type != KEY_FRAME && rc->frames_since_key > 1 &&
       rc->q_1_frame > 0 && rc->q_2_frame > 0 && !change_target_bits_mb &&
       (!cpi->oxcf.rc_cfg.gf_cbr_boost_pct || (level > 1))) {
+    const bool bypass_lowres_qclamp =
+        cpi->oxcf.mode == REALTIME && !cpi->is_screen_content_type &&
+        cm->width * cm->height < 640 * 360 &&
+        rc->buffer_level > (rc->optimal_buffer_level >> 2);
     // If in the previous two frames we have seen both overshoot and undershoot
     // clamp Q between the two.
-    if (rc->rc_1_frame * rc->rc_2_frame == -1 &&
+    if (!bypass_lowres_qclamp && rc->rc_1_frame * rc->rc_2_frame == -1 &&
         rc->q_1_frame != rc->q_2_frame && !overshoot_buffer_low) {
       int qclamp = clamp(q, AVMMIN(rc->q_1_frame, rc->q_2_frame),
                          AVMMAX(rc->q_1_frame, rc->q_2_frame));
