@@ -358,9 +358,10 @@ list(APPEND AVM_AV2_ENCODER_SOURCES "${AVM_ROOT}/av2/encoder/bitstream_atlas.c"
 
 list(APPEND AVM_AV2_ENCODER_SOURCES "${AVM_ROOT}/av2/encoder/bitstream_buf.c")
 
-list(APPEND AVM_AV2_COMMON_INTRIN_SSE2
-     "${AVM_ROOT}/av2/common/cdef_block_sse2.c"
-     "${AVM_ROOT}/av2/common/x86/cfl_sse2.c")
+list(
+  APPEND AVM_AV2_COMMON_INTRIN_SSE2 "${AVM_ROOT}/av2/common/cdef_block_sse2.c"
+  "${AVM_ROOT}/av2/common/x86/cfl_sse2.c"
+  "${AVM_ROOT}/av2/common/x86/warped_motion_sse2.c")
 
 list(
   APPEND

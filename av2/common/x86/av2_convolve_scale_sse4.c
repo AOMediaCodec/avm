@@ -12,6 +12,7 @@
 
 #include <assert.h>
 #include <smmintrin.h>
+#include <string.h>
 
 #include "config/avm_dsp_rtcd.h"
 
@@ -71,9 +72,14 @@ static void highbd_hfilter8(const uint16_t *src, int src_stride, int16_t *dst,
       const __m128i conv3lo = _mm_madd_epi16(data3lo, coefflo);
 
       // Reduce horizontally and add
-      const __m128i conv01lo = _mm_hadd_epi32(conv0lo, conv1lo);
-      const __m128i conv23lo = _mm_hadd_epi32(conv2lo, conv3lo);
-      const __m128i conv = _mm_hadd_epi32(conv01lo, conv23lo);
+      const __m128i s01_lo = _mm_unpacklo_epi32(conv0lo, conv1lo);
+      const __m128i s01_hi = _mm_unpackhi_epi32(conv0lo, conv1lo);
+      const __m128i s23_lo = _mm_unpacklo_epi32(conv2lo, conv3lo);
+      const __m128i s23_hi = _mm_unpackhi_epi32(conv2lo, conv3lo);
+      const __m128i s01 = _mm_add_epi32(s01_lo, s01_hi);
+      const __m128i s23 = _mm_add_epi32(s23_lo, s23_hi);
+      const __m128i conv = _mm_add_epi32(_mm_unpacklo_epi64(s01, s23),
+                                         _mm_unpackhi_epi64(s01, s23));
 
       // Divide down by (1 << round), rounding to nearest.
       __m128i shifted =
@@ -83,15 +89,36 @@ static void highbd_hfilter8(const uint16_t *src, int src_stride, int16_t *dst,
       // Write transposed to the output
       _mm_storel_epi64((__m128i *)(dst + y + x * h), shifted);
     }
-    for (; y < h; ++y) {
-      const uint16_t *const src_row = src_col + y * src_stride;
-
-      int32_t sum = (1 << (bd + FILTER_BITS - 1));
-      for (int k = 0; k < ntaps; ++k) {
-        sum += filter[k] * src_row[k];
-      }
-
-      dst[y + x * h] = ROUND_POWER_OF_TWO(sum, round);
+    // 2-row and 1-row SSE tails preserve the _mm_packus_epi32 saturation of the
+    // 4-row main loop.
+    if (y <= h - 2) {
+      const uint16_t *const src0 = src_col + y * src_stride;
+      const uint16_t *const src1 = src0 + src_stride;
+      const __m128i data0lo = _mm_loadu_si128((const __m128i *)src0);
+      const __m128i data1lo = _mm_loadu_si128((const __m128i *)src1);
+      const __m128i conv0lo = _mm_madd_epi16(data0lo, coefflo);
+      const __m128i conv1lo = _mm_madd_epi16(data1lo, coefflo);
+      const __m128i s01_lo = _mm_unpacklo_epi32(conv0lo, conv1lo);
+      const __m128i s01_hi = _mm_unpackhi_epi32(conv0lo, conv1lo);
+      const __m128i s01 = _mm_add_epi32(s01_lo, s01_hi);
+      const __m128i conv = _mm_add_epi32(s01, _mm_srli_si128(s01, 8));
+      __m128i shifted =
+          _mm_sra_epi32(_mm_add_epi32(conv, round_add), round_shift);
+      shifted = _mm_packus_epi32(shifted, shifted);
+      const int32_t v32 = _mm_cvtsi128_si32(shifted);
+      memcpy(dst + y + x * h, &v32, sizeof(v32));
+      y += 2;
+    }
+    if (y < h) {
+      const uint16_t *const src0 = src_col + y * src_stride;
+      const __m128i data0lo = _mm_loadu_si128((const __m128i *)src0);
+      const __m128i conv0lo = _mm_madd_epi16(data0lo, coefflo);
+      const __m128i s0 = _mm_add_epi32(conv0lo, _mm_srli_si128(conv0lo, 8));
+      const __m128i conv = _mm_add_epi32(s0, _mm_srli_si128(s0, 4));
+      __m128i shifted =
+          _mm_sra_epi32(_mm_add_epi32(conv, round_add), round_shift);
+      shifted = _mm_packus_epi32(shifted, shifted);
+      dst[y + x * h] = (int16_t)_mm_extract_epi16(shifted, 0);
     }
   }
 }
@@ -159,9 +186,14 @@ static void highbd_vfilter8(const int16_t *src, int src_stride, uint16_t *dst,
       const __m128i conv3 = convolve_16_8(src3, coeff0716);
 
       // Now reduce horizontally to get one lane for each result
-      const __m128i conv01 = _mm_hadd_epi32(conv0, conv1);
-      const __m128i conv23 = _mm_hadd_epi32(conv2, conv3);
-      __m128i conv = _mm_hadd_epi32(conv01, conv23);
+      const __m128i s01_lo = _mm_unpacklo_epi32(conv0, conv1);
+      const __m128i s01_hi = _mm_unpackhi_epi32(conv0, conv1);
+      const __m128i s23_lo = _mm_unpacklo_epi32(conv2, conv3);
+      const __m128i s23_hi = _mm_unpackhi_epi32(conv2, conv3);
+      const __m128i s01 = _mm_add_epi32(s01_lo, s01_hi);
+      const __m128i s23 = _mm_add_epi32(s23_lo, s23_hi);
+      __m128i conv = _mm_add_epi32(_mm_unpacklo_epi64(s01, s23),
+                                   _mm_unpackhi_epi64(s01, s23));
       conv = _mm_add_epi32(conv, res_add_const);
 
       // Divide down by (1 << round_1), rounding to nearest and subtract sub32.

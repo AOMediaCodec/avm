@@ -27,6 +27,7 @@ print <<EOF
 
 struct WienernsGatherTaps;
 struct macroblockd;
+struct scale_factors;
 
 /* Encoder forward decls */
 struct macroblock;
@@ -436,6 +437,9 @@ specialize qw/av2_highbd_warp_affine sse4_1 avx2 avx512 neon/;
 
 add_proto qw/void av2_ext_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int use_warp_bd_box, PadBlock *warp_bd_box";
 specialize qw/av2_ext_highbd_warp_affine sse4_1 neon/;
+
+add_proto qw/void av2_ext_highbd_warp_affine_scaled/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, const struct scale_factors *sf, int use_warp_bd_box, PadBlock *warp_bd_box";
+specialize qw/av2_ext_highbd_warp_affine_scaled sse2/;
 
 # CONVOLVE_ROUND/COMPOUND_ROUND functions
 

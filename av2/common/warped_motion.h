@@ -28,6 +28,10 @@
 #include "av2/common/convolve.h"
 #include "av2/common/blockd.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define LEAST_SQUARES_SAMPLES_MAX_BITS 3
 #define LEAST_SQUARES_SAMPLES_MAX (1 << LEAST_SQUARES_SAMPLES_MAX_BITS)
 #define SAMPLES_ARRAY_SIZE (LEAST_SQUARES_SAMPLES_MAX * 2)
@@ -339,4 +343,9 @@ int_mv get_warp_motion_vector_xy_pos(const MACROBLOCKD *xd,
 int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
                               int np, int *mvs, const BLOCK_SIZE bsize,
                               const struct scale_factors *sf);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
 #endif  // AVM_AV2_COMMON_WARPED_MOTION_H_
