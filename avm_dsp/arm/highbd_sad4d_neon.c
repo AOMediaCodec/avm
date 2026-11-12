@@ -114,10 +114,12 @@ HIGHBD_SAD_X4D_SHARED_FN(highbd_sad_x4d_square4, 4, 1, 3, 1)
 
 static INLINE int highbd_sad_x4d_shared_kind(const uint16_t *const ref[4],
                                              int ref_stride) {
-  const intptr_t row = (intptr_t)ref_stride * (intptr_t)sizeof(uint16_t);
-  const intptr_t d1 = (intptr_t)ref[1] - (intptr_t)ref[0];
-  const intptr_t d3 = (intptr_t)ref[3] - (intptr_t)ref[0];
-  const intptr_t d21 = (intptr_t)ref[1] - (intptr_t)ref[2];
+  // Unsigned: the refs may be in separate allocations, where a signed
+  // difference can overflow; equality modulo 2^N is still exact.
+  const uintptr_t row = (uintptr_t)(intptr_t)ref_stride * sizeof(uint16_t);
+  const uintptr_t d1 = (uintptr_t)ref[1] - (uintptr_t)ref[0];
+  const uintptr_t d3 = (uintptr_t)ref[3] - (uintptr_t)ref[0];
+  const uintptr_t d21 = (uintptr_t)ref[1] - (uintptr_t)ref[2];
   if (d3 == d21) {
     if (d3 == 2 * row) return 1;
     if (d3 == 4 * row) return 2;

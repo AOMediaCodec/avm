@@ -292,8 +292,10 @@ class SADx4Test : public ::testing::WithParamInterface<SadMxNx4Param>,
   static const int kX4RefElems = 4 * kX4RegionElems;
   static const int kX4Iterations = 1000;
 
-  virtual void SetUp() {
-    SADTestBase::SetUp();
+  // Allocated once per suite (each layout test fills what it reads), after
+  // SADTestBase's buffers, which this declaration hides.
+  static void SetUpTestSuite() {
+    SADTestBase::SetUpTestSuite();
     x4_src_ = reinterpret_cast<uint16_t *>(
         avm_memalign(kDataAlignment, kX4SrcElems * sizeof(uint16_t)));
     x4_ref_ = reinterpret_cast<uint16_t *>(
@@ -304,12 +306,12 @@ class SADx4Test : public ::testing::WithParamInterface<SadMxNx4Param>,
     memset(x4_ref_, 0, kX4RefElems * sizeof(uint16_t));
   }
 
-  virtual void TearDown() {
+  static void TearDownTestSuite() {
     avm_free(x4_src_);
-    x4_src_ = NULL;
+    x4_src_ = nullptr;
     avm_free(x4_ref_);
-    x4_ref_ = NULL;
-    SADTestBase::TearDown();
+    x4_ref_ = nullptr;
+    SADTestBase::TearDownTestSuite();
   }
 
   // SAD of the width_ x height_ block at src against the one at ref (the C
@@ -380,8 +382,8 @@ class SADx4Test : public ::testing::WithParamInterface<SadMxNx4Param>,
     for (int i = 0; i < n; ++i) p[i] = rnd_.Rand16() & mask_;
   }
 
-  uint16_t *x4_src_ = nullptr;
-  uint16_t *x4_ref_ = nullptr;
+  static uint16_t *x4_src_;
+  static uint16_t *x4_ref_;
 
   void SADs(unsigned int *results) {
     const uint16_t *references[] = { GetReference(0), GetReference(1),
@@ -731,6 +733,8 @@ uint16_t *SADTestBase::reference_data16_ = NULL;
 uint16_t *SADTestBase::second_pred16_ = NULL;
 uint16_t *SADTestBase::comp_pred16_ = NULL;
 uint16_t *SADTestBase::comp_pred16_test_ = NULL;
+uint16_t *SADx4Test::x4_src_ = nullptr;
+uint16_t *SADx4Test::x4_ref_ = nullptr;
 
 TEST_P(SADTest, MaxRef) {
   FillConstant(source_data_, source_stride_, 0);
