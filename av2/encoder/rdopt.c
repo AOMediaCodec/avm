@@ -8478,6 +8478,25 @@ static int inter_mode_search_order_independent_skip(
     if (skip_ref) return 1;
   }
 
+  if (!x->inter_mode_cache[0] && cpi->sf.rt_sf.rtc_use_lt_ref &&
+      cpi->is_screen_content_type && cpi->sf.inter_sf.prune_ref_frames >= 3 &&
+      ref_type < INTER_REFS_PER_FRAME &&
+      cm->ref_frames_info.ref_frame_distance[ref_type] > 2) {
+    const int primary_ref = (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled &&
+                             cm->bru.update_ref_idx == 0)
+                                ? 1
+                                : 0;
+    if (ref_type > primary_ref && ref_type != x->vbp_ref_frame &&
+        search_state->best_rd != INT64_MAX &&
+        search_state->best_mode_skippable &&
+        (x->pred_mv_sad[ref_type] >> 2) >
+            AVMMAX(x->pred_mv_sad[primary_ref],
+                   1 << (num_pels_log2_lookup[mbmi->sb_type[PLANE_TYPE_Y]] +
+                         x->e_mbd.bd - 8))) {
+      return 1;
+    }
+  }
+
   if (skip_motion_mode) return 2;
 
   return 0;

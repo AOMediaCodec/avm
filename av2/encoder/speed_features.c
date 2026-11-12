@@ -1126,8 +1126,7 @@ static void set_rt_speed_features_framesize_independent(
     sf->intra_sf.skip_intra_in_interframe = 2;
     sf->rt_sf.prune_intra_mode_in_interframe = 2;
     sf->rt_sf.rtc_use_lt_ref =
-        !cpi->is_screen_content_type && cpi->common.number_tlayers == 1 &&
-        cpi->common.number_mlayers == 1 &&
+        cpi->common.number_tlayers == 1 && cpi->common.number_mlayers == 1 &&
         cpi->common.seq_params.max_mlayer_id == 0 &&
         !cpi->common.seq_params.enable_explicit_ref_frame_map &&
         !cpi->oxcf.unit_test_cfg.multi_layers_lag_test &&
@@ -1142,7 +1141,6 @@ static void set_rt_speed_features_framesize_independent(
       sf->intra_sf.skip_intra_in_interframe = 1;
       sf->rt_sf.prune_intra_mode_in_interframe = 1;
       sf->rt_sf.prune_intrabc_on_keyframe = 1;
-      sf->rt_sf.rtc_use_lt_ref = 0;
       // For screen content with --enable-intrabc-ext, selectively enable
       // pruned IntraBC evaluation on high-SAD delta frames (scene/slide
       // changes) when scene detection is active, or on all delta frames when
