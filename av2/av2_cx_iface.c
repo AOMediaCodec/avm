@@ -1682,7 +1682,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   tool_cfg->enable_monochrome = cfg->monochrome;
   tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
   tool_cfg->enable_tcq = cfg->enable_tcq;
-  if (!cfg->encoder_cfg.enable_trellis_quant) {
+  if (tool_cfg->enable_tcq && !extra_cfg->enable_trellis_quant) {
     fprintf(stderr,
             "Warning: automatically setting enable-tcq to 0 to avoid enc/dec "
             "mismatch. To use tcq, set enable_trellis_quant to be non-0.\n");
