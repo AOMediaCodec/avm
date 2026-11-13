@@ -1177,11 +1177,10 @@ static void set_intrabc_tools(struct AV2_COMP *cpi) {
   FeatureFlags *const features = &cm->features;
   const KeyFrameCfg *const kf_cfg = &cpi->oxcf.kf_cfg;
   if (features->allow_intrabc) {
-    const int row_mt_multi_workers =
-        cpi->oxcf.row_mt && cpi->mt_info.num_workers > 1;
-    features->allow_global_intrabc = (kf_cfg->enable_intrabc_ext != 2) &&
-                                     frame_is_intra_only(cm) &&
-                                     !row_mt_multi_workers;
+    // Global IntraBC stays allowed with row-mt: av2_enc_is_dv_valid() keeps
+    // every DV inside the area the row-mt wavefront has already reconstructed.
+    features->allow_global_intrabc =
+        (kf_cfg->enable_intrabc_ext != 2) && frame_is_intra_only(cm);
     features->allow_local_intrabc = !!kf_cfg->enable_intrabc_ext;
     // On intra frames, allow_global_intrabc == 0 implies allow_local_intrabc
     // == 1 in the bitstream. Turn off IntraBC if neither can be used.
