@@ -542,6 +542,8 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 32;
     sf->part_sf.intra_two_pass_partition_search = TWO_PASS_PART_FAST;
     sf->part_sf.intra_two_pass_max_qindex = 95;
+    sf->inter_sf.prune_ref_setup_and_warpmv = true;
+    sf->inter_sf.prune_subblock_ref_frames = 1;
   }
 
   if (speed >= 2) {
@@ -574,6 +576,10 @@ static void set_good_speed_features_framesize_independent(
         (frame_is_intra_only(&cpi->common) || (allow_screen_content_tools))
             ? 0
             : (boosted ? 1 : 2);
+    // Disabled at speeds 2 and 3 to preserve coding efficiency; re-enabled at
+    // speed >= 4.
+    sf->inter_sf.prune_ref_setup_and_warpmv = false;
+    sf->inter_sf.prune_subblock_ref_frames = 0;
     sf->inter_sf.selective_ref_frame = 2;
     sf->inter_sf.prune_amvd_newmv = 2;
     if (is_4k_or_larger) {
@@ -805,6 +811,8 @@ static void set_good_speed_features_framesize_independent(
         cm->current_frame.pyramid_level >= 2 ? 1 : 0;
     sf->inter_sf.prune_motion_mode_level = boosted ? 2 : 3;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
+    sf->inter_sf.prune_ref_setup_and_warpmv = true;
+    sf->inter_sf.prune_subblock_ref_frames = 2;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     // TODO(any): prune_comp_using_best_single_mode_ref introduces a large
@@ -869,6 +877,9 @@ static void set_good_speed_features_framesize_independent(
         boosted ? (cm->current_frame.pyramid_level >= 2 ? 1 : 0) : 1;
     sf->inter_sf.prune_warpmv_by_pyr_lvl = cm->current_frame.pyramid_level > 2;
     sf->inter_sf.prune_motion_mode_level = 3;
+    // Propagating picked_ref_frames_mask to 1:2 rectangular sub-blocks is only
+    // beneficial at speed 4; keep bsize > BLOCK_LARGEST pruning at speed >= 5.
+    sf->inter_sf.prune_subblock_ref_frames = 1;
     // Unconditionally enable the pre-RD gate at speed >= 5: apply to all
     // frame types including boosted (KF/GF/ARF) frames.
     sf->tx_sf.prune_tx_search_by_pre_rd = true;
@@ -1348,6 +1359,8 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->share_motion_mode_prune_pool = 0;
   inter_sf->full_pool_inter_mode_prune_top = 0;
   inter_sf->prune_ref_frames = 0;
+  inter_sf->prune_ref_setup_and_warpmv = false;
+  inter_sf->prune_subblock_ref_frames = 0;
   inter_sf->disable_wedge_search_var_thresh = 0;
   inter_sf->fast_wedge_sign_estimate = 0;
   inter_sf->prune_wedge_pred_diff_based = 0;
