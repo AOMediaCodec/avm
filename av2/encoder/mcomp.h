@@ -399,7 +399,6 @@ typedef struct {
   int8_t ref_frame_type;
   int ref_mv_idx_type;
   MvSubpelPrecision mv_precision;
-  int use_amvd;
   int_mv mv[2];
 } NEW_NEWMV_STATS;
 
@@ -408,7 +407,6 @@ typedef struct {
   int_mv start_mv;
   int_mv ref_mv;
   MvSubpelPrecision mv_precision;
-  int use_amvd;
   int_mv mv[2];
 } NEAR_NEWMV_STATS;
 
@@ -416,7 +414,6 @@ typedef struct {
   int8_t ref_frame_type;
   int ref_mv_idx_type;
   MvSubpelPrecision mv_precision;
-  int use_amvd;
   int_mv mv;
 } NEW_NEARMV_STATS;
 
@@ -424,7 +421,6 @@ typedef struct {
   int8_t ref_frame_type;
   int_mv start_mv;
   int_mv ref_mv;
-  int use_amvd;
   int_mv mv[2];
 } NEAR_NEWMV_AMVD_STATS;
 
@@ -432,13 +428,11 @@ typedef struct {
   int8_t ref_frame_type;
   int ref_mv_idx_type;
   int_mv ref_mv[2];
-  int use_amvd;
   int_mv mv[2];
 } NEW_NEWMV_AMVD_STATS;
 typedef struct {
   int8_t ref_frame_type;
   int ref_mv_idx_type;
-  int use_amvd;
   int_mv mv;
 } NEW_NEARMV_AMVD_STATS;
 
@@ -448,7 +442,6 @@ typedef struct {
   MvSubpelPrecision mv_precision;
   int joint_newmv_scale_idx;
   int8_t cwp_idx;
-  int use_amvd;
   int_mv mv[2];
 } JOINT_NEWMV_STATS;
 
@@ -457,7 +450,6 @@ typedef struct {
   int ref_mv_idx_type;
   int joint_amvd_scale_idx;
   int8_t cwp_idx;
-  int use_amvd;
   int_mv mv[2];
 } JOINT_AMVDNEWMV_STATS;
 

@@ -792,8 +792,8 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
 #endif
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
       // SEG_LVL_SKIP blocks bypass the dry-pass shortcuts by design.
-      av2_rd_pick_inter_mode_sb_seg_skip(cpi, tile_data, x, mi_row, mi_col,
-                                         rd_cost, bsize, ctx, best_rd.rdcost);
+      av2_rd_pick_inter_mode_sb_seg_skip(cpi, x, mi_row, mi_col, rd_cost, bsize,
+                                         ctx, best_rd.rdcost);
     } else {
       // Wet pass: start from the dry pass's rd for this block plus a margin, so
       // pruning bites from the first candidate. The bound can be violated
