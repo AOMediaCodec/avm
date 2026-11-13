@@ -10,11 +10,13 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <ostream>
 #include <set>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 #include "avm_mem/avm_mem.h"
@@ -642,9 +644,9 @@ class AV2Convolve2DHighbdTest
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
     ConvolveParams conv_params2 =
         get_conv_params_no_round(0, 0, NULL, 0, 0, bit_depth);
-    GetParam().TestFunction()(input, width, test, kOutputStride, width, height,
-                              filter_params_x, filter_params_y, sub_x, sub_y,
-                              &conv_params2, bit_depth);
+    ASM_REGISTER_STATE_CHECK(GetParam().TestFunction()(
+        input, width, test, kOutputStride, width, height, filter_params_x,
+        filter_params_y, sub_x, sub_y, &conv_params2, bit_depth));
     AssertOutputBufferEq(reference, test, width, height);
   }
 
@@ -714,6 +716,494 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV2Convolve2DHighbdTest,
 #if HAVE_AVX512
 INSTANTIATE_TEST_SUITE_P(AVX512, AV2Convolve2DHighbdTest,
                          BuildHighbdParams(av2_highbd_convolve_2d_sr_avx512));
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+// av2_highbd_convolve_2d_sr: boundary, alignment, stride and random tests
+//////////////////////////////////////////////////////////////////////////
+//
+// AV2Convolve2DHighbdTest above sweeps every subpel pair and filter type with
+// the production table choice (4-tap tables for w / h <= 4), at stride ==
+// width and 10 / 12 bit. AV2Convolve2DSrHighbdTest adds, at 8 / 10 / 12 bit:
+// - every 8-entry filter table the encoder passes, for x and y independently
+//   (so each kernel row width: 8, 6, 4 and 2 effective taps, the zero-padded
+//   4-tap and bilinear rows included), whatever the block size;
+// - shapes outside the BLOCK_SIZE enum: w = 2, 12, 20, 28, 36, 44 and
+//   heights that are not a multiple of 4 (1, 2, 3, 5, 6, 7, 9, ...), the ones
+//   a kernel handling w % 4 == 0 and any h must get right;
+// - src / dst at +1 and +3 elements, strides == width and width + 16 with
+//   different src and dst strides, extremes, bit-depth limits and accumulator
+//   stress, each compared over the whole dst buffer (a write outside the
+//   block fails too).
+
+// (w, h)
+typedef std::pair<int, int> Conv2DSrSize;
+// (C reference, function under test, block size, bit depth)
+typedef std::tuple<highbd_convolve_2d_func, highbd_convolve_2d_func,
+                   Conv2DSrSize, int>
+    Conv2DSrParam;
+
+// tune_vmaf.c's gaussian_blur filter, a production table outside the
+// interpolation list (6 effective taps, window [1, 7)). It is a single row
+// used at subpel 0; repeated for every subpel phase here so the tests can
+// index it like the interpolation tables.
+const int16_t kGaussRow[SUBPEL_TAPS] = { 0, 8, 30, 52, 30, 8, 0, 0 };
+struct GaussTable {
+  int16_t rows[SUBPEL_SHIFTS * SUBPEL_TAPS];
+  InterpFilterParams params;
+  GaussTable() {
+    for (int i = 0; i < SUBPEL_SHIFTS * SUBPEL_TAPS; ++i)
+      rows[i] = kGaussRow[i % SUBPEL_TAPS];
+    params = { rows, SUBPEL_TAPS, EIGHTTAP_REGULAR };
+  }
+};
+
+// The interpolation tables the encoder hands to av2_highbd_convolve_2d_sr:
+// the 8-tap list (regular, smooth, sharp, bilinear) and the 4-tap tables
+// chosen for w <= 4 / h <= 4 (regular, smooth; av2_interp_4tap's sharp entry
+// is the regular one and its bilinear the same table as the 8-tap list's),
+// plus the tune_vmaf Gaussian above. Every row is 8 entries; the 12-tap
+// MULTITAP_SHARP2 table never reaches this kernel
+// (highbd_convolve_2d_facade_single calls the C function for taps > 8).
+const InterpFilterParams *Conv2DSrTable(int i) {
+  static const GaussTable gauss;
+  switch (i) {
+    case 0: return &av2_interp_filter_params_list[EIGHTTAP_REGULAR];
+    case 1: return &av2_interp_filter_params_list[EIGHTTAP_SMOOTH];
+    case 2: return &av2_interp_filter_params_list[MULTITAP_SHARP];
+    case 3: return &av2_interp_filter_params_list[BILINEAR];
+    case 4: return &av2_interp_4tap[EIGHTTAP_REGULAR];
+    case 5: return &av2_interp_4tap[EIGHTTAP_SMOOTH];
+    default: return &gauss.params;
+  }
+}
+const int kConv2DSrTables = 7;
+
+std::vector<Conv2DSrSize> GetConv2DSrSizes() {
+  std::set<Conv2DSrSize> sizes;
+  for (int b = BLOCK_4X4; b < BLOCK_SIZES_ALL; ++b) {
+    const int w = block_size_wide[b];
+    const int h = block_size_high[b];
+    sizes.insert(Conv2DSrSize(w, h));
+    // Chroma of 4xN / Nx4 blocks: 2xN / Nx2.
+    if (w == 4 || h == 4) sizes.insert(Conv2DSrSize(w / 2, h / 2));
+  }
+  static const Conv2DSrSize kExtra[] = {
+    // Extended partition sizes seen in the encoder (not in the enum).
+    { 12, 12 },
+    { 12, 20 },
+    { 16, 24 },
+    { 20, 12 },
+    { 20, 20 },
+    { 24, 16 },
+    { 24, 24 },
+    // w % 4 == 0 widths that are neither 4 nor a multiple of 8.
+    { 12, 4 },
+    { 12, 8 },
+    { 20, 4 },
+    { 20, 8 },
+    { 28, 4 },
+    { 28, 8 },
+    { 28, 12 },
+    { 28, 20 },
+    { 28, 28 },
+    { 4, 28 },
+    { 36, 8 },
+    { 36, 36 },
+    { 44, 12 },
+    { 44, 16 },
+    // Heights that are not a multiple of 4.
+    { 2, 1 },
+    { 4, 1 },
+    { 8, 1 },
+    { 16, 1 },
+    { 2, 3 },
+    { 4, 3 },
+    { 8, 3 },
+    { 12, 3 },
+    { 16, 3 },
+    { 32, 3 },
+    { 4, 5 },
+    { 8, 5 },
+    { 20, 5 },
+    { 28, 5 },
+    { 64, 5 },
+    { 12, 2 },
+    { 32, 2 },
+    { 2, 6 },
+    { 8, 6 },
+    { 24, 6 },
+    { 16, 7 },
+    { 28, 7 },
+    { 8, 9 },
+    { 12, 10 },
+    { 16, 14 },
+    { 20, 18 },
+    { 64, 7 },
+    { 128, 6 },
+    { 256, 3 },
+  };
+  for (const Conv2DSrSize &s : kExtra) sizes.insert(s);
+  return std::vector<Conv2DSrSize>(sizes.begin(), sizes.end());
+}
+
+class AV2Convolve2DSrHighbdTest
+    : public ::testing::TestWithParam<Conv2DSrParam> {
+ public:
+  // Geometry, in elements. src: kBorder rows / columns around the block (the
+  // 8-tap window needs 3 before and 4 after), strides up to w + kStridePad,
+  // pointer offsets up to kMaxOffset. dst: the same strides and offsets.
+  static constexpr int kMaxSize = MAX_SB_SIZE;
+  static constexpr int kStridePad = 16;
+  static constexpr int kMaxStride = kMaxSize + kStridePad;
+  static constexpr int kBorder = 8;
+  static constexpr int kMaxOffset = 7;
+  static constexpr int kSlack = 64;
+  static constexpr int kSrcBufSize =
+      kMaxStride * (kMaxSize + 2 * kBorder) + kSlack;
+  static constexpr int kDstBufSize = kMaxStride * kMaxSize + kSlack;
+
+  void SetUp() override {
+    ref_func_ = std::get<0>(GetParam());
+    tst_func_ = std::get<1>(GetParam());
+    width_ = std::get<2>(GetParam()).first;
+    height_ = std::get<2>(GetParam()).second;
+    bd_ = std::get<3>(GetParam());
+    mask_ = (1 << bd_) - 1;
+    rnd_.Reset(libavm_test::ACMRandom::DeterministicSeed());
+    src_ =
+        static_cast<uint16_t *>(avm_memalign(32, kSrcBufSize * sizeof(*src_)));
+    ref_dst_ = static_cast<uint16_t *>(
+        avm_memalign(32, kDstBufSize * sizeof(*ref_dst_)));
+    tst_dst_ = static_cast<uint16_t *>(
+        avm_memalign(32, kDstBufSize * sizeof(*tst_dst_)));
+    ASSERT_NE(src_, nullptr);
+    ASSERT_NE(ref_dst_, nullptr);
+    ASSERT_NE(tst_dst_, nullptr);
+    // The whole buffer is defined, so every read outside the window is too.
+    for (int i = 0; i < kSrcBufSize; ++i) src_[i] = rnd_.Rand16() & mask_;
+  }
+
+  void TearDown() override {
+    avm_free(src_);
+    avm_free(ref_dst_);
+    avm_free(tst_dst_);
+    libavm_test::ClearSystemState();
+  }
+
+ protected:
+  // Block origin (row 0, col 0) of the src window for a stride and an
+  // element offset from the aligned base.
+  int SrcOrigin(int stride, int offset) const {
+    return kBorder * stride + kBorder + offset;
+  }
+
+  // Writes f(r, c) at rows -kBorder .. h + kBorder - 1, cols -kBorder ..
+  // w + kBorder - 1 of the block at `origin` (row-major: with a stride under
+  // w + 2 * kBorder the rows overlap and the later write wins).
+  template <typename F>
+  void FillWindow(int stride, int offset, F f) {
+    uint16_t *o = src_ + SrcOrigin(stride, offset);
+    for (int r = -kBorder; r < height_ + kBorder; ++r)
+      for (int c = -kBorder; c < width_ + kBorder; ++c)
+        o[r * stride + c] = static_cast<uint16_t>(f(r, c));
+  }
+
+  void FillRandom(int stride, int offset) {
+    FillWindow(stride, offset,
+               [this](int, int) { return rnd_.Rand16() & mask_; });
+  }
+
+  // C and the function under test on the same input; the WHOLE dst buffers
+  // (same random background) must match, so a write outside the w x h block
+  // fails too. Callers in loops wrap this in ASSERT_NO_FATAL_FAILURE.
+  void RunComparison(int fx, int fy, int sub_x, int sub_y, int src_stride,
+                     int dst_stride, int src_off, int dst_off, int iter) {
+    // The same background in both outputs (cheap: one random draw per call).
+    const uint32_t bg = rnd_.Rand16();
+    for (int i = 0; i < kDstBufSize; ++i)
+      ref_dst_[i] = static_cast<uint16_t>(bg + i * 0x9e37u);
+    memcpy(tst_dst_, ref_dst_, kDstBufSize * sizeof(*tst_dst_));
+    const InterpFilterParams *px = Conv2DSrTable(fx);
+    const InterpFilterParams *py = Conv2DSrTable(fy);
+    const uint16_t *src = src_ + SrcOrigin(src_stride, src_off);
+    ConvolveParams cp_ref = get_conv_params_no_round(0, 0, nullptr, 0, 0, bd_);
+    ConvolveParams cp_tst = get_conv_params_no_round(0, 0, nullptr, 0, 0, bd_);
+    ref_func_(src, src_stride, ref_dst_ + dst_off, dst_stride, width_, height_,
+              px, py, sub_x, sub_y, &cp_ref, bd_);
+    ASM_REGISTER_STATE_CHECK(tst_func_(src, src_stride, tst_dst_ + dst_off,
+                                       dst_stride, width_, height_, px, py,
+                                       sub_x, sub_y, &cp_tst, bd_));
+    if (memcmp(ref_dst_, tst_dst_, kDstBufSize * sizeof(*ref_dst_)) == 0)
+      return;
+    for (int i = 0; i < kDstBufSize; ++i) {
+      const int pos = i - dst_off;
+      const int r = pos >= 0 ? pos / dst_stride : -1;
+      const int c = pos >= 0 ? pos % dst_stride : pos;
+      const bool inside = r >= 0 && r < height_ && c < width_;
+      ASSERT_EQ(ref_dst_[i], tst_dst_[i])
+          << "mismatch at r=" << r << " c=" << c
+          << (inside ? " (in block)" : " (OUTSIDE block)") << " w=" << width_
+          << " h=" << height_ << " bd=" << bd_ << " iter=" << iter
+          << " filter_x=" << fx << " filter_y=" << fy << " subpel_x=" << sub_x
+          << " subpel_y=" << sub_y << " src_stride=" << src_stride
+          << " dst_stride=" << dst_stride << " src_off=" << src_off
+          << " dst_off=" << dst_off;
+    }
+  }
+
+  // Every (x table, y table) pair, each at its own subpel pair (all 16
+  // phases of x and y occur over the 49 pairs, 0 included).
+  void RunAllFilters(int src_stride, int dst_stride, int src_off, int dst_off) {
+    int n = 0;
+    for (int fx = 0; fx < kConv2DSrTables; ++fx) {
+      for (int fy = 0; fy < kConv2DSrTables; ++fy, ++n) {
+        const int sub_x = (n * 7 + 1) & SUBPEL_MASK;
+        const int sub_y = (n * 5 + 3) & SUBPEL_MASK;
+        ASSERT_NO_FATAL_FAILURE(RunComparison(fx, fy, sub_x, sub_y, src_stride,
+                                              dst_stride, src_off, dst_off, n));
+      }
+    }
+  }
+
+  libavm_test::ACMRandom rnd_;
+  highbd_convolve_2d_func ref_func_ = nullptr;
+  highbd_convolve_2d_func tst_func_ = nullptr;
+  int width_ = 0, height_ = 0, bd_ = 0, mask_ = 0;
+  uint16_t *src_ = nullptr;
+  uint16_t *ref_dst_ = nullptr;
+  uint16_t *tst_dst_ = nullptr;
+};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2Convolve2DSrHighbdTest);
+
+// -- Boundary: extremes --
+
+TEST_P(AV2Convolve2DSrHighbdTest, ExtremesAllZero) {
+  FillWindow(width_, 0, [](int, int) { return 0; });
+  RunAllFilters(width_, width_, 0, 0);
+}
+
+TEST_P(AV2Convolve2DSrHighbdTest, ExtremesAllMax) {
+  FillWindow(width_, 0, [this](int, int) { return mask_; });
+  RunAllFilters(width_, width_, 0, 0);
+}
+
+// -- Boundary: accumulator stress --
+// Both stages multiply-accumulate. For an output at (8a, 8b), src = max where
+// x tap * y tap > 0 and 0 elsewhere drives the horizontal sums to their
+// extreme on every row and the vertical sum to its largest value; the
+// inverted pattern to its smallest. Per table pair and subpel pair, at a
+// padded stride so the pattern does not wrap across rows.
+TEST_P(AV2Convolve2DSrHighbdTest, AccumulatorStress) {
+  const int stride = width_ + kStridePad;
+  static const int kSubpels[][2] = {
+    { 1, 15 }, { 4, 12 }, { 8, 8 }, { 15, 1 }
+  };
+  int n = 0;
+  for (int fx = 0; fx < kConv2DSrTables; ++fx) {
+    for (int fy = 0; fy < kConv2DSrTables; ++fy) {
+      for (const auto &sp : kSubpels) {
+        const int16_t *xf =
+            av2_get_interp_filter_subpel_kernel(Conv2DSrTable(fx), sp[0]);
+        const int16_t *yf =
+            av2_get_interp_filter_subpel_kernel(Conv2DSrTable(fy), sp[1]);
+        for (int invert = 0; invert < 2; ++invert, ++n) {
+          // Output (0, 0) reads rows / cols -3 .. 4: tap k at offset k - 3.
+          FillWindow(stride, 0, [&](int r, int c) {
+            const int k = ((r + 3) % 8 + 8) % 8;
+            const int j = ((c + 3) % 8 + 8) % 8;
+            const bool pos = (xf[j] >= 0) == (yf[k] >= 0);
+            return pos != (invert != 0) ? mask_ : 0;
+          });
+          ASSERT_NO_FATAL_FAILURE(
+              RunComparison(fx, fy, sp[0], sp[1], stride, stride, 0, 0, n));
+        }
+      }
+    }
+  }
+}
+
+// -- Boundary: bit-depth limits (all-max is ExtremesAllMax) --
+
+TEST_P(AV2Convolve2DSrHighbdTest, BitDepthMidpoint) {
+  FillWindow(width_, 0, [this](int, int) { return 1 << (bd_ - 1); });
+  RunAllFilters(width_, width_, 0, 0);
+}
+
+TEST_P(AV2Convolve2DSrHighbdTest, BitDepthCheckerboard) {
+  const int stride = width_ + kStridePad;
+  FillWindow(stride, 0,
+             [this](int r, int c) { return ((r + c) & 1) ? mask_ : 0; });
+  RunAllFilters(stride, stride, 0, 0);
+}
+
+// -- Boundary: strides --
+
+TEST_P(AV2Convolve2DSrHighbdTest, StrideMinimum) {
+  FillRandom(width_, 0);
+  RunAllFilters(width_, width_, 0, 0);
+}
+
+TEST_P(AV2Convolve2DSrHighbdTest, StridePadded) {
+  // Different src and dst strides catch a kernel that swaps them.
+  const int src_stride = width_ + kStridePad;
+  const int dst_stride = width_ + kStridePad / 2;
+  FillRandom(src_stride, 0);
+  RunAllFilters(src_stride, dst_stride, 0, 0);
+}
+
+// -- Boundary: alignment (offsets in uint16_t elements) --
+
+TEST_P(AV2Convolve2DSrHighbdTest, MisalignedSrc) {
+  const int stride = width_ + kStridePad;
+  for (const int off : { 1, 3 }) {
+    SCOPED_TRACE(off);
+    FillRandom(stride, off);
+    ASSERT_NO_FATAL_FAILURE(RunAllFilters(stride, stride, off, 0));
+  }
+}
+
+TEST_P(AV2Convolve2DSrHighbdTest, MisalignedDst) {
+  const int stride = width_ + kStridePad;
+  FillRandom(stride, 0);
+  for (const int off : { 1, 3 }) {
+    SCOPED_TRACE(off);
+    ASSERT_NO_FATAL_FAILURE(RunAllFilters(stride, stride, 0, off));
+  }
+}
+
+TEST_P(AV2Convolve2DSrHighbdTest, MisalignedSrcAndDst) {
+  const int src_stride = width_ + kStridePad;
+  const int dst_stride = width_ + 3;
+  FillRandom(src_stride, 1);
+  ASSERT_NO_FATAL_FAILURE(RunAllFilters(src_stride, dst_stride, 1, 3));
+  FillRandom(src_stride, 3);
+  ASSERT_NO_FATAL_FAILURE(RunAllFilters(src_stride, dst_stride, 3, 1));
+}
+
+// -- Random (N = 1000): tables, subpels, strides, offsets and content --
+
+TEST_P(AV2Convolve2DSrHighbdTest, RandomBitExact) {
+  const int kNumIter = 1000;
+  for (int i = 0; i < kNumIter; ++i) {
+    const int fx = rnd_.PseudoUniform(kConv2DSrTables);
+    const int fy = rnd_.PseudoUniform(kConv2DSrTables);
+    const int sub_x = rnd_.PseudoUniform(SUBPEL_SHIFTS);
+    const int sub_y = rnd_.PseudoUniform(SUBPEL_SHIFTS);
+    const int src_stride = width_ + rnd_.PseudoUniform(kStridePad + 1);
+    const int dst_stride = width_ + rnd_.PseudoUniform(kStridePad + 1);
+    const int src_off = rnd_.PseudoUniform(kMaxOffset + 1);
+    const int dst_off = rnd_.PseudoUniform(kMaxOffset + 1);
+    // Content: uniform, 0 / max at random, near 0, near max.
+    const int mode = rnd_.PseudoUniform(4);
+    FillWindow(src_stride, src_off, [&](int, int) -> int {
+      switch (mode) {
+        case 0: return rnd_.Rand16() & mask_;
+        case 1: return (rnd_.Rand8() & 1) ? mask_ : 0;
+        case 2: return rnd_.Rand8() & 15 & mask_;
+        default: return mask_ - (rnd_.Rand8() & 15);
+      }
+    });
+    ASSERT_NO_FATAL_FAILURE(RunComparison(fx, fy, sub_x, sub_y, src_stride,
+                                          dst_stride, src_off, dst_off, i));
+  }
+}
+
+// -- Speed (C vs the function under test) --
+
+TEST_P(AV2Convolve2DSrHighbdTest, DISABLED_Speed) {
+  const int num_iter = std::max(1, (1 << 24) / (width_ * height_));
+  const int stride = width_ + kStridePad;
+  FillRandom(stride, 0);
+  const uint16_t *src = src_ + SrcOrigin(stride, 0);
+  const InterpFilterParams *px = Conv2DSrTable(0);
+  const InterpFilterParams *py = Conv2DSrTable(0);
+  ConvolveParams cp = get_conv_params_no_round(0, 0, nullptr, 0, 0, bd_);
+  avm_usec_timer timer_ref;
+  avm_usec_timer_start(&timer_ref);
+  for (int i = 0; i < num_iter; ++i) {
+    ref_func_(src, stride, ref_dst_, stride, width_, height_, px, py, 8, 8, &cp,
+              bd_);
+  }
+  avm_usec_timer_mark(&timer_ref);
+  avm_usec_timer timer_tst;
+  avm_usec_timer_start(&timer_tst);
+  for (int i = 0; i < num_iter; ++i) {
+    tst_func_(src, stride, tst_dst_, stride, width_, height_, px, py, 8, 8, &cp,
+              bd_);
+  }
+  avm_usec_timer_mark(&timer_tst);
+  const double t_ref = static_cast<double>(avm_usec_timer_elapsed(&timer_ref));
+  const double t_tst = static_cast<double>(avm_usec_timer_elapsed(&timer_tst));
+  printf(
+      "av2_highbd_convolve_2d_sr %dx%d bd=%d: C=%7.1fms SIMD=%7.1fms "
+      "gain=%.2fx\n",
+      width_, height_, bd_, t_ref / 1000.0, t_tst / 1000.0, t_ref / t_tst);
+}
+
+// Harness baseline: C vs C (not SIMD coverage).
+INSTANTIATE_TEST_SUITE_P(
+    C, AV2Convolve2DSrHighbdTest,
+    ::testing::Combine(::testing::Values(av2_highbd_convolve_2d_sr_c),
+                       ::testing::Values(av2_highbd_convolve_2d_sr_c),
+                       ::testing::ValuesIn(GetConv2DSrSizes()),
+                       ::testing::Values(8, 10, 12)));
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV2Convolve2DSrHighbdTest,
+    ::testing::Combine(::testing::Values(av2_highbd_convolve_2d_sr_c),
+                       ::testing::Values(av2_highbd_convolve_2d_sr_neon),
+                       ::testing::ValuesIn(GetConv2DSrSizes()),
+                       ::testing::Values(8, 10, 12)));
+#endif
+
+// -- bd 8 subpel sweep --
+// bd 8 is the only depth that takes the 16-bit horizontal accumulation and
+// the fused one-pass path, and each subpel row's effective tap count
+// (get_filter_tap) picks the fused tap pair or the two-pass path, while
+// AV2Convolve2DHighbdTest sweeps every subpel pair at bd 10 and 12 only.
+// Every (x subpel, y subpel) pair for every pair of the regular, smooth, sharp
+// and 4-tap tables, on shapes that cover the fused path (8x8, 16x12),
+// w % 8 == 4 (12x8) and h % 4 != 0 (32x7).
+class AV2Convolve2DSrHighbdBd8SweepTest : public AV2Convolve2DSrHighbdTest {};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    AV2Convolve2DSrHighbdBd8SweepTest);
+
+TEST_P(AV2Convolve2DSrHighbdBd8SweepTest, AllSubpels) {
+  static const int kTables[] = { 0, 1, 2, 4, 5 };
+  FillRandom(width_, 0);
+  int n = 0;
+  for (int fx : kTables) {
+    for (int fy : kTables) {
+      for (int sub_x = 0; sub_x < SUBPEL_SHIFTS; ++sub_x) {
+        for (int sub_y = 0; sub_y < SUBPEL_SHIFTS; ++sub_y, ++n) {
+          ASSERT_NO_FATAL_FAILURE(
+              RunComparison(fx, fy, sub_x, sub_y, width_, width_, 0, 0, n));
+        }
+      }
+    }
+  }
+}
+
+const Conv2DSrSize kBd8SweepSizes[] = {
+  { 8, 8 }, { 16, 12 }, { 12, 8 }, { 32, 7 }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    C, AV2Convolve2DSrHighbdBd8SweepTest,
+    ::testing::Combine(::testing::Values(av2_highbd_convolve_2d_sr_c),
+                       ::testing::Values(av2_highbd_convolve_2d_sr_c),
+                       ::testing::ValuesIn(kBd8SweepSizes),
+                       ::testing::Values(8)));
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV2Convolve2DSrHighbdBd8SweepTest,
+    ::testing::Combine(::testing::Values(av2_highbd_convolve_2d_sr_c),
+                       ::testing::Values(av2_highbd_convolve_2d_sr_neon),
+                       ::testing::ValuesIn(kBd8SweepSizes),
+                       ::testing::Values(8)));
 #endif
 
 //////////////////////////
