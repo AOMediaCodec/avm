@@ -285,9 +285,6 @@ static void encode_superblock(const AV2_COMP *const cpi, TileDataEnc *tile_data,
             av2_tokenize_color_map(x, plane, t, bsize, mbmi->tx_size,
                                    PALETTE_MAP, tile_data->allow_update_cdf,
                                    td->counts);
-          } else if (dry_run == DRY_RUN_COSTCOEFFS) {
-            rate +=
-                av2_cost_color_map(x, plane, bsize, mbmi->tx_size, PALETTE_MAP);
           }
         }
       }
@@ -3034,10 +3031,6 @@ void av2_rd_use_partition(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   if (do_recon && last_part_rdc.rate < INT_MAX &&
       last_part_rdc.dist < INT64_MAX) {
     if (bsize == cm->sb_size) {
-      // NOTE: To get estimate for rate due to the tokens, use:
-      // int rate_coeffs = 0;
-      // encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_COSTCOEFFS,
-      //           bsize, pc_tree, &rate_coeffs);
       for (int plane = plane_start; plane < plane_end; plane++) {
         x->cb_offset[plane] = 0;
       }
