@@ -328,6 +328,22 @@ static void set_rt_speed_feature_framesize_dependent(AV2_COMP *const cpi,
   }
 }
 
+static void set_good_speed_features_lowdelay_framesize_independent(
+    AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
+  // TODO: implement low-delay speed features
+  (void)cpi;
+
+  // speed 5
+  if (speed >= 5) {
+    sf->inter_sf.enable_skip_mode_wet_pass_ld = true;
+  }
+
+  // speed 6
+  if (speed >= 6) {
+    sf->inter_sf.enable_skip_mode_wet_pass_ld = true;
+  }
+}
+
 static void set_good_speed_features_framesize_independent(
     AV2_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   const AV2_COMMON *const cm = &cpi->common;
@@ -1366,6 +1382,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->perform_best_rd_based_gating_for_chroma = 0;
   inter_sf->disable_interinter_wedge = 0;
   inter_sf->disable_onesided_comp = false;
+  inter_sf->enable_skip_mode_wet_pass_ld = false;
   inter_sf->prune_ref_mv_idx_search = 0;
   inter_sf->ref_mv_idx_mask_use_best_rd = false;
   inter_sf->prune_warped_prob_thresh = 0;
@@ -1917,6 +1934,9 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
 
   if (oxcf->mode == GOOD) {
     set_good_speed_features_framesize_independent(cpi, sf, speed);
+    if (cpi->oxcf.gf_cfg.lag_in_frames == 0) {
+      set_good_speed_features_lowdelay_framesize_independent(cpi, sf, speed);
+    }
   } else if (oxcf->mode == REALTIME) {
     set_rt_speed_features_framesize_independent(cpi, sf, speed);
   }
