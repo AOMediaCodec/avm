@@ -354,6 +354,7 @@ static void set_good_speed_features_lowdelay_framesize_independent(
   // speed 6
   if (speed >= 6) {
     sf->inter_sf.enable_skip_mode_wet_pass_ld = true;
+    sf->inter_sf.prune_warpmv_by_pyr_lvl = false;
   }
 }
 
@@ -968,7 +969,7 @@ static void set_good_speed_features_framesize_independent(
       sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
     }
     sf->mv_sf.use_bsize_dependent_search_method = 1;
-    sf->mv_sf.fast_mv_search = 1;
+    sf->mv_sf.fast_mv_search = cm->features.is_scc_content_by_detector ? 0 : 1;
 
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
     sf->tpl_sf.disable_filtered_key_tpl = 1;
@@ -989,6 +990,10 @@ static void set_good_speed_features_framesize_independent(
 
     sf->inter_sf.prune_amvd = true;
     sf->inter_sf.prune_opfl = 2;
+    sf->inter_sf.prune_warpmv_by_pyr_lvl =
+        cm->features.is_scc_content_by_detector
+            ? false
+            : sf->inter_sf.prune_warpmv_by_pyr_lvl;
 
     sf->lpf_sf.ccso_terminate_search_luma_pass_count = 1;
     sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 4;
