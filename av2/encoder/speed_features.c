@@ -960,6 +960,7 @@ static void set_good_speed_features_framesize_independent(
     // modes.
     sf->inter_sf.limit_single_ref_mv_idx =
         cm->current_frame.pyramid_level >= 4 ? 2 : 0;
+    sf->inter_sf.prune_simple_translation_drl_to_one = 1;
 
     sf->hl_sf.disable_unequal_scale_refs = true;
 
@@ -1434,6 +1435,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->enable_fast_bawp = 0;
   inter_sf->prune_bawp_by_gop_usage = 0;
   inter_sf->limit_max_ref_mv_idx = false;
+  inter_sf->prune_simple_translation_drl_to_one = 0;
   inter_sf->limit_single_ref_mv_idx = 0;
   inter_sf->skip_amvd_search_in_dry_pass = false;
   inter_sf->inter_cand_gate_level = 0;
