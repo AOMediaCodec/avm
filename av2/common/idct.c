@@ -1014,11 +1014,16 @@ void av2_inverse_transform_block(const MACROBLOCKD *xd,
                  block_signals_sec_tx_type(xd, tx_size, tx_type.primary_tx,
                                            txfm_param.eob)));
 
-  // Work buffer for secondary transform
+  // Work buffer for secondary transform. Without one the coefficients are
+  // read in place: av2_inv_stxfm() leaves them unchanged and the inverse
+  // transforms below do not write their input.
   DECLARE_ALIGNED(32, tran_low_t, temp_dqcoeff[MAX_TX_SQUARE]);
-  memcpy(temp_dqcoeff, dqcoeff, sizeof(tran_low_t) * tx_size_2d[tx_size]);
-
-  av2_inv_stxfm(temp_dqcoeff, &txfm_param);
+  const tran_low_t *txfm_in = dqcoeff;
+  if (txfm_param.sec_tx_type) {
+    memcpy(temp_dqcoeff, dqcoeff, sizeof(tran_low_t) * tx_size_2d[tx_size]);
+    av2_inv_stxfm(temp_dqcoeff, &txfm_param);
+    txfm_in = temp_dqcoeff;
+  }
 
   MB_MODE_INFO *const mbmi = xd->mi[0];
   if (xd->lossless[mbmi->segment_id]) {
@@ -1028,15 +1033,15 @@ void av2_inverse_transform_block(const MACROBLOCKD *xd,
         (plane == AVM_PLANE_Y) ? mbmi->use_dpcm_y : mbmi->use_dpcm_uv;
     int cur_angle_delta = (plane == AVM_PLANE_Y) ? mbmi->angle_delta[0] : 0;
     if (cur_pred_mode == V_PRED && cur_angle_delta == 0 && cur_dpcm_flag > 0) {
-      av2_highbd_inv_txfm_add_vert(temp_dqcoeff, dst, stride, &txfm_param);
+      av2_highbd_inv_txfm_add_vert(txfm_in, dst, stride, &txfm_param);
     } else if (cur_pred_mode == H_PRED && cur_angle_delta == 0 &&
                cur_dpcm_flag > 0) {
-      av2_highbd_inv_txfm_add_horz(temp_dqcoeff, dst, stride, &txfm_param);
+      av2_highbd_inv_txfm_add_horz(txfm_in, dst, stride, &txfm_param);
     } else {
-      av2_highbd_inv_txfm_add_master(temp_dqcoeff, dst, stride, &txfm_param);
+      av2_highbd_inv_txfm_add_master(txfm_in, dst, stride, &txfm_param);
     }
   } else {
-    av2_highbd_inv_txfm_add_master(temp_dqcoeff, dst, stride, &txfm_param);
+    av2_highbd_inv_txfm_add_master(txfm_in, dst, stride, &txfm_param);
   }
 }
 

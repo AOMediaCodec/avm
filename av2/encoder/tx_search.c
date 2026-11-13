@@ -2243,7 +2243,7 @@ static AVM_FORCE_INLINE int64_t evaluate_tx_candidate(
     int *coeffs_available, bool *eob_found, int64_t *best_rd,
     RD_STATS *best_rd_stats, TX_TYPE *best_tx_type, uint8_t *best_txb_ctx,
     uint16_t *best_eob, tran_low_t **best_dqcoeff, bool *early_term,
-    int *ist_buf_filled) {
+    int *ist_buf_filled, int ist_follows) {
   const AV2_COMP *const cpi = ctx->cpi;
   const AV2_COMMON *const cm = &cpi->common;
   const TX_SPEED_FEATURES *const tx_sf = &cpi->sf.tx_sf;
@@ -2272,7 +2272,8 @@ static AVM_FORCE_INLINE int64_t evaluate_tx_candidate(
       tx_sf->prune_tx_rd_eval_sec_tx_sse ? &sec_tx_sse_to_be_coded : NULL;
   if (!ctx->dc_only_blk)
     av2_xform(x, ctx->plane, ctx->block, ctx->blk_row, ctx->blk_col,
-              ctx->plane_bsize, txfm_param, 1, sec_tx_sse_ptr, ist_buf_filled);
+              ctx->plane_bsize, txfm_param, ist_follows ? 1 : 2, sec_tx_sse_ptr,
+              ist_buf_filled);
   else
     av2_xform_dc_only(x, ctx->plane, ctx->block, txfm_param, ctx->per_px_mean);
   if (prune_sec_txfm_rd_eval(sec_tx_sse_to_be_coded, ctx->block_sse, *best_rd,
@@ -2739,7 +2740,8 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
         &ctx, primary_tx_type, 0, set_id_0, &txfm_param, &quant_param,
         skip_trellis, skip_trellis_in, skip_trellis_based_on_satd,
         coeffs_available, &eob_found, &best_rd, best_rd_stats, &best_tx_type,
-        &best_txb_ctx, &best_eob, &best_dqcoeff, &skip_idx, ist_buf_filled);
+        &best_txb_ctx, &best_eob, &best_dqcoeff, &skip_idx, ist_buf_filled,
+        !skip_stx);
     if (skip_idx) break;
 
     // Only the DCT_DCT primary trial (stx == 0) can set eob_found, so it
@@ -2807,7 +2809,7 @@ static void search_tx_type(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
             skip_trellis, skip_trellis_in, skip_trellis_based_on_satd,
             coeffs_available, &eob_found, &best_rd, best_rd_stats,
             &best_tx_type, &best_txb_ctx, &best_eob, &best_dqcoeff, &skip_idx,
-            ist_buf_filled);
+            ist_buf_filled, 1);
         if (set_idx <= 1) best_set01_rd = AVMMIN(best_set01_rd, ist_rd);
       }
       // For intra blocks, skip the remaining IST sets (sets 2 and 3) if the
