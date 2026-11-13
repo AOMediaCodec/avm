@@ -5335,6 +5335,63 @@ static INLINE void search_intra_region_partitioning(
   restore_level_banks(&x->e_mbd, level_banks);
 }
 
+static AVM_INLINE bool should_prune_ext_part_4way(
+    const AV2_COMMON *cm, const PARTITION_SPEED_FEATURES *part_sf,
+    const PC_TREE *pc_tree, const PartitionSearchState *part_search_state,
+    bool is_vert) {
+  const int cur_region_type = pc_tree->region_type;
+  const PARTITION_TYPE part = pc_tree->partitioning;
+  const PARTITION_TYPE same_rect = is_vert ? PARTITION_VERT : PARTITION_HORZ;
+  const PARTITION_TYPE opp_rect = is_vert ? PARTITION_HORZ : PARTITION_VERT;
+  const PARTITION_TYPE same_h = is_vert ? PARTITION_VERT_3 : PARTITION_HORZ_3;
+  const PARTITION_TYPE opp_h = is_vert ? PARTITION_HORZ_3 : PARTITION_VERT_3;
+  bool (*const node_uses_dir)(const PC_TREE *) =
+      is_vert ? node_uses_vert : node_uses_horz;
+  PC_TREE *const *const same_rect_sub =
+      is_vert ? pc_tree->vertical[cur_region_type]
+              : pc_tree->horizontal[cur_region_type];
+  PC_TREE *const *const opp_rect_sub =
+      is_vert ? pc_tree->horizontal[cur_region_type]
+              : pc_tree->vertical[cur_region_type];
+  PC_TREE *const *const same_h_sub =
+      is_vert ? pc_tree->vertical3[cur_region_type]
+              : pc_tree->horizontal3[cur_region_type];
+  PC_TREE *const *const opp_h_sub = is_vert
+                                        ? pc_tree->horizontal3[cur_region_type]
+                                        : pc_tree->vertical3[cur_region_type];
+
+  if (part_sf->prune_ext_part_with_part_none && part == PARTITION_NONE) {
+    return true;
+  }
+  if (part_sf->prune_ext_part_with_part_rect) {
+    if (part == same_rect && !node_uses_dir(same_rect_sub[0]) &&
+        !node_uses_dir(same_rect_sub[1])) {
+      return true;
+    }
+    if (part == opp_rect && !node_uses_dir(opp_rect_sub[0]) &&
+        !node_uses_dir(opp_rect_sub[1])) {
+      return true;
+    }
+  }
+  if (part_sf->prune_part_4_with_part_3) {
+    if (part == same_h && !node_uses_dir(same_h_sub[0]) &&
+        !node_uses_dir(same_h_sub[3])) {
+      return true;
+    }
+    if (part == opp_h && !node_uses_dir(opp_h_sub[1]) &&
+        !node_uses_dir(opp_h_sub[2])) {
+      return true;
+    }
+  }
+  if (part_sf->prune_part_4_horz_or_vert && part == opp_rect &&
+      part_search_state->partition_allowed[same_rect] &&
+      (!frame_is_intra_only(cm) ||
+       (!node_uses_dir(opp_rect_sub[0]) && !node_uses_dir(opp_rect_sub[1])))) {
+    return true;
+  }
+  return false;
+}
+
 /*!\brief Pruning logic for PARTITION_HORZ_4A/B and PARTITION_VERT_4A/B based on
  * non-ext and 3 way partitions search results.*/
 static AVM_INLINE void prune_ext_partitions_4way(
@@ -5343,7 +5400,6 @@ static AVM_INLINE void prune_ext_partitions_4way(
   const AV2_COMMON *const cm = &cpi->common;
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
   const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
-  const int cur_region_type = pc_tree->region_type;
 
   {
     static const PARTITION_TYPE horz4[] = { PARTITION_HORZ_4A,
@@ -5354,195 +5410,22 @@ static AVM_INLINE void prune_ext_partitions_4way(
         x, part_search_state, horz4, vert4, 2, EXT_PART_ANISOTROPY, cpi);
   }
 
-  // Prune HORZ 4A with speed features
-  if (part_search_state->partition_allowed[PARTITION_HORZ_4A] &&
-      forced_partition != PARTITION_HORZ_4A) {
-    if (part_sf->prune_ext_part_with_part_none &&
-        pc_tree->partitioning == PARTITION_NONE) {
-      // Prune if the best partition does not split
-      part_search_state->prune_partition[PARTITION_HORZ_4A] = true;
-    }
-    if (part_sf->prune_ext_part_with_part_rect) {
-      // Prune if the best partition is rect but subtrees did not further split
-      // in horz
-      if (pc_tree->partitioning == PARTITION_HORZ &&
-          !node_uses_horz(pc_tree->horizontal[cur_region_type][0]) &&
-          !node_uses_horz(pc_tree->horizontal[cur_region_type][1])) {
-        part_search_state->prune_partition[PARTITION_HORZ_4A] = true;
-      }
-      if (pc_tree->partitioning == PARTITION_VERT &&
-          !node_uses_horz(pc_tree->vertical[cur_region_type][0]) &&
-          !node_uses_horz(pc_tree->vertical[cur_region_type][1])) {
-        part_search_state->prune_partition[PARTITION_HORZ_4A] = true;
-      }
-    }
-    if (part_sf->prune_part_4_with_part_3) {
-      if (pc_tree->partitioning == PARTITION_HORZ_3 &&
-          !node_uses_horz(pc_tree->horizontal3[cur_region_type][0]) &&
-          !node_uses_horz(pc_tree->horizontal3[cur_region_type][3])) {
-        // Prune if best partition is horizontal H, but first and last
-        // subpartitions did not further split in horizontal direction.
-        part_search_state->prune_partition[PARTITION_HORZ_4A] = true;
-      }
-      if (pc_tree->partitioning == PARTITION_VERT_3 &&
-          !node_uses_horz(pc_tree->vertical3[cur_region_type][1]) &&
-          !node_uses_horz(pc_tree->vertical3[cur_region_type][2])) {
-        // Prune if best partition is vertical H, but middle two
-        // subpartitions did not further split in horizontal direction.
-        part_search_state->prune_partition[PARTITION_HORZ_4A] = true;
-      }
-    }
-    if (part_sf->prune_part_4_horz_or_vert &&
-        pc_tree->partitioning == PARTITION_VERT &&
-        part_search_state->partition_allowed[PARTITION_HORZ] &&
-        (!frame_is_intra_only(cm) ||
-         (!node_uses_horz(pc_tree->vertical[cur_region_type][0]) &&
-          !node_uses_horz(pc_tree->vertical[cur_region_type][1])))) {
-      part_search_state->prune_partition[PARTITION_HORZ_4A] = true;
-    }
-  }
-
-  // Prune HORZ 4B with speed features
-  if (part_search_state->partition_allowed[PARTITION_HORZ_4B] &&
-      forced_partition != PARTITION_HORZ_4B) {
-    if (part_sf->prune_ext_part_with_part_none &&
-        pc_tree->partitioning == PARTITION_NONE) {
-      // Prune if the best partition does not split
-      part_search_state->prune_partition[PARTITION_HORZ_4B] = true;
-    }
-    if (part_sf->prune_ext_part_with_part_rect) {
-      // Prune if the best partition is rect but subtrees did not further split
-      // in horz
-      if (pc_tree->partitioning == PARTITION_HORZ &&
-          !node_uses_horz(pc_tree->horizontal[cur_region_type][0]) &&
-          !node_uses_horz(pc_tree->horizontal[cur_region_type][1])) {
-        part_search_state->prune_partition[PARTITION_HORZ_4B] = true;
-      }
-      if (pc_tree->partitioning == PARTITION_VERT &&
-          !node_uses_horz(pc_tree->vertical[cur_region_type][0]) &&
-          !node_uses_horz(pc_tree->vertical[cur_region_type][1])) {
-        part_search_state->prune_partition[PARTITION_HORZ_4B] = true;
-      }
-    }
-    if (part_sf->prune_part_4_with_part_3) {
-      if (pc_tree->partitioning == PARTITION_HORZ_3 &&
-          !node_uses_horz(pc_tree->horizontal3[cur_region_type][0]) &&
-          !node_uses_horz(pc_tree->horizontal3[cur_region_type][3])) {
-        // Prune if best partition is horizontal H, but first and last
-        // subpartitions did not further split in horizontal direction.
-        part_search_state->prune_partition[PARTITION_HORZ_4B] = true;
-      }
-      if (pc_tree->partitioning == PARTITION_VERT_3 &&
-          !node_uses_horz(pc_tree->vertical3[cur_region_type][1]) &&
-          !node_uses_horz(pc_tree->vertical3[cur_region_type][2])) {
-        // Prune if best partition is vertical H, but middle two
-        // subpartitions did not further split in horizontal direction.
-        part_search_state->prune_partition[PARTITION_HORZ_4B] = true;
-      }
-    }
-    if (part_sf->prune_part_4_horz_or_vert &&
-        pc_tree->partitioning == PARTITION_VERT &&
-        part_search_state->partition_allowed[PARTITION_HORZ] &&
-        (!frame_is_intra_only(cm) ||
-         (!node_uses_horz(pc_tree->vertical[cur_region_type][0]) &&
-          !node_uses_horz(pc_tree->vertical[cur_region_type][1])))) {
-      part_search_state->prune_partition[PARTITION_HORZ_4B] = true;
-    }
-  }
-
-  // Prune VERT_4A with speed features
-  if (part_search_state->partition_allowed[PARTITION_VERT_4A] &&
-      forced_partition != PARTITION_VERT_4A) {
-    if (part_sf->prune_ext_part_with_part_none &&
-        pc_tree->partitioning == PARTITION_NONE) {
-      // Prune if the best partition does not split
-      part_search_state->prune_partition[PARTITION_VERT_4A] = true;
-    }
-    if (part_sf->prune_ext_part_with_part_rect) {
-      // Prune if the best partition is rect but subtrees did not further split
-      // in vert
-      if (pc_tree->partitioning == PARTITION_VERT &&
-          !node_uses_vert(pc_tree->vertical[cur_region_type][0]) &&
-          !node_uses_vert(pc_tree->vertical[cur_region_type][1])) {
-        part_search_state->prune_partition[PARTITION_VERT_4A] = true;
-      }
-      if (pc_tree->partitioning == PARTITION_HORZ &&
-          !node_uses_vert(pc_tree->horizontal[cur_region_type][0]) &&
-          !node_uses_vert(pc_tree->horizontal[cur_region_type][1])) {
-        part_search_state->prune_partition[PARTITION_VERT_4A] = true;
-      }
-    }
-    if (part_sf->prune_part_4_with_part_3) {
-      if (pc_tree->partitioning == PARTITION_VERT_3 &&
-          !node_uses_vert(pc_tree->vertical3[cur_region_type][0]) &&
-          !node_uses_vert(pc_tree->vertical3[cur_region_type][3])) {
-        // Prune if best partition is vertical H, but first and last
-        // subpartitions did not further split in vertical direction.
-        part_search_state->prune_partition[PARTITION_VERT_4A] = true;
-      }
-      if (pc_tree->partitioning == PARTITION_HORZ_3 &&
-          !node_uses_vert(pc_tree->horizontal3[cur_region_type][1]) &&
-          !node_uses_vert(pc_tree->horizontal3[cur_region_type][2])) {
-        // Prune if best partition is horizontal H, but middle two
-        // subpartitions did not further split in vertical direction.
-        part_search_state->prune_partition[PARTITION_VERT_4A] = true;
-      }
-    }
-    if (part_sf->prune_part_4_horz_or_vert &&
-        pc_tree->partitioning == PARTITION_HORZ &&
-        part_search_state->partition_allowed[PARTITION_VERT] &&
-        (!frame_is_intra_only(cm) ||
-         (!node_uses_vert(pc_tree->horizontal[cur_region_type][0]) &&
-          !node_uses_vert(pc_tree->horizontal[cur_region_type][1])))) {
-      part_search_state->prune_partition[PARTITION_VERT_4A] = true;
-    }
-  }
-
-  // Prune VERT_4B with speed features
-  if (part_search_state->partition_allowed[PARTITION_VERT_4B] &&
-      forced_partition != PARTITION_VERT_4B) {
-    if (part_sf->prune_ext_part_with_part_none &&
-        pc_tree->partitioning == PARTITION_NONE) {
-      // Prune if the best partition does not split
-      part_search_state->prune_partition[PARTITION_VERT_4B] = true;
-    }
-    if (part_sf->prune_ext_part_with_part_rect) {
-      // Prune if the best partition is rect but subtrees did not further split
-      // in vert
-      if (pc_tree->partitioning == PARTITION_VERT &&
-          !node_uses_vert(pc_tree->vertical[cur_region_type][0]) &&
-          !node_uses_vert(pc_tree->vertical[cur_region_type][1])) {
-        part_search_state->prune_partition[PARTITION_VERT_4B] = true;
-      }
-      if (pc_tree->partitioning == PARTITION_HORZ &&
-          !node_uses_vert(pc_tree->horizontal[cur_region_type][0]) &&
-          !node_uses_vert(pc_tree->horizontal[cur_region_type][1])) {
-        part_search_state->prune_partition[PARTITION_VERT_4B] = true;
-      }
-    }
-    if (part_sf->prune_part_4_with_part_3) {
-      if (pc_tree->partitioning == PARTITION_VERT_3 &&
-          !node_uses_vert(pc_tree->vertical3[cur_region_type][0]) &&
-          !node_uses_vert(pc_tree->vertical3[cur_region_type][3])) {
-        // Prune if best partition is vertical H, but first and last
-        // subpartitions did not further split in vertical direction.
-        part_search_state->prune_partition[PARTITION_VERT_4B] = true;
-      }
-      if (pc_tree->partitioning == PARTITION_HORZ_3 &&
-          !node_uses_vert(pc_tree->horizontal3[cur_region_type][1]) &&
-          !node_uses_vert(pc_tree->horizontal3[cur_region_type][2])) {
-        // Prune if best partition is horizontal H, but middle two
-        // subpartitions did not further split in vertical direction.
-        part_search_state->prune_partition[PARTITION_VERT_4B] = true;
-      }
-    }
-    if (part_sf->prune_part_4_horz_or_vert &&
-        pc_tree->partitioning == PARTITION_HORZ &&
-        part_search_state->partition_allowed[PARTITION_VERT] &&
-        (!frame_is_intra_only(cm) ||
-         (!node_uses_vert(pc_tree->horizontal[cur_region_type][0]) &&
-          !node_uses_vert(pc_tree->horizontal[cur_region_type][1])))) {
-      part_search_state->prune_partition[PARTITION_VERT_4B] = true;
+  static const PARTITION_TYPE kFourWayParts[2][2] = {
+    { PARTITION_HORZ_4A, PARTITION_HORZ_4B },
+    { PARTITION_VERT_4A, PARTITION_VERT_4B },
+  };
+  for (int is_vert = 0; is_vert < 2; ++is_vert) {
+    const PARTITION_TYPE p0 = kFourWayParts[is_vert][0];
+    const PARTITION_TYPE p1 = kFourWayParts[is_vert][1];
+    const bool check_p0 =
+        part_search_state->partition_allowed[p0] && forced_partition != p0;
+    const bool check_p1 =
+        part_search_state->partition_allowed[p1] && forced_partition != p1;
+    if ((check_p0 || check_p1) &&
+        should_prune_ext_part_4way(cm, part_sf, pc_tree, part_search_state,
+                                   is_vert)) {
+      if (check_p0) part_search_state->prune_partition[p0] = true;
+      if (check_p1) part_search_state->prune_partition[p1] = true;
     }
   }
 }
