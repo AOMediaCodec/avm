@@ -1188,7 +1188,7 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
   // TODO(angiebird): Let inter_mode_rd_model_estimation support multi-tile.
   if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1 &&
       cm->tiles.cols == 1 && cm->tiles.rows == 1) {
-    av2_inter_mode_data_fit(tile_data, x->rdmult);
+    av2_inter_mode_data_fit(tile_data);
   }
   // The memo belongs to this thread's superblock; copies of x made outside
   // this function must not reach it.

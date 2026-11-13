@@ -417,13 +417,6 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required_rdo(const AV2_COMMON *cm,
 
   if (cm->seq_params.monochrome || !xd->is_chroma_ref) return CFL_DISALLOWED;
 
-  if (!xd->is_chroma_ref) {
-    // CfL is available to luma partitions lesser than or equal to 32x32.
-    const BLOCK_SIZE bsize = xd->mi[0]->sb_type[0];
-    return (CFL_ALLOWED_TYPE)(block_size_wide[bsize] <= CFL_BUF_LINE &&
-                              block_size_high[bsize] <= CFL_BUF_LINE);
-  }
-
   // For chroma reference blocks, we should store data in the encoder iff we're
   // allowed to try out CfL.
 

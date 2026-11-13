@@ -104,10 +104,12 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                int64_t best_rd_so_far,
                                bool skip_inter_modes_by_none_part);
 
-void av2_rd_pick_inter_mode_sb_seg_skip(
-    const struct AV2_COMP *cpi, struct TileDataEnc *tile_data,
-    struct macroblock *x, int mi_row, int mi_col, struct RD_STATS *rd_cost,
-    BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx, int64_t best_rd_so_far);
+void av2_rd_pick_inter_mode_sb_seg_skip(const struct AV2_COMP *cpi,
+                                        struct macroblock *x, int mi_row,
+                                        int mi_col, struct RD_STATS *rd_cost,
+                                        BLOCK_SIZE bsize,
+                                        PICK_MODE_CONTEXT *ctx,
+                                        int64_t best_rd_so_far);
 
 // Internal function, shared by rdopt.c and mcomp.c
 // Calculate the rate cost of directly signaling a warp model
@@ -158,7 +160,7 @@ typedef struct {
 sobel_xy av2_sobel(const uint16_t *input, int stride, int i, int j);
 
 void av2_inter_mode_data_init(struct TileDataEnc *tile_data);
-void av2_inter_mode_data_fit(TileDataEnc *tile_data, int rdmult);
+void av2_inter_mode_data_fit(TileDataEnc *tile_data);
 
 static INLINE int av2_encoder_get_relative_dist(int a, int b) {
   assert(a >= 0 && b >= 0);
@@ -207,7 +209,6 @@ static INLINE void av2_copy_usable_ref_mv_stack_and_weight(
   }
 }
 
-#define PRUNE_SINGLE_REFS 0
 static INLINE int prune_ref_by_selective_ref_frame(
     const AV2_COMP *const cpi, const MACROBLOCK *const x,
     const MV_REFERENCE_FRAME *const ref_frame) {
@@ -287,8 +288,7 @@ static INLINE int prune_ref_by_selective_ref_frame(
           if (AVMMIN(dir_refrank0[d0], dir_refrank1[d1]) > 3) return 1;
         }
       } else {
-        if (dir_refrank0[d0] > INTER_REFS_PER_FRAME - PRUNE_SINGLE_REFS - 1)
-          return 1;
+        if (dir_refrank0[d0] > INTER_REFS_PER_FRAME - 1) return 1;
       }
       break;
     case 2:
@@ -299,8 +299,7 @@ static INLINE int prune_ref_by_selective_ref_frame(
           if (AVMMIN(dir_refrank0[d0], dir_refrank1[d1]) > 2) return 1;
         }
       } else {
-        if (dir_refrank0[d0] > INTER_REFS_PER_FRAME - PRUNE_SINGLE_REFS - 2)
-          return 1;
+        if (dir_refrank0[d0] > INTER_REFS_PER_FRAME - 2) return 1;
       }
       break;
     case 3:
@@ -312,8 +311,7 @@ static INLINE int prune_ref_by_selective_ref_frame(
           if (AVMMIN(dir_refrank0[d0], dir_refrank1[d1]) > 1) return 1;
         }
       } else {
-        if (dir_refrank0[d0] > INTER_REFS_PER_FRAME - PRUNE_SINGLE_REFS - 3)
-          return 1;
+        if (dir_refrank0[d0] > INTER_REFS_PER_FRAME - 3) return 1;
       }
       break;
   }

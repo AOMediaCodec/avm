@@ -560,9 +560,9 @@ static int handle_smooth_inter_intra_mode(
 static int handle_wedge_inter_intra_mode(
     const AV2_COMP *const cpi, MACROBLOCK *const x, BLOCK_SIZE bsize,
     MB_MODE_INFO *mbmi, int *rate_mv, int64_t *best_rd,
-    const BUFFER_SET *orig_dst, uint16_t *tmp_buf_, uint16_t *tmp_buf,
-    uint16_t *intrapred_, uint16_t *intrapred, int *tmp_rate_mv,
-    int *rate_overhead, int_mv *tmp_mv, int64_t best_rd_no_wedge) {
+    const BUFFER_SET *orig_dst, uint16_t *tmp_buf, uint16_t *intrapred,
+    int *tmp_rate_mv, int *rate_overhead, int_mv *tmp_mv,
+    int64_t best_rd_no_wedge) {
   MACROBLOCKD *xd = &x->e_mbd;
   const ModeCosts *mode_costs = &x->mode_costs;
   const int *const interintra_mode_cost =
@@ -580,7 +580,7 @@ static int handle_wedge_inter_intra_mode(
   int best_wedge_index = 0;
   int best_boundary_index = 0;
   *best_rd = compute_best_wedge_interintra(
-      cpi, mbmi, xd, x, interintra_mode_cost, orig_dst, intrapred_, tmp_buf_,
+      cpi, mbmi, xd, x, interintra_mode_cost, orig_dst, intrapred, tmp_buf,
       &best_mode, &best_wedge_index, &best_boundary_index, bsize);
   mbmi->interintra_mode = best_mode;
   mbmi->interintra_wedge_index = best_wedge_index;
@@ -720,8 +720,8 @@ int av2_handle_inter_intra_mode(const AV2_COMP *const cpi, MACROBLOCK *const x,
   if (try_wedge_interintra) {
     int ret = handle_wedge_inter_intra_mode(
         cpi, x, bsize, mbmi, rate_mv, &best_interintra_rd_wedge, orig_dst,
-        tmp_buf, tmp_buf, intrapred, intrapred, &tmp_rate_mv, &rate_overhead,
-        &tmp_mv, best_interintra_rd_nowedge);
+        tmp_buf, intrapred, &tmp_rate_mv, &rate_overhead, &tmp_mv,
+        best_interintra_rd_nowedge);
     if (ret == IGNORE_MODE) {
       return IGNORE_MODE;
     }
