@@ -143,11 +143,6 @@ typedef struct PartitionSearchState {
   bool terminate_partition_search;
   bool prune_partition[ALL_PARTITION_TYPES];
 
-  // Pointer to an array that traces out the current best partition boundary.
-  // Used by prune_part_h_with_partition_boundary and
-  // prune_part_4_with_partition_boundary.
-  uint8_t *partition_boundaries;
-
   // Chroma subsampling in x and y directions.
   int ss_x;
   int ss_y;
