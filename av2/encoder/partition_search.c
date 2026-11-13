@@ -1063,7 +1063,6 @@ static void update_stats(const AV2_COMMON *const cm, ThreadData *td) {
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
   FRAME_CONTEXT *fc = xd->tile_ctx;
   const int inter_block = mbmi->ref_frame[0] != INTRA_FRAME;
-  const int seg_ref_active = 0;
   if (!bru_is_sb_active(cm, xd->mi_col, xd->mi_row)) return;
   if (cm->bridge_frame_info.is_bridge_frame) return;
 
@@ -1076,41 +1075,39 @@ static void update_stats(const AV2_COMMON *const cm, ThreadData *td) {
   }
 
   const int use_intrabc = is_intrabc_block(mbmi, xd->tree_type);
-  if (!seg_ref_active) {
-    if (!mbmi->skip_mode && !frame_is_intra_only(cm) &&
-        mbmi->region_type != INTRA_REGION &&
-        mbmi->sb_type[PLANE_TYPE_Y] != BLOCK_4X4) {
-      const int intra_inter_ctx = av2_get_intra_inter_context(xd);
+  if (!mbmi->skip_mode && !frame_is_intra_only(cm) &&
+      mbmi->region_type != INTRA_REGION &&
+      mbmi->sb_type[PLANE_TYPE_Y] != BLOCK_4X4) {
+    const int intra_inter_ctx = av2_get_intra_inter_context(xd);
 #if CONFIG_ENTROPY_STATS
-      td->counts->intra_inter[intra_inter_ctx][inter_block]++;
+    td->counts->intra_inter[intra_inter_ctx][inter_block]++;
 #endif  // CONFIG_ENTROPY_STATS
-      int update_inter_intra_cdf_flag = 1;
-      if (mbmi->tree_type == SHARED_PART &&
-          mbmi->region_type == MIXED_INTER_INTRA_REGION &&
-          mbmi->chroma_ref_info.offset_started) {
-        update_inter_intra_cdf_flag = 0;
-      }
-      if (update_inter_intra_cdf_flag)
-        update_cdf(fc->intra_inter_cdf[intra_inter_ctx], inter_block, 2);
+    int update_inter_intra_cdf_flag = 1;
+    if (mbmi->tree_type == SHARED_PART &&
+        mbmi->region_type == MIXED_INTER_INTRA_REGION &&
+        mbmi->chroma_ref_info.offset_started) {
+      update_inter_intra_cdf_flag = 0;
     }
-    if (!inter_block && av2_allow_intrabc(cm, xd, bsize) &&
-        xd->tree_type != CHROMA_PART) {
-      const int intrabc_ctx = get_intrabc_ctx(xd);
-      update_cdf(fc->intrabc_cdf[intrabc_ctx], use_intrabc, 2);
+    if (update_inter_intra_cdf_flag)
+      update_cdf(fc->intra_inter_cdf[intra_inter_ctx], inter_block, 2);
+  }
+  if (!inter_block && av2_allow_intrabc(cm, xd, bsize) &&
+      xd->tree_type != CHROMA_PART) {
+    const int intrabc_ctx = get_intrabc_ctx(xd);
+    update_cdf(fc->intrabc_cdf[intrabc_ctx], use_intrabc, 2);
 #if CONFIG_ENTROPY_STATS
-      ++td->counts->intrabc[intrabc_ctx][use_intrabc];
+    ++td->counts->intrabc[intrabc_ctx][use_intrabc];
 #endif  // CONFIG_ENTROPY_STATS
-    }
+  }
 
-    if (inter_block || (!inter_block && use_intrabc)) {
-      const int skip_ctx = av2_get_skip_txfm_context(xd);
+  if (inter_block || (!inter_block && use_intrabc)) {
+    const int skip_ctx = av2_get_skip_txfm_context(xd);
 #if CONFIG_ENTROPY_STATS
-      td->counts->skip_txfm[skip_ctx]
-                           [mbmi->skip_txfm[xd->tree_type == CHROMA_PART]]++;
+    td->counts
+        ->skip_txfm[skip_ctx][mbmi->skip_txfm[xd->tree_type == CHROMA_PART]]++;
 #endif
-      update_cdf(fc->skip_txfm_cdfs[skip_ctx],
-                 mbmi->skip_txfm[xd->tree_type == CHROMA_PART], 2);
-    }
+    update_cdf(fc->skip_txfm_cdfs[skip_ctx],
+               mbmi->skip_txfm[xd->tree_type == CHROMA_PART], 2);
   }
 
 #if CONFIG_ENTROPY_STATS
@@ -1194,201 +1191,146 @@ static void update_stats(const AV2_COMMON *const cm, ThreadData *td) {
 
   FRAME_COUNTS *const counts = td->counts;
 
-  if (!seg_ref_active) {
-    // If the segment reference feature is enabled we have only a single
-    // reference frame allowed for the segment so exclude it from
-    // the reference frame counts used to work out probabilities.
-    if (inter_block) {
-      const MV_REFERENCE_FRAME ref0 = mbmi->ref_frame[0];
-      const MV_REFERENCE_FRAME ref1 = mbmi->ref_frame[1];
+  if (inter_block) {
+    const MV_REFERENCE_FRAME ref0 = mbmi->ref_frame[0];
+    const MV_REFERENCE_FRAME ref1 = mbmi->ref_frame[1];
 
-      if (is_tip_allowed(cm, xd)) {
-        const int tip_ctx = get_tip_ctx(xd);
-        update_cdf(fc->tip_cdf[tip_ctx], is_tip_ref_frame(ref0), 2);
+    if (is_tip_allowed(cm, xd)) {
+      const int tip_ctx = get_tip_ctx(xd);
+      update_cdf(fc->tip_cdf[tip_ctx], is_tip_ref_frame(ref0), 2);
 #if CONFIG_ENTROPY_STATS
-        ++counts->tip_ref[tip_ctx][is_tip_ref_frame(ref0)];
+      ++counts->tip_ref[tip_ctx][is_tip_ref_frame(ref0)];
 #endif
-      }
+    }
 
-      if (current_frame->reference_mode == REFERENCE_MODE_SELECT &&
-          !is_tip_ref_frame(ref0)) {
-        if (is_comp_ref_allowed(bsize)) {
+    if (current_frame->reference_mode == REFERENCE_MODE_SELECT &&
+        !is_tip_ref_frame(ref0)) {
+      if (is_comp_ref_allowed(bsize)) {
 #if CONFIG_ENTROPY_STATS
-          counts->comp_inter[av2_get_reference_mode_context(cm, xd)]
-                            [has_second_ref(mbmi)]++;
+        counts->comp_inter[av2_get_reference_mode_context(cm, xd)]
+                          [has_second_ref(mbmi)]++;
 #endif  // CONFIG_ENTROPY_STATS
-          update_cdf(av2_get_reference_mode_cdf(cm, xd), has_second_ref(mbmi),
-                     2);
-        }
+        update_cdf(av2_get_reference_mode_cdf(cm, xd), has_second_ref(mbmi), 2);
       }
+    }
 
-      if (!cm->bru.enabled || cm->ref_frames_info.num_total_refs > 2) {
-        if (has_second_ref(mbmi)) {
-          const int n_refs = cm->ref_frames_info.num_total_refs;
-          int n_bits = 0;
-          int may_have_same_ref_comp =
-              cm->ref_frames_info.num_same_ref_compound > 0;
-          assert(ref0 < ref1 + may_have_same_ref_comp);
-          for (int i = 0; (i < n_refs + n_bits - 2 || may_have_same_ref_comp) &&
-                          n_bits < 2;
-               i++) {
-            const int bit = ((n_bits == 0) && (ref0 == i)) ||
-                            ((n_bits == 1) && (ref1 == i));
-            if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
-              continue;  // skip inter on bru ref
-            }
-            const int bit_type = n_bits == 0
-                                     ? -1
-                                     : av2_get_compound_ref_bit_type(
-                                           &cm->ref_frames_info, ref0, i);
-            int implicit_ref_bit = n_bits == 0 && i >= RANKED_REF0_TO_PRUNE - 1;
-            implicit_ref_bit |=
-                n_bits == 0 && i >= n_refs - 2 &&
-                i + 1 >= cm->ref_frames_info.num_same_ref_compound;
-            if (!implicit_ref_bit) {
-              update_cdf(av2_get_pred_cdf_compound_ref(xd, i, n_bits, bit_type,
-                                                       n_refs),
-                         bit, 2);
+    if (!cm->bru.enabled || cm->ref_frames_info.num_total_refs > 2) {
+      if (has_second_ref(mbmi)) {
+        const int n_refs = cm->ref_frames_info.num_total_refs;
+        int n_bits = 0;
+        int may_have_same_ref_comp =
+            cm->ref_frames_info.num_same_ref_compound > 0;
+        assert(ref0 < ref1 + may_have_same_ref_comp);
+        for (int i = 0;
+             (i < n_refs + n_bits - 2 || may_have_same_ref_comp) && n_bits < 2;
+             i++) {
+          const int bit =
+              ((n_bits == 0) && (ref0 == i)) || ((n_bits == 1) && (ref1 == i));
+          if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
+            continue;  // skip inter on bru ref
+          }
+          const int bit_type = n_bits == 0 ? -1
+                                           : av2_get_compound_ref_bit_type(
+                                                 &cm->ref_frames_info, ref0, i);
+          int implicit_ref_bit = n_bits == 0 && i >= RANKED_REF0_TO_PRUNE - 1;
+          implicit_ref_bit |=
+              n_bits == 0 && i >= n_refs - 2 &&
+              i + 1 >= cm->ref_frames_info.num_same_ref_compound;
+          if (!implicit_ref_bit) {
+            update_cdf(
+                av2_get_pred_cdf_compound_ref(xd, i, n_bits, bit_type, n_refs),
+                bit, 2);
 #if CONFIG_ENTROPY_STATS
-              if (n_bits == 0) {
-                counts->comp_ref0[av2_get_ref_pred_context(xd, i, n_refs)][i]
-                                 [bit]++;
-              } else {
-                counts->comp_ref1[av2_get_ref_pred_context(xd, i, n_refs)]
-                                 [bit_type][i][bit]++;
-              }
-#endif  // CONFIG_ENTROPY_STATS
-            }
-            n_bits += bit;
-            if (i < cm->ref_frames_info.num_same_ref_compound &&
-                may_have_same_ref_comp) {
-              may_have_same_ref_comp =
-                  !bit && i + 1 < cm->ref_frames_info.num_same_ref_compound;
-              i -= bit;
+            if (n_bits == 0) {
+              counts->comp_ref0[av2_get_ref_pred_context(xd, i, n_refs)][i]
+                               [bit]++;
             } else {
-              may_have_same_ref_comp = 0;
+              counts->comp_ref1[av2_get_ref_pred_context(xd, i, n_refs)]
+                               [bit_type][i][bit]++;
             }
-          }
-        } else if (!is_tip_ref_frame(ref0)) {
-          const int n_refs = cm->ref_frames_info.num_total_refs;
-          const MV_REFERENCE_FRAME ref0_nrs = mbmi->ref_frame[0];
-          for (int i = 0; i < n_refs - 1; i++) {
-            const int bit = ref0_nrs == i;
-            if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
-              continue;  // skip inter on bru ref
-            }
-            update_cdf(av2_get_pred_cdf_single_ref(xd, i, n_refs), bit, 2);
-#if CONFIG_ENTROPY_STATS
-            counts
-                ->single_ref[av2_get_ref_pred_context(xd, i, n_refs)][i][bit]++;
 #endif  // CONFIG_ENTROPY_STATS
-            if (bit) break;
           }
+          n_bits += bit;
+          if (i < cm->ref_frames_info.num_same_ref_compound &&
+              may_have_same_ref_comp) {
+            may_have_same_ref_comp =
+                !bit && i + 1 < cm->ref_frames_info.num_same_ref_compound;
+            i -= bit;
+          } else {
+            may_have_same_ref_comp = 0;
+          }
+        }
+      } else if (!is_tip_ref_frame(ref0)) {
+        const int n_refs = cm->ref_frames_info.num_total_refs;
+        const MV_REFERENCE_FRAME ref0_nrs = mbmi->ref_frame[0];
+        for (int i = 0; i < n_refs - 1; i++) {
+          const int bit = ref0_nrs == i;
+          if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
+            continue;  // skip inter on bru ref
+          }
+          update_cdf(av2_get_pred_cdf_single_ref(xd, i, n_refs), bit, 2);
+#if CONFIG_ENTROPY_STATS
+          counts->single_ref[av2_get_ref_pred_context(xd, i, n_refs)][i][bit]++;
+#endif  // CONFIG_ENTROPY_STATS
+          if (bit) break;
         }
       }
+    }
 
-      if (cm->features.enable_bawp &&
-          av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-        update_cdf(fc->bawp_cdf[0], mbmi->bawp_flag[0] > 0, 2);
-        if (mbmi->bawp_flag[0] > 0 && av2_allow_explicit_bawp(mbmi)) {
-          const int ctx_index =
-              (mbmi->mode == NEARMV)
-                  ? 0
-                  : ((mbmi->mode == NEWMV && mbmi->use_amvd) ? 1 : 2);
+    if (cm->features.enable_bawp &&
+        av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
+      update_cdf(fc->bawp_cdf[0], mbmi->bawp_flag[0] > 0, 2);
+      if (mbmi->bawp_flag[0] > 0 && av2_allow_explicit_bawp(mbmi)) {
+        const int ctx_index =
+            (mbmi->mode == NEARMV)
+                ? 0
+                : ((mbmi->mode == NEWMV && mbmi->use_amvd) ? 1 : 2);
 
-          update_cdf(fc->explicit_bawp_cdf[ctx_index], mbmi->bawp_flag[0] > 1,
-                     2);
-          if (mbmi->bawp_flag[0] > 1) {
-            update_cdf(fc->explicit_bawp_scale_cdf, mbmi->bawp_flag[0] - 2,
-                       EXPLICIT_BAWP_SCALE_CNT);
-          }
+        update_cdf(fc->explicit_bawp_cdf[ctx_index], mbmi->bawp_flag[0] > 1, 2);
+        if (mbmi->bawp_flag[0] > 1) {
+          update_cdf(fc->explicit_bawp_scale_cdf, mbmi->bawp_flag[0] - 2,
+                     EXPLICIT_BAWP_SCALE_CNT);
         }
-        if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
-            mbmi->bawp_flag[0]) {
-          update_cdf(fc->bawp_cdf[1], mbmi->bawp_flag[1] == 1, 2);
-        }
-#if CONFIG_ENTROPY_STATS
-        counts->bawp[mbmi->bawp_flag[0] == 1]++;
-#endif  // CONFIG_ENTROPY_STATS
       }
+      if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
+          mbmi->bawp_flag[0]) {
+        update_cdf(fc->bawp_cdf[1], mbmi->bawp_flag[1] == 1, 2);
+      }
+#if CONFIG_ENTROPY_STATS
+      counts->bawp[mbmi->bawp_flag[0] == 1]++;
+#endif  // CONFIG_ENTROPY_STATS
+    }
 
-      const int allowed_motion_modes = motion_mode_allowed(
-          cm, xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
-      MOTION_MODE motion_mode = mbmi->motion_mode;
+    const int allowed_motion_modes = motion_mode_allowed(
+        cm, xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
+    MOTION_MODE motion_mode = mbmi->motion_mode;
 
-      bool continue_motion_mode_signaling =
-          (mbmi->mode == WARPMV) ? false : true;
+    bool continue_motion_mode_signaling = (mbmi->mode == WARPMV) ? false : true;
 
-      assert(IMPLIES(mbmi->mode == WARPMV, mbmi->motion_mode == WARP_DELTA));
+    assert(IMPLIES(mbmi->mode == WARPMV, mbmi->motion_mode == WARP_DELTA));
+
+    if (continue_motion_mode_signaling &&
+        is_warp_newmv_allowed(cm, xd, mbmi, bsize) &&
+        mbmi->mode == WARP_NEWMV) {
+      continue_motion_mode_signaling =
+          (allowed_motion_modes & (1 << WARP_CAUSAL)) ||
+          (allowed_motion_modes & (1 << WARP_DELTA));
 
       if (continue_motion_mode_signaling &&
-          is_warp_newmv_allowed(cm, xd, mbmi, bsize) &&
-          mbmi->mode == WARP_NEWMV) {
-        continue_motion_mode_signaling =
-            (allowed_motion_modes & (1 << WARP_CAUSAL)) ||
-            (allowed_motion_modes & (1 << WARP_DELTA));
-
-        if (continue_motion_mode_signaling &&
-            allowed_motion_modes & (1 << WARP_EXTEND)) {
-          const int ctx = av2_get_warp_extend_ctx(xd);
+          allowed_motion_modes & (1 << WARP_EXTEND)) {
+        const int ctx = av2_get_warp_extend_ctx(xd);
 #if CONFIG_ENTROPY_STATS
-          counts->warp_extend[ctx][mbmi->motion_mode == WARP_EXTEND]++;
+        counts->warp_extend[ctx][mbmi->motion_mode == WARP_EXTEND]++;
 #endif
-          update_cdf(fc->warp_extend_cdf[ctx], mbmi->motion_mode == WARP_EXTEND,
-                     2);
-          if (motion_mode == WARP_EXTEND) {
-            continue_motion_mode_signaling = false;
-          }
-        }
-
-        if (continue_motion_mode_signaling &&
-            (allowed_motion_modes & (1 << WARP_DELTA)) &&
-            (allowed_motion_modes & (1 << WARP_CAUSAL))) {
-          const int ctx = av2_get_warp_causal_ctx(xd);
-          const int use_warp_causal = (mbmi->motion_mode == WARP_CAUSAL);
-#if CONFIG_ENTROPY_STATS
-          counts->warp_causal_cnt[ctx][use_warp_causal]++;
-#endif
-          update_cdf(fc->warp_causal_cdf[ctx], use_warp_causal, 2);
-        }
-
-        continue_motion_mode_signaling = false;
-      }
-
-      if (continue_motion_mode_signaling &&
-          (allowed_motion_modes & (1 << INTERINTRA))) {
-        const int bsize_group = size_group_lookup[bsize];
-#if CONFIG_ENTROPY_STATS
-        counts->interintra[bsize_group][motion_mode == INTERINTRA]++;
-#endif
-        update_cdf(fc->interintra_cdf[bsize_group], motion_mode == INTERINTRA,
+        update_cdf(fc->warp_extend_cdf[ctx], mbmi->motion_mode == WARP_EXTEND,
                    2);
-
-        if (motion_mode == INTERINTRA) {
-#if CONFIG_ENTROPY_STATS
-          counts->interintra_mode[bsize_group][mbmi->interintra_mode]++;
-#endif
-          update_cdf(fc->interintra_mode_cdf[bsize_group],
-                     mbmi->interintra_mode, INTERINTRA_MODES);
-          if (av2_is_wedge_used(bsize)) {
-#if CONFIG_ENTROPY_STATS
-            counts->wedge_interintra[mbmi->use_wedge_interintra]++;
-#endif
-            update_cdf(fc->wedge_interintra_cdf, mbmi->use_wedge_interintra, 2);
-            if (mbmi->use_wedge_interintra) {
-              update_wedge_mode_cdf(fc, bsize, mbmi->interintra_wedge_index
-#if CONFIG_ENTROPY_STATS
-                                    ,
-                                    counts
-#endif  // CONFIG_ENTROPY_STATS
-              );
-            }
-          }
+        if (motion_mode == WARP_EXTEND) {
           continue_motion_mode_signaling = false;
         }
       }
 
       if (continue_motion_mode_signaling &&
+          (allowed_motion_modes & (1 << WARP_DELTA)) &&
           (allowed_motion_modes & (1 << WARP_CAUSAL))) {
         const int ctx = av2_get_warp_causal_ctx(xd);
         const int use_warp_causal = (mbmi->motion_mode == WARP_CAUSAL);
@@ -1398,109 +1340,152 @@ static void update_stats(const AV2_COMMON *const cm, ThreadData *td) {
         update_cdf(fc->warp_causal_cdf[ctx], use_warp_causal, 2);
       }
 
-      if (motion_mode == WARP_DELTA) {
-        update_warp_delta_stats(cm, mbmi, mbmi_ext,
+      continue_motion_mode_signaling = false;
+    }
+
+    if (continue_motion_mode_signaling &&
+        (allowed_motion_modes & (1 << INTERINTRA))) {
+      const int bsize_group = size_group_lookup[bsize];
 #if CONFIG_ENTROPY_STATS
-                                counts,
+      counts->interintra[bsize_group][motion_mode == INTERINTRA]++;
+#endif
+      update_cdf(fc->interintra_cdf[bsize_group], motion_mode == INTERINTRA, 2);
+
+      if (motion_mode == INTERINTRA) {
+#if CONFIG_ENTROPY_STATS
+        counts->interintra_mode[bsize_group][mbmi->interintra_mode]++;
+#endif
+        update_cdf(fc->interintra_mode_cdf[bsize_group], mbmi->interintra_mode,
+                   INTERINTRA_MODES);
+        if (av2_is_wedge_used(bsize)) {
+#if CONFIG_ENTROPY_STATS
+          counts->wedge_interintra[mbmi->use_wedge_interintra]++;
+#endif
+          update_cdf(fc->wedge_interintra_cdf, mbmi->use_wedge_interintra, 2);
+          if (mbmi->use_wedge_interintra) {
+            update_wedge_mode_cdf(fc, bsize, mbmi->interintra_wedge_index
+#if CONFIG_ENTROPY_STATS
+                                  ,
+                                  counts
 #endif  // CONFIG_ENTROPY_STATS
-                                fc);
-        // The following line is commented out to remove a spurious
-        // static analysis warning. Uncomment when adding a new motion mode
-        // continue_motion_mode_signaling = false;
+            );
+          }
+        }
+        continue_motion_mode_signaling = false;
       }
+    }
 
-      if (allow_warp_inter_intra(mbmi)) {
-        const int bsize_group = size_group_lookup[bsize];
-        update_cdf(fc->warp_interintra_cdf[bsize_group], mbmi->warp_inter_intra,
-                   2);
+    if (continue_motion_mode_signaling &&
+        (allowed_motion_modes & (1 << WARP_CAUSAL))) {
+      const int ctx = av2_get_warp_causal_ctx(xd);
+      const int use_warp_causal = (mbmi->motion_mode == WARP_CAUSAL);
+#if CONFIG_ENTROPY_STATS
+      counts->warp_causal_cnt[ctx][use_warp_causal]++;
+#endif
+      update_cdf(fc->warp_causal_cdf[ctx], use_warp_causal, 2);
+    }
 
-        if (mbmi->warp_inter_intra) {
+    if (motion_mode == WARP_DELTA) {
+      update_warp_delta_stats(cm, mbmi, mbmi_ext,
 #if CONFIG_ENTROPY_STATS
-          counts->interintra_mode[bsize_group][mbmi->interintra_mode]++;
-#endif
-          update_cdf(fc->interintra_mode_cdf[bsize_group],
-                     mbmi->interintra_mode, INTERINTRA_MODES);
-          if (av2_is_wedge_used(bsize)) {
-#if CONFIG_ENTROPY_STATS
-            counts->wedge_interintra[mbmi->use_wedge_interintra]++;
-#endif
-            update_cdf(fc->wedge_interintra_cdf, mbmi->use_wedge_interintra, 2);
-            if (mbmi->use_wedge_interintra) {
-              update_wedge_mode_cdf(fc, bsize, mbmi->interintra_wedge_index
-#if CONFIG_ENTROPY_STATS
-                                    ,
-                                    counts
+                              counts,
 #endif  // CONFIG_ENTROPY_STATS
-              );
-            }
+                              fc);
+      // The following line is commented out to remove a spurious
+      // static analysis warning. Uncomment when adding a new motion mode
+      // continue_motion_mode_signaling = false;
+    }
+
+    if (allow_warp_inter_intra(mbmi)) {
+      const int bsize_group = size_group_lookup[bsize];
+      update_cdf(fc->warp_interintra_cdf[bsize_group], mbmi->warp_inter_intra,
+                 2);
+
+      if (mbmi->warp_inter_intra) {
+#if CONFIG_ENTROPY_STATS
+        counts->interintra_mode[bsize_group][mbmi->interintra_mode]++;
+#endif
+        update_cdf(fc->interintra_mode_cdf[bsize_group], mbmi->interintra_mode,
+                   INTERINTRA_MODES);
+        if (av2_is_wedge_used(bsize)) {
+#if CONFIG_ENTROPY_STATS
+          counts->wedge_interintra[mbmi->use_wedge_interintra]++;
+#endif
+          update_cdf(fc->wedge_interintra_cdf, mbmi->use_wedge_interintra, 2);
+          if (mbmi->use_wedge_interintra) {
+            update_wedge_mode_cdf(fc, bsize, mbmi->interintra_wedge_index
+#if CONFIG_ENTROPY_STATS
+                                  ,
+                                  counts
+#endif  // CONFIG_ENTROPY_STATS
+            );
           }
         }
       }
+    }
 
-      if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
+    if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
 #if CONFIG_ENTROPY_STATS
-        counts->warpmv_with_mvd_flag[mbmi->warpmv_with_mvd_flag]++;
+      counts->warpmv_with_mvd_flag[mbmi->warpmv_with_mvd_flag]++;
 #endif
-        update_cdf(fc->warpmv_with_mvd_flag_cdf, mbmi->warpmv_with_mvd_flag, 2);
-      } else {
-        assert(mbmi->warpmv_with_mvd_flag == 0);
+      update_cdf(fc->warpmv_with_mvd_flag_cdf, mbmi->warpmv_with_mvd_flag, 2);
+    } else {
+      assert(mbmi->warpmv_with_mvd_flag == 0);
+    }
+
+    int is_refinemv_signaled = switchable_refinemv_flag(cm, mbmi);
+    if (!mbmi->skip_mode && is_refinemv_signaled) {
+      const int refinemv_ctx = av2_get_refinemv_context(cm, xd, bsize);
+      update_cdf(fc->refinemv_flag_cdf[refinemv_ctx], mbmi->refinemv_flag,
+                 REFINEMV_NUM_MODES);
+    }
+    assert(IMPLIES(mbmi->refinemv_flag && is_refinemv_signaled,
+                   mbmi->comp_group_idx == 0 &&
+                       mbmi->interinter_comp.type == COMPOUND_AVERAGE));
+    if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
+        (!mbmi->refinemv_flag || !is_refinemv_signaled) &&
+        !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)) {
+      assert(current_frame->reference_mode != SINGLE_REFERENCE &&
+             is_inter_compound_mode(mbmi->mode) &&
+             (mbmi->motion_mode == SIMPLE_TRANSLATION ||
+              is_compound_warp_causal_allowed(cm, xd, mbmi)));
+
+      const int masked_compound_used = is_any_masked_compound_used(bsize) &&
+                                       cm->seq_params.enable_masked_compound;
+      if (masked_compound_used) {
+        const int comp_group_idx_ctx = get_comp_group_idx_context(cm, xd);
+#if CONFIG_ENTROPY_STATS
+        ++counts->comp_group_idx[comp_group_idx_ctx][mbmi->comp_group_idx];
+#endif
+        update_cdf(fc->comp_group_idx_cdf[comp_group_idx_ctx],
+                   mbmi->comp_group_idx, 2);
       }
 
-      int is_refinemv_signaled = switchable_refinemv_flag(cm, mbmi);
-      if (!mbmi->skip_mode && is_refinemv_signaled) {
-        const int refinemv_ctx = av2_get_refinemv_context(cm, xd, bsize);
-        update_cdf(fc->refinemv_flag_cdf[refinemv_ctx], mbmi->refinemv_flag,
-                   REFINEMV_NUM_MODES);
-      }
-      assert(IMPLIES(mbmi->refinemv_flag && is_refinemv_signaled,
-                     mbmi->comp_group_idx == 0 &&
-                         mbmi->interinter_comp.type == COMPOUND_AVERAGE));
-      if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
-          (!mbmi->refinemv_flag || !is_refinemv_signaled) &&
-          !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)) {
-        assert(current_frame->reference_mode != SINGLE_REFERENCE &&
-               is_inter_compound_mode(mbmi->mode) &&
-               (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-                is_compound_warp_causal_allowed(cm, xd, mbmi)));
-
-        const int masked_compound_used = is_any_masked_compound_used(bsize) &&
-                                         cm->seq_params.enable_masked_compound;
-        if (masked_compound_used) {
-          const int comp_group_idx_ctx = get_comp_group_idx_context(cm, xd);
-#if CONFIG_ENTROPY_STATS
-          ++counts->comp_group_idx[comp_group_idx_ctx][mbmi->comp_group_idx];
-#endif
-          update_cdf(fc->comp_group_idx_cdf[comp_group_idx_ctx],
-                     mbmi->comp_group_idx, 2);
-        }
-
-        if (mbmi->comp_group_idx == 1) {
-          assert(masked_compound_used);
-          if (is_interinter_compound_used(COMPOUND_WEDGE, bsize)) {
-#if CONFIG_ENTROPY_STATS
-            ++counts
-                  ->compound_type[mbmi->interinter_comp.type - COMPOUND_WEDGE];
-#endif
-            update_cdf(fc->compound_type_cdf,
-                       mbmi->interinter_comp.type - COMPOUND_WEDGE,
-                       MASKED_COMPOUND_TYPES);
-          }
-        }
-      }
-      if (mbmi->interinter_comp.type == COMPOUND_WEDGE) {
+      if (mbmi->comp_group_idx == 1) {
+        assert(masked_compound_used);
         if (is_interinter_compound_used(COMPOUND_WEDGE, bsize)) {
-          update_wedge_mode_cdf(fc, bsize, mbmi->interinter_comp.wedge_index
 #if CONFIG_ENTROPY_STATS
-                                ,
-                                counts
-#endif  // CONFIG_ENTROPY_STATS
-          );
+          ++counts->compound_type[mbmi->interinter_comp.type - COMPOUND_WEDGE];
+#endif
+          update_cdf(fc->compound_type_cdf,
+                     mbmi->interinter_comp.type - COMPOUND_WEDGE,
+                     MASKED_COMPOUND_TYPES);
         }
       }
-
-      if (cm->features.enable_cwp && is_cwp_allowed(mbmi) && !mbmi->skip_mode) {
-        update_cwp_idx_stats(fc, td->counts, cm, xd);
+    }
+    if (mbmi->interinter_comp.type == COMPOUND_WEDGE) {
+      if (is_interinter_compound_used(COMPOUND_WEDGE, bsize)) {
+        update_wedge_mode_cdf(fc, bsize, mbmi->interinter_comp.wedge_index
+#if CONFIG_ENTROPY_STATS
+                              ,
+                              counts
+#endif  // CONFIG_ENTROPY_STATS
+        );
       }
+    }
+
+    if (cm->features.enable_cwp && is_cwp_allowed(mbmi) && !mbmi->skip_mode) {
+      update_cwp_idx_stats(fc, td->counts, cm, xd);
     }
   }
 
@@ -1818,23 +1803,15 @@ static void encode_b(const AV2_COMP *const cpi, TileDataEnc *tile_data,
         rdc->compound_ref_used_flag = 1;
       }
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
-    } else {
-      const int seg_ref_active = 0;
-      if (!seg_ref_active) {
-        // If the segment reference feature is enabled we have only a single
-        // reference frame allowed for the segment so exclude it from
-        // the reference frame counts used to work out probabilities.
-        if (is_inter_block(mbmi, xd->tree_type)) {
-          av2_collect_neighbors_ref_counts(xd);
-          if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT) {
-            if (has_second_ref(mbmi)) {
-              // This flag is also updated for 4x4 blocks
-              rdc->compound_ref_used_flag = 1;
-            }
-          }
-          set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+    } else if (is_inter_block(mbmi, xd->tree_type)) {
+      av2_collect_neighbors_ref_counts(xd);
+      if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT) {
+        if (has_second_ref(mbmi)) {
+          // This flag is also updated for 4x4 blocks
+          rdc->compound_ref_used_flag = 1;
         }
       }
+      set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
     }
 
     if (tile_data->allow_update_cdf) update_stats(&cpi->common, td);
@@ -1851,9 +1828,7 @@ static void encode_b(const AV2_COMP *const cpi, TileDataEnc *tile_data,
     // Gather warped motion count to update the probability.
     if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0 ||
         cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
-      const int inter_block = is_inter_block(mbmi, xd->tree_type);
-      const int seg_ref_active = 0;
-      if (!seg_ref_active && inter_block) {
+      if (is_inter_block(mbmi, xd->tree_type)) {
         const int allowed_motion_modes = motion_mode_allowed(
             cm, xd, x->mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
         if (mbmi->motion_mode != INTERINTRA) {
