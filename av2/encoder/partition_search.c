@@ -931,16 +931,6 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
   }
 }
 
-static void update_intrabc_drl_idx_stats(int max_ref_bv_num,
-                                         FRAME_COUNTS *counts,
-                                         const MB_MODE_INFO *mbmi) {
-  (void)counts;
-  assert(mbmi->intrabc_drl_idx < max_ref_bv_num);
-  for (int idx = 0; idx < max_ref_bv_num - 1; ++idx) {
-    if (mbmi->intrabc_drl_idx == idx) break;
-  }
-}
-
 // Update the stats for compound weighted prediction
 static void update_cwp_idx_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
                                  const AV2_COMMON *const cm, MACROBLOCKD *xd) {
@@ -1149,8 +1139,7 @@ static void update_stats(const AV2_COMMON *const cm, ThreadData *td) {
 #if CONFIG_ENTROPY_STATS
       ++td->counts->intrabc_mode[mbmi->intrabc_mode];
 #endif  // CONFIG_ENTROPY_STATS
-      update_intrabc_drl_idx_stats(cm->features.max_bvp_drl_bits + 1,
-                                   td->counts, mbmi);
+      assert(mbmi->intrabc_drl_idx < cm->features.max_bvp_drl_bits + 1);
 
       if (is_intraBC_bv_precision_active(cm, mbmi->intrabc_mode)) {
         int index = av2_intraBc_precision_to_index[mbmi->pb_mv_precision];
@@ -2389,14 +2378,6 @@ void av2_build_partition_tree_fixed_partitioning(
                        ptree_luma);
 }
 
-void av2_build_partition_tree_var_based_partitioning(
-    AV2_COMMON *const cm, TREE_TYPE tree_type, int mi_row, int mi_col,
-    PARTITION_TREE *ptree, const PARTITION_TREE *ptree_luma) {
-  const BLOCK_SIZE sb_size = cm->sb_size;
-  build_one_split_tree(cm, tree_type, mi_row, mi_col, sb_size, ptree,
-                       ptree_luma);
-}
-
 static PARTITION_TYPE get_preset_partition(const AV2_COMMON *cm,
                                            TREE_TYPE tree_type, int mi_row,
                                            int mi_col, BLOCK_SIZE bsize,
@@ -3443,7 +3424,6 @@ static void init_partition_search_state_params(
   blk_params->mi_col = mi_col;
   blk_params->mi_row_edge = mi_row + blk_params->mi_step_h;
   blk_params->mi_col_edge = mi_col + blk_params->mi_step_w;
-  blk_params->width = block_size_wide[bsize];
   blk_params->min_partition_size = x->sb_enc.min_partition_size;
   // Check if the partition corresponds to edge block.
   blk_params->has_rows = (blk_params->mi_row_edge < mi_params->mi_rows);
@@ -3473,7 +3453,6 @@ static void init_partition_search_state_params(
   // Initialize RD costs for partition types to 0.
   part_search_state->none_rd = 0;
   av2_zero(part_search_state->split_rd);
-  av2_zero(part_search_state->rect_part_rd);
 
   // Initialize partition search flags to defaults.
   part_search_state->terminate_partition_search = false;
@@ -4264,7 +4243,6 @@ static void rectangular_partition_search(
         av2_invalid_rd_stats(sum_rdc);
         break;
       }
-      part_search_state->rect_part_rd[rect_type][sub_idx] = this_rdc.rdcost;
     }
     // Calculate the total cost and update the best partition.
     av2_rd_cost_update(x->rdmult, sum_rdc);

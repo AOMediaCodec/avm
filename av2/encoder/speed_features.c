@@ -1365,7 +1365,6 @@ static AVM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->disable_uneven_4way_partitions = false;
 
   part_sf->disable_extended_sdp = false;
-  part_sf->force_max_pb_aspect_ratio = 0;
   part_sf->prune_by_struct_orient = 0;
   part_sf->ml_post_none_early_term_thresh = 0;
   part_sf->prune_rect_split_by_rd = 0;
@@ -1775,8 +1774,7 @@ void av2_set_speed_features_framesize_dependent(AV2_COMP *cpi, int speed) {
   if (!cpi->seq_params_locked) {
     unsigned int max_ratio = oxcf->part_cfg.max_partition_aspect_ratio;
     if (speed >= 4 && !cpi->is_screen_content_type && !is_270p_or_lesser) {
-      sf->part_sf.force_max_pb_aspect_ratio = 4;
-      max_ratio = AVMMIN(max_ratio, sf->part_sf.force_max_pb_aspect_ratio);
+      max_ratio = AVMMIN(max_ratio, 4U);
     }
     cpi->common.seq_params.max_pb_aspect_ratio_log2_m1 =
         max_ratio == 2 ? 0 : (max_ratio == 4 ? 1 : 2);

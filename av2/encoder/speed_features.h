@@ -606,9 +606,6 @@ typedef struct PARTITION_SPEED_FEATURES {
   bool disable_uneven_4way_partitions;
   bool disable_extended_sdp;
 
-  // Force the max partition-block aspect ratio
-  unsigned int force_max_pb_aspect_ratio;
-
   // Prune rectangular and extended partitions based on structure orientation
   // of the source signal.
   // 0: disabled

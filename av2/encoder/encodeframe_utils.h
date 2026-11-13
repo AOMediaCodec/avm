@@ -66,9 +66,6 @@ typedef struct PartitionBlkParams {
   int mi_row_edge;
   int mi_col_edge;
 
-  // Block width of current partition block.
-  int width;
-
   // Minimum partition size allowed.
   BLOCK_SIZE min_partition_size;
 
@@ -125,10 +122,6 @@ typedef struct PartitionSearchState {
   // RD costs for different partition types.
   int64_t none_rd;
   int64_t split_rd[SUB_PARTITIONS_SPLIT];
-  // RD costs for rectangular partitions.
-  // rect_part_rd[0][i] is the RD cost of ith partition index of PARTITION_HORZ.
-  // rect_part_rd[1][i] is the RD cost of ith partition index of PARTITION_VERT.
-  int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT];
 
   // Allowed partition types for the partition block.
   PARTITION_TYPE forced_partition;

@@ -22,11 +22,9 @@
 extern "C" {
 #endif
 
-#define FEATURE_SIZE_SMS_SPLIT_FAST 6
 #define FEATURE_SIZE_SMS_SPLIT 17
 #define FEATURE_SIZE_SMS_PRUNE_PART 25
 #define FEATURE_SIZE_SMS_TERM_NONE 28
-#define FEATURE_SIZE_FP_SMS_TERM_NONE 20
 #define FEATURE_SIZE_MAX_MIN_PART_PRED 13
 #define MAX_NUM_CLASSES_MAX_MIN_PART_PRED 4
 
@@ -233,13 +231,6 @@ static INLINE void av2_reset_sms_cross_pass_state(
     SimpleMotionDataBufs *data_bufs) {
   ++data_bufs->cur_xgen;
 }
-
-struct PartitionSearchState;
-void av2_gather_erp_rect_features(
-    float *ml_features, AV2_COMP *cpi, MACROBLOCK *x, const TileInfo *tile_info,
-    const PC_TREE *pc_tree,
-    const struct PartitionSearchState *part_search_state, int64_t part_none_rd,
-    const int (*mi_pos_rect)[SUB_PARTITIONS_RECT][2]);
 
 static INLINE int is_full_sb(const CommonModeInfoParams *const mi_params,
                              int mi_row, int mi_col, BLOCK_SIZE sb_size) {
