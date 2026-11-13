@@ -2987,7 +2987,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     int pu_height, uint16_t *dst0_16_refinemv, uint16_t *dst1_16_refinemv,
     int row_start, int col_start, MV *sb_refined_mv, MV *chroma_refined_mv,
     int build_for_refine_mv_only, ReferenceArea ref_area[2], int_mv *mv_refined,
-    int *opfl_vxy_bufs) {
+    int *opfl_vxy_bufs, int opfl_enabled_plane, int opfl_enabled_y) {
   const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
   const int is_compound = has_second_ref(mi) || tip_ref_frame;
   struct macroblockd_plane *const pd = &xd->plane[plane];
@@ -3052,8 +3052,9 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     mv_refined[0].as_mv = convert_mv_to_1_16th_pel(&best_mv_ref[0]);
     mv_refined[1].as_mv = convert_mv_to_1_16th_pel(&best_mv_ref[1]);
   }
-  int use_optflow_refinement =
-      is_optflow_refinement_enabled(cm, xd, mi, plane, tip_ref_frame);
+  int use_optflow_refinement = opfl_enabled_plane;
+  assert(use_optflow_refinement ==
+         is_optflow_refinement_enabled(cm, xd, mi, plane, tip_ref_frame));
   assert(IMPLIES(use_optflow_refinement,
                  cm->features.opfl_refine_type != REFINE_NONE));
 
@@ -3188,9 +3189,10 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     av2_init_inter_params(&inter_pred_params, comp_bw, comp_bh, pre_y, pre_x,
                           pd->subsampling_x, pd->subsampling_y, xd->bd,
                           mi->use_intrabc[0], sf, pre_buf, mi->interp_fltr);
+    assert(opfl_enabled_y ==
+           is_optflow_refinement_enabled(cm, xd, mi, 0, tip_ref_frame));
     const int refinemv_is_allowed_y =
-        is_mv_refine_allowed(cm, mi, 0) ||
-        is_optflow_refinement_enabled(cm, xd, mi, 0, tip_ref_frame);
+        is_mv_refine_allowed(cm, mi, 0) || opfl_enabled_y;
     const int use_ref_padding =
         tip_ref_frame ? (apply_refinemv || use_optflow_refinement ||
                          (plane && refinemv_is_allowed_y))
@@ -3322,6 +3324,12 @@ static void build_inter_predictors_8x8_and_bigger(
 
     ReferenceArea ref_area[2];
     CONV_BUF_TYPE *tmp_conv_dst = xd->tmp_conv_dst;
+    // The same for every subblock of this build.
+    const int opfl_enabled_plane =
+        is_optflow_refinement_enabled(cm, xd, mi, plane, tip_ref_frame);
+    const int opfl_enabled_y = plane == 0 ? opfl_enabled_plane
+                                          : is_optflow_refinement_enabled(
+                                                cm, xd, mi, 0, tip_ref_frame);
     assert(bw % refinemv_sb_size_width == 0);
     assert(bh % refinemv_sb_size_height == 0);
     for (int h = 0; h < bh; h += refinemv_sb_size_height) {
@@ -3375,7 +3383,8 @@ static void build_inter_predictors_8x8_and_bigger(
             calc_subpel_params_func, dst_buf, dst_stride, w, h, pu_width,
             pu_height, dst0_16_refinemv, dst1_16_refinemv, row_start, col_start,
             plane == 0 ? luma_refined_mv : NULL, chroma_refined_mv,
-            build_for_refine_mv_only, ref_area, mv_refined, opfl_vxy_bufs);
+            build_for_refine_mv_only, ref_area, mv_refined, opfl_vxy_bufs,
+            opfl_enabled_plane, opfl_enabled_y);
 
         if (plane == 0) {
           REFINEMV_SUBMB_INFO
@@ -3787,7 +3796,13 @@ void av2_build_inter_predictors(const AV2_COMMON *cm, MACROBLOCKD *xd,
     const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
     if (tip_ref_frame ||
         is_optflow_refinement_enabled(cm, xd, mi, AVM_PLANE_Y, tip_ref_frame)) {
-      memset(xd->mv_refined, 0, 2 * N_OF_OFFSETS * sizeof(int_mv));
+      // Only the entries of this block's optical-flow subblock grid (at most
+      // one per 4x4 luma unit) are read back.
+      const BLOCK_SIZE gbs = mi->sb_type[PLANE_TYPE_Y];
+      const int n_used =
+          AVMMIN(2 * N_OF_OFFSETS,
+                 2 * (block_size_wide[gbs] >> 2) * (block_size_high[gbs] >> 2));
+      memset(xd->mv_refined, 0, n_used * sizeof(int_mv));
     }
   }
   // just for debugging purpose
