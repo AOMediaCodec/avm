@@ -5789,6 +5789,9 @@ static void handle_single_inter_prediction(
     int_mv bawp_off_mv = cur_mv[0];
     int64_t bawp_off_newmv_ret_val = 0;
     int bawp_off_rate_mv = 0;
+    // The BAWP options below may reuse the filter search of their chroma twin;
+    // the twin's search records its entry from here on.
+    args->last_saved_interp_stats_idx = -1;
 
     for (int b_idx = 0; b_idx < total_bawp_iters; b_idx++) {
       int bawp_flag = (b_idx + 1) / 2;
@@ -10185,6 +10188,9 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   args.new_nearmv_amvd_stats_idx = 0;
   args.near_newmv_amvd_stats_idx = 0;
   args.dry_pass_cfg = apply_dry_pass_shortcuts ? &dry_pass_cfg : NULL;
+  // No interpolation filter search has saved an entry yet.
+  args.last_saved_interp_stats_idx = -1;
+  av2_zero(args.last_saved_interp_cand);
 
   // Indicates the appropriate number of simple translation winner modes for
   // exhaustive motion mode evaluation.

@@ -93,6 +93,31 @@ typedef struct {
   int intra_mpm_cap;
 } DryPassCfg;
 
+/*!\brief Candidate fields an interpolation filter stats entry does not
+ * record. Together with the stats key they tell that a search was for the same
+ * candidate as the BAWP option that follows it in
+ * handle_single_inter_prediction(), apart from the chroma BAWP flag. */
+typedef struct {
+  /*! \brief Prediction mode. */
+  int mode;
+  /*! \brief Reference MV indices. */
+  int ref_mv_idx[2];
+  /*! \brief MV precision. */
+  int pb_mv_precision;
+  /*! \brief Motion mode. */
+  int motion_mode;
+  /*! \brief Whether inter-intra is used. */
+  int interintra;
+  /*! \brief AMVD flag. */
+  int use_amvd;
+  /*! \brief Refinemv flag. */
+  int refinemv_flag;
+  /*! \brief CWP index. */
+  int cwp_idx;
+  /*! \brief Skip mode. */
+  int skip_mode;
+} INTERP_STATS_CAND;
+
 /*!\brief Miscellaneous arguments for inter mode search.
  */
 typedef struct {
@@ -207,6 +232,12 @@ typedef struct {
 
   /*! \brief Dry-pass caps, or NULL outside a dry pass. */
   const DryPassCfg *dry_pass_cfg;
+  /*! \brief Index of the interp_filter_stats entry the last interpolation
+   * filter search saved, or -1 if that search saved none. */
+  int last_saved_interp_stats_idx;
+  /*! \brief The candidate that search was for (the fields outside the
+   * stats entry). */
+  INTERP_STATS_CAND last_saved_interp_cand;
 } HandleInterModeArgs;
 
 /*!\cond */

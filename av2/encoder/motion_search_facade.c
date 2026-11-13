@@ -31,6 +31,77 @@ typedef struct {
   int weight;
 } cand_mv_t;
 
+// The hash below wraps around by design.
+#if defined(__clang__) && defined(__has_attribute)
+#if __has_attribute(no_sanitize)
+#define AVM_NO_UNSIGNED_OVERFLOW_CHECK \
+  __attribute__((no_sanitize("unsigned-integer-overflow")))
+#endif
+#endif
+
+#ifndef AVM_NO_UNSIGNED_OVERFLOW_CHECK
+#define AVM_NO_UNSIGNED_OVERFLOW_CHECK
+#endif
+
+// Returns the entry of `key` in the motion search memo. *hit is set when it
+// holds a result of the current superblock; otherwise the entry is claimed for
+// the key and the caller fills it.
+AVM_NO_UNSIGNED_OVERFLOW_CHECK static MsMemoEntry *ms_memo_find(
+    MotionSearchMemo *memo, const MsMemoKey *key, int *hit) {
+  const uint8_t *bytes = (const uint8_t *)key;
+  uint32_t h = 2166136261u;
+  for (size_t i = 0; i < sizeof(*key); i++) h = (h ^ bytes[i]) * 16777619u;
+  h ^= h >> 15;
+  MsMemoEntry *free_slot = NULL;
+  for (int i = 0; i < 8; i++) {
+    MsMemoEntry *e = &memo->slot[(h + i) & (MS_MEMO_SLOTS - 1)];
+    if (e->sb_id != memo->sb_id) {
+      if (!free_slot) free_slot = e;
+    } else if (!memcmp(&e->key, key, sizeof(*key))) {
+      *hit = 1;
+      return e;
+    }
+  }
+  *hit = 0;
+  MsMemoEntry *e = free_slot ? free_slot : &memo->slot[h & (MS_MEMO_SLOTS - 1)];
+  e->sb_id = memo->sb_id;
+  e->key = *key;
+  e->has_subpel = 0;
+  return e;
+}
+
+#undef AVM_NO_UNSIGNED_OVERFLOW_CHECK
+
+// Fills the memo key of a motion search. The full-pel and sub-pel searches read
+// these and state that does not change within a superblock (source, reference
+// buffers, MV cost tables, speed features).
+static_assert(sizeof(MsMemoKey) == 40, "MsMemoKey is compared with memcmp");
+static_assert((MS_MEMO_SLOTS & (MS_MEMO_SLOTS - 1)) == 0,
+              "MS_MEMO_SLOTS is a power of two");
+
+static void ms_memo_key(MsMemoKey *key, const MACROBLOCK *x, BLOCK_SIZE bsize,
+                        const MB_MODE_INFO *mbmi, int ref, const MV *ref_mv,
+                        FULLPEL_MV start, int step_param, int search_range,
+                        int refine_only, int opfl_its) {
+  memset(key, 0, sizeof(*key));
+  key->ref_mv_row = ref_mv->row;
+  key->ref_mv_col = ref_mv->col;
+  key->start_row = start.row;
+  key->start_col = start.col;
+  key->search_range = search_range;
+  key->errorperbit = x->mv_costs.errorperbit;
+  key->sadperbit = x->mv_costs.sadperbit;
+  key->mi_row = x->e_mbd.mi_row;
+  key->mi_col = x->e_mbd.mi_col;
+  key->bsize = bsize;
+  key->ref = ref;
+  key->precision = mbmi->pb_mv_precision;
+  key->step_param = step_param;
+  key->refine_only = refine_only;
+  key->warpmv = mbmi->mode == WARPMV;
+  key->opfl_its = opfl_its;
+}
+
 static int compare_weight(const void *a, const void *b) {
   const int diff = ((cand_mv_t *)a)->weight - ((cand_mv_t *)b)->weight;
   if (diff < 0)
@@ -240,8 +311,26 @@ void av2_single_motion_search(const AV2_COMP *const cpi, MACROBLOCK *x,
                                      pb_mv_precision, is_ibc_cost,
                                      src_search_sites, fine_search_interval);
 
+  // A search whose inputs repeat within the superblock, mostly the wet pass
+  // repeating a search of the dry pass, takes the stored result.
+  MsMemoEntry *memo = NULL;
+  int memo_hit = 0;
+  if (x->ms_memo && cnt == 1 && !scaled_ref_frame && !mbmi->use_amvd &&
+      mbmi->motion_mode == SIMPLE_TRANSLATION) {
+    MsMemoKey key;
+    ms_memo_key(&key, x, bsize, mbmi, ref, &ref_mv, start_mv, step_param,
+                search_range, 0, opfl_its);
+    memo = ms_memo_find(x->ms_memo, &key, &memo_hit);
+  }
   switch (mbmi->motion_mode) {
     case SIMPLE_TRANSLATION: {
+      if (memo_hit) {
+        bestsme = memo->bestsme;
+        best_mv->as_fullmv = memo->full_mv;
+        second_best_mv.as_fullmv = memo->second_mv;
+        memcpy(cost_list, memo->cost_list, sizeof(cost_list));
+        break;
+      }
       int sum_weight = 0;
 
       for (int m = 0; m < cnt; m++) {
@@ -306,6 +395,12 @@ void av2_single_motion_search(const AV2_COMP *const cpi, MACROBLOCK *x,
       }
     } break;
     default: assert(0 && "Invalid motion mode!\n");
+  }
+  if (memo && !memo_hit) {
+    memo->bestsme = bestsme;
+    memo->full_mv = best_mv->as_fullmv;
+    memo->second_mv = second_best_mv.as_fullmv;
+    memcpy(memo->cost_list, cost_list, sizeof(cost_list));
   }
 
   if (scaled_ref_frame) {
@@ -394,7 +489,10 @@ void av2_single_motion_search(const AV2_COMP *const cpi, MACROBLOCK *x,
 
     switch (mbmi->motion_mode) {
       case SIMPLE_TRANSLATION:
-        if (cpi->sf.mv_sf.subpel_search_type) {
+        if (memo_hit && memo->has_subpel) {
+          best_mv->as_mv = memo->subpel_mv;
+          x->pred_sse[ref_pred] = memo->pred_sse;
+        } else if (cpi->sf.mv_sf.subpel_search_type) {
           const int try_second = !cpi->sf.mv_sf.skip_second_best_subpel &&
                                  second_best_mv.as_int != INVALID_MV &&
                                  second_best_mv.as_int != best_mv->as_int;
@@ -424,6 +522,11 @@ void av2_single_motion_search(const AV2_COMP *const cpi, MACROBLOCK *x,
         }
         break;
       default: assert(0 && "Invalid motion mode!\n");
+    }
+    if (memo && !memo->has_subpel) {
+      memo->has_subpel = 1;
+      memo->subpel_mv = best_mv->as_mv;
+      memo->pred_sse = x->pred_sse[ref_pred];
     }
   }
   *rate_mv = av2_mv_bit_cost(&best_mv->as_mv, &ref_mv, pb_mv_precision,
@@ -495,8 +598,21 @@ void av2_single_motion_search_high_precision(const AV2_COMP *const cpi,
   FULLPEL_MV best_opfl_mv = start_fullmv;
   best_opfl_sme = INT_MAX;
   curr_best_mv = *start_mv;
+  MsMemoEntry *memo = NULL;
+  int memo_hit = 0;
+  if (x->ms_memo && !scaled_ref_frame) {
+    MsMemoKey key;
+    ms_memo_key(&key, x, bsize, mbmi, ref, &ref_mv, start_fullmv, 0, 0, 1,
+                opfl_its);
+    memo = ms_memo_find(x->ms_memo, &key, &memo_hit);
+  }
+  if (memo_hit) {
+    best_opfl_sme = memo->bestsme;
+    best_opfl_mv = memo->full_mv;
+  }
+  const int num_its = memo_hit ? 0 : 1 + opfl_its;
   int term = 0;
-  for (int it = 0; it < 1 + opfl_its; it++) {
+  for (int it = 0; it < num_its; it++) {
     if (it > 0) {
       start_fullmv = curr_best_mv.as_fullmv;
       FULLPEL_MV prev_fullmv = start_fullmv;
@@ -538,6 +654,10 @@ void av2_single_motion_search_high_precision(const AV2_COMP *const cpi,
   }
   bestsme = best_opfl_sme;
   curr_best_mv.as_fullmv = best_opfl_mv;
+  if (memo && !memo_hit) {
+    memo->bestsme = bestsme;
+    memo->full_mv = best_opfl_mv;
+  }
 
   if (scaled_ref_frame) {
     // Swap back the original buffers for subpel motion search.
@@ -614,8 +734,18 @@ void av2_single_motion_search_high_precision(const AV2_COMP *const cpi,
       start_mv1.col += sub_mv_offset.col;
       start_mv1.row += sub_mv_offset.row;
     }
-    bestsme = cpi->mv_search_params.find_fractional_mv_step(
-        xd, cm, &ms_params, start_mv1, &curr_best_mv.as_mv, &dis, &sse, NULL);
+    if (memo_hit && memo->has_subpel) {
+      bestsme = memo->subpel_sme;
+      curr_best_mv.as_mv = memo->subpel_mv;
+    } else {
+      bestsme = cpi->mv_search_params.find_fractional_mv_step(
+          xd, cm, &ms_params, start_mv1, &curr_best_mv.as_mv, &dis, &sse, NULL);
+      if (memo && !memo->has_subpel) {
+        memo->has_subpel = 1;
+        memo->subpel_mv = curr_best_mv.as_mv;
+        memo->subpel_sme = bestsme;
+      }
+    }
   }
 
   if (bestsme < INT_MAX) *best_mv = curr_best_mv;
