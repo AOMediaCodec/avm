@@ -125,7 +125,6 @@ class AV2NewEncodeDecodePerfTest
                                   ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AVME_SET_CPUUSED, speed_);
-      encoder->Control(AV2E_SET_FRAME_PARALLEL_DECODING, 1);
       encoder->Control(AV2E_SET_TILE_COLUMNS, 2);
     }
   }

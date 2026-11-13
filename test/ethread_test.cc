@@ -76,7 +76,6 @@ class AVxFirstPassEncoderThreadTest
       encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
       encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
-      encoder->Control(AV2E_SET_FRAME_PARALLEL_DECODING, 0);
       encoder->Control(AVME_SET_QP, 210);
 
       encoder_initialized_ = true;
@@ -247,7 +246,6 @@ class AVxEncoderThreadTest
       encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(AVME_SET_ARNR_MAXFRAMES, 7);
       encoder->Control(AVME_SET_ARNR_STRENGTH, 5);
-      encoder->Control(AV2E_SET_FRAME_PARALLEL_DECODING, 0);
       encoder->Control(AVME_SET_QP, 210);
       encoder_initialized_ = true;
     }

@@ -348,7 +348,6 @@ const arg_def_t *av2_key_val_args[] = {
   &g_av2_codec_arg_defs.explicit_ref_frame_map,
   &g_av2_codec_arg_defs.film_grain_test,
   &g_av2_codec_arg_defs.force_video_mode,
-  &g_av2_codec_arg_defs.frame_parallel_decoding,
   &g_av2_codec_arg_defs.frame_periodic_boost,
   &g_av2_codec_arg_defs.gdf_unit_matches_sb,
   &g_av2_codec_arg_defs.gf_cbr_boost_pct,

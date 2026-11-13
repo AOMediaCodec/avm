@@ -143,7 +143,6 @@ class ArfFreqTestLarge
   virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
                                   ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AV2E_SET_FRAME_PARALLEL_DECODING, 1);
       encoder->Control(AV2E_SET_TILE_COLUMNS, 4);
       encoder->Control(AVME_SET_CPUUSED, test_encode_param_.cpu_used);
       encoder->Control(AV2E_SET_MIN_GF_INTERVAL, min_arf_requested_);

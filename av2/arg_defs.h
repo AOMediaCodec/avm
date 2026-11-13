@@ -237,7 +237,6 @@ typedef struct av2_codec_arg_definitions {
 #endif
   arg_def_t enable_ref_frame_mvs;
   arg_def_t reduced_ref_frame_mvs_mode;
-  arg_def_t frame_parallel_decoding;
   arg_def_t aq_mode;
   arg_def_t deltaq_mode;
   arg_def_t frame_periodic_boost;
