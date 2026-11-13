@@ -306,4 +306,36 @@ TEST_F(QmTest, ProtectedFlagPersistsAcrossObus) {
   EXPECT_EQ(pbi_->qm_protected[3], 0);
 }
 
+// A user-defined copy of a predefined level gets its forward weights (4x4 is
+// derived from the 8x8 matrix, so it is left out).
+TEST_F(QmTest, UserDefinedCopyOfPredefinedHasSameWeights) {
+  static CommonQuantParams predefined, user;
+  av2_qm_init(&predefined, 3);
+  av2_qm_init(&user, 3);
+  const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
+  for (int level = 0; level < NUM_CUSTOM_QMS; ++level) {
+    qm_val_t ***set = av2_alloc_qmset();
+    for (int t = 0; t < 3; ++t) {
+      for (int c = 0; c < 3; ++c) {
+        memcpy(set[t][c], predefined.giqmatrix[level][c][fund_tsize[t]],
+               tx_size_2d[fund_tsize[t]] * sizeof(qm_val_t));
+      }
+    }
+    av2_qm_frame_update(&user, 3, level, set);
+    av2_free_qmset(set);
+    for (int c = 0; c < 3; ++c) {
+      for (int t = 0; t < TX_SIZES_ALL; ++t) {
+        if (t == TX_4X4 || av2_get_adjusted_tx_size(t) != t) continue;
+        if (tx_size_wide[t] > 8 || tx_size_high[t] > 8) continue;
+        const qm_val_t *want = predefined.gqmatrix[level][c][t];
+        const qm_val_t *got = user.gqmatrix[level][c][t];
+        for (int i = 0; i < tx_size_2d[t]; ++i) {
+          ASSERT_EQ(got[i], want[i]) << "level " << level << " plane " << c
+                                     << " tx_size " << t << " index " << i;
+        }
+      }
+    }
+  }
+}
+
 }  // namespace
