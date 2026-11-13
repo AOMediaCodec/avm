@@ -834,5 +834,250 @@ void AV2ExtHighbdWarpFilterTest::RunBoundaryCheck(
                                            conv_params, 0, NULL));
       });
 }
+
+::testing::internal::ParamGenerator<ExtHighbdWarpScaledTestParams>
+BuildScaledParams(ext_highbd_warp_affine_scaled_func filter) {
+  const ExtHighbdWarpScaledTestParam params[] = {
+    make_tuple(2, 2, 25, 8, filter),    make_tuple(2, 4, 25, 8, filter),
+    make_tuple(4, 4, 25, 8, filter),    make_tuple(8, 8, 25, 8, filter),
+    make_tuple(64, 64, 10, 8, filter),  make_tuple(4, 16, 25, 8, filter),
+    make_tuple(32, 8, 25, 8, filter),   make_tuple(2, 2, 25, 10, filter),
+    make_tuple(2, 4, 25, 10, filter),   make_tuple(4, 4, 25, 10, filter),
+    make_tuple(8, 8, 25, 10, filter),   make_tuple(64, 64, 10, 10, filter),
+    make_tuple(4, 16, 25, 10, filter),  make_tuple(32, 8, 25, 10, filter),
+    make_tuple(2, 2, 25, 12, filter),   make_tuple(2, 4, 25, 12, filter),
+    make_tuple(4, 4, 25, 12, filter),   make_tuple(8, 8, 25, 12, filter),
+    make_tuple(64, 64, 10, 12, filter), make_tuple(4, 16, 25, 12, filter),
+    make_tuple(32, 8, 25, 12, filter),
+  };
+  return ::testing::Combine(::testing::ValuesIn(params),
+                            ::testing::Values(0, 1), ::testing::Values(0, 1),
+                            ::testing::Values(0, 1), ::testing::Values(0, 1));
+}
+
+AV2ExtHighbdWarpFilterScaledTest::~AV2ExtHighbdWarpFilterScaledTest() {}
+void AV2ExtHighbdWarpFilterScaledTest::SetUp() {
+  rnd_.Reset(ACMRandom::DeterministicSeed());
+}
+
+void AV2ExtHighbdWarpFilterScaledTest::TearDown() {
+  libavm_test::ClearSystemState();
+}
+
+void AV2ExtHighbdWarpFilterScaledTest::RunSpeedTest(
+    ext_highbd_warp_affine_scaled_func test_impl) {
+  const int w = 128, h = 128;
+  const int border = 16;
+  const int stride = w + 2 * border;
+  ExtHighbdWarpScaledTestParam param = GET_PARAM(0);
+  const int is_alpha_zero = GET_PARAM(1);
+  const int is_beta_zero = GET_PARAM(2);
+  const int is_gamma_zero = GET_PARAM(3);
+  const int is_delta_zero = GET_PARAM(4);
+  const int out_w = ::testing::get<0>(param), out_h = ::testing::get<1>(param);
+  const int bd = ::testing::get<3>(param);
+  const int mask = (1 << bd) - 1;
+
+  int output_n = ((out_w + 7) & ~7) * out_h;
+  uint16_t *input_ = new uint16_t[h * stride];
+  uint16_t *input = input_ + border;
+  uint16_t *output = new uint16_t[output_n];
+  int32_t mat[8];
+  int16_t alpha, beta, gamma, delta;
+  CONV_BUF_TYPE *dsta = new CONV_BUF_TYPE[output_n];
+
+  generate_warped_model(&rnd_, mat, &alpha, &beta, &gamma, &delta,
+                        is_alpha_zero, is_beta_zero, is_gamma_zero,
+                        is_delta_zero);
+  for (int r = 0; r < h; ++r)
+    for (int c = 0; c < w; ++c) input[r * stride + c] = rnd_.Rand16() & mask;
+  for (int r = 0; r < h; ++r) {
+    for (int c = 0; c < border; ++c) {
+      input[r * stride - border + c] = input[r * stride];
+      input[r * stride + w + c] = input[r * stride + (w - 1)];
+    }
+  }
+
+  struct scale_factors sf;
+  av2_setup_scale_factors_for_frame(&sf, w * 3 / 4, h * 3 / 4, w, h);
+  ConvolveParams conv_params =
+      get_conv_params_no_round(0, 0, dsta, out_w, 1, bd);
+
+  const int num_loops = 100000000 / (out_w + out_h);
+  avm_usec_timer timer;
+  avm_usec_timer_start(&timer);
+  for (int i = 0; i < num_loops; ++i)
+    av2_ext_highbd_warp_affine_scaled_c(mat, input, w, h, stride, output, 32,
+                                        32, out_w, out_h, out_w, 0, 0, bd,
+                                        &conv_params, &sf, 0, NULL);
+  avm_usec_timer_mark(&timer);
+  const int elapsed_c = static_cast<int>(avm_usec_timer_elapsed(&timer));
+
+  avm_usec_timer_start(&timer);
+  for (int i = 0; i < num_loops; ++i)
+    test_impl(mat, input, w, h, stride, output, 32, 32, out_w, out_h, out_w, 0,
+              0, bd, &conv_params, &sf, 0, NULL);
+  avm_usec_timer_mark(&timer);
+  const int elapsed_simd = static_cast<int>(avm_usec_timer_elapsed(&timer));
+
+  printf("ext highbd warp scaled %3dx%-3d: c %7.2f ns  simd %7.2f ns (%.2fx)\n",
+         out_w, out_h, 1000.0 * elapsed_c / num_loops,
+         1000.0 * elapsed_simd / num_loops,
+         elapsed_simd > 0 ? static_cast<double>(elapsed_c) / elapsed_simd : 0);
+
+  delete[] input_;
+  delete[] output;
+  delete[] dsta;
+}
+
+void AV2ExtHighbdWarpFilterScaledTest::RunCheckOutput(
+    ext_highbd_warp_affine_scaled_func test_impl) {
+  const int w = 128, h = 128;
+  const int border = 16;
+  const int stride = w + 2 * border;
+  ExtHighbdWarpScaledTestParam param = GET_PARAM(0);
+  const int is_alpha_zero = GET_PARAM(1);
+  const int is_beta_zero = GET_PARAM(2);
+  const int is_gamma_zero = GET_PARAM(3);
+  const int is_delta_zero = GET_PARAM(4);
+  const int out_w = ::testing::get<0>(param), out_h = ::testing::get<1>(param);
+  const int bd = ::testing::get<3>(param);
+  const int num_iters = ::testing::get<2>(param);
+  const int mask = (1 << bd) - 1;
+
+  static const int kScalePairs[][4] = {
+    { 96, 96, 128, 128 },   // 3/4 downscaled reference
+    { 64, 64, 128, 128 },   // 1/2 downscaled reference
+    { 112, 80, 128, 128 },  // anisotropic downscaled reference
+    { 128, 128, 64, 64 },   // 2x upscaled reference
+  };
+  const int num_scales =
+      static_cast<int>(sizeof(kScalePairs) / sizeof(kScalePairs[0]));
+
+  int output_n = ((out_w + 7) & ~7) * out_h;
+  uint16_t *input_ = new uint16_t[h * stride];
+  uint16_t *input = input_ + border;
+  uint16_t *output = new uint16_t[output_n];
+  uint16_t *output2 = new uint16_t[output_n];
+  int32_t mat[8];
+  int16_t alpha, beta, gamma, delta;
+  ConvolveParams conv_params = get_conv_params(0, 0, bd);
+  CONV_BUF_TYPE *dsta = new CONV_BUF_TYPE[output_n];
+  CONV_BUF_TYPE *dstb = new CONV_BUF_TYPE[output_n];
+  PadBlock warp_bd_box[MAX_WARP_BD_SIZE * MAX_WARP_BD_SIZE];
+  for (int k = 0; k < output_n; ++k) output[k] = output2[k] = rnd_.Rand16();
+
+  for (int i = 0; i < num_iters; ++i) {
+    for (int r = 0; r < h; ++r)
+      for (int c = 0; c < w; ++c) input[r * stride + c] = rnd_.Rand16() & mask;
+    for (int r = 0; r < h; ++r) {
+      for (int c = 0; c < border; ++c) {
+        input[r * stride - border + c] = input[r * stride];
+        input[r * stride + w + c] = input[r * stride + (w - 1)];
+      }
+    }
+    const int use_no_round = rnd_.Rand8() & 1;
+    const int use_bd_box = i & 1;
+    for (int idx = 0; idx < MAX_WARP_BD_SIZE * MAX_WARP_BD_SIZE; ++idx) {
+      if ((i & 3) == 3) {
+        warp_bd_box[idx].x0 = 8 + ((idx * 7) & 31);
+        warp_bd_box[idx].x1 = w - (8 + ((idx * 11) & 31));
+        warp_bd_box[idx].y0 = 8 + ((idx * 5) & 31);
+        warp_bd_box[idx].y1 = h - (8 + ((idx * 13) & 31));
+      } else {
+        warp_bd_box[idx].x0 = (idx * 3) & 7;
+        warp_bd_box[idx].x1 = w - ((idx * 5) & 7);
+        warp_bd_box[idx].y0 = (idx * 2) & 7;
+        warp_bd_box[idx].y1 = h - ((idx * 7) & 7);
+      }
+    }
+    struct scale_factors sf;
+    const int *sp = kScalePairs[i % num_scales];
+    av2_setup_scale_factors_for_frame(&sf, sp[0], sp[1], sp[2], sp[3]);
+
+    for (int sub_x = 0; sub_x < 2; ++sub_x)
+      for (int sub_y = 0; sub_y < 2; ++sub_y) {
+        generate_warped_model(&rnd_, mat, &alpha, &beta, &gamma, &delta,
+                              is_alpha_zero, is_beta_zero, is_gamma_zero,
+                              is_delta_zero);
+        for (int ii = 0; ii < 4; ++ii) {
+          for (int do_average = 0; do_average <= 1; ++do_average) {
+            if (use_no_round) {
+              conv_params =
+                  get_conv_params_no_round(do_average, 0, dsta, out_w, 1, bd);
+            } else {
+              conv_params = get_conv_params(0, 0, bd);
+            }
+            conv_params.fwd_offset = quant_dist_lookup_table[ii][0];
+            conv_params.bck_offset = quant_dist_lookup_table[ii][1];
+
+            av2_ext_highbd_warp_affine_scaled_c(
+                mat, input, w, h, stride, output, 32, 32, out_w, out_h, out_w,
+                sub_x, sub_y, bd, &conv_params, &sf, use_bd_box,
+                use_bd_box ? warp_bd_box : NULL);
+            if (use_no_round) {
+              conv_params =
+                  get_conv_params_no_round(do_average, 0, dstb, out_w, 1, bd);
+            }
+            conv_params.fwd_offset = quant_dist_lookup_table[ii][0];
+            conv_params.bck_offset = quant_dist_lookup_table[ii][1];
+            ASM_REGISTER_STATE_CHECK(
+                test_impl(mat, input, w, h, stride, output2, 32, 32, out_w,
+                          out_h, out_w, sub_x, sub_y, bd, &conv_params, &sf,
+                          use_bd_box, use_bd_box ? warp_bd_box : NULL));
+
+            if (use_no_round) {
+              for (int j = 0; j < out_w * out_h; ++j)
+                ASSERT_EQ(dsta[j], dstb[j])
+                    << "Pixel mismatch at index " << j << " = (" << (j % out_w)
+                    << ", " << (j / out_w) << ") on iteration " << i;
+              for (int j = 0; j < out_w * out_h; ++j)
+                ASSERT_EQ(output[j], output2[j])
+                    << "Pixel mismatch at index " << j << " = (" << (j % out_w)
+                    << ", " << (j / out_w) << ") on iteration " << i;
+            } else {
+              for (int j = 0; j < out_w * out_h; ++j)
+                ASSERT_EQ(output[j], output2[j])
+                    << "Pixel mismatch at index " << j << " = (" << (j % out_w)
+                    << ", " << (j / out_w) << ") on iteration " << i;
+            }
+          }
+        }
+      }
+  }
+
+  delete[] input_;
+  delete[] output;
+  delete[] output2;
+  delete[] dsta;
+  delete[] dstb;
+}
+
+void AV2ExtHighbdWarpFilterScaledTest::RunBoundaryCheck(
+    ext_highbd_warp_affine_scaled_func test_impl, int mode) {
+  ExtHighbdWarpScaledTestParam param = GET_PARAM(0);
+  const int out_w = ::testing::get<0>(param), out_h = ::testing::get<1>(param);
+  const int bd = ::testing::get<3>(param);
+  struct scale_factors sf;
+  av2_setup_scale_factors_for_frame(&sf, 96, 96, 128, 128);
+  RunBoundaryCheckImpl(
+      out_w, out_h, bd, GET_PARAM(1), GET_PARAM(2), GET_PARAM(3), GET_PARAM(4),
+      mode, &rnd_,
+      [&sf](const int32_t *mat, const uint16_t *input, int w, int h, int stride,
+            uint16_t *output, int out_w, int out_h, int bd,
+            ConvolveParams *conv_params, int16_t, int16_t, int16_t, int16_t) {
+        av2_ext_highbd_warp_affine_scaled_c(mat, input, w, h, stride, output,
+                                            32, 32, out_w, out_h, out_w, 0, 0,
+                                            bd, conv_params, &sf, 0, NULL);
+      },
+      [test_impl, &sf](const int32_t *mat, const uint16_t *input, int w, int h,
+                       int stride, uint16_t *output, int out_w, int out_h,
+                       int bd, ConvolveParams *conv_params, int16_t, int16_t,
+                       int16_t, int16_t) {
+        ASM_REGISTER_STATE_CHECK(test_impl(mat, input, w, h, stride, output, 32,
+                                           32, out_w, out_h, out_w, 0, 0, bd,
+                                           conv_params, &sf, 0, NULL));
+      });
+}
 }  // namespace AV2ExtHighbdWarpFilter
 }  // namespace libavm_test

@@ -14,6 +14,7 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/warp_filter_test_util.h"
 using libavm_test::ACMRandom;
+using libavm_test::AV2ExtHighbdWarpFilter::AV2ExtHighbdWarpFilterScaledTest;
 using libavm_test::AV2ExtHighbdWarpFilter::AV2ExtHighbdWarpFilterTest;
 using libavm_test::AV2HighbdWarpFilter::AV2HighbdWarpFilterTest;
 using libavm_test::AV2HighbdWarpFilter::AV2HighbdWarpSpeedCompareTest;
@@ -55,6 +56,28 @@ TEST_P(AV2ExtHighbdWarpFilterTest, ExtremesAllMax) {
 TEST_P(AV2ExtHighbdWarpFilterTest, BitDepthMidpoint) {
   RunBoundaryCheck(::testing::get<4>(GET_PARAM(0)), 2);
 }
+
+TEST_P(AV2ExtHighbdWarpFilterScaledTest, CheckOutput) {
+  RunCheckOutput(::testing::get<4>(GET_PARAM(0)));
+}
+TEST_P(AV2ExtHighbdWarpFilterScaledTest, DISABLED_Speed) {
+  RunSpeedTest(::testing::get<4>(GET_PARAM(0)));
+}
+TEST_P(AV2ExtHighbdWarpFilterScaledTest, ExtremesAllZero) {
+  RunBoundaryCheck(::testing::get<4>(GET_PARAM(0)), 0);
+}
+TEST_P(AV2ExtHighbdWarpFilterScaledTest, ExtremesAllMax) {
+  RunBoundaryCheck(::testing::get<4>(GET_PARAM(0)), 1);
+}
+TEST_P(AV2ExtHighbdWarpFilterScaledTest, BitDepthMidpoint) {
+  RunBoundaryCheck(::testing::get<4>(GET_PARAM(0)), 2);
+}
+
+#if HAVE_SSE2
+INSTANTIATE_TEST_SUITE_P(SSE2, AV2ExtHighbdWarpFilterScaledTest,
+                         libavm_test::AV2ExtHighbdWarpFilter::BuildScaledParams(
+                             av2_ext_highbd_warp_affine_scaled_sse2));
+#endif  // HAVE_SSE2
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(SSE4_1, AV2HighbdWarpFilterTest,
@@ -102,6 +125,7 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV2ExtHighbdWarpFilterTest,
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2HighbdWarpFilterTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2ExtHighbdWarpFilterTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2ExtHighbdWarpFilterScaledTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV2HighbdWarpSpeedCompareTest);
 
 }  // namespace

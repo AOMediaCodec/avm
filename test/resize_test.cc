@@ -13,9 +13,12 @@
 #include <climits>
 #include <vector>
 #include "avm_dsp/avm_dsp_common.h"
+#include "avm_ports/avm_timer.h"
+#include "common/lanczos_resample.h"
 #include "common/tools_common.h"
 #include "av2/encoder/encoder.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
+#include "test/acm_random.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/i420_video_source.h"
@@ -539,5 +542,300 @@ AV2_INSTANTIATE_TEST_SUITE(
     ::testing::Values(static_cast<int>(RESIZE_DYNAMIC),
                       static_cast<int>(RESIZE_RANDOM_SUBGOP),
                       static_cast<int>(RESIZE_DYNAMIC_SUBGOP)));
+
+#if !CONFIG_SHARED
+TEST(LanczosResampleSimdTest, Resample1DBitExact) {
+  ::libavm_test::ACMRandom rnd(::libavm_test::ACMRandom::DeterministicSeed());
+  static const int kRatios[][2] = { { 8, 9 },  { 4, 5 },  { 8, 11 }, { 2, 3 },
+                                    { 8, 13 }, { 4, 7 },  { 8, 15 }, { 1, 2 },
+                                    { 9, 8 },  { 5, 4 },  { 3, 2 },  { 7, 4 },
+                                    { 2, 1 },  { 13, 16 } };
+  for (size_t r = 0; r < sizeof(kRatios) / sizeof(kRatios[0]); ++r) {
+    const int p = kRatios[r][0];
+    const int q = kRatios[r][1];
+    for (int a : { 3, 5 }) {
+      for (int sub : { 0, 1 }) {
+        RationalResampleFilter rf;
+        const double x0 =
+            sub ? static_cast<double>('d') : static_cast<double>('c');
+        ASSERT_EQ(get_resample_filter(p, q, a, x0, EXT_REPEAT, WIN_LANCZOS, sub,
+                                      14, &rf),
+                  1);
+        for (int inlen : { 3, 5, 31, 64, 97, 130 }) {
+          const int outlen = std::max(1, (inlen * p + q / 2) / q);
+          std::vector<int16_t> in(inlen);
+          std::vector<int16_t> out_c(outlen, 0);
+          std::vector<int16_t> out_simd(outlen, 0);
+
+          // Test signed and unsigned inputs, clip profiles (including bits=16
+          // scalar fallback), and downshift=0/8/14.
+          for (int mode = 0; mode < 5; ++mode) {
+            for (int i = 0; i < inlen; ++i) {
+              if (mode == 0) {
+                in[i] = static_cast<int16_t>(rnd.Rand16() & 0x3ff);
+              } else if (mode == 1 || mode == 3) {
+                in[i] = static_cast<int16_t>((rnd.Rand16() & 0xfff) - 2048);
+              } else if (mode == 2) {
+                in[i] = (i & 1) ? 4095 : -4095;
+              } else {
+                in[i] = static_cast<int16_t>((i & 1) ? 1 : -1);
+              }
+            }
+            ClipProfile clip_unsigned = { 10, 0 };
+            ClipProfile clip_signed = { 12, 1 };
+            ClipProfile clip_signed16 = { 16, 1 };
+            ClipProfile *clip = (mode == 0)   ? &clip_unsigned
+                                : (mode == 1) ? &clip_signed
+                                : (mode == 3) ? &clip_signed16
+                                              : NULL;
+            const int downshift = (mode == 2) ? 8 : (mode == 4) ? 0 : 14;
+            resample_1d_c(in.data(), inlen, &rf, downshift, clip, out_c.data(),
+                          outlen);
+            resample_1d(in.data(), inlen, &rf, downshift, clip, out_simd.data(),
+                        outlen);
+            for (int i = 0; i < outlen; ++i) {
+              ASSERT_EQ(out_c[i], out_simd[i])
+                  << "1D mismatch at i=" << i << " p=" << p << " q=" << q
+                  << " a=" << a << " sub=" << sub << " mode=" << mode;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+TEST(LanczosResampleSimdTest, ResamplePlane2DHighbdBitExact) {
+  ::libavm_test::ACMRandom rnd(::libavm_test::ACMRandom::DeterministicSeed());
+  struct ScaleCase {
+    int in_w, in_h, out_w, out_h;
+    int dh, nh, dv, nv;
+  };
+  static const ScaleCase kCases[] = {
+    { 64, 48, 48, 36, 4, 3, 4, 3 },    // 3/4 downscale
+    { 64, 48, 32, 24, 2, 1, 2, 1 },    // 1/2 downscale
+    { 48, 36, 64, 48, 3, 4, 3, 4 },    // 4/3 upscale
+    { 32, 24, 64, 48, 1, 2, 1, 2 },    // 2x upscale
+    { 96, 54, 78, 43, 16, 13, 5, 4 },  // anisotropic (13/16 x 4/5) + odd height
+    { 50, 38, 35, 27, 10, 7, 11, 8 },  // non-multiple of 8 width/height
+    { 48, 32, 36, 32, 4, 3, 1, 1 },    // horizontal-only scale
+    { 48, 32, 48, 24, 1, 1, 4, 3 },    // vertical-only scale
+  };
+
+  for (const auto &sc : kCases) {
+    for (int bd : { 8, 10, 12 }) {
+      const uint16_t mask = static_cast<uint16_t>((1 << bd) - 1);
+      for (int sub : { 0, 1 }) {
+        for (int a : { 3, 5 }) {
+          const int in_stride = sc.in_w + 7;
+          const int out_stride = sc.out_w + 5;
+          std::vector<uint16_t> src(sc.in_h * in_stride, 0);
+          std::vector<uint16_t> dst_c(sc.out_h * out_stride, 0);
+          std::vector<uint16_t> dst_simd(sc.out_h * out_stride, 0);
+
+          for (int pattern = 0; pattern < 3; ++pattern) {
+            for (int r = 0; r < sc.in_h; ++r) {
+              for (int c = 0; c < sc.in_w; ++c) {
+                if (pattern == 0) {
+                  src[r * in_stride + c] = rnd.Rand16() & mask;
+                } else if (pattern == 1) {
+                  src[r * in_stride + c] = ((r + c) & 1) ? mask : 0;
+                } else {
+                  src[r * in_stride + c] =
+                      static_cast<uint16_t>(((r * 17 + c * 31) & mask));
+                }
+              }
+            }
+            av2_resample_plane_2d_lanczos_hv_c(
+                src.data(), sc.in_h, sc.in_w, in_stride, dst_c.data(), sc.out_h,
+                sc.out_w, out_stride, sub, sub, bd, sc.dh, sc.nh, sc.dv, sc.nv,
+                a, a);
+            av2_resample_plane_2d_lanczos_hv(
+                src.data(), sc.in_h, sc.in_w, in_stride, dst_simd.data(),
+                sc.out_h, sc.out_w, out_stride, sub, sub, bd, sc.dh, sc.nh,
+                sc.dv, sc.nv, a, a);
+            for (int r = 0; r < sc.out_h; ++r) {
+              for (int c = 0; c < sc.out_w; ++c) {
+                ASSERT_EQ(dst_c[r * out_stride + c],
+                          dst_simd[r * out_stride + c])
+                    << "2D highbd mismatch at (" << r << ", " << c
+                    << ") bd=" << bd << " sub=" << sub << " a=" << a
+                    << " pattern=" << pattern << " out=" << sc.out_w << "x"
+                    << sc.out_h;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+TEST(LanczosResampleSimdTest, ResamplePlane2D8bBitExact) {
+  ::libavm_test::ACMRandom rnd(::libavm_test::ACMRandom::DeterministicSeed());
+  struct ScaleCase8b {
+    int in_w, in_h, out_w, out_h, denom, num;
+  };
+  static const ScaleCase8b kCases[] = {
+    { 64, 48, 48, 36, 4, 3 }, { 64, 48, 32, 24, 2, 1 },
+    { 48, 36, 64, 48, 3, 4 }, { 32, 24, 64, 48, 1, 2 },
+    { 53, 37, 40, 28, 4, 3 },
+  };
+  for (const auto &sc : kCases) {
+    for (int sub : { 0, 1 }) {
+      for (int a : { 3, 5 }) {
+        const int in_stride = sc.in_w + 5;
+        const int out_stride = sc.out_w + 3;
+        std::vector<uint8_t> src(sc.in_h * in_stride, 0);
+        std::vector<uint8_t> dst_c(sc.out_h * out_stride, 0);
+        std::vector<uint8_t> dst_simd(sc.out_h * out_stride, 0);
+        for (int pattern = 0; pattern < 2; ++pattern) {
+          for (int r = 0; r < sc.in_h; ++r) {
+            for (int c = 0; c < sc.in_w; ++c) {
+              src[r * in_stride + c] =
+                  (pattern == 0)
+                      ? rnd.Rand8()
+                      : static_cast<uint8_t>(((r ^ c) & 1) ? 255 : 0);
+            }
+          }
+          av2_resample_plane_2d_8b_lanczos_c(
+              src.data(), sc.in_h, sc.in_w, in_stride, dst_c.data(), sc.out_h,
+              sc.out_w, out_stride, sub, sub, 8, sc.denom, sc.num, a, a);
+          av2_resample_plane_2d_8b_lanczos(src.data(), sc.in_h, sc.in_w,
+                                           in_stride, dst_simd.data(), sc.out_h,
+                                           sc.out_w, out_stride, sub, sub, 8,
+                                           sc.denom, sc.num, a, a);
+          for (int r = 0; r < sc.out_h; ++r) {
+            for (int c = 0; c < sc.out_w; ++c) {
+              ASSERT_EQ(dst_c[r * out_stride + c], dst_simd[r * out_stride + c])
+                  << "2D 8b mismatch at (" << r << ", " << c << ") sub=" << sub
+                  << " a=" << a << " pattern=" << pattern;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+TEST(LanczosResampleSimdTest, Resample2DBordersAndEdgeCasesBitExact) {
+  ::libavm_test::ACMRandom rnd(::libavm_test::ACMRandom::DeterministicSeed());
+  struct DimCase {
+    int in_w, in_h, out_w, out_h, p, q;
+  };
+  // Covers vertical SIMD threshold widths (1, 7, 8, 9) and short heights
+  // (in_h=4 < taps/2) exercising clamped border reflections.
+  static const DimCase kDims[] = {
+    { 2, 4, 1, 3, 2, 3 },   { 10, 4, 7, 3, 2, 3 }, { 12, 12, 8, 9, 3, 4 },
+    { 14, 12, 9, 9, 2, 3 }, { 7, 6, 9, 8, 4, 3 },  { 11, 9, 8, 7, 3, 4 },
+  };
+  static const EXT_TYPE kExts[] = { EXT_REPEAT, EXT_SYMMETRIC, EXT_REFLECT,
+                                    EXT_GRADIENT };
+
+  for (const auto &dc : kDims) {
+    for (EXT_TYPE ext : kExts) {
+      RationalResampleFilter rfh, rfv;
+      ASSERT_EQ(get_resample_filter(dc.p, dc.q, 5, static_cast<double>('c'),
+                                    ext, WIN_LANCZOS, 0, 14, &rfh),
+                1);
+      ASSERT_EQ(get_resample_filter(dc.p, dc.q, 5, static_cast<double>('c'),
+                                    ext, WIN_LANCZOS, 0, 14, &rfv),
+                1);
+
+      const int in_stride = dc.in_w + 3;
+      const int out_stride = dc.out_w + 3;
+
+      // 16-bit 2D: test clip={10,0}, clip={16,1} (can_simd_clip=false), and
+      // clip=NULL with int_extra_bits in {0, 4}.
+      std::vector<int16_t> src16(dc.in_h * in_stride);
+      std::vector<int16_t> dst16_c(dc.out_h * out_stride, 0);
+      std::vector<int16_t> dst16_simd(dc.out_h * out_stride, 0);
+      for (size_t i = 0; i < src16.size(); ++i) {
+        src16[i] = static_cast<int16_t>((rnd.Rand16() & 0x7ff) - 512);
+      }
+      ClipProfile clip10 = { 10, 0 };
+      ClipProfile clip16_signed = { 16, 1 };
+      ClipProfile *clips16[] = { &clip10, &clip16_signed, NULL };
+      for (ClipProfile *cp : clips16) {
+        for (int extra_bits : { 0, 4 }) {
+          av2_resample_2d_c(src16.data(), dc.in_w, dc.in_h, in_stride, &rfh,
+                            &rfv, extra_bits, cp, dst16_c.data(), dc.out_w,
+                            dc.out_h, out_stride);
+          av2_resample_2d(src16.data(), dc.in_w, dc.in_h, in_stride, &rfh, &rfv,
+                          extra_bits, cp, dst16_simd.data(), dc.out_w, dc.out_h,
+                          out_stride);
+          for (int r = 0; r < dc.out_h; ++r) {
+            for (int c = 0; c < dc.out_w; ++c) {
+              ASSERT_EQ(dst16_c[r * out_stride + c],
+                        dst16_simd[r * out_stride + c])
+                  << "2D 16b edge mismatch at (" << r << ", " << c
+                  << ") out_w=" << dc.out_w << " ext=" << ext;
+            }
+          }
+        }
+      }
+
+      // 8-bit 2D: test clip={8,0}, clip={10,0} (can_simd_clip=false), and
+      // clip=NULL (can_simd_clip=false).
+      std::vector<uint8_t> src8(dc.in_h * in_stride);
+      std::vector<uint8_t> dst8_c(dc.out_h * out_stride, 0);
+      std::vector<uint8_t> dst8_simd(dc.out_h * out_stride, 0);
+      for (size_t i = 0; i < src8.size(); ++i) src8[i] = rnd.Rand8();
+      ClipProfile clip8 = { 8, 0 };
+      ClipProfile *clips8[] = { &clip8, &clip10, NULL };
+      for (ClipProfile *cp : clips8) {
+        av2_resample_2d_8b_c(src8.data(), dc.in_w, dc.in_h, in_stride, &rfh,
+                             &rfv, 4, cp, dst8_c.data(), dc.out_w, dc.out_h,
+                             out_stride);
+        av2_resample_2d_8b(src8.data(), dc.in_w, dc.in_h, in_stride, &rfh, &rfv,
+                           4, cp, dst8_simd.data(), dc.out_w, dc.out_h,
+                           out_stride);
+        for (int r = 0; r < dc.out_h; ++r) {
+          for (int c = 0; c < dc.out_w; ++c) {
+            ASSERT_EQ(dst8_c[r * out_stride + c], dst8_simd[r * out_stride + c])
+                << "2D 8b edge mismatch at (" << r << ", " << c
+                << ") out_w=" << dc.out_w << " ext=" << ext;
+          }
+        }
+      }
+    }
+  }
+}
+
+TEST(LanczosResampleSimdTest, DISABLED_Speed) {
+  ::libavm_test::ACMRandom rnd(::libavm_test::ACMRandom::DeterministicSeed());
+  const int in_w = 1920, in_h = 1080;
+  const int out_w = 1280, out_h = 720;
+  std::vector<uint16_t> src(in_w * in_h);
+  std::vector<uint16_t> dst_c(out_w * out_h);
+  std::vector<uint16_t> dst_simd(out_w * out_h);
+  for (size_t i = 0; i < src.size(); ++i) src[i] = rnd.Rand16() & 0x3ff;
+
+  const int loops = 20;
+  avm_usec_timer timer;
+  avm_usec_timer_start(&timer);
+  for (int i = 0; i < loops; ++i) {
+    av2_resample_plane_2d_lanczos_hv_c(src.data(), in_h, in_w, in_w,
+                                       dst_c.data(), out_h, out_w, out_w, 0, 0,
+                                       10, 3, 2, 3, 2, 5, 5);
+  }
+  avm_usec_timer_mark(&timer);
+  const double elapsed_c = static_cast<double>(avm_usec_timer_elapsed(&timer));
+
+  avm_usec_timer_start(&timer);
+  for (int i = 0; i < loops; ++i) {
+    av2_resample_plane_2d_lanczos_hv(src.data(), in_h, in_w, in_w,
+                                     dst_simd.data(), out_h, out_w, out_w, 0, 0,
+                                     10, 3, 2, 3, 2, 5, 5);
+  }
+  avm_usec_timer_mark(&timer);
+  const double elapsed_simd =
+      static_cast<double>(avm_usec_timer_elapsed(&timer));
+
+  printf("Lanczos 1920x1080->1280x720: C %.2f ms  SIMD %.2f ms (%.2fx)\n",
+         elapsed_c / (1000.0 * loops), elapsed_simd / (1000.0 * loops),
+         elapsed_simd > 0 ? elapsed_c / elapsed_simd : 0.0);
+}
+#endif  // !CONFIG_SHARED
 
 }  // namespace

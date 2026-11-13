@@ -17,6 +17,12 @@
 #include <string.h>
 #include <assert.h>
 
+#include "config/avm_config.h"
+
+#if HAVE_SSE2 && CONFIG_RUNTIME_CPU_DETECT
+#include "avm_ports/x86.h"
+#endif
+
 #include "common/lanczos_resample.h"
 
 /* Shift down with rounding for use when n >= 0, value >= 0 */
@@ -259,6 +265,7 @@ const char *ext2str(EXT_TYPE ext_type) { return ext_names[(int)ext_type]; }
 int get_resample_filter(int p, int q, int a, double x0, EXT_TYPE ext_type,
                         WIN_TYPE win_type, int subsampled, int bits,
                         RationalResampleFilter *rf) {
+  memset(rf, 0, sizeof(*rf));
   // Sized MAX_RATIONAL_FACTOR + 1 because offset[rf->p] and intpel[rf->p] are
   // written below to compute the final phase step rf->steps[rf->p - 1].
   double offset[MAX_RATIONAL_FACTOR + 1];
@@ -337,31 +344,60 @@ int get_resample_filter_inv(int p, int q, int a, double x0, EXT_TYPE ext_type,
                              rf);
 }
 
+static inline int clip_to_profile(int sum, const ClipProfile *clip) {
+  if (clip) {
+    return clip->issigned ? doclip(sum, -(1 << (clip->bits - 1)),
+                                   (1 << (clip->bits - 1)) - 1)
+                          : doclip(sum, 0, (1 << clip->bits) - 1);
+  }
+  return doclip(sum, -(1 << 15), (1 << 15) - 1);
+}
+
+#if HAVE_SSE2
+static inline bool lanczos_has_sse2(void) {
+#if CONFIG_RUNTIME_CPU_DETECT
+  return (x86_simd_caps() & HAS_SSE2) != 0;
+#else
+  return true;
+#endif
+}
+#endif
+
 // Assume x buffer is already extended on both sides with x pointing to the
 // leftmost pixel, and the extension values are already filled up.
+static void resample_1d_core_c(const int16_t *x, int inlen,
+                               RationalResampleFilter *rf, int downshift,
+                               ClipProfile *clip, int16_t *y, int outlen) {
+  (void)inlen;
+  assert(rf->filter_bits <= 14);
+  assert(downshift >= 0 && downshift <= 30);
+  const int L = rf->length;
+  const int tapsby2 = L / 2;
+  const int16_t *xext = x + rf->start;
+  for (int i = 0, p = 0; i < outlen; ++i) {
+    int32_t sum = 0;
+    const int16_t *const f = rf->filter[p];
+    const int16_t *const src = xext - tapsby2 + 1;
+    for (int k = 0; k < L; ++k) {
+      sum += (int32_t)f[k] * (int32_t)src[k];
+    }
+    sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
+    y[i] = (int16_t)clip_to_profile(sum, clip);
+    xext += rf->steps[p];
+    if (++p == rf->p) p = 0;
+  }
+}
+
 static void resample_1d_core(const int16_t *x, int inlen,
                              RationalResampleFilter *rf, int downshift,
                              ClipProfile *clip, int16_t *y, int outlen) {
-  (void)inlen;
-  const int tapsby2 = rf->length / 2;
-  const int16_t *xext = x;
-  xext += rf->start;
-  for (int i = 0, p = 0; i < outlen; ++i, p = (p + 1) % rf->p) {
-    int64_t sum = 0;
-    for (int j = -tapsby2 + 1; j <= tapsby2; ++j) {
-      sum += (int)rf->filter[p][j + tapsby2 - 1] * (int)xext[j];
-    }
-    sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
-    if (clip) {
-      y[i] = (int16_t)(clip->issigned
-                           ? doclip((int)sum, -(1 << (clip->bits - 1)),
-                                    (1 << (clip->bits - 1)) - 1)
-                           : doclip((int)sum, 0, (1 << clip->bits) - 1));
-    } else {
-      y[i] = (int16_t)doclip((int)sum, -(1 << 15), (1 << 15) - 1);
-    }
-    xext += rf->steps[p];
+#if HAVE_SSE2
+  if (lanczos_has_sse2()) {
+    av2_resample_1d_core_sse2(x, inlen, rf, downshift, clip, y, outlen);
+    return;
   }
+#endif
+  resample_1d_core_c(x, inlen, rf, downshift, clip, y, outlen);
 }
 
 // Computes the exact right-hand input extension needed for outlen samples:
@@ -412,15 +448,24 @@ static void extend_border_lr(int16_t *x, int inlen, EXT_TYPE ext_type,
       break;
     case EXT_GRADIENT:
       if (inlen > left_border && inlen > right_border) {
-        for (int i = -left_border; i < 0; ++i) x[i] = 2 * x[0] - x[-i];
-        for (int i = 0; i < right_border; ++i)
-          x[i + inlen] = 2 * x[inlen - 1] - x[inlen - 2 - i];
+        for (int i = -left_border; i < 0; ++i) {
+          const int t = 2 * x[0] - x[-i];
+          x[i] = (int16_t)doclip(t, INT16_MIN, INT16_MAX);
+        }
+        for (int i = 0; i < right_border; ++i) {
+          const int t = 2 * x[inlen - 1] - x[inlen - 2 - i];
+          x[i + inlen] = (int16_t)doclip(t, INT16_MIN, INT16_MAX);
+        }
       } else {
-        for (int i = -left_border; i < 0; ++i)
-          x[i] = 2 * x[0] - x[(-i > inlen - 1 ? inlen - 1 : -i)];
-        for (int i = 0; i < right_border; ++i)
-          x[i + inlen] =
+        for (int i = -left_border; i < 0; ++i) {
+          const int t = 2 * x[0] - x[(-i > inlen - 1 ? inlen - 1 : -i)];
+          x[i] = (int16_t)doclip(t, INT16_MIN, INT16_MAX);
+        }
+        for (int i = 0; i < right_border; ++i) {
+          const int t =
               2 * x[inlen - 1] - x[(inlen - 2 - i < 0 ? 0 : inlen - 2 - i)];
+          x[i + inlen] = (int16_t)doclip(t, INT16_MIN, INT16_MAX);
+        }
       }
       break;
   }
@@ -467,12 +512,41 @@ static void fill_arr_to_col(int16_t *img, int stride, int len,
   }
 }
 
+static void resample_1d_xt_c(int16_t *x, int inlen, RationalResampleFilter *rf,
+                             int downshift, ClipProfile *clip, int16_t *y,
+                             int outlen) {
+  const int right_border = get_resample_right_border(inlen, outlen, rf);
+  extend_border_lr(x, inlen, rf->ext_type, rf->length / 2, right_border);
+  resample_1d_core_c(x, inlen, rf, downshift, clip, y, outlen);
+}
+
+static void resample_1d_xc_c(const int16_t *x, int inlen,
+                             RationalResampleFilter *rf, int downshift,
+                             ClipProfile *clip, int16_t *y, int outlen,
+                             int16_t *xext) {
+  memcpy(xext, x, sizeof(*x) * inlen);
+  resample_1d_xt_c(xext, inlen, rf, downshift, clip, y, outlen);
+}
+
+void resample_1d_c(const int16_t *x, int inlen, RationalResampleFilter *rf,
+                   int downshift, ClipProfile *clip, int16_t *y, int outlen) {
+  const int tapsby2 = rf->length / 2;
+  const int right_border = get_resample_right_border(inlen, outlen, rf);
+  int16_t *xext_ =
+      (int16_t *)calloc(tapsby2 + inlen + right_border, sizeof(*x));
+  int16_t *xext = xext_ + tapsby2;
+
+  resample_1d_xc_c(x, inlen, rf, downshift, clip, y, outlen, xext);
+
+  free(xext_);
+}
+
 void resample_1d(const int16_t *x, int inlen, RationalResampleFilter *rf,
                  int downshift, ClipProfile *clip, int16_t *y, int outlen) {
   const int tapsby2 = rf->length / 2;
   const int right_border = get_resample_right_border(inlen, outlen, rf);
   int16_t *xext_ =
-      (int16_t *)malloc((tapsby2 + inlen + right_border) * sizeof(*x));
+      (int16_t *)calloc(tapsby2 + inlen + right_border, sizeof(*x));
   int16_t *xext = xext_ + tapsby2;
 
   resample_1d_xc(x, inlen, rf, downshift, clip, y, outlen, xext);
@@ -480,10 +554,124 @@ void resample_1d(const int16_t *x, int inlen, RationalResampleFilter *rf,
   free(xext_);
 }
 
+#if !HAVE_SSE2 || CONFIG_RUNTIME_CPU_DETECT
+static inline int map_border_idx(int idx, int inlen, EXT_TYPE ext_type) {
+  assert(inlen > 0);
+  if (idx >= 0 && idx < inlen) return idx;
+  switch (ext_type) {
+    case EXT_REPEAT: return (idx < 0) ? 0 : (inlen - 1);
+    case EXT_SYMMETRIC:
+      if (idx < 0) {
+        return (-idx - 1 > inlen - 1) ? (inlen - 1) : (-idx - 1);
+      } else {
+        const int i = idx - inlen;
+        return (inlen - 1 - i < 0) ? 0 : (inlen - 1 - i);
+      }
+    case EXT_REFLECT:
+      if (idx < 0) {
+        return (-idx > inlen - 1) ? (inlen - 1) : (-idx);
+      } else {
+        const int i = idx - inlen;
+        return (inlen - 2 - i < 0) ? 0 : (inlen - 2 - i);
+      }
+    default: return 0;
+  }
+}
+#endif  // !HAVE_SSE2 || CONFIG_RUNTIME_CPU_DETECT
+
+static void resample_vert_rows_16b(const int16_t *src, int width, int inheight,
+                                   int instride, RationalResampleFilter *rfv,
+                                   int downshift, ClipProfile *clip,
+                                   int16_t *dst, int outheight, int outstride) {
+  assert(rfv->filter_bits <= 14);
+  assert(downshift >= 0 && downshift <= 30);
+#if HAVE_SSE2
+  if (lanczos_has_sse2()) {
+    av2_resample_vert_rows_16b_sse2(src, width, inheight, instride, rfv,
+                                    downshift, clip, dst, outheight, outstride);
+    return;
+  }
+#endif
+#if !HAVE_SSE2 || CONFIG_RUNTIME_CPU_DETECT
+  const int L = rfv->length;
+  const int tapsby2 = L / 2;
+  const int16_t *row_ptrs[MAX_FILTER_LEN];
+  int r_center = rfv->start;
+  int p = 0;
+  for (int out_r = 0; out_r < outheight; ++out_r) {
+    const int16_t *const f = rfv->filter[p];
+    int16_t *const out_row = dst + (size_t)out_r * outstride;
+    for (int k = 0; k < L; ++k) {
+      const int src_r =
+          map_border_idx(r_center - tapsby2 + 1 + k, inheight, rfv->ext_type);
+      row_ptrs[k] = src + (size_t)src_r * instride;
+    }
+    for (int col = 0; col < width; ++col) {
+      int32_t sum = 0;
+      for (int k = 0; k < L; ++k) {
+        sum += (int32_t)f[k] * (int32_t)row_ptrs[k][col];
+      }
+      sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
+      out_row[col] = (int16_t)clip_to_profile(sum, clip);
+    }
+    r_center += rfv->steps[p];
+    if (++p == rfv->p) p = 0;
+  }
+#endif
+}
+
+static void resample_vert_rows_out8b(const int16_t *src, int width,
+                                     int inheight, int instride,
+                                     RationalResampleFilter *rfv, int downshift,
+                                     ClipProfile *clip, uint8_t *dst,
+                                     int outheight, int outstride) {
+  assert(rfv->filter_bits <= 14);
+  assert(downshift >= 0 && downshift <= 30);
+#if HAVE_SSE2
+  if (lanczos_has_sse2()) {
+    av2_resample_vert_rows_out8b_sse2(src, width, inheight, instride, rfv,
+                                      downshift, clip, dst, outheight,
+                                      outstride);
+    return;
+  }
+#endif
+#if !HAVE_SSE2 || CONFIG_RUNTIME_CPU_DETECT
+  const int L = rfv->length;
+  const int tapsby2 = L / 2;
+  const int16_t *row_ptrs[MAX_FILTER_LEN];
+  int r_center = rfv->start;
+  int p = 0;
+  for (int out_r = 0; out_r < outheight; ++out_r) {
+    const int16_t *const f = rfv->filter[p];
+    uint8_t *const out_row = dst + (size_t)out_r * outstride;
+    for (int k = 0; k < L; ++k) {
+      const int src_r =
+          map_border_idx(r_center - tapsby2 + 1 + k, inheight, rfv->ext_type);
+      row_ptrs[k] = src + (size_t)src_r * instride;
+    }
+    for (int col = 0; col < width; ++col) {
+      int32_t sum = 0;
+      for (int k = 0; k < L; ++k) {
+        sum += (int32_t)f[k] * (int32_t)row_ptrs[k][col];
+      }
+      sum = ROUND_POWER_OF_TWO_SIGNED(sum, downshift);
+      if (clip) {
+        out_row[col] = (uint8_t)clip_to_profile(sum, clip);
+      } else {
+        out_row[col] = (uint8_t)sum;
+      }
+    }
+    r_center += rfv->steps[p];
+    if (++p == rfv->p) p = 0;
+  }
+#endif
+}
+
 void av2_resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
                      RationalResampleFilter *rfh, RationalResampleFilter *rfv,
                      int int_extra_bits, ClipProfile *clip, int16_t *y,
                      int outwidth, int outheight, int outstride) {
+  if (inwidth <= 0 || inheight <= 0 || outwidth <= 0 || outheight <= 0) return;
   if (rfv == NULL || is_resampler_noop(rfv)) {
     resample_horz(x, inwidth, inheight, instride, rfh, clip, y, outwidth,
                   outstride);
@@ -494,23 +682,38 @@ void av2_resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
                   outstride);
     return;
   }
-  int16_t *tmpbuf = (int16_t *)malloc(sizeof(int16_t) * outwidth * inheight);
+  int16_t *tmpbuf =
+      (int16_t *)calloc((size_t)outwidth * inheight, sizeof(int16_t));
   const int left_h = rfh->length / 2;
   const int right_h = get_resample_right_border(inwidth, outwidth, rfh);
+  const int span_h = left_h + inwidth + right_h;
+  int tmpstride = outwidth;
+  // intermediate data is stored in 16 bit buffers, so limit int_extra_bits
+  const int clip_bits = clip ? clip->bits : 14;
+  int_extra_bits = MAX(0, MIN(int_extra_bits, 14 - clip_bits));
+  const int downshifth = rfh->filter_bits - int_extra_bits;
+  const int downshiftv = rfh->filter_bits + int_extra_bits;
+  if (rfv->ext_type != EXT_GRADIENT) {
+    int16_t *tmparr_ = (int16_t *)calloc(span_h, sizeof(int16_t));
+    int16_t *tmparrh = tmparr_ + left_h;
+    for (int i = 0; i < inheight; ++i) {
+      resample_1d_xc(x + instride * i, inwidth, rfh, downshifth, NULL,
+                     tmpbuf + i * tmpstride, outwidth, tmparrh);
+    }
+    resample_vert_rows_16b(tmpbuf, outwidth, inheight, tmpstride, rfv,
+                           downshiftv, clip, y, outheight, outstride);
+    free(tmpbuf);
+    free(tmparr_);
+    return;
+  }
   const int left_v = rfv->length / 2;
   const int right_v = get_resample_right_border(inheight, outheight, rfv);
-  const int span_h = left_h + inwidth + right_h;
   const int span_v = left_v + inheight + right_v;
   const int arrsize = outheight + MAX(span_h, span_v);
   int16_t *tmparr_ = (int16_t *)calloc(arrsize, sizeof(int16_t));
   int16_t *tmparrh = tmparr_ + outheight + left_h;
   int16_t *tmparrv = tmparr_ + outheight + left_v;
   int16_t *tmparro = tmparr_;
-  int tmpstride = outwidth;
-  // intermediate data is stored in 16 bit buffers, so limit int_extra_bits
-  int_extra_bits = MIN(int_extra_bits, 14 - clip->bits);
-  const int downshifth = rfh->filter_bits - int_extra_bits;
-  const int downshiftv = rfh->filter_bits + int_extra_bits;
   for (int i = 0; i < inheight; ++i) {
     resample_1d_xc(x + instride * i, inwidth, rfh, downshifth, NULL,
                    tmpbuf + i * tmpstride, outwidth, tmparrh);
@@ -549,6 +752,11 @@ void resample_horz(const int16_t *x, int inwidth, int inheight, int instride,
 void resample_vert(const int16_t *x, int inwidth, int inheight, int instride,
                    RationalResampleFilter *rfv, ClipProfile *clip, int16_t *y,
                    int outheight, int outstride) {
+  if (rfv->ext_type != EXT_GRADIENT) {
+    resample_vert_rows_16b(x, inwidth, inheight, instride, rfv,
+                           rfv->filter_bits, clip, y, outheight, outstride);
+    return;
+  }
   const int left_v = rfv->length / 2;
   const int right_v = get_resample_right_border(inheight, outheight, rfv);
   const int arrsize = outheight + left_v + inheight + right_v;
@@ -731,7 +939,7 @@ void resample_1d_8b(const uint8_t *x, int inlen, RationalResampleFilter *rf,
   const int tapsby2 = rf->length / 2;
   const int right_border = get_resample_right_border(inlen, outlen, rf);
   uint8_t *xext_ =
-      (uint8_t *)malloc((tapsby2 + inlen + right_border) * sizeof(*x));
+      (uint8_t *)calloc(tapsby2 + inlen + right_border, sizeof(*x));
   uint8_t *xext = xext_ + tapsby2;
 
   resample_1d_xc_8b(x, inlen, rf, downshift, clip, y, outlen, xext);
@@ -744,6 +952,7 @@ void av2_resample_2d_8b(const uint8_t *x, int inwidth, int inheight,
                         RationalResampleFilter *rfv, int int_extra_bits,
                         ClipProfile *clip, uint8_t *y, int outwidth,
                         int outheight, int outstride) {
+  if (inwidth <= 0 || inheight <= 0 || outwidth <= 0 || outheight <= 0) return;
   if (rfv == NULL || is_resampler_noop(rfv)) {
     resample_horz_8b(x, inwidth, inheight, instride, rfh, clip, y, outwidth,
                      outstride);
@@ -754,23 +963,40 @@ void av2_resample_2d_8b(const uint8_t *x, int inwidth, int inheight,
                      outstride);
     return;
   }
-  int16_t *tmpbuf = (int16_t *)malloc(sizeof(int16_t) * outwidth * inheight);
+  int16_t *tmpbuf =
+      (int16_t *)calloc((size_t)outwidth * inheight, sizeof(int16_t));
   const int left_h = rfh->length / 2;
   const int right_h = get_resample_right_border(inwidth, outwidth, rfh);
+  const int span_h = left_h + inwidth + right_h;
+  int tmpstride = outwidth;
+  // intermediate data is stored in 16 bit buffers, so limit int_extra_bits
+  const int clip_bits = clip ? clip->bits : 14;
+  int_extra_bits = MAX(0, MIN(int_extra_bits, 14 - clip_bits));
+  const int downshifth = rfh->filter_bits - int_extra_bits;
+  const int downshiftv = rfh->filter_bits + int_extra_bits;
+  if (rfh->ext_type != EXT_GRADIENT && rfv->ext_type != EXT_GRADIENT) {
+    int16_t *tmparr_ = (int16_t *)calloc(span_h, sizeof(int16_t));
+    int16_t *tmparrh = tmparr_ + left_h;
+    for (int i = 0; i < inheight; ++i) {
+      const uint8_t *const x_row = x + (size_t)instride * i;
+      for (int c = 0; c < inwidth; ++c) tmparrh[c] = (int16_t)x_row[c];
+      resample_1d_xt(tmparrh, inwidth, rfh, downshifth, NULL,
+                     tmpbuf + (size_t)i * tmpstride, outwidth);
+    }
+    resample_vert_rows_out8b(tmpbuf, outwidth, inheight, tmpstride, rfv,
+                             downshiftv, clip, y, outheight, outstride);
+    free(tmpbuf);
+    free(tmparr_);
+    return;
+  }
   const int left_v = rfv->length / 2;
   const int right_v = get_resample_right_border(inheight, outheight, rfv);
-  const int span_h = left_h + inwidth + right_h;
   const int span_v = left_v + inheight + right_v;
   const int arrsize = outheight + MAX(span_h, span_v);
   int16_t *tmparr_ = (int16_t *)calloc(arrsize, sizeof(int16_t));
   int16_t *tmparrh = tmparr_ + outheight + left_h;
   int16_t *tmparrv = tmparr_ + outheight + left_v;
   int16_t *tmparro = tmparr_;
-  int tmpstride = outwidth;
-  // intermediate data is stored in 16 bit buffers, so limit int_extra_bits
-  int_extra_bits = MIN(int_extra_bits, 14 - clip->bits);
-  const int downshifth = rfh->filter_bits - int_extra_bits;
-  const int downshiftv = rfh->filter_bits + int_extra_bits;
   for (int i = 0; i < inheight; ++i) {
     resample_1d_xc_in8b(x + instride * i, inwidth, rfh, downshifth, NULL,
                         tmpbuf + i * tmpstride, outwidth, (uint8_t *)tmparrh);
@@ -956,4 +1182,201 @@ void av2_resample_plane_2d_8b_lanczos(const uint8_t *const input, int height,
   av2_resample_2d_8b(input, width, height, in_stride, &horz_rf, &vert_rf,
                      extra_prec_bits, &clip, output, width2, height2,
                      out_stride);
+}
+
+void av2_resample_2d_c(const int16_t *x, int inwidth, int inheight,
+                       int instride, RationalResampleFilter *rfh,
+                       RationalResampleFilter *rfv, int int_extra_bits,
+                       ClipProfile *clip, int16_t *y, int outwidth,
+                       int outheight, int outstride) {
+  if (inwidth <= 0 || inheight <= 0 || outwidth <= 0 || outheight <= 0) return;
+  if (rfv == NULL || is_resampler_noop(rfv)) {
+    if (rfh == NULL || is_resampler_noop(rfh)) {
+      for (int i = 0; i < inheight; ++i) {
+        memcpy(y + i * outstride, x + i * instride, inwidth * sizeof(*x));
+      }
+      return;
+    }
+    const int left_h = rfh->length / 2;
+    const int right_h = get_resample_right_border(inwidth, outwidth, rfh);
+    int16_t *tmparr_ =
+        (int16_t *)calloc(left_h + inwidth + right_h, sizeof(int16_t));
+    int16_t *tmparrh = tmparr_ + left_h;
+    for (int i = 0; i < inheight; ++i) {
+      resample_1d_xc_c(x + instride * i, inwidth, rfh, rfh->filter_bits, clip,
+                       y + i * outstride, outwidth, tmparrh);
+    }
+    free(tmparr_);
+    return;
+  }
+  if (rfh == NULL || is_resampler_noop(rfh)) {
+    const int left_v = rfv->length / 2;
+    const int right_v = get_resample_right_border(inheight, outheight, rfv);
+    const int arrsize = outheight + left_v + inheight + right_v;
+    int16_t *tmparr_ = (int16_t *)calloc(arrsize, sizeof(int16_t));
+    int16_t *tmparrv = tmparr_ + outheight + left_v;
+    int16_t *tmparro = tmparr_;
+    for (int i = 0; i < inwidth; ++i) {
+      fill_col_to_arr(x + i, instride, inheight, tmparrv);
+      resample_1d_xt_c(tmparrv, inheight, rfv, rfv->filter_bits, clip, tmparro,
+                       outheight);
+      fill_arr_to_col(y + i, outstride, outheight, tmparro);
+    }
+    free(tmparr_);
+    return;
+  }
+  int16_t *tmpbuf =
+      (int16_t *)calloc((size_t)outwidth * inheight, sizeof(int16_t));
+  const int left_h = rfh->length / 2;
+  const int right_h = get_resample_right_border(inwidth, outwidth, rfh);
+  const int span_h = left_h + inwidth + right_h;
+  const int left_v = rfv->length / 2;
+  const int right_v = get_resample_right_border(inheight, outheight, rfv);
+  const int span_v = left_v + inheight + right_v;
+  const int arrsize = outheight + MAX(span_h, span_v);
+  int16_t *tmparr_ = (int16_t *)calloc(arrsize, sizeof(int16_t));
+  int16_t *tmparrh = tmparr_ + outheight + left_h;
+  int16_t *tmparrv = tmparr_ + outheight + left_v;
+  int16_t *tmparro = tmparr_;
+  int tmpstride = outwidth;
+  const int clip_bits = clip ? clip->bits : 14;
+  int_extra_bits = MAX(0, MIN(int_extra_bits, 14 - clip_bits));
+  const int downshifth = rfh->filter_bits - int_extra_bits;
+  const int downshiftv = rfh->filter_bits + int_extra_bits;
+  for (int i = 0; i < inheight; ++i) {
+    resample_1d_xc_c(x + instride * i, inwidth, rfh, downshifth, NULL,
+                     tmpbuf + i * tmpstride, outwidth, tmparrh);
+  }
+  for (int i = 0; i < outwidth; ++i) {
+    fill_col_to_arr(tmpbuf + i, outwidth, inheight, tmparrv);
+    resample_1d_xt_c(tmparrv, inheight, rfv, downshiftv, clip, tmparro,
+                     outheight);
+    fill_arr_to_col(y + i, outstride, outheight, tmparro);
+  }
+  free(tmpbuf);
+  free(tmparr_);
+}
+
+void av2_resample_plane_2d_lanczos_hv_c(const uint16_t *const input, int height,
+                                        int width, int in_stride,
+                                        uint16_t *output, int height2,
+                                        int width2, int out_stride, int subx,
+                                        int suby, int bd, int denom_hor,
+                                        int num_hor, int denom_ver, int num_ver,
+                                        int lanczos_a_hor, int lanczos_a_ver) {
+  int coeff_prec_bits = 14;
+  int extra_prec_bits = 6;
+  WIN_TYPE win = WIN_LANCZOS;
+  EXT_TYPE ext = EXT_REPEAT;
+  ClipProfile clip = { bd, 0 };
+  double horz_x0 = subx ? (double)('d') : (double)('c');
+  double vert_x0 = (double)('c');
+  RationalResampleFilter horz_rf;
+  RationalResampleFilter vert_rf;
+
+  if (!get_resample_filter(num_hor, denom_hor, lanczos_a_hor, horz_x0, ext, win,
+                           subx, coeff_prec_bits, &horz_rf)) {
+    fprintf(stderr, "Cannot generate filter, exiting!\n");
+    exit(1);
+  }
+  if (!get_resample_filter(num_ver, denom_ver, lanczos_a_ver, vert_x0, ext, win,
+                           suby, coeff_prec_bits, &vert_rf)) {
+    fprintf(stderr, "Cannot generate filter, exiting!\n");
+    exit(1);
+  }
+
+  av2_resample_2d_c((const int16_t *)input, width, height, in_stride, &horz_rf,
+                    &vert_rf, extra_prec_bits, &clip, (int16_t *)output, width2,
+                    height2, out_stride);
+}
+
+void av2_resample_2d_8b_c(const uint8_t *x, int inwidth, int inheight,
+                          int instride, RationalResampleFilter *rfh,
+                          RationalResampleFilter *rfv, int int_extra_bits,
+                          ClipProfile *clip, uint8_t *y, int outwidth,
+                          int outheight, int outstride) {
+  if (inwidth <= 0 || inheight <= 0 || outwidth <= 0 || outheight <= 0) return;
+  if (rfv == NULL || is_resampler_noop(rfv)) {
+    resample_horz_8b(x, inwidth, inheight, instride, rfh, clip, y, outwidth,
+                     outstride);
+    return;
+  }
+  if (rfh == NULL || is_resampler_noop(rfh)) {
+    const int left_v = rfv->length / 2;
+    const int right_v = get_resample_right_border(inheight, outheight, rfv);
+    const int arrsize = outheight + left_v + inheight + right_v;
+    int16_t *tmparr_ = (int16_t *)calloc(arrsize, sizeof(int16_t));
+    int16_t *tmparrv = tmparr_ + outheight + left_v;
+    int16_t *tmparro = tmparr_;
+    for (int i = 0; i < inwidth; ++i) {
+      fill_col_to_arr_in8b(x + i, instride, inheight, tmparrv);
+      resample_1d_xt_c(tmparrv, inheight, rfv, rfv->filter_bits, clip, tmparro,
+                       outheight);
+      fill_arr_to_col_out8b(y + i, outstride, outheight, tmparro);
+    }
+    free(tmparr_);
+    return;
+  }
+  int16_t *tmpbuf =
+      (int16_t *)calloc((size_t)outwidth * inheight, sizeof(int16_t));
+  const int left_h = rfh->length / 2;
+  const int right_h = get_resample_right_border(inwidth, outwidth, rfh);
+  const int span_h = left_h + inwidth + right_h;
+  const int left_v = rfv->length / 2;
+  const int right_v = get_resample_right_border(inheight, outheight, rfv);
+  const int span_v = left_v + inheight + right_v;
+  const int arrsize = outheight + MAX(span_h, span_v);
+  int16_t *tmparr_ = (int16_t *)calloc(arrsize, sizeof(int16_t));
+  int16_t *tmparrh = tmparr_ + outheight + left_h;
+  int16_t *tmparrv = tmparr_ + outheight + left_v;
+  int16_t *tmparro = tmparr_;
+  int tmpstride = outwidth;
+  const int clip_bits = clip ? clip->bits : 14;
+  int_extra_bits = MAX(0, MIN(int_extra_bits, 14 - clip_bits));
+  const int downshifth = rfh->filter_bits - int_extra_bits;
+  const int downshiftv = rfh->filter_bits + int_extra_bits;
+  for (int i = 0; i < inheight; ++i) {
+    resample_1d_xc_in8b(x + instride * i, inwidth, rfh, downshifth, NULL,
+                        tmpbuf + i * tmpstride, outwidth, (uint8_t *)tmparrh);
+  }
+  for (int i = 0; i < outwidth; ++i) {
+    fill_col_to_arr(tmpbuf + i, outwidth, inheight, tmparrv);
+    resample_1d_xt_c(tmparrv, inheight, rfv, downshiftv, clip, tmparro,
+                     outheight);
+    fill_arr_to_col_out8b(y + i, outstride, outheight, tmparro);
+  }
+  free(tmpbuf);
+  free(tmparr_);
+}
+
+void av2_resample_plane_2d_8b_lanczos_c(const uint8_t *const input, int height,
+                                        int width, int in_stride,
+                                        uint8_t *output, int height2,
+                                        int width2, int out_stride, int subx,
+                                        int suby, int bd, int denom, int num,
+                                        int lanczos_a_hor, int lanczos_a_ver) {
+  int coeff_prec_bits = 14;
+  int extra_prec_bits = 6;
+  WIN_TYPE win = WIN_LANCZOS;
+  EXT_TYPE ext = EXT_REPEAT;
+  ClipProfile clip = { bd, 0 };
+  double horz_x0 = subx ? (double)('d') : (double)('c');
+  double vert_x0 = (double)('c');
+  RationalResampleFilter horz_rf;
+  RationalResampleFilter vert_rf;
+
+  if (!get_resample_filter(num, denom, lanczos_a_hor, horz_x0, ext, win, subx,
+                           coeff_prec_bits, &horz_rf)) {
+    fprintf(stderr, "Cannot generate filter, exiting!\n");
+    exit(1);
+  }
+  if (!get_resample_filter(num, denom, lanczos_a_ver, vert_x0, ext, win, suby,
+                           coeff_prec_bits, &vert_rf)) {
+    fprintf(stderr, "Cannot generate filter, exiting!\n");
+    exit(1);
+  }
+
+  av2_resample_2d_8b_c(input, width, height, in_stride, &horz_rf, &vert_rf,
+                       extra_prec_bits, &clip, output, width2, height2,
+                       out_stride);
 }

@@ -167,6 +167,37 @@ class AV2ExtHighbdWarpFilterTest
   libavm_test::ACMRandom rnd_;
 };
 
+typedef void (*ext_highbd_warp_affine_scaled_func)(
+    const int32_t *mat, const uint16_t *ref, int width, int height, int stride,
+    uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
+    int p_stride, int subsampling_x, int subsampling_y, int bd,
+    ConvolveParams *conv_params, const struct scale_factors *sf,
+    int use_warp_bd_box, PadBlock *warp_bd_box);
+
+typedef ::testing::tuple<int, int, int, int, ext_highbd_warp_affine_scaled_func>
+    ExtHighbdWarpScaledTestParam;
+typedef ::testing::tuple<ExtHighbdWarpScaledTestParam, int, int, int, int>
+    ExtHighbdWarpScaledTestParams;
+
+::testing::internal::ParamGenerator<ExtHighbdWarpScaledTestParams>
+BuildScaledParams(ext_highbd_warp_affine_scaled_func filter);
+
+class AV2ExtHighbdWarpFilterScaledTest
+    : public ::testing::TestWithParam<ExtHighbdWarpScaledTestParams> {
+ public:
+  virtual ~AV2ExtHighbdWarpFilterScaledTest();
+  virtual void SetUp();
+
+  virtual void TearDown();
+
+ protected:
+  void RunCheckOutput(ext_highbd_warp_affine_scaled_func test_impl);
+  void RunSpeedTest(ext_highbd_warp_affine_scaled_func test_impl);
+  void RunBoundaryCheck(ext_highbd_warp_affine_scaled_func test_impl, int mode);
+
+  libavm_test::ACMRandom rnd_;
+};
+
 }  // namespace AV2ExtHighbdWarpFilter
 }  // namespace libavm_test
 
