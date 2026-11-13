@@ -1021,6 +1021,7 @@ static INLINE int reuse_comp_mv_for_opfl(const AV2_COMMON *const cm,
                                          int_mv *cur_mv, int *rate_mv) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
+  if (mbmi->mode < NEAR_NEARMV_OPTFLOW) return 0;
   MvSubpelPrecision cur_mv_precision = mbmi->pb_mv_precision;
   int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
   if (is_adaptive_mvd) {
@@ -1717,6 +1718,7 @@ static int get_othermv_for_jointmv_mode(
     const AV2_COMP *const cpi, BLOCK_SIZE bsize, MACROBLOCK *x,
     MB_MODE_INFO *mbmi, MV this_mv, MV *other_mv, MvSubpelPrecision precision,
     int is_adaptive_mvd, int jmvd_base_ref_list) {
+  (void)bsize;
   const AV2_COMMON *cm = &cpi->common;
   const int same_side = is_ref_frame_same_side(cm, mbmi);
   assert(jmvd_base_ref_list == get_joint_mvd_base_ref_list(cm, mbmi));
@@ -1746,12 +1748,11 @@ static int get_othermv_for_jointmv_mode(
   other_mv->col =
       (int)(ref_mvs[1 - jmvd_base_ref_list].as_mv.col + other_mvd.col);
 
-  SUBPEL_MOTION_SEARCH_PARAMS ms_params;
-  av2_make_default_subpel_ms_params(&ms_params, cpi, x, bsize,
-                                    &ref_mvs[1 - jmvd_base_ref_list].as_mv,
-                                    mbmi->pb_mv_precision, 0, NULL);
-  const SubpelMvLimits *other_mv_limits = &ms_params.mv_limits;
-  return av2_is_subpelmv_in_range(other_mv_limits, *other_mv);
+  SubpelMvLimits other_mv_limits;
+  av2_set_subpel_mv_search_range(&other_mv_limits, &x->mv_limits,
+                                 &ref_mvs[1 - jmvd_base_ref_list].as_mv,
+                                 mbmi->pb_mv_precision);
+  return av2_is_subpelmv_in_range(&other_mv_limits, *other_mv);
 }
 // Cost of signaling sign of last non-zero MVD component
 static int get_last_sign_cost(MACROBLOCK *x, int is_adaptive_mvd, MV mv_diff[2],
@@ -1876,7 +1877,6 @@ static int av2_adjust_mvs_for_derive_sign_single_mvd(
   int64_t dist_sum;
   int rate_without_mv = rate2_nocoeff - rate_mv0;
   int best_mv_rate = rate_mv0;
-  SubpelMvLimits *mv_limits[2] = { NULL, NULL };
 
   assert(
       IMPLIES(is_adaptive_mvd, mbmi->pb_mv_precision == MV_PRECISION_QTR_PEL));
@@ -1888,14 +1888,10 @@ static int av2_adjust_mvs_for_derive_sign_single_mvd(
                                    mbmi->pb_mv_precision, is_adaptive_mvd,
                                    th_for_num_nonzero));
 
-  // Get the MV limits for both references
-  SUBPEL_MOTION_SEARCH_PARAMS ms_params[2];
-  for (int ref_idx = 0; ref_idx < 1 + is_compound; ref_idx++) {
-    av2_make_default_subpel_ms_params(&ms_params[ref_idx], cpi, x, bsize,
-                                      &ref_mvs[ref_idx], mbmi->pb_mv_precision,
-                                      0, NULL);
-    mv_limits[ref_idx] = &ms_params[ref_idx].mv_limits;
-  }
+  SubpelMvLimits mv_limits;
+  av2_set_subpel_mv_search_range(&mv_limits, &x->mv_limits,
+                                 &ref_mvs[signaled_mv_ref_idx],
+                                 mbmi->pb_mv_precision);
 
   int64_t best_model_rd = INT64_MAX;
   const MV initial_mvs[2] = { mbmi->mv[0].as_mv, mbmi->mv[1].as_mv };
@@ -1934,8 +1930,7 @@ static int av2_adjust_mvs_for_derive_sign_single_mvd(
       update_mv_component_from_mvd(this_mvd.col, ref_mvs[signaled_mv_ref_idx],
                                    1, is_adaptive_mvd, mbmi->pb_mv_precision,
                                    &this_mvs[signaled_mv_ref_idx]);
-      if (av2_is_subpelmv_in_range(mv_limits[signaled_mv_ref_idx],
-                                   this_mvs[signaled_mv_ref_idx])) {
+      if (av2_is_subpelmv_in_range(&mv_limits, this_mvs[signaled_mv_ref_idx])) {
         mbmi->mv[signaled_mv_ref_idx].as_mv = this_mvs[signaled_mv_ref_idx];
         if (is_compound) {
           if (joint_mvd_mode) {
@@ -2500,28 +2495,20 @@ static AVM_INLINE int handle_warp_causal_mode(
       has_second_ref(mbmi) ? av2_findSamples(cm, xd, pts1, pts_inref1, 1) : 0;
   if (total_samples0 == 0 && total_samples1 == 0) return -1;
 
-  int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
-  mbmi->wm_params[0].wmtype = DEFAULT_WMTYPE;
-  mbmi->wm_params[1].wmtype = DEFAULT_WMTYPE;
-
   mbmi->warp_inter_intra = 0;
 
   int l0_invalid = 1, l1_invalid = 1;
   mbmi->num_proj_ref[0] = total_samples0;
   mbmi->num_proj_ref[1] = total_samples1;
-  memcpy(pts, pts0, total_samples0 * 2 * sizeof(*pts0));
-  memcpy(pts_inref, pts_inref0, total_samples0 * 2 * sizeof(*pts_inref0));
   // Compute the warped motion parameters with a least squares fit
   //  using the collected samples
-  av2_find_projection(mbmi->num_proj_ref[0], pts, pts_inref, bsize,
+  av2_find_projection(mbmi->num_proj_ref[0], pts0, pts_inref0, bsize,
                       mbmi->mv[0].as_mv, &mbmi->wm_params[0], mi_row, mi_col,
                       get_ref_scale_factors_const(cm, mbmi->ref_frame[0]));
   mbmi->wm_params[0].invalid = l0_invalid = 0;
 
   if (has_second_ref(mbmi)) {
-    memcpy(pts, pts1, total_samples1 * 2 * sizeof(*pts1));
-    memcpy(pts_inref, pts_inref1, total_samples1 * 2 * sizeof(*pts_inref1));
-    av2_find_projection(mbmi->num_proj_ref[1], pts, pts_inref, bsize,
+    av2_find_projection(mbmi->num_proj_ref[1], pts1, pts_inref1, bsize,
                         mbmi->mv[1].as_mv, &mbmi->wm_params[1], mi_row, mi_col,
                         get_ref_scale_factors_const(cm, mbmi->ref_frame[1]));
     mbmi->wm_params[1].invalid = l1_invalid = 0;
@@ -3297,7 +3284,7 @@ static AVM_INLINE int evaluate_motion_mode_trial(
 
   const int64_t tmp_rd = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
 
-  if (best->num_rd_check == 0) {
+  if (best->num_rd_check == 0 && !has_second_ref(base_mbmi)) {
     args->simple_rd[base_mbmi->mode][get_ref_mv_idx(mbmi, 0)]
                    [COMPACT_INDEX0_NRS(mbmi->ref_frame[0])] = tmp_rd;
   }
@@ -4352,6 +4339,20 @@ static INLINE int comp_refinemv_by_default(const AV2_COMMON *cm,
   return refinemv;
 }
 
+static INLINE int get_bawp_mode_count(const AV2_COMMON *cm, const MACROBLOCK *x,
+                                      const MB_MODE_INFO *mbmi,
+                                      const DryPassCfg *cfg) {
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  int bawp_mode_count = cm->features.enable_bawp &&
+                        av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col);
+  if (bawp_mode_count && av2_allow_explicit_bawp(mbmi))
+    bawp_mode_count += EXPLICIT_BAWP_SCALE_CNT;
+  // Dry pass: cap BAWP flag (0 => BAWP off).
+  if (x->apply_dry_pass_shortcuts)
+    bawp_mode_count = AVMMIN(bawp_mode_count, cfg->bawp_cap);
+  return bawp_mode_count;
+}
+
 // Computes the ref_mv_idx pre-screening masks (see ref_mv_idx_to_search()) of
 // the current MV precision (mbmi->pb_mv_precision) for BAWP off and, when BAWP
 // is allowed, for every BAWP option. This is called lazily, i.e. only for MV
@@ -4363,7 +4364,7 @@ static AVM_INLINE void compute_ref_mv_idx_masks(
     HandleInterModeArgs *const args, int64_t ref_best_rd,
     inter_mode_info (*mode_info)[NUM_MV_PRECISIONS][MAX_REF_MV_SQUARE],
     BLOCK_SIZE bsize, const int *ref_set, const int flex_mv_cost,
-    int idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]) {
+    int bawp_mode_count, int idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]) {
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -4385,9 +4386,23 @@ static AVM_INLINE void compute_ref_mv_idx_masks(
         bsize, ref_set, flex_mv_cost);
   }
 
-  if (cm->features.enable_bawp &&
-      av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
-    for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
+  if (!bawp_mode_count) {
+    mbmi->bawp_flag[0] = saved_bawp0;
+    mbmi->bawp_flag[1] = saved_bawp1;
+    return;
+  }
+
+  // BAWP pre-screening only diverges from idx_mask[0] inside the
+  // prune_mode_search_simple_translation block when NEAR MV is used and bsize
+  // has more than 64 pixels; otherwise BAWP shares the base mask.
+  if (!cpi->sf.inter_sf.prune_mode_search_simple_translation ||
+      !have_nearmv_in_inter_mode(mbmi->mode) ||
+      num_pels_log2_lookup[bsize] <= 6) {
+    for (int bawp = 1; bawp <= bawp_mode_count; bawp++) {
+      idx_mask[bawp][pb_mv_precision] = idx_mask[0][pb_mv_precision];
+    }
+  } else {
+    for (int bawp = 1; bawp <= bawp_mode_count; bawp++) {
       mbmi->bawp_flag[0] = bawp;
       idx_mask[bawp][pb_mv_precision] = ref_mv_idx_to_search(
           cpi, x, rd_stats, args, ref_best_rd, mode_info[bawp][pb_mv_precision],
@@ -5601,13 +5616,11 @@ static INLINE int should_skip_newmv(
   for (int ref = 0; ref < is_comp_pred + 1; ref++) {
     const PREDICTION_MODE single_mode = get_single_mode(this_mode, ref);
     if (single_mode == NEWMV || single_mode == WARP_NEWMV) {
-      SUBPEL_MOTION_SEARCH_PARAMS ms_params;
-      MV ref_mv = av2_get_ref_mv(x, ref).as_mv;
-      if (mbmi->pb_mv_precision < MV_PRECISION_HALF_PEL)
-        lower_mv_precision(&ref_mv, mbmi->pb_mv_precision);
-      av2_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
-                                        mbmi->pb_mv_precision, 0, NULL);
-      if (!av2_is_subpelmv_in_range(&ms_params.mv_limits, cur_mv[ref].as_mv)) {
+      const MV ref_mv = av2_get_ref_mv(x, ref).as_mv;
+      SubpelMvLimits mv_limits;
+      av2_set_subpel_mv_search_range(&mv_limits, &x->mv_limits, &ref_mv,
+                                     mbmi->pb_mv_precision);
+      if (!av2_is_subpelmv_in_range(&mv_limits, cur_mv[ref].as_mv)) {
         return 1;
       }
     }
@@ -5703,14 +5716,9 @@ static void handle_single_inter_prediction(
   const int base_rate =
       args->ref_frame_cost + args->single_comp_cost + prediction_mode_cost;
 
-  int bawp_enabled = cm->features.enable_bawp &&
-                     av2_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col);
-  if (bawp_enabled && av2_allow_explicit_bawp(mbmi))
-    bawp_enabled += EXPLICIT_BAWP_SCALE_CNT;
-  // Dry pass: cap BAWP flag (0 => BAWP off).
-  if (x->apply_dry_pass_shortcuts)
-    bawp_enabled = AVMMIN(bawp_enabled, cfg->bawp_cap);
-  const int total_bawp_iters = (bawp_enabled == 0) ? 1 : (1 + 2 * bawp_enabled);
+  const int bawp_mode_count = get_bawp_mode_count(cm, x, mbmi, cfg);
+  const int total_bawp_iters =
+      (bawp_mode_count == 0) ? 1 : (1 + 2 * bawp_mode_count);
 
   for (int ref_mv_idx0 = 0; ref_mv_idx0 < ref_set[0]; ++ref_mv_idx0) {
     *mbmi = base_template;
@@ -5958,6 +5966,7 @@ static void handle_compound_inter_prediction(
       continue;
     }
 
+    const int_mv init_cur_mv[2] = { cur_mv[0], cur_mv[1] };
     reset_inter_mode_info(cur_mode_info, drl_cost);
 
     if (mbmi->mode != WARPMV && !mbmi->refinemv_flag &&
@@ -6040,19 +6049,8 @@ static void handle_compound_inter_prediction(
       int_mv cwp_cur_mv[2];
       int rate_mv_cwp = 0;
       if (has_newmv) {
-        if (mbmi->mode != WARPMV &&
-            !build_cur_mv(cwp_cur_mv, this_mode, cm, x, skip_repeated_ref_mv)) {
-          continue;
-        }
-        if (mbmi->mode == WARPMV) {
-          cwp_cur_mv[0].as_int = 0;
-          cwp_cur_mv[1].as_int = 0;
-          assert(ref_mv_idx[0] == 0 && ref_mv_idx[1] == 0);
-        }
-        if (mbmi->mode != WARPMV && cpi->sf.flexmv_sf.skip_similar_ref_mv &&
-            skip_similar_ref_mv(cpi, x, bsize)) {
-          continue;
-        }
+        cwp_cur_mv[0] = init_cur_mv[0];
+        cwp_cur_mv[1] = init_cur_mv[1];
         reset_inter_mode_info(cur_mode_info, drl_cost);
 
         *mbmi = cwp_mbmi;
@@ -6133,21 +6131,7 @@ static void handle_compound_inter_prediction(
           continue;
       }
 
-      int_mv scaled_cur_mv[2];
-      if (mbmi->mode != WARPMV && !build_cur_mv(scaled_cur_mv, this_mode, cm, x,
-                                                skip_repeated_ref_mv)) {
-        continue;
-      }
-      if (mbmi->mode == WARPMV) {
-        scaled_cur_mv[0].as_int = 0;
-        scaled_cur_mv[1].as_int = 0;
-        assert(ref_mv_idx[0] == 0 && ref_mv_idx[1] == 0);
-      }
-
-      if (mbmi->mode != WARPMV && cpi->sf.flexmv_sf.skip_similar_ref_mv &&
-          skip_similar_ref_mv(cpi, x, bsize)) {
-        continue;
-      }
+      int_mv scaled_cur_mv[2] = { init_cur_mv[0], init_cur_mv[1] };
 
       reset_inter_mode_info(cur_mode_info, drl_cost);
 
@@ -6381,12 +6365,16 @@ static int64_t handle_inter_mode(
     ref_set[0] = AVMMIN(ref_set[0], cpi->sf.inter_sf.limit_single_ref_mv_idx);
   }
 
+  const int bawp_mode_count =
+      is_comp_pred ? 0 : get_bawp_mode_count(cm, x, mbmi, cfg);
+  const int prec_start =
+      is_pb_mv_prec_active ? MV_PRECISION_8_PEL : mbmi->max_mv_precision;
+
   inter_mode_info mode_info[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]
                            [MAX_REF_MV_SQUARE];
   // initialize mode_info
-  for (int bawp = 0; bawp < BAWP_OPTION_CNT; bawp++) {
-    for (int prec = MV_PRECISION_8_PEL; prec <= mbmi->max_mv_precision;
-         ++prec) {
+  for (int bawp = 0; bawp <= bawp_mode_count; bawp++) {
+    for (int prec = prec_start; prec <= mbmi->max_mv_precision; ++prec) {
       const int total_ref_mv_idx = ref_set[1] * ref_set[0];
       for (int flat_idx = 0; flat_idx < total_ref_mv_idx; ++flat_idx) {
         const int ref_mv_id_1 = flat_idx / ref_set[0];
@@ -6427,11 +6415,13 @@ static int64_t handle_inter_mode(
 
   const ModeCosts *mode_costs = &x->mode_costs;
 
-  for (int pb_mv_precision = mbmi->max_mv_precision;
-       pb_mv_precision >= MV_PRECISION_8_PEL; pb_mv_precision--) {
-    for (int i = 0; i < MAX_REF_MV_SQUARE - 1; ++i) {
-      save_mv[pb_mv_precision][i][0].as_int = INVALID_MV;
-      save_mv[pb_mv_precision][i][1].as_int = INVALID_MV;
+  if (is_comp_pred && cpi->sf.inter_sf.prune_ref_mv_idx_search) {
+    for (int pb_mv_precision = mbmi->max_mv_precision;
+         pb_mv_precision >= prec_start; pb_mv_precision--) {
+      for (int i = 0; i < MAX_REF_MV_SQUARE - 1; ++i) {
+        save_mv[pb_mv_precision][i][0].as_int = INVALID_MV;
+        save_mv[pb_mv_precision][i][1].as_int = INVALID_MV;
+      }
     }
   }
 
@@ -6442,13 +6432,13 @@ static int64_t handle_inter_mode(
   // RD threshold at the entry of this function. Used by the ref_mv_idx
   // pre-screening when ref_mv_idx_mask_use_best_rd is off.
   const int64_t entry_ref_best_rd = ref_best_rd;
+  set_precision_set(cm, xd, mbmi, bsize);
+  set_most_probable_mv_precision(cm, mbmi, bsize);
+  const PRECISION_SET *precision_def =
+      &av2_mv_precision_sets[mbmi->mb_precision_set];
   if (is_pb_mv_prec_active) {
     const int down_ctx = av2_get_pb_mv_precision_down_context(cm, xd);
     const int mpp_flag_context = av2_get_mpp_flag_context(cm, xd);
-    set_precision_set(cm, xd, mbmi, bsize);
-    set_most_probable_mv_precision(cm, mbmi, bsize);
-    const PRECISION_SET *precision_def =
-        &av2_mv_precision_sets[mbmi->mb_precision_set];
     for (int precision_dx = precision_def->num_precisions - 1;
          precision_dx >= 0; precision_dx--) {
       MvSubpelPrecision pb_mv_precision =
@@ -6489,11 +6479,6 @@ static int64_t handle_inter_mode(
       &best_rd_stats_uv, &best_mbmi, &best_xskip_txfm, best_blk_skip,
       best_tx_type_map, best_cctx_type_map, best_cwp_costs, best_cwp_idxs,
       &ref_best_rd, best_ref_mv_idx, &mode_info, &save_mv);
-
-  set_precision_set(cm, xd, mbmi, bsize);
-  set_most_probable_mv_precision(cm, mbmi, bsize);
-  const PRECISION_SET *precision_def =
-      &av2_mv_precision_sets[mbmi->mb_precision_set];
 
   MvSubpelPrecision best_precision_so_far = mbmi->max_mv_precision;
   int64_t best_precision_rd_so_far = INT64_MAX;
@@ -6558,9 +6543,9 @@ static int64_t handle_inter_mode(
       }
       if (cur_ref_set[0] == 0) continue;
 
-      compute_ref_mv_idx_masks(cpi, x, rd_stats, args, mask_ref_best_rd,
-                               mode_info, bsize, ref_set,
-                               flex_mv_cost[pb_mv_precision], idx_mask);
+      compute_ref_mv_idx_masks(
+          cpi, x, rd_stats, args, mask_ref_best_rd, mode_info, bsize, ref_set,
+          flex_mv_cost[pb_mv_precision], bawp_mode_count, idx_mask);
 
       handle_single_inter_prediction(
           cpi, tile_data, x, &env, &search_state, this_mode, bsize, cur_ref_set,
@@ -6570,7 +6555,7 @@ static int64_t handle_inter_mode(
     } else {
       compute_ref_mv_idx_masks(cpi, x, rd_stats, args, mask_ref_best_rd,
                                mode_info, bsize, ref_set,
-                               flex_mv_cost[pb_mv_precision], idx_mask);
+                               flex_mv_cost[pb_mv_precision], 0, idx_mask);
 
       handle_compound_inter_prediction(
           cpi, tile_data, x, &env, &search_state, this_mode, bsize, cur_ref_set,
@@ -8384,12 +8369,14 @@ static AVM_INLINE void init_inter_mode_search_state(
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const unsigned char segment_id = mbmi->segment_id;
 
-  memset(search_state->dist_refs, -1, sizeof(search_state->dist_refs));
-  memset(search_state->dist_order_refs, -1,
-         sizeof(search_state->dist_order_refs));
+  const bool comp_ref_allowed =
+      cpi->common.current_frame.reference_mode != SINGLE_REFERENCE &&
+      is_comp_ref_allowed(bsize);
+  const int end_mode =
+      comp_ref_allowed ? COMP_INTER_MODE_END : SINGLE_INTER_MODE_END;
 
   const int *const rd_threshes = cpi->rd.threshes[segment_id][bsize];
-  for (int i = 0; i < MB_MODE_COUNT; ++i)
+  for (int i = SINGLE_INTER_MODE_START; i < end_mode; ++i)
     search_state->mode_threshold[i] =
         ((int64_t)rd_threshes[i] * x->thresh_freq_fact[bsize][i]) >>
         RD_THRESH_FAC_FRAC_BITS;
@@ -8400,11 +8387,12 @@ static AVM_INLINE void init_inter_mode_search_state(
   av2_zero(search_state->single_newmv_rate);
   av2_zero(search_state->single_newmv_valid);
 
-  for (int i = 0; i < MB_MODE_COUNT; ++i) {
+  for (int i = SINGLE_INTER_MODE_START; i < end_mode; ++i) {
     for (int j = 0; j < MAX_REF_MV_SEARCH; ++j) {
       for (int ref_frame = 0; ref_frame < SINGLE_REF_FRAMES; ++ref_frame) {
         search_state->modelled_rd[i][j][ref_frame] = INT64_MAX;
-        search_state->simple_rd[i][j][ref_frame] = INT64_MAX;
+        if (i < SINGLE_INTER_MODE_END)
+          search_state->simple_rd[i][j][ref_frame] = INT64_MAX;
       }
     }
   }
@@ -8418,6 +8406,12 @@ static AVM_INLINE void init_inter_mode_search_state(
         }
       }
     }
+  }
+
+  if (!comp_ref_allowed ||
+      (!cpi->sf.inter_sf.prune_comp_search_by_single_result &&
+       !cpi->sf.inter_sf.prune_comp_using_best_single_mode_ref)) {
+    return;
   }
 
   for (int dir = 0; dir < 2; ++dir) {
@@ -10318,15 +10312,17 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
     for (int k = 0; k < pool_size; ++k) pool[k] = INT64_MAX;
   }
 
-  const int prune_comp_by_single =
-      inter_sf->prune_comp_search_by_single_result > 0;
-  const int prune_comp_best_single =
-      inter_sf->prune_comp_using_best_single_mode_ref > 0;
-  const int prune_comp_using_single_ref =
-      inter_sf->prune_compound_using_single_ref;
-  const int motion_mode_winner = sf->winner_mode_sf.motion_mode_for_winner_cand;
   const int reference_mode = cm->current_frame.reference_mode;
   const int reference_mode_select = reference_mode == REFERENCE_MODE_SELECT;
+  const int comp_ref_allowed =
+      reference_mode != SINGLE_REFERENCE && is_comp_ref_allowed(bsize);
+  const int prune_comp_by_single =
+      comp_ref_allowed && inter_sf->prune_comp_search_by_single_result > 0;
+  const int prune_comp_best_single =
+      comp_ref_allowed && inter_sf->prune_comp_using_best_single_mode_ref > 0;
+  const int prune_comp_using_single_ref =
+      comp_ref_allowed && inter_sf->prune_compound_using_single_ref;
+  const int motion_mode_winner = sf->winner_mode_sf.motion_mode_for_winner_cand;
 
   const int num_total_refs = cm->ref_frames_info.num_total_refs;
   const int num_same_ref_compound = cm->ref_frames_info.num_same_ref_compound;
@@ -10340,8 +10336,6 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
   const int bru_enabled = cm->bru.enabled;
   const int bru_update_ref_idx = cm->bru.update_ref_idx;
   const int tip_allowed = is_tip_allowed(cm, xd);
-  const int comp_ref_allowed =
-      reference_mode != SINGLE_REFERENCE && is_comp_ref_allowed(bsize);
   const int warpmv_allowed =
       (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0 &&
       features->allow_warpmv_mode && is_warpmv_allowed_bsize(bsize);

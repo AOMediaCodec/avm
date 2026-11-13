@@ -221,9 +221,11 @@ static int64_t pick_wedge(const AV2_COMP *const cpi, const MACROBLOCK *const x,
 
   const int sign_start = use_fixed_wedge_sign ? *best_wedge_sign : 0;
   const int sign_end = use_fixed_wedge_sign ? *best_wedge_sign : 1;
+  const int k = get_wedge_boundary_type(bsize);
+  int best_wedge_cost = 0;
 
   for (int8_t wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
-    const int k = get_wedge_boundary_type(bsize);
+    const int wedge_cost = get_wedge_cost(wedge_index, x);
 
     for (int8_t wedge_sign = sign_start; wedge_sign <= sign_end; ++wedge_sign) {
       const uint8_t *mask =
@@ -234,7 +236,7 @@ static int64_t pick_wedge(const AV2_COMP *const cpi, const MACROBLOCK *const x,
       model_rd_sse_fn[MODELRD_TYPE_MASKED_COMPOUND](cpi, x, bsize, 0, sse, N,
                                                     &rate, &dist);
 
-      rate += get_wedge_cost(wedge_index, x);
+      rate += wedge_cost;
       rd = RDCOST(x->rdmult, rate, dist);
 
       if (rd < best_rd) {
@@ -242,12 +244,13 @@ static int64_t pick_wedge(const AV2_COMP *const cpi, const MACROBLOCK *const x,
         *best_wedge_sign = wedge_sign;
         *best_boundary_index = k;
         best_rd = rd;
+        best_wedge_cost = wedge_cost;
         *best_sse = sse;
       }
     }
   }
 
-  return best_rd - RDCOST(x->rdmult, get_wedge_cost(*best_wedge_index, x), 0);
+  return best_rd - RDCOST(x->rdmult, best_wedge_cost, 0);
 }
 
 static int64_t pick_interinter_wedge(
@@ -300,7 +303,7 @@ static int64_t pick_interinter_seg(const AV2_COMP *const cpi,
   int64_t best_rd = INT64_MAX;
   DIFFWTD_MASK_TYPE best_mask_type = 0;
   const int bd_round = (xd->bd - 8) * 2;
-  DECLARE_ALIGNED(16, uint8_t, seg_mask[2 * MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(16, uint8_t, seg_mask[MAX_SB_SQUARE]);
   uint8_t *tmp_mask[2] = { xd->seg_mask, seg_mask };
   // Try each mask type and its inverse.
   for (cur_mask_type = 0; cur_mask_type < DIFFWTD_MASK_TYPES; ++cur_mask_type) {
@@ -324,7 +327,7 @@ static int64_t pick_interinter_seg(const AV2_COMP *const cpi,
   }
   mbmi->interinter_comp.mask_type = best_mask_type;
   if (best_mask_type == DIFFWTD_38_INV) {
-    memcpy(xd->seg_mask, seg_mask, N * 2);
+    memcpy(xd->seg_mask, seg_mask, N);
   }
   return best_rd;
 }
@@ -333,21 +336,18 @@ static int64_t pick_interintra_wedge(const AV2_COMP *const cpi,
                                      const MACROBLOCK *const x,
                                      const BLOCK_SIZE bsize,
                                      const uint16_t *const p0,
-                                     const uint16_t *const p1) {
+                                     const uint16_t *const p1,
+                                     const int16_t *const residual1) {
   const MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(av2_is_wedge_used(bsize));
   assert(mbmi->warp_inter_intra ||
          (cpi->common.features.enabled_motion_modes & (1 << INTERINTRA)));
 
-  const struct buf_2d *const src = &x->plane[0].src;
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
-  DECLARE_ALIGNED(32, int16_t, residual1[MAX_SB_SQUARE]);  // src - pred1
-  DECLARE_ALIGNED(32, int16_t, diff10[MAX_SB_SQUARE]);     // pred1 - pred0
+  DECLARE_ALIGNED(32, int16_t, diff10[MAX_SB_SQUARE]);  // pred1 - pred0
 
-  avm_highbd_subtract_block(bh, bw, residual1, bw, src->buf, src->stride, p1,
-                            bw, xd->bd);
   avm_highbd_subtract_block(bh, bw, diff10, bw, p1, bw, p0, bw, xd->bd);
 
   int8_t wedge_index = -1;
@@ -457,6 +457,11 @@ static AVM_INLINE int64_t compute_best_wedge_interintra(
     BLOCK_SIZE bsize) {
   const AV2_COMMON *const cm = &cpi->common;
   const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+  const struct buf_2d *const src = &x->plane[0].src;
+  DECLARE_ALIGNED(32, int16_t, residual1[MAX_SB_SQUARE]);  // src - tmp_buf_
+  avm_highbd_subtract_block(bh, bw, residual1, bw, src->buf, src->stride,
+                            tmp_buf_, bw, xd->bd);
   int64_t best_interintra_rd_wedge = INT64_MAX;
   int64_t best_total_rd = INT64_MAX;
   for (INTERINTRA_MODE mode = 0; mode < INTERINTRA_MODES; ++mode) {
@@ -466,7 +471,8 @@ static AVM_INLINE int64_t compute_best_wedge_interintra(
     assert(mbmi->ref_frame[1] == NONE_FRAME);
     av2_build_intra_predictors_for_interintra(cm, xd, 0, orig_dst, intrapred,
                                               bw);
-    int64_t rd = pick_interintra_wedge(cpi, x, bsize, intrapred, tmp_buf_);
+    int64_t rd =
+        pick_interintra_wedge(cpi, x, bsize, intrapred, tmp_buf_, residual1);
     const int rate_overhead = interintra_mode_cost[mode] +
                               get_wedge_cost(mbmi->interintra_wedge_index, x);
     const int64_t total_rd = rd + RDCOST(x->rdmult, rate_overhead, 0);
@@ -958,8 +964,8 @@ static int64_t masked_compound_type_rd(
   const COMPOUND_TYPE compound_type = mbmi->interinter_comp.type;
   // This function will be called only for COMPOUND_WEDGE and COMPOUND_DIFFWTD.
   assert(compound_type == COMPOUND_WEDGE || compound_type == COMPOUND_DIFFWTD);
-  int rate_sum, tmp_skip_txfm_sb;
-  int64_t dist_sum, tmp_skip_sse_sb;
+  int rate_sum = 0, tmp_skip_txfm_sb;
+  int64_t dist_sum = 0, tmp_skip_sse_sb;
   pick_interinter_mask_type pick_interinter_mask[2] = { pick_interinter_wedge,
                                                         pick_interinter_seg };
 
@@ -1039,11 +1045,16 @@ static int64_t masked_compound_type_rd(
                                                  pred1, stride);
     }
     // Get the RD cost from model RD.
-    model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
-        cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum, &tmp_skip_txfm_sb,
-        &tmp_skip_sse_sb, NULL, NULL, NULL);
-    rd = RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv + rate_sum, dist_sum);
-    *comp_model_rd_cur = rd;
+    *comp_model_rd_cur = INT64_MAX;
+    if (wedge_newmv_search || cpi->sf.inter_sf.prune_comp_type_by_model_rd ||
+        cpi->sf.inter_sf.reuse_compound_type_data) {
+      model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
+          cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum, &tmp_skip_txfm_sb,
+          &tmp_skip_sse_sb, NULL, NULL, NULL);
+      rd = RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv + rate_sum,
+                  dist_sum);
+      *comp_model_rd_cur = rd;
+    }
     // Override with best if current is worse than best for new MV.
     if (wedge_newmv_search) {
       if (rd >= best_rd_cur) {
@@ -1167,7 +1178,7 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
   const int max_rd_threshold_mul = masked_rd_threshold_mul[prune_idx];
   const int max_rd_threshold_div = masked_rd_threshold_div[prune_idx];
   const int num_pix = 1 << num_pels_log2_lookup[bsize];
-  const int mask_len = 2 * num_pix * sizeof(xd->seg_mask[0]);
+  const int mask_len = num_pix * sizeof(xd->seg_mask[0]);
   bool is_newmv_searched = false;
 
   int_mv best_mv[2] = { cur_mv[0], cur_mv[1] };
@@ -1210,8 +1221,8 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
         const int64_t tmp_rd_thresh = AVMMIN(*rd, rd_thresh) - mode_rd;
         int64_t est_rd = INT64_MAX;
         int eval_txfm = 1;
-        int rate_sum, tmp_skip_txfm_sb;
-        int64_t dist_sum, tmp_skip_sse_sb;
+        int rate_sum = 0, tmp_skip_txfm_sb;
+        int64_t dist_sum = 0, tmp_skip_sse_sb;
         // Check if the mode is good enough based on skip rd.
         if (inter_sf->txfm_rd_gate_level) {
           int64_t sse_y = compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize);
@@ -1230,11 +1241,14 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
           best_rd_cur =
               RDCOST(x->rdmult, comp_type_rate + *rate_mv + est_rd_stats.rate,
                      est_rd_stats.dist);
-          model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
-              cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum, &tmp_skip_txfm_sb,
-              &tmp_skip_sse_sb, NULL, NULL, NULL);
-          comp_model_rd_cur =
-              RDCOST(x->rdmult, comp_type_rate + *rate_mv + rate_sum, dist_sum);
+          if ((inter_sf->prune_comp_type_by_model_rd && valid_type_count > 1) ||
+              reuse_compound_type_data) {
+            model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
+                cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum,
+                &tmp_skip_txfm_sb, &tmp_skip_sse_sb, NULL, NULL, NULL);
+            comp_model_rd_cur = RDCOST(
+                x->rdmult, comp_type_rate + *rate_mv + rate_sum, dist_sum);
+          }
 
           // Backup rate and distortion for future reuse.
           backup_stats(cur_type, comp_stats, rate_sum, dist_sum, &est_rd_stats,
