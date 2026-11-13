@@ -1559,6 +1559,13 @@ typedef struct macroblock {
    * Contains the hash table, hash function, and buffer used for intrabc.
    */
   IntraBCHashInfo intrabc_hash_info;
+
+  /*! \brief Set when the SB rows of a tile are encoded by several threads.
+   *
+   * IntraBC may then only reference the area that row-mt guarantees is
+   * already reconstructed, see av2_enc_is_dv_valid().
+   */
+  int rowmt_ibc_restrict;
   /**@}*/
 
   /*****************************************************************************
@@ -1643,6 +1650,10 @@ typedef struct macroblock {
   /*! \brief The dry pass's best rdcost per block, or 0 when absent. Indexed by
    * dry_pass_rd_slot(). Reset per superblock. */
   int64_t unit_dry_rd[TWO_PASS_DRY_RD_SLOTS];
+
+  /*! \brief The dry pass's best rdcost of the block being searched in the wet
+   * pass, or 0 when absent. Set by pick_sb_modes(). */
+  int64_t cur_dry_pass_rd;
 
   /*! \brief True during the wet pass of the fast SB-level two-pass partition
    * search; a block on this path may consume the dry-pass template. */

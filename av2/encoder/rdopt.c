@@ -72,6 +72,7 @@
 #include "av2/encoder/tpl_model.h"
 #include "av2/encoder/tx_search.h"
 #include "av2/encoder/partition_strategy.h"
+#include "av2/encoder/inter_cand_gate.h"
 
 // Mode_threshold multiplication factor table for prune_inter_modes_if_skippable
 // The values are kept in Q12 format and equation used to derive is
@@ -6615,7 +6616,8 @@ static INLINE int is_bv_valid(const FULLPEL_MV *full_mv, const AV2_COMMON *cm,
   if (!av2_is_fullmv_in_range(&fullms_params.mv_limits, *full_mv,
                               fullms_params.mv_cost_params.pb_mv_precision))
     return 0;
-  if (!av2_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, cm->mib_size_log2))
+  if (!av2_enc_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize,
+                           cm->mib_size_log2))
     return 0;
   return 1;
 }
@@ -10200,6 +10202,17 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
                                 ref_costs_single, ref_costs_comp, yv12_mb,
                                 &dry_pass_cfg, skip_ref_frame_mask);
 
+  // Learned budget for the inter candidates of the full-tool search. The dry
+  // pass already searches a small candidate set and is not gated.
+  const bool use_inter_cand_gate =
+      inter_sf->inter_cand_gate_level > 0 && !apply_dry_pass_shortcuts;
+  InterCandGate inter_cand_gate;
+  if (use_inter_cand_gate) {
+    av2_inter_cand_gate_init(
+        &inter_cand_gate, cpi, x,
+        fetch_picked_ref_frames_mask(x, bsize, cm->mib_size), ref_costs_single);
+  }
+
   int64_t best_est_rd = INT64_MAX;
   const InterModeRdModel *const md = &tile_data->inter_mode_rd_models[bsize];
   // If do_tx_search is 0, only estimated RD should be computed.
@@ -10601,6 +10614,15 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
         continue;
       }
 
+      if (use_inter_cand_gate) {
+        const bool skip = av2_inter_cand_gate_skip(
+            &inter_cand_gate, cpi, x, bsize, &search_state.best_mbmode,
+            search_state.best_rd, search_state.best_mode_skippable, this_mode,
+            ref_frames, ref_frame_cost, args.skip_motion_mode, best_rd_so_far);
+        ++inter_cand_gate.num_cands;
+        if (skip) continue;
+      }
+
       txfm_info->skip_txfm = 0;
 
       const int64_t ref_best_rd = search_state.best_rd;
@@ -10622,6 +10644,10 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
           inter_modes_info, &motion_mode_cand, skip_rd,
           search_state.best_mbmode.mode, pool, &inter_cost_info_from_tpl,
           is_best_mode_warp);
+      if (use_inter_cand_gate) {
+        av2_inter_cand_gate_update(&inter_cand_gate, this_mode, ref_frame_index,
+                                   comp_pred, this_rd);
+      }
 
       // Collect_single_states uses simple_rd/modelled_rd populated by
       // handle_inter_mode even when this_rd == INT64_MAX, so call before
