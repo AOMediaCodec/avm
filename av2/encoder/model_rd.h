@@ -94,9 +94,12 @@ static AVM_INLINE void model_rd_from_sse(const AV2_COMP *const cpi,
     assert(*rate >= 0);
     *dist = (square_error * quantizer) >> 8;
   } else {
-    av2_model_rd_from_var_lapndz(sse, num_pels_log2_lookup[plane_bsize],
-                                 p->dequant_QTX[1] >> dequant_shift, rate,
-                                 dist);
+    const int qstep =
+        AVMMAX(ROUND_POWER_OF_TWO(p->dequant_QTX[1], QUANT_TABLE_BITS) >>
+                   dequant_shift,
+               1);
+    av2_model_rd_from_var_lapndz(sse, num_pels_log2_lookup[plane_bsize], qstep,
+                                 rate, dist);
   }
   *dist <<= 4;
 }

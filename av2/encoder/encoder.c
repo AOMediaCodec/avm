@@ -248,7 +248,11 @@ static void update_frame_size(AV2_COMP *cpi) {
 
   // We need to reallocate the context buffers here in case we need more mis or
   // if we need more superblocks.
-  if (av2_alloc_context_buffers(cm, cm->width, cm->height, cpi->oxcf.speed)) {
+  if (av2_alloc_context_buffers(
+          cm, cm->width, cm->height,
+          (cpi->oxcf.part_cfg.enable_sdp && cpi->oxcf.speed >= 7)
+              ? 6
+              : cpi->oxcf.speed)) {
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");
   }
@@ -5401,8 +5405,10 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
       cpi->common.features.allow_screen_content_tools &&
       !frame_is_intra_only(cm)) {
     if (cpi->common.seq_params.force_integer_mv == 2) {
-      // Adaptive mode: see what previous frame encoded did
-      if (cpi->unscaled_last_source != NULL) {
+      // Adaptive mode: see what previous frame encoded did. Skipped when
+      // non-RD pickmode is active (as in libaom).
+      if (cpi->unscaled_last_source != NULL &&
+          !cpi->sf.rt_sf.use_nonrd_pickmode) {
         features->cur_frame_force_integer_mv = av2_is_integer_mv(
             cpi->source, cpi->unscaled_last_source, &cpi->force_intpel_info);
       } else {
