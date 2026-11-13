@@ -191,11 +191,7 @@ enum avme_enc_control_id {
    */
   AVME_SET_SHARPNESS = AVME_SET_ENABLEAUTOALTREF + 2,  // 16
 
-  /*!\brief Codec control function to set the threshold for MBs treated static,
-   * unsigned int parameter
-   */
-  AVME_SET_STATIC_THRESHOLD = 17,
-
+  /* NOTE: enum 17 unused */
   /* NOTE: enum 18 unused */
 
   /*!\brief Codec control function to get last quantizer chosen by the encoder,
@@ -203,7 +199,7 @@ enum avme_enc_control_id {
    *
    * Return value uses internal quantizer scale defined by the codec.
    */
-  AVME_GET_LAST_QUANTIZER = AVME_SET_STATIC_THRESHOLD + 2,  // 19
+  AVME_GET_LAST_QUANTIZER = 19,
 
   /*!\brief Codec control function to set the max no of frames to create arf,
    * unsigned int parameter
@@ -1413,9 +1409,6 @@ AVM_CTRL_USE_TYPE(AVME_SET_ENABLEAUTOBWDREF, unsigned int)
 
 AVM_CTRL_USE_TYPE(AVME_SET_SHARPNESS, unsigned int)
 #define AVM_CTRL_AVME_SET_SHARPNESS
-
-AVM_CTRL_USE_TYPE(AVME_SET_STATIC_THRESHOLD, unsigned int)
-#define AVM_CTRL_AVME_SET_STATIC_THRESHOLD
 
 AVM_CTRL_USE_TYPE(AVME_SET_ARNR_MAXFRAMES, unsigned int)
 #define AVM_CTRL_AVME_SET_ARNR_MAXFRAMES

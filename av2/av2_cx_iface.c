@@ -46,7 +46,6 @@ struct av2_extracfg {
   unsigned int enable_auto_bwd_ref;
   unsigned int noise_sensitivity;
   unsigned int sharpness;
-  unsigned int static_thresh;
   unsigned int row_mt;
   unsigned int tile_columns;  // log2 number of tile columns
   unsigned int tile_rows;     // log2 number of tile rows
@@ -384,7 +383,6 @@ static struct av2_extracfg default_extra_cfg = {
   0,  // enable_auto_bwd_ref
   0,  // noise_sensitivity
   0,  // sharpness
-  0,  // static_thresh
   0,  // row_mt
   0,  // tile_columns
   0,  // tile_rows
@@ -587,7 +585,6 @@ static struct av2_extracfg default_extra_cfg_rt = {
   .enable_auto_bwd_ref = 0,
   .noise_sensitivity = 0,
   .sharpness = 0,
-  .static_thresh = 0,
   .row_mt = 0,
   .tile_columns = 0,
   .tile_rows = 0,
@@ -2282,13 +2279,6 @@ static avm_codec_err_t ctrl_set_sharpness(avm_codec_alg_priv_t *ctx,
                                           va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.sharpness = CAST(AVME_SET_SHARPNESS, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-
-static avm_codec_err_t ctrl_set_static_thresh(avm_codec_alg_priv_t *ctx,
-                                              va_list args) {
-  struct av2_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.static_thresh = CAST(AVME_SET_STATIC_THRESHOLD, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4301,9 +4291,6 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
   } else if (avm_arg_match_helper(&arg, &g_av2_codec_arg_defs.sharpness, argv,
                                   err_string)) {
     extra_cfg.sharpness = avm_arg_parse_uint_helper(&arg, err_string);
-  } else if (avm_arg_match_helper(&arg, &g_av2_codec_arg_defs.static_thresh,
-                                  argv, err_string)) {
-    extra_cfg.static_thresh = avm_arg_parse_uint_helper(&arg, err_string);
   } else if (avm_arg_match_helper(&arg, &g_av2_codec_arg_defs.rowmtarg, argv,
                                   err_string)) {
     extra_cfg.row_mt = avm_arg_parse_uint_helper(&arg, err_string);
@@ -4977,7 +4964,6 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AVME_SET_ENABLEAUTOALTREF, ctrl_set_enable_auto_alt_ref },
   { AVME_SET_ENABLEAUTOBWDREF, ctrl_set_enable_auto_bwd_ref },
   { AVME_SET_SHARPNESS, ctrl_set_sharpness },
-  { AVME_SET_STATIC_THRESHOLD, ctrl_set_static_thresh },
   { AV2E_SET_ROW_MT, ctrl_set_row_mt },
   { AV2E_SET_TILE_COLUMNS, ctrl_set_tile_columns },
   { AV2E_SET_TILE_ROWS, ctrl_set_tile_rows },

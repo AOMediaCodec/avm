@@ -305,8 +305,6 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .noise_sens = ARG_DEF(NULL, "noise-sensitivity", 1,
                         "Noise sensitivity (frames to blur)"),
   .sharpness = ARG_DEF(NULL, "sharpness", 1, "Loop filter sharpness (0..7)"),
-  .static_thresh =
-      ARG_DEF(NULL, "static-thresh", 1, "Motion detection threshold"),
   .auto_altref =
       ARG_DEF(NULL, "auto-alt-ref", 1, "Enable automatic alt reference frames"),
   .arnr_maxframes =
