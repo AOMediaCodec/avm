@@ -54,7 +54,7 @@ Both types of options are set at the time CMake is run. The following example
 enables ccache and disables the AVM encoder:
 
 ~~~
-    $ cmake path/to/avm -DENABLE_CCACHE=1 -DCONFIG_MULTITHREAD=0
+    $ cmake path/to/avm -DENABLE_CCACHE=1 -DCONFIG_AV2_ENCODER=0
     $ make
 ~~~
 
