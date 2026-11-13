@@ -484,7 +484,6 @@ static void set_good_speed_features_framesize_independent(
       sf->winner_mode_sf.tx_size_search_level = 0;
       sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 0;
 
-      sf->tx_sf.tx_type_search.fast_inter_tx_type_search = 0;
       sf->inter_sf.prune_warpmv_prob_thresh = 0;
       sf->rd_sf.perform_coeff_opt = 0;
     }
@@ -699,9 +698,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 1;
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 4 : 2;
     sf->inter_sf.skip_repeated_full_newmv = 1;
-    // TODO(any): Set this speed feature to 2 after correcting the match
-    // criteria by considering tools like OPFL, SMVR.
-    sf->inter_sf.reuse_compound_type_data = 0;
     if (!is_4k_or_larger) {
       sf->inter_sf.txfm_rd_gate_level =
           boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
@@ -1520,7 +1516,6 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_ref_mv_idx_search = 0;
   inter_sf->ref_mv_idx_mask_use_best_rd = false;
   inter_sf->prune_warped_prob_thresh = 0;
-  inter_sf->reuse_compound_type_data = 0;
   inter_sf->txfm_rd_gate_level = 0;
   inter_sf->prune_inter_modes_if_skippable = 0;
   inter_sf->disable_masked_comp = 0;
@@ -1575,7 +1570,6 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_1;
   tx_sf->tx_type_search.use_skip_flag_prediction = 1;
   tx_sf->tx_type_search.use_reduced_intra_txset = 0;
-  tx_sf->tx_type_search.fast_inter_tx_type_search = 0;
   tx_sf->use_tx_result_cache = 0;
   tx_sf->tx_type_search.skip_tx_search = 0;
   tx_sf->tx_type_search.eob_adapt_skip_tx_search = false;

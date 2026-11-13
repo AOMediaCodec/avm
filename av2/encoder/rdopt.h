@@ -122,43 +122,6 @@ int av2_cost_model_param(const MB_MODE_INFO *mbmi, const ModeCosts *mode_costs,
                          int step_size, int max_coded_index,
                          WarpedMotionParams *base_params);
 
-// TODO(any): The defs below could potentially be moved to rdopt_utils.h instead
-// because they are not the main rdopt functions.
-/*!\cond */
-// The best edge strength seen in the block, as well as the best x and y
-// components of edge strength seen.
-typedef struct {
-  uint16_t magnitude;
-  uint16_t x;
-  uint16_t y;
-} EdgeInfo;
-/*!\endcond */
-
-/** Returns an integer indicating the strength of the edge.
- * 0 means no edge found, 556 is the strength of a solid black/white edge,
- * and the number may range higher if the signal is even stronger (e.g., on a
- * corner). high_bd is a bool indicating the source should be treated
- * as a 16-bit array. bd is the bit depth.
- */
-EdgeInfo av2_edge_exists(const uint16_t *src, int src_stride, int w, int h,
-                         int bd);
-
-/** Applies a Gaussian blur with sigma = 1.3. Used by av2_edge_exists and
- * tests.
- */
-void av2_gaussian_blur(const uint16_t *src, int src_stride, int w, int h,
-                       uint16_t *dst, int bd);
-
-/*!\cond */
-/* Applies standard 3x3 Sobel matrix. */
-typedef struct {
-  int16_t x;
-  int16_t y;
-} sobel_xy;
-/*!\endcond */
-
-sobel_xy av2_sobel(const uint16_t *input, int stride, int i, int j);
-
 void av2_inter_mode_data_init(struct TileDataEnc *tile_data);
 void av2_inter_mode_data_fit(TileDataEnc *tile_data);
 

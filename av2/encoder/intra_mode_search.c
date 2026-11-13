@@ -1836,7 +1836,7 @@ static AVM_INLINE void refine_winner_intra_mode_tx(
 
     for (int mode_idx = 0; mode_idx < x->winner_mode_count; ++mode_idx) {
       *mbmi = x->winner_mode_stats[mode_idx].mbmi;
-      if (is_winner_mode_processing_enabled(cpi, mbmi, mbmi->mode)) {
+      if (is_winner_mode_processing_enabled(cpi, mbmi)) {
         // Restore color_map of palette mode before winner mode processing.
         restore_palette_color_map(
             xd, bsize, mbmi, x->winner_mode_stats[mode_idx].color_index_map);
@@ -1855,7 +1855,7 @@ static AVM_INLINE void refine_winner_intra_mode_tx(
         xd, bsize, best_mbmi,
         x->winner_mode_stats[best_mode_idx].color_index_map);
   } else {
-    if (is_winner_mode_processing_enabled(cpi, mbmi, best_mbmi->mode)) {
+    if (is_winner_mode_processing_enabled(cpi, mbmi)) {
       // Set params for winner mode evaluation.
       set_mode_eval_params(cpi, x, WINNER_MODE_EVAL);
       *mbmi = *best_mbmi;
