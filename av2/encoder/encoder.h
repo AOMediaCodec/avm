@@ -906,8 +906,6 @@ typedef struct {
   bool monotonic_output_order;
   // Indicates if the error resiliency features should be enabled.
   bool g_error_resilient_mode;
-  // Indicates if frame parallel decoding feature should be enabled.
-  bool frame_parallel_decoding_mode;
   // Indicates if the input should be encoded as monochrome.
   bool enable_monochrome;
   // When enabled, the encoder will use a full header even for still pictures.

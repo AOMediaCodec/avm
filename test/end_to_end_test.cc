@@ -136,7 +136,6 @@ class EndToEndTest
   virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
                                   ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AV2E_SET_FRAME_PARALLEL_DECODING, 1);
       encoder->Control(AV2E_SET_TILE_COLUMNS, 4);
       encoder->Control(AVME_SET_CPUUSED, cpu_used_);
       // Test screen coding tools at cpu_used = 1 && encoding mode is two-pass.

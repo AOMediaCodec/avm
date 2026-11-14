@@ -93,7 +93,6 @@ struct av2_extracfg {
   unsigned int mtu_size;
 
   avm_timing_info_type_t timing_info_type;
-  unsigned int frame_parallel_decoding_mode;
   unsigned int enable_chroma_deltaq;
   AQ_MODE aq_mode;
   DELTAQ_MODE deltaq_mode;
@@ -429,7 +428,6 @@ static struct av2_extracfg default_extra_cfg = {
   1,                            // max number of tile groups
   0,                            // mtu_size
   AVM_TIMING_UNSPECIFIED,       // No picture timing signaling in bitstream
-  0,                            // frame_parallel_decoding_mode
   0,                            // enable delta quant in chroma planes
   NO_AQ,                        // aq_mode
   DELTA_Q_OBJECTIVE,            // deltaq_mode
@@ -630,7 +628,6 @@ static struct av2_extracfg default_extra_cfg_rt = {
   .num_tg = 1,
   .mtu_size = 0,
   .timing_info_type = AVM_TIMING_UNSPECIFIED,
-  .frame_parallel_decoding_mode = 0,
   .enable_chroma_deltaq = 0,
   .aq_mode = NO_AQ,
   .deltaq_mode = DELTA_Q_OBJECTIVE,
@@ -1692,8 +1689,6 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   tool_cfg->frame_hash_metadata = cfg->frame_hash_metadata;
   tool_cfg->frame_hash_per_plane = cfg->frame_hash_per_plane;
   tool_cfg->use_short_metadata = cfg->use_short_metadata;
-  tool_cfg->frame_parallel_decoding_mode =
-      extra_cfg->frame_parallel_decoding_mode;
   tool_cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
   tool_cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
   tool_cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
@@ -2784,14 +2779,6 @@ static avm_codec_err_t ctrl_set_enable_sframe(avm_codec_alg_priv_t *ctx,
                                               va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_sframe = CAST(AV2E_SET_ENABLE_SFRAME, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-
-static avm_codec_err_t ctrl_set_frame_parallel_decoding_mode(
-    avm_codec_alg_priv_t *ctx, va_list args) {
-  struct av2_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.frame_parallel_decoding_mode =
-      CAST(AV2E_SET_FRAME_PARALLEL_DECODING, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4403,11 +4390,6 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
                                   err_string)) {
     extra_cfg.timing_info_type = avm_arg_parse_enum_helper(&arg, err_string);
   } else if (avm_arg_match_helper(&arg,
-                                  &g_av2_codec_arg_defs.frame_parallel_decoding,
-                                  argv, err_string)) {
-    extra_cfg.frame_parallel_decoding_mode =
-        avm_arg_parse_uint_helper(&arg, err_string);
-  } else if (avm_arg_match_helper(&arg,
                                   &g_av2_codec_arg_defs.enable_chroma_deltaq,
                                   argv, err_string)) {
     extra_cfg.enable_chroma_deltaq =
@@ -5000,7 +4982,6 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_SET_NUM_TG, ctrl_set_num_tg },
   { AV2E_SET_MTU, ctrl_set_mtu },
   { AV2E_SET_TIMING_INFO_TYPE, ctrl_set_timing_info_type },
-  { AV2E_SET_FRAME_PARALLEL_DECODING, ctrl_set_frame_parallel_decoding_mode },
   { AV2E_SET_ENABLE_CDF_AVERAGING, ctrl_set_enable_cdf_averaging },
   { AV2E_SET_ENABLE_SFRAME, ctrl_set_enable_sframe },
   { AV2E_SET_ENABLE_RECT_PARTITIONS, ctrl_set_enable_rect_partitions },

@@ -1309,10 +1309,7 @@ void av2_change_config(struct AV2_COMP *cpi, const AV2EncoderConfig *oxcf) {
   av2_rc_init(&cpi->oxcf, rc);
   rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
 
-  cm->features.cross_frame_context =
-      (oxcf->tool_cfg.frame_parallel_decoding_mode)
-          ? CROSS_FRAME_CONTEXT_DISABLED
-          : CROSS_FRAME_CONTEXT_FORWARD;
+  cm->features.cross_frame_context = CROSS_FRAME_CONTEXT_FORWARD;
 
   if (x->palette_buffer == NULL) {
     CHECK_MEM_ERROR(cm, x->palette_buffer,
@@ -6033,10 +6030,7 @@ int av2_get_compressed_data(AV2_COMP *cpi, unsigned int *frame_flags,
   av2_set_high_precision_mv(cpi, MV_PRECISION_ONE_EIGHTH_PEL);
 
   // Normal defaults
-  cm->features.cross_frame_context =
-      (oxcf->tool_cfg.frame_parallel_decoding_mode)
-          ? CROSS_FRAME_CONTEXT_DISABLED
-          : CROSS_FRAME_CONTEXT_FORWARD;
+  cm->features.cross_frame_context = CROSS_FRAME_CONTEXT_FORWARD;
 
   // Initialize fields related to forward keyframes
   cpi->no_show_fwd_kf = 0;

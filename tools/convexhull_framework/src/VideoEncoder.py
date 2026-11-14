@@ -47,7 +47,7 @@ def EncodeWithAOM_AV2(
     LogCmdOnly=False,
 ):
     args = (
-        " --verbose --codec=av2 -v --psnr --obu --frame-parallel=0"
+        " --verbose --codec=av2 -v --psnr --obu"
         " --cpu-used=%s --limit=%d --skip=%d --passes=1 --end-usage=q --i%s "
         " --use-fixed-qp-offsets=1 --deltaq-mode=0 "
         " --enable-tpl-model=0 --fps=%d/%d -w %d -h %d"
@@ -277,7 +277,7 @@ def EncodeWithAOM_AV1_Unconstrained(
     LogCmdOnly=False,
 ):
     args = (
-        " --verbose --codec=av1 --profile=0 -v --psnr --obu --frame-parallel=0"
+        " --verbose --codec=av1 --profile=0 -v --psnr --obu"
         " --cpu-used=%s --limit=%d --skip=%d --passes=1 --end-usage=q --min-q=0 --max-q=63 --i%s "
         "  --cq-level=%d --enable-tpl-model=1 --fps=%d/%d -w %d -h %d"
         % (
@@ -448,7 +448,7 @@ def EncodeWithAOM_AV1_Constrained(
     LogCmdOnly=False,
 ):
     args = (
-        " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0"
+        " --verbose --codec=av1 -v --psnr --obu"
         " --cpu-used=%s --limit=%d --skip=%d --passes=1 --end-usage=q --i%s "
         " --use-fixed-qp-offsets=1 --deltaq-mode=0 --cq-level=%d"
         " --enable-tpl-model=0 --fps=%d/%d -w %d -h %d"

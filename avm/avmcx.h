@@ -350,19 +350,7 @@ enum avme_enc_control_id {
    */
   AV2E_SET_ENABLE_KEYFRAME_FILTERING = 36,
 
-  /*!\brief Codec control function to enable frame parallel decoding feature,
-   * unsigned int parameter
-   *
-   * AV2 has a bitstream feature to reduce decoding dependency between frames
-   * by turning off backward update of probability context used in encoding
-   * and decoding. This allows staged parallel processing of more than one
-   * video frames in the decoder. This control function provides a mean to
-   * turn this feature on or off for bitstreams produced by encoder.
-   *
-   * - 0 = disable (default)
-   * - 1 = enable
-   */
-  AV2E_SET_FRAME_PARALLEL_DECODING = 37,
+  /* NOTE: enum 37 unused */
 
   /*!\brief Codec control function to enable sframe, int parameter
    *
@@ -1595,9 +1583,6 @@ AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_INTRABC, int)
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_ANGLE_DELTA, int)
 #define AVM_CTRL_AV2E_SET_ENABLE_ANGLE_DELTA
-
-AVM_CTRL_USE_TYPE(AV2E_SET_FRAME_PARALLEL_DECODING, unsigned int)
-#define AVM_CTRL_AV2E_SET_FRAME_PARALLEL_DECODING
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_CDF_AVERAGING, int)
 #define AVM_CTRL_AV2E_SET_ENABLE_CDF_AVERAGING
