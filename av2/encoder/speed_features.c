@@ -264,6 +264,10 @@ static void set_good_speed_feature_framesize_dependent(
   if (speed >= 4) {
     if (is_480p_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
+      if (speed == 4 && is_720p_or_larger && !is_1080p_or_larger &&
+          (frame_is_boosted(cpi) || cm->current_frame.pyramid_level <= 3)) {
+        sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 0;
+      }
     }
     if (is_720p_or_larger) {
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 26);
@@ -277,7 +281,8 @@ static void set_good_speed_feature_framesize_dependent(
       sf->lpf_sf.reduce_lr_unit_size_by_pyr_drop_low = 0;
     }
 
-    sf->part_sf.intra_two_pass_max_qindex = is_4k_or_larger ? 150 : 255;
+    sf->part_sf.intra_two_pass_max_qindex =
+        is_4k_or_larger ? (speed == 4 ? 95 : 150) : 255;
   }
 
   if (speed >= 5) {
@@ -371,6 +376,7 @@ static void set_good_speed_features_framesize_independent(
       boosted || gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE;
   const int allow_screen_content_tools =
       cm->features.allow_screen_content_tools;
+  const bool is_good_sp4 = cpi->oxcf.mode == GOOD && speed == 4;
 
   sf->hl_sf.high_precision_mv_usage = LAST_MV_DATA;
 
@@ -766,21 +772,28 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 4) {
     // These features are moved down from speed 3
     // --- Start ---
-    sf->lpf_sf.ccso_eo_band_mask = 9;
+    if (!is_good_sp4 || is_720p_or_larger) {
+      sf->lpf_sf.ccso_eo_band_mask = 9;
+    }
     sf->part_sf.partition_pruning_with_mlp = 1;
     sf->part_sf.partition_pruning_with_mlp_none_thresh = 2.5f;
     sf->inter_sf.skip_eval_intrabc_in_inter_frame =
-        cm->features.allow_screen_content_tools ? 0 : 1;
+        (cm->features.allow_screen_content_tools ||
+         (is_good_sp4 && !is_4k_or_larger &&
+          cm->current_frame.pyramid_level < 2))
+            ? 0
+            : 1;
     sf->tx_sf.prune_inter_ist_by_dct_rd = true;
-    sf->inter_sf.disable_interintra = true;
+    sf->inter_sf.disable_interintra = !is_good_sp4 || is_4k_or_larger;
     sf->inter_sf.adaptive_rd_thresh = 1;
-    sf->inter_sf.prune_comp_type_by_comp_avg = 2;
+    sf->inter_sf.prune_comp_type_by_comp_avg =
+        (!is_good_sp4 || is_4k_or_larger) ? 2 : 0;
     sf->inter_sf.disable_sb_level_mv_cost_upd = 1;
     // TODO(any): Experiment with the early exit mechanism for speeds 0, 1 and 2
     // and clean-up the speed feature
     sf->inter_sf.perform_best_rd_based_gating_for_chroma = 1;
     sf->inter_sf.skip_repeated_ref_mv = 1;
-    sf->inter_sf.prune_opfl = 1;
+    sf->inter_sf.prune_opfl = (is_good_sp4 && is_4k_or_larger) ? 0 : 1;
     sf->intra_sf.intra_mode_prune_top = 3;
     // Enable the pre-RD gate for non-boosted frames at speed 4; boosted frames
     // are excluded to protect quality. At speed >= 5 this is overridden to
@@ -813,7 +826,8 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.simple_motion_search_reduce_search_steps = 4;
 
     sf->inter_sf.alt_ref_search_fp = 1;
-    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
+    sf->inter_sf.txfm_rd_gate_level =
+        boosted ? 0 : (is_good_sp4 ? (is_boosted_arf2_bwd_type ? 1 : 2) : 4);
     sf->inter_sf.prune_bawp_by_gop_usage = 1;
     sf->inter_sf.fast_warp_delta_decoupled_search = 1;
 
@@ -844,7 +858,9 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
-    sf->tx_sf.tx_type_search.disable_inter_ist = true;
+    sf->tx_sf.tx_type_search.disable_inter_ist =
+        !is_good_sp4 || is_4k_or_larger ||
+        cm->features.is_scc_content_by_detector;
     sf->tx_sf.prune_ist_by_best_rd = true;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 5;
@@ -860,7 +876,11 @@ static void set_good_speed_features_framesize_independent(
 
     sf->mv_sf.reduce_search_range = 1;
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
-    sf->mv_sf.newmv_drl_search_limit = 1;
+    sf->mv_sf.newmv_drl_search_limit =
+        (is_good_sp4 && !is_4k_or_larger &&
+         (boosted || cm->current_frame.pyramid_level <= 3))
+            ? 2
+            : 1;
     sf->winner_mode_sf.dc_blk_pred_level = 2;
 
     sf->intra_sf.intrabc_max_rd_cands = 1;
@@ -922,7 +942,7 @@ static void set_good_speed_features_framesize_independent(
       sf->inter_sf.dry_pass_skip_warp_min_pyr_level =
           DRY_PASS_SKIP_WARP_MIN_PYR_LEVEL;
       sf->inter_sf.dry_pass_mv_prec_from_top =
-          (!boosted && !allow_screen_content_tools &&
+          (!is_good_sp4 && !boosted && !allow_screen_content_tools &&
            cm->current_frame.pyramid_level >= 3)
               ? 1
               : 0;
@@ -2038,6 +2058,8 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
 
     if (sf->tx_sf.tx_type_search.disable_inter_ist) {
       cpi->common.seq_params.enable_inter_ist = 0;
+    } else if (oxcf->mode == GOOD && speed == 4) {
+      cpi->common.seq_params.enable_inter_ist = oxcf->txfm_cfg.enable_inter_ist;
     }
 
     sync_rt_bru_seq_params(cpi);
@@ -2491,6 +2513,16 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
 
     sf->intra_sf.intra_mode_prune_top = 2;
     sf->intra_sf.disable_palette = true;
+
+    if (!cpi->is_screen_content_type) {
+      sf->inter_sf.disable_interintra = true;
+      sf->inter_sf.prune_comp_type_by_comp_avg = 2;
+    }
+    sf->inter_sf.prune_opfl = 1;
+    sf->inter_sf.skip_eval_intrabc_in_inter_frame =
+        allow_screen_content_tools ? 0 : 1;
+    sf->inter_sf.txfm_rd_gate_level = 4;
+    sf->mv_sf.newmv_drl_search_limit = 1;
   } else if (speed == 5) {
     // Speed-6 values.
     sf->gm_sf.downsample_level = 2;
@@ -2666,10 +2698,11 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   set_sms_split_level(cpi, speed);
   set_sms_term_none_level(cpi, speed);
 
-  // Set the predict_dc level to { 2, 2, 0 } at speeds 2-3 for high qindex
-  // frames when dc_blk_pred_level is left at 0.
-  if ((speed == 2 || (cpi->oxcf.mode == GOOD && speed == 3)) &&
-      sf->winner_mode_sf.dc_blk_pred_level == 0) {
+  // Set the predict_dc level to { 2, 2, 0 } at speeds 2-3 (and <4K at speed 4)
+  // for high qindex frames.
+  if (((speed == 2 || (cpi->oxcf.mode == GOOD && speed == 3)) &&
+       sf->winner_mode_sf.dc_blk_pred_level == 0) ||
+      (cpi->oxcf.mode == GOOD && speed == 4 && !is_2160p_or_larger)) {
     const int dc_blk_pred_qmin = 113 + qindex_offset;
     if (cm->quant_params.base_qindex > dc_blk_pred_qmin) {
       sf->winner_mode_sf.dc_blk_pred_level = 3;
@@ -2697,7 +2730,7 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
       } else if (!is_720p_or_larger && !boosted) {
         sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
       }
-    } else if (speed == 4) {
+    } else if (speed == 4 && cpi->oxcf.mode != GOOD) {
       if (!is_1080p_or_larger && is_720p_or_larger) {
         if (!boosted && qindex_ge_160) {
           sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
@@ -2719,8 +2752,24 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
     }
   }
 
+  if (cpi->oxcf.mode == GOOD && speed == 4 && is_2160p_or_larger) {
+    const int high_qindex = cm->quant_params.base_qindex > 113 + qindex_offset;
+    sf->part_sf.sms_unified_prune_horz = high_qindex ? 0 : 1;
+    sf->part_sf.sms_unified_prune_vert = high_qindex ? 0 : 1;
+  }
+
   set_inter_frame_speed_features(cpi, speed);
   set_faster_speed_features(cpi, speed);
+
+  if (cpi->oxcf.mode == GOOD && speed == 4 &&
+      cm->features.is_scc_content_by_detector &&
+      (frame_is_intra_only(cm) || boosted)) {
+    sf->mv_sf.intrabc_mesh_patterns[0] = (MESH_PATTERN){ 32, 1 };
+    sf->mv_sf.intrabc_mesh_patterns[1] = (MESH_PATTERN){ 32, 1 };
+    sf->mv_sf.intrabc_mesh_patterns[2] = (MESH_PATTERN){ 0, 0 };
+    sf->mv_sf.intrabc_mesh_patterns[3] = (MESH_PATTERN){ 0, 0 };
+    sf->intra_sf.intrabc_skip_int_qtr_rd = false;
+  }
 
   // At speed 5, use the faster inter-frame mode search on all inter frames,
   // not only on the frames that use the speed-6 values. Key frames and

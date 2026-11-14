@@ -45,7 +45,9 @@ static int use_fine_search_interval(const AV2_COMP *const cpi) {
   return cpi->is_screen_content_type &&
          (cpi->gf_group.update_type[cpi->gf_group.index] == ARF_UPDATE ||
           cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_UPDATE) &&
-         cpi->oxcf.speed <= 3;
+         (cpi->oxcf.speed <= 3 ||
+          (cpi->oxcf.mode == GOOD && cpi->oxcf.speed == 4 &&
+           cpi->common.features.is_scc_content_by_detector));
 }
 
 void av2_single_motion_search(const AV2_COMP *const cpi, MACROBLOCK *x,
