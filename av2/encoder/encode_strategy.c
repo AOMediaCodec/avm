@@ -775,9 +775,12 @@ static int get_rtc_lt_refresh_idx(
   int lt_idx = INVALID_IDX;
   int oldest_idx = INVALID_IDX;
   int oldest_order = INT32_MAX;
+  int newest_idx = INVALID_IDX;
+  int newest_order = INT32_MIN;
   // Scan the DPB slots to locate:
   // 1) lt_idx: the slot holding the active long-term reference frame
-  // 2) oldest_idx: the oldest frame among the remaining short-term slots.
+  // 2) oldest_idx / newest_idx: the oldest and newest frames among the
+  //    remaining short-term slots.
   for (int idx = 0; idx < cpi->common.seq_params.ref_frames; ++idx) {
     const RefFrameMapPair *const pair = &ref_frame_map_pairs[idx];
     if (pair->ref_frame_for_inference == -1 || pair->ref_frame_restricted)
@@ -792,27 +795,63 @@ static int get_rtc_lt_refresh_idx(
       oldest_order = pair->disp_order;
       oldest_idx = idx;
     }
+    if (pair->disp_order > newest_order) {
+      newest_order = pair->disp_order;
+      newest_idx = idx;
+    }
   }
   // If the tracked long-term frame is no longer present in the DPB, fall back
   // to standard get_refresh_idx().
-  if (lt_idx == INVALID_IDX) return INVALID_IDX;
+  if (lt_idx == INVALID_IDX ||
+      (cpi->is_screen_content_type && oldest_idx == INVALID_IDX)) {
+    return INVALID_IDX;
+  }
   const int elapsed = cur_disp_order - cpi->rc.lt_ref_disp_order;
+  const int new_lt_order =
+      cpi->is_screen_content_type ? oldest_order : cur_disp_order;
   if (cpi->oxcf.rc_cfg.mode == AVM_CBR) {
+    if (cpi->is_screen_content_type &&
+        oldest_order <= cpi->rc.lt_ref_disp_order) {
+      return oldest_idx;
+    }
     const int lt_q = ref_frame_map_pairs[lt_idx].base_qindex;
     const int prev_q = cpi->rc.q_1_frame;
+    const int ref_q = cpi->is_screen_content_type
+                          ? ref_frame_map_pairs[oldest_idx].base_qindex
+                          : prev_q;
     const int avg_q = cpi->rc.avg_frame_qindex[INTER_FRAME];
     const int max_wait = period + 32;
+    const int bd_shift = cpi->common.seq_params.bit_depth - 8;
+    const bool high_motion =
+        cpi->is_screen_content_type &&
+        cpi->rc.avg_source_sad > ((uint64_t)(64 * 64) << bd_shift);
+    const bool early_upgrade = cpi->is_screen_content_type && elapsed >= 8 &&
+                               ref_q + 24 < lt_q && prev_q <= ref_q + 8;
     const bool quality_ok =
-        !cpi->rc.high_source_sad && prev_q <= avg_q && prev_q <= lt_q + 8;
+        !cpi->rc.high_source_sad && ref_q <= avg_q &&
+        ((high_motion && cpi->rc.frame_source_sad > 0 && lt_q + 24 < avg_q) ||
+         ref_q <= lt_q + 8);
     if (!cpi->rc.high_source_sad &&
-        ((elapsed >= period && quality_ok) || elapsed >= max_wait)) {
-      cpi->rc.lt_ref_disp_order = cur_disp_order;
+        (early_upgrade || (elapsed >= period && quality_ok) ||
+         elapsed >= max_wait)) {
+      cpi->rc.lt_ref_disp_order = new_lt_order;
       return lt_idx;
+    }
+    if (high_motion && !cpi->sf.rt_sf.rtc_enable_bru &&
+        newest_idx != INVALID_IDX && newest_idx != oldest_idx &&
+        oldest_order == cur_disp_order - 2) {
+      const int newest_q = ref_frame_map_pairs[newest_idx].base_qindex;
+      if ((cpi->rc.frame_source_sad == 0 && ref_q < newest_q &&
+           lt_q + 24 >= avg_q) ||
+          (ref_q > lt_q + 8 && ref_q + 32 < newest_q)) {
+        return newest_idx;
+      }
     }
     return oldest_idx;
   }
-  if (elapsed >= period) {
-    cpi->rc.lt_ref_disp_order = cur_disp_order;
+  if (elapsed >= period && (!cpi->is_screen_content_type ||
+                            oldest_order > cpi->rc.lt_ref_disp_order)) {
+    cpi->rc.lt_ref_disp_order = new_lt_order;
     return lt_idx;
   }
   return oldest_idx;

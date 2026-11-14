@@ -1571,8 +1571,8 @@ typedef struct REALTIME_SPEED_FEATURES {
   int rtc_enable_bru;
 
   // Retain one DPB slot as a non-boosted long-term reference refreshed
-  // periodically in realtime mode with implicit reference mapping (for
-  // non-screen content at speed >= 6):
+  // periodically in realtime mode with implicit reference mapping (at
+  // speed >= 6):
   // 0: Disabled
   // 1: Enabled
   int rtc_use_lt_ref;

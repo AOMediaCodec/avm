@@ -399,6 +399,10 @@ int av2_find_rtc_cbr_bru_slot(
       continue;
     }
     ++valid_dpb_refs;
+    if (cpi->sf.rt_sf.rtc_use_lt_ref &&
+        (int)buf->display_order_hint == cpi->rc.lt_ref_disp_order) {
+      continue;
+    }
     if (buf->base_qindex > 0 &&
         (int)buf->display_order_hint == cm->bru.ref_disp_order &&
         total_units > 0 && total_units == cpi->rc.rtc_bru.sb_units &&
@@ -647,6 +651,8 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
       if (any_slot_src) {
         memset(slot_same, -1, sizeof(slot_same));
       }
+      int inherited_q = prev_slot_valid ? cpi->rc.rtc_bru.sb_q[prev_slot][u]
+                                        : cm->quant_params.base_qindex;
       for (int rr = 0; rr < mi_rows_in_sb; ++rr) {
         int row_step = 1;
         for (int cc = 0; cc < mi_cols_in_sb;) {
@@ -679,9 +685,14 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
               !mbmi->bawp_flag[1] && mbmi->skip_txfm[0] &&
               mbmi->mv[0].as_int == 0;
           if (can_inherit_prev_q) {
-            if (!is_zero_mv_skip_inter ||
-                get_ref_frame_map_idx(cm, mbmi->ref_frame[0]) != prev_slot) {
+            const int ref_slot =
+                is_zero_mv_skip_inter
+                    ? get_ref_frame_map_idx(cm, mbmi->ref_frame[0])
+                    : -1;
+            if (!is_cbr_bru_slot_valid(cpi, ref_slot, total_units)) {
               can_inherit_prev_q = false;
+            } else if (cpi->rc.rtc_bru.sb_q[ref_slot][u] > inherited_q) {
+              inherited_q = cpi->rc.rtc_bru.sb_q[ref_slot][u];
             }
           }
           if (has_per_block_q || any_slot_src) {
@@ -729,10 +740,10 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
       int sb_q = (has_per_block_q || any_slot_src) && found_block
                      ? sb_max_q
                      : cm->quant_params.base_qindex;
-      if (can_inherit_prev_q && cpi->rc.rtc_bru.sb_q[prev_slot][u] < sb_q &&
+      if (can_inherit_prev_q && inherited_q < sb_q &&
           av2_sb_planes_identical(cpi, cpi->source, cpi->last_source, mi_row,
                                   mi_col)) {
-        sb_q = cpi->rc.rtc_bru.sb_q[prev_slot][u];
+        sb_q = inherited_q;
       }
       cpi->rc.rtc_bru.cur_sb_q[u] = (uint16_t)sb_q;
     }
