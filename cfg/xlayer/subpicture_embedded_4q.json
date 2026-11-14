@@ -1,4 +1,6 @@
 {
+  "comment_nonconforming": "4 embedded layers exceed interoperability point 2 (at most 3 embedded layers per extended layer)",
+  "allow_nonconforming": true,
   "inputs": [
     { "name": "video", "filename": "video.yuv", "width": 1920, "height": 1080 }
   ],

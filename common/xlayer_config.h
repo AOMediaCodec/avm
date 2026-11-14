@@ -59,6 +59,9 @@ typedef struct MLayerSourceConfig {
   int transfer_characteristics;
   int matrix_coefficients;
   int full_range_flag;
+  // View signalling overrides (-1 = inherit from xlayer)
+  int view_type;
+  int view_id;
 } MLayerSourceConfig;
 
 // Default mlayer dependency mask: linear chain where each mlayer depends on
@@ -84,6 +87,7 @@ typedef struct XLayerEncConfig {
   int layer_type;      // TEXTURE_LAYER, AUX_LAYER, STEREO_LAYER, etc.
   int auxiliary_type;  // LCR_ALPHA_AUX, LCR_DEPTH_AUX, etc. (if AUX_LAYER)
   int view_type;       // VIEW_UNSPECIFIED, VIEW_LEFT, VIEW_RIGHT, etc.
+  int view_id;         // lcr_view_id, only written for VIEW_EXPLICIT (-1 = unset)
   int num_temporal_layers;
   int num_embedded_layers;
   // Color info
@@ -96,6 +100,7 @@ typedef struct XLayerEncConfig {
   int bitrate;
   int cpu_used;
   int lag_in_frames;
+  int threads;  // encoder threads (0 = default, single thread)
   int sframe_dist;  // S-Frame interval (-1 = disabled/default)
   int sframe_mode;  // S-Frame insertion mode (-1 = default)
   int sframe_type;  // S-Frame type: 0=regular, 1=RAS (-1 = default)
@@ -191,6 +196,11 @@ typedef struct MultiXLayerConfig {
   int combined_tu;
   int monotonic_output_order;
   double frame_rate;  // 0 = use main encoder timebase (default)
+  int frame_rate_num;  // exact rational of frame_rate (0 = not set)
+  int frame_rate_den;
+  // 1 = skip the interoperability point / level conformance checks of
+  // validate_multi_xlayer_config() (writes streams that may not conform)
+  int allow_nonconforming;
   int limit;          // max frames to encode (0 = unlimited)
   char output_filename[PATH_MAX];
 } MultiXLayerConfig;
@@ -219,11 +229,12 @@ static inline void xlayer_config_init(MultiXLayerConfig *cfg) {
     cfg->xlayers[i].atlas_pos_x = -1;
     cfg->xlayers[i].atlas_pos_y = -1;
     cfg->xlayers[i].input_source_idx = -1;
-    cfg->xlayers[i].profile = MAIN_420_10_IP1;
+    cfg->xlayers[i].profile = MAIN_420_10_IP2;
     cfg->xlayers[i].level = SEQ_LEVEL_4_0;
     cfg->xlayers[i].num_temporal_layers = 1;
     cfg->xlayers[i].num_embedded_layers = 1;
     cfg->xlayers[i].view_type = VIEW_UNSPECIFIED;
+    cfg->xlayers[i].view_id = -1;
     for (int j = 0; j < MAX_NUM_MLAYERS; j++) {
       cfg->xlayers[i].mlayer_sources[j].input_source_idx = -1;
       cfg->xlayers[i].mlayer_sources[j].atlas_pos_x = -1;
@@ -231,6 +242,8 @@ static inline void xlayer_config_init(MultiXLayerConfig *cfg) {
       cfg->xlayers[i].mlayer_sources[j].width = 0;
       cfg->xlayers[i].mlayer_sources[j].height = 0;
       cfg->xlayers[i].mlayer_sources[j].dependency_mask = -1;
+      cfg->xlayers[i].mlayer_sources[j].view_type = -1;
+      cfg->xlayers[i].mlayer_sources[j].view_id = -1;
       cfg->xlayers[i].mlayer_sources[j].color_primaries = -1;
       cfg->xlayers[i].mlayer_sources[j].transfer_characteristics = -1;
       cfg->xlayers[i].mlayer_sources[j].matrix_coefficients = -1;

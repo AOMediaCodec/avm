@@ -408,6 +408,23 @@ static void set_bitstream_level_tier(AV2_COMP *cpi, AV2_COMMON *cm, int width,
     level = SEQ_LEVEL_8_2;
   }
 
+  if (cpi->oxcf.seq_level_idx >= 0) {
+    // Explicit level: it must not be lower than the minimum level derived from
+    // the picture size (and the frame rate the encoder was given).
+    const AV2_LEVEL forced = (AV2_LEVEL)cpi->oxcf.seq_level_idx;
+    if (!is_valid_seq_level_idx(forced))
+      avm_internal_error(&cm->error, AVM_CODEC_INVALID_PARAM,
+                         "Invalid sequence level index %d.",
+                         cpi->oxcf.seq_level_idx);
+    if (forced < level)
+      avm_internal_error(
+          &cm->error, AVM_CODEC_INVALID_PARAM,
+          "Sequence level index %d is too low for %dx%d at %.3f fps "
+          "(minimum level index %d).",
+          cpi->oxcf.seq_level_idx, width, height, init_framerate, (int)level);
+    level = forced;
+  }
+
   SequenceHeader *const seq_params = &cm->seq_params;
   for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
     cpi->level_idx[i] = level;

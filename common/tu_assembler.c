@@ -1267,7 +1267,13 @@ void populate_global_lcr_from_config(const MultiXLayerConfig *mcfg,
         if (xl->layer_type == AUX_LAYER) {
           ml->lcr_auxiliary_type[m] = xl->auxiliary_type;
         }
-        ml->lcr_view_type[m] = xl->view_type;
+        {
+          const MLayerSourceConfig *ms = &xl->mlayer_sources[m];
+          ml->lcr_view_type[m] =
+              ms->view_type >= 0 ? ms->view_type : xl->view_type;
+          int vid = ms->view_type >= 0 ? ms->view_id : xl->view_id;
+          ml->lcr_view_id[m] = vid >= 0 ? vid : 0;
+        }
         ml->TLayerCount[m] = xl->num_temporal_layers;
         ml->lcr_tlayer_map[m] = (1 << xl->num_temporal_layers) - 1;
         // Set resolution flag based on scaling mode.
@@ -1300,6 +1306,7 @@ void populate_global_lcr_from_config(const MultiXLayerConfig *mcfg,
         ml->lcr_auxiliary_type[0] = xl->auxiliary_type;
       }
       ml->lcr_view_type[0] = xl->view_type;
+      ml->lcr_view_id[0] = xl->view_id >= 0 ? xl->view_id : 0;
       ml->TLayerCount[0] = xl->num_temporal_layers;
       ml->lcr_tlayer_map[0] = (1 << xl->num_temporal_layers) - 1;
       ml->lcr_same_sh_max_resolution_flag[0] = 1;
@@ -1307,6 +1314,9 @@ void populate_global_lcr_from_config(const MultiXLayerConfig *mcfg,
 
     // Seq profile/tier/level info
     glcr->seq_ptl[i].lcr_seq_profile_idc = xl->profile;
+    // SeqMaxMlayerCnt of the sequence header of this xlayer (the field is 3
+    // bits wide, so at most 7; validate_multi_xlayer_config() enforces that)
+    glcr->seq_ptl[i].lcr_max_mlayer_count = xl->num_embedded_layers;
     glcr->seq_ptl[i].lcr_max_level_idx = xl->level;
     glcr->seq_ptl[i].lcr_tier_flag = xl->tier;
   }
@@ -1362,6 +1372,18 @@ void populate_ops_from_config(const OPSConfig *ops_cfg, int xlayer_id,
     for (int x = 0; x < op->XCount; x++) {
       int xl = op->OpsxLayerID[x];
       int ml_count = opc->mlayer_count[x];
+      // Profile, level and tier of this layer: copied from its sequence header
+      for (int j = 0; j < mcfg->num_xlayers; j++) {
+        if (mcfg->xlayers[j].xlayer_id == xl) {
+          op->ops_seq_profile_idc[xl] = (int)mcfg->xlayers[j].profile;
+          op->ops_level_idx[xl] = (int)mcfg->xlayers[j].level;
+          op->ops_tier_flag[xl] = (int)mcfg->xlayers[j].tier;
+          // mlayer_count 0 (not given) = all embedded layers of the xlayer. The
+          // count is never 0 in the bitstream: a layer has at least one.
+          if (ml_count <= 0) ml_count = mcfg->xlayers[j].num_embedded_layers;
+          break;
+        }
+      }
       op->ops_mlayer_count[xl] = ml_count;
       // Derive ops_mlayer_map: include the first ml_count mlayers
       if (ml_count > 0 && ops->ops_mlayer_info_idc >= 1) {
@@ -1383,6 +1405,20 @@ void populate_ops_from_config(const OPSConfig *ops_cfg, int xlayer_id,
           op->ops_mlayer_explicit_info_flag[xl] = 1;
         }
       }
+    }
+
+    // Maximum interoperability point needed by the layers of this operating
+    // point, from their profiles (IP0 / IP1 / IP2).
+    op->ops_max_interop = 0;
+    for (int x = 0; x < op->XCount; x++) {
+      const int xl = op->OpsxLayerID[x];
+      const int prof = op->ops_seq_profile_idc[xl];
+      const int ip = (prof == MAIN_420_10_IP0)
+                         ? 0
+                         : (prof == MAIN_420_10_IP2 || prof == MAIN_444C_12_IP2)
+                               ? 2
+                               : 1;
+      if (ip > op->ops_max_interop) op->ops_max_interop = ip;
     }
 
     // Derive ops_config_idc from the profiles of constituent xlayers

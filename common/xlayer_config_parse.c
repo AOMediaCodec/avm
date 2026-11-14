@@ -16,8 +16,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "avm/avmcx.h"
+#include "av2/common/level.h"
 #include "third_party/cJSON/cJSON.h"
 
 // Map layer type string to enum value
@@ -137,6 +139,71 @@ static const char *json_get_string(const cJSON *obj, const char *key,
   return default_val;
 }
 
+// View type + view id from a JSON object (xlayer or embedded layer entry).
+// A "view_id" without a "view_type" implies "explicit". Outputs are left at
+// -1 when the key is absent so callers can inherit.
+static int parse_view_signalling(const cJSON *entry, const char *section,
+                                 int *view_type, int *view_id) {
+  const char *vt = json_get_string(entry, "view_type", NULL);
+  const cJSON *vid = cJSON_GetObjectItemCaseSensitive(entry, "view_id");
+  if (vt) *view_type = parse_view_type(vt);
+  if (vid != NULL) {
+    if (!cJSON_IsNumber(vid) || vid->valueint < 0 || vid->valueint > 255) {
+      fprintf(stderr, "Error: %s view_id must be an integer in 0..255\n",
+              section);
+      return -1;
+    }
+    *view_id = vid->valueint;
+    if (!vt) {
+      *view_type = VIEW_EXPLICIT;
+    } else if (*view_type != VIEW_EXPLICIT) {
+      fprintf(stderr,
+              "Warning: %s view_id is only signalled for view_type "
+              "\"explicit\"; ignored\n",
+              section);
+    }
+  } else if (vt && *view_type == VIEW_EXPLICIT) {
+    fprintf(stderr,
+            "Warning: %s view_type \"explicit\" without view_id, "
+            "using view_id 0\n",
+            section);
+    *view_id = 0;
+  }
+  return 0;
+}
+
+// Operating point intent: spec name (case-insensitive, optional OPSI_ prefix)
+// or integer 0..127. Returns -1 on error.
+static int parse_intent_value(const cJSON *item, const char *section) {
+  static const char *const names[] = {
+    "unspecified", "scalability", "stereo",   "texture_alpha",
+    "texture_depth", "gain_map",  "multiview",
+  };
+  if (cJSON_IsNumber(item)) {
+    int v = item->valueint;
+    if (v < 0 || v > 127) {
+      fprintf(stderr, "Error: %s intent %d out of range 0..127\n", section, v);
+      return -1;
+    }
+    if (v > 6)
+      fprintf(stderr, "Warning: %s intent %d is a reserved value\n", section,
+              v);
+    return v;
+  }
+  if (cJSON_IsString(item)) {
+    const char *s = item->valuestring;
+    if (strncasecmp(s, "opsi_", 5) == 0) s += 5;
+    for (int i = 0; i < (int)(sizeof(names) / sizeof(names[0])); i++)
+      if (strcasecmp(s, names[i]) == 0) return i;
+  }
+  fprintf(stderr,
+          "Error: %s intent must be 0..127 or one of unspecified, "
+          "scalability, stereo, texture_alpha, texture_depth, gain_map, "
+          "multiview\n",
+          section);
+  return -1;
+}
+
 // Helper: parse frame_rate from JSON into num/den rational.
 // Accepts: number (e.g., 30 -> 30/1), string "N/D" (e.g., "30000/1001").
 // Returns 0 on success (or no field present), -1 on error.
@@ -234,20 +301,26 @@ static int parse_xlayer_entry(const cJSON *entry, XLayerEncConfig *xlcfg) {
   xlcfg->width = (unsigned int)json_get_int(entry, "width", 0);
   xlcfg->height = (unsigned int)json_get_int(entry, "height", 0);
   xlcfg->profile =
-      (unsigned int)json_get_int(entry, "profile", MAIN_420_10_IP1);
+      (unsigned int)json_get_int(entry, "profile", MAIN_420_10_IP2);
   xlcfg->tier = (unsigned int)json_get_int(entry, "tier", 0);
   xlcfg->level = (unsigned int)json_get_int(entry, "level", SEQ_LEVEL_4_0);
 
   const char *lt = json_get_string(entry, "layer_type", "texture");
   xlcfg->layer_type = parse_layer_type(lt);
+  if (xlcfg->layer_type < 0) return -1;
 
   if (xlcfg->layer_type == AUX_LAYER) {
     const char *at = json_get_string(entry, "auxiliary_type", "alpha");
     xlcfg->auxiliary_type = parse_auxiliary_type(at);
   }
 
-  const char *vt = json_get_string(entry, "view_type", NULL);
-  if (vt) xlcfg->view_type = parse_view_type(vt);
+  {
+    char vsec[64];
+    snprintf(vsec, sizeof(vsec), "xlayer %d", xlcfg->xlayer_id);
+    if (parse_view_signalling(entry, vsec, &xlcfg->view_type,
+                              &xlcfg->view_id) != 0)
+      return -1;
+  }
 
   xlcfg->num_temporal_layers = json_get_int(entry, "num_temporal_layers", 1);
   xlcfg->num_embedded_layers = json_get_int(entry, "num_embedded_layers", 1);
@@ -264,6 +337,7 @@ static int parse_xlayer_entry(const cJSON *entry, XLayerEncConfig *xlcfg) {
   xlcfg->bitrate = json_get_int(entry, "bitrate", -1);
   xlcfg->cpu_used = json_get_int(entry, "cpu_used", -1);
   xlcfg->lag_in_frames = json_get_int(entry, "lag_in_frames", -1);
+  xlcfg->threads = json_get_int(entry, "threads", 0);
 
   // S-Frame parameters
   xlcfg->sframe_dist = json_get_int(entry, "sframe_dist", -1);
@@ -387,6 +461,14 @@ static int parse_xlayer_entry(const cJSON *entry, XLayerEncConfig *xlcfg) {
         xlcfg->has_mlayer_dependencies = 1;
       }
 
+      {
+        char vsec[64];
+        snprintf(vsec, sizeof(vsec), "xlayer %d embedded_layers[%d]",
+                 xlcfg->xlayer_id, m);
+        if (parse_view_signalling(el, vsec, &ms->view_type, &ms->view_id) != 0)
+          return -1;
+      }
+
       // Content Interpretation overrides (inherit from xlayer if omitted)
       ms->color_primaries = json_get_int(el, "color_primaries", -1);
       ms->transfer_characteristics =
@@ -401,6 +483,7 @@ static int parse_xlayer_entry(const cJSON *entry, XLayerEncConfig *xlcfg) {
           "atlas_pos_y",         "width",           "height",
           "depends_on",          "color_primaries", "transfer_characteristics",
           "matrix_coefficients", "full_range_flag",
+          "view_type",           "view_id",
         };
         char el_section[64];
         snprintf(el_section, sizeof(el_section),
@@ -483,6 +566,7 @@ static int parse_xlayer_entry(const cJSON *entry, XLayerEncConfig *xlcfg) {
       "layer_type",
       "auxiliary_type",
       "view_type",
+      "view_id",
       "num_temporal_layers",
       "num_embedded_layers",
       "color_primaries",
@@ -493,6 +577,7 @@ static int parse_xlayer_entry(const cJSON *entry, XLayerEncConfig *xlcfg) {
       "bitrate",
       "cpu_used",
       "lag_in_frames",
+      "threads",
       "sframe_dist",
       "sframe_mode",
       "sframe_type",
@@ -560,7 +645,14 @@ static int parse_ops_entry(const cJSON *entry, OPSConfig *ops_cfg) {
     const cJSON *op_entry = cJSON_GetArrayItem(op_arr, i);
     OperatingPointConfig *op = &ops_cfg->ops[i];
 
-    op->intent = json_get_int(op_entry, "intent", 0);
+    {
+      char isec[64];
+      snprintf(isec, sizeof(isec), "ops %d operating_points[%d]",
+               ops_cfg->ops_id, i);
+      const cJSON *it = cJSON_GetObjectItemCaseSensitive(op_entry, "intent");
+      op->intent = it ? parse_intent_value(it, isec) : 0;
+      if (op->intent < 0) return -1;
+    }
     const cJSON *xmap =
         cJSON_GetObjectItemCaseSensitive(op_entry, "xlayer_map");
     op->xlayer_map = parse_xlayer_map_array(xmap);
@@ -785,11 +877,21 @@ int parse_multi_xlayer_config(const char *json_path, MultiXLayerConfig *cfg) {
   cfg->monotonic_output_order =
       json_get_bool(root, "monotonic_output_order", 0);
 
-  // Parse frame rate (used for aggregate level derivation)
+  // Parse frame rate: sets the encoder timebase, the level checks and the
+  // timing info of the Content Interpretation OBUs
   {
-    const cJSON *fps = cJSON_GetObjectItemCaseSensitive(root, "frame_rate");
-    if (cJSON_IsNumber(fps)) cfg->frame_rate = fps->valuedouble;
+    int n = 0, d = 0;
+    if (json_parse_frame_rate(root, "frame_rate", &n, &d) != 0) {
+      cJSON_Delete(root);
+      return -1;
+    }
+    if (n > 0 && d > 0) {
+      cfg->frame_rate_num = n;
+      cfg->frame_rate_den = d;
+      cfg->frame_rate = (double)n / (double)d;
+    }
   }
+  cfg->allow_nonconforming = json_get_bool(root, "allow_nonconforming", 0);
 
   // Parse limit (max frames to encode)
   cfg->limit = json_get_int(root, "limit", 0);
@@ -807,7 +909,7 @@ int parse_multi_xlayer_config(const char *json_path, MultiXLayerConfig *cfg) {
       "ops",         "atlas",
       "inputs",      "source",
       "combined_tu", "monotonic_output_order",
-      "frame_rate",  "limit",
+      "frame_rate",  "limit",         "allow_nonconforming",
       "output",
     };
     warn_unknown_keys(root, known, sizeof(known) / sizeof(known[0]), "root");
@@ -969,6 +1071,183 @@ void resolve_mlayer_ci(MultiXLayerConfig *cfg) {
   }
 }
 
+// Interoperability point implied by a profile (Annex A, "AV2 profile values").
+static int profile_interop_point(unsigned int profile) {
+  switch (profile) {
+    case MAIN_420_10_IP0: return 0;
+    case MAIN_420_10_IP2:
+    case MAIN_444C_12_IP2: return 2;
+    default: return 1;  // MAIN_420_10_IP1, MAIN_422_10_IP1, MAIN_444_10_IP1
+  }
+}
+
+static double xlayer_frame_rate(const MultiXLayerConfig *cfg,
+                                const XLayerEncConfig *xl) {
+  if (xl->input_source_idx >= 0 &&
+      cfg->input_sources[xl->input_source_idx].frame_rate_num > 0) {
+    const InputSourceConfig *is = &cfg->input_sources[xl->input_source_idx];
+    return (double)is->frame_rate_num / (double)is->frame_rate_den;
+  }
+  return cfg->frame_rate;
+}
+
+// Checks that the layout, the profile and the levels of the config describe a
+// conforming stream (Annex A: interoperability points, OBU requirements for
+// interoperability points, level limits). Returns 0 if everything is fine.
+static int validate_conformance(const MultiXLayerConfig *cfg) {
+  int err = 0;
+  const int num_x = cfg->num_xlayers;
+  int max_m = 1, total_m = 0;
+  int iop_needed = 0;
+  for (int i = 0; i < num_x; i++) {
+    const XLayerEncConfig *xl = &cfg->xlayers[i];
+    const int m = xl->num_embedded_layers;
+    if (m > 7) {
+      fprintf(stderr,
+              "Error: xlayer %d has %d embedded layers; lcr_max_mlayer_count "
+              "is 3 bits wide, so at most 7 can be signalled\n",
+              xl->xlayer_id, m);
+      err = 1;
+    }
+    if (m > max_m) max_m = m;
+    total_m += m;
+    if (xl->tier != 0) {
+      fprintf(stderr,
+              "Error: xlayer %d: tier %u is not supported by the xlayer "
+              "encoder (the sequence header is written with tier 0)\n",
+              xl->xlayer_id, xl->tier);
+      err = 1;
+    }
+  }
+  // Lowest interoperability point that can carry the layout.
+  if (num_x > 4 || max_m > 3 || total_m > 8) {
+    fprintf(stderr,
+            "Error: %d extended layers, up to %d embedded layers per extended "
+            "layer, %d layers in total: exceeds interoperability point 2 "
+            "(1..4 extended layers, 1..3 embedded layers, at most 8 layers)\n",
+            num_x, max_m, total_m);
+    err = 1;
+  } else if (num_x > 1 && max_m > 1) {
+    iop_needed = 2;
+  } else if (max_m > 2) {
+    iop_needed = 2;
+  } else if (max_m > 1) {
+    iop_needed = 1;
+  }
+  for (int i = 0; i < num_x; i++) {
+    const XLayerEncConfig *xl = &cfg->xlayers[i];
+    const int iop = profile_interop_point(xl->profile);
+    if (iop < iop_needed) {
+      fprintf(stderr,
+              "Error: xlayer %d: profile %u is interoperability point %d, the "
+              "layout (%d extended layers x up to %d embedded layers) needs "
+              "point %d (profile %d = Main_420_10_IP2)\n",
+              xl->xlayer_id, xl->profile, iop, num_x, max_m, iop_needed,
+              (int)MAIN_420_10_IP2);
+      err = 1;
+    }
+  }
+  // OBU requirements for the interoperability point of the profile (taken from
+  // the lowest profile used: that is the point the stream claims).
+  int iop = 2;
+  for (int i = 0; i < num_x; i++) {
+    const int p = profile_interop_point(cfg->xlayers[i].profile);
+    if (p < iop) iop = p;
+  }
+  if (num_x == 1 && cfg->enable_msdo) {
+    fprintf(stderr, "Error: MSDO is prohibited with a single extended layer\n");
+    err = 1;
+  }
+  if (num_x > 1 && max_m == 1) {
+    if (iop <= 1 && !cfg->enable_msdo) {
+      fprintf(stderr,
+              "Error: several extended layers at interoperability point %d "
+              "require an MSDO OBU (enable msdo, or use a profile with point "
+              "2 and a global LCR)\n",
+              iop);
+      err = 1;
+    } else if (iop == 2 && !cfg->enable_msdo && !cfg->enable_global_lcr) {
+      fprintf(stderr,
+              "Error: several extended layers need an MSDO or a global LCR\n");
+      err = 1;
+    }
+  } else if (num_x > 1 && max_m > 1) {
+    if (!cfg->enable_global_lcr && !(cfg->enable_msdo && cfg->enable_local_lcr)) {
+      fprintf(stderr,
+              "Error: several extended and embedded layers need a global LCR "
+              "or (MSDO plus local LCRs)\n");
+      err = 1;
+    }
+  } else if (num_x == 1 && max_m > 1) {
+    if (!cfg->enable_global_lcr && !cfg->enable_local_lcr) {
+      fprintf(stderr, "Error: several embedded layers need an LCR\n");
+      err = 1;
+    }
+  }
+  // Operating points: every selected xlayer must exist, and mlayer_count
+  // (0 = all) must not exceed the embedded layers of that xlayer.
+  for (int o = 0; o < cfg->num_ops_sets; o++) {
+    const OPSConfig *oc = &cfg->ops_sets[o];
+    for (int p = 0; p < oc->num_operating_points; p++) {
+      const OperatingPointConfig *op = &oc->ops[p];
+      int x = 0;
+      for (int bit = 0; bit < MAX_NUM_XLAYERS - 1; bit++) {
+        if (!(op->xlayer_map & (1u << bit))) continue;
+        for (int i = 0; i < num_x; i++) {
+          if (cfg->xlayers[i].xlayer_id != bit) continue;
+          const int n = cfg->xlayers[i].num_embedded_layers;
+          const int c = op->mlayer_count[x];
+          if (c < 0 || c > n) {
+            fprintf(stderr,
+                    "Error: ops %d operating point %d: mlayer_count %d for "
+                    "xlayer %d is outside 0..%d (0 = all embedded layers)\n",
+                    oc->ops_id, p, c, bit, n);
+            err = 1;
+          }
+        }
+        x++;
+      }
+    }
+  }
+  // Level limits per xlayer: picture size, dimensions and the display rate
+  // (counting every embedded layer, which is conservative).
+  for (int i = 0; i < num_x; i++) {
+    const XLayerEncConfig *xl = &cfg->xlayers[i];
+    if (xl->width == 0 || xl->height == 0) continue;
+    if (xl->level >= SEQ_LEVELS) {
+      if (xl->level == SEQ_LEVEL_MAX) continue;
+      fprintf(stderr, "Error: xlayer %d: invalid level index %u\n",
+              xl->xlayer_id, xl->level);
+      err = 1;
+      continue;
+    }
+    const AV2LevelSpec *ls = &av2_level_defs[xl->level];
+    const int64_t pic = (int64_t)xl->width * xl->height;
+    if (pic > ls->max_picture_size || (int)xl->width > ls->max_h_size ||
+        (int)xl->height > ls->max_v_size) {
+      fprintf(stderr,
+              "Error: xlayer %d: %ux%u exceeds level index %u (max picture "
+              "size %d, max %dx%d)\n",
+              xl->xlayer_id, xl->width, xl->height, xl->level,
+              ls->max_picture_size, ls->max_h_size, ls->max_v_size);
+      err = 1;
+    }
+    const double fps = xlayer_frame_rate(cfg, xl);
+    if (fps > 0 && (double)pic * fps * xl->num_embedded_layers >
+                       (double)ls->max_display_rate) {
+      fprintf(stderr,
+              "Error: xlayer %d: %ux%u at %.3f fps with %d embedded layers "
+              "needs %.0f samples/s, level index %u allows %lld\n",
+              xl->xlayer_id, xl->width, xl->height, fps,
+              xl->num_embedded_layers,
+              (double)pic * fps * xl->num_embedded_layers, xl->level,
+              (long long)ls->max_display_rate);
+      err = 1;
+    }
+  }
+  return err ? -1 : 0;
+}
+
 int validate_multi_xlayer_config(const MultiXLayerConfig *cfg) {
   if (cfg->num_xlayers < 1) {
     fprintf(stderr, "Error: must have at least 1 xlayer\n");
@@ -988,6 +1267,12 @@ int validate_multi_xlayer_config(const MultiXLayerConfig *cfg) {
       return -1;
     }
     seen[id] = 1;
+  }
+
+  if (!cfg->allow_nonconforming && validate_conformance(cfg) != 0) {
+    fprintf(stderr,
+            "(set \"allow_nonconforming\": true to encode anyway)\n");
+    return -1;
   }
 
   // Validate input source names are unique and non-empty

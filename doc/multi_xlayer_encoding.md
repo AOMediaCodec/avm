@@ -120,7 +120,19 @@ avmdec --all-layers --atlas-composite --xlayer-config config.json -o composite.y
 | `output` | string | `""` | Output bitstream path |
 | `combined_tu` | bool | `true` | Combine all xlayer OBUs into shared TUs |
 | `monotonic_output_order` | bool | `false` | Encoder outputs frames in monotonic order |
-| `frame_rate` | number | `0` | Frame rate for aggregate level derivation (0 = use encoder timebase) |
+| `frame_rate` | number or string | `0` | Frame rate of the content (`24`, `29.97`, or `"24000/1001"`). When set it is the encoder timebase, it is used for the level checks and the aggregate level, and it is written to the Content Interpretation OBU `timing_info` (`time_scale` = rate, `num_units_in_display_tick` = 1, equal picture interval) of every layer. 0 = take it from the input (no timing info is written). |
+| `allow_nonconforming` | bool | `false` | Skip the conformance checks below (interoperability point, level limits). The stream may then not conform to the profile/level it declares. |
+
+### Conformance checks
+
+`avmenc` refuses configs that would produce a non-conforming stream (override with `"allow_nonconforming": true`):
+
+- Interoperability point (from `profile`, Annex A): IP0 = 1..4 extended layers, 1 embedded layer; IP1 = 1..4 extended and 1..2 embedded layers, never both more than one; IP2 = 1..4 extended layers, 1..3 embedded layers, at most 8 layers in total. More than 7 embedded layers cannot be signalled (`lcr_max_mlayer_count` is 3 bits).
+- OBU requirements: several extended layers need an MSDO at IP0/IP1; at IP2 an MSDO or a global LCR. Several extended and several embedded layers need a global LCR (or MSDO plus local LCRs). MSDO is prohibited with a single extended layer.
+- Level: picture size and dimensions must fit the level of every xlayer, and with `frame_rate` the display rate (picture size x frame rate x number of embedded layers).
+- `tier` must be 0.
+
+The sequence header level is the configured `level` (not a level the encoder derives itself); the LCR (`lcr_max_level_idx`, `lcr_max_mlayer_count`) and the OPS (`ops_seq_profile_idc`, `ops_level_idx`, `ops_tier_flag` per layer, `ops_max_interop`) carry the same values.
 
 ### XLayer Entry Fields
 
@@ -133,12 +145,13 @@ Each entry in the `xlayers` array configures one extended layer:
 | `input_source` | string | `""` | Reference to a named input source from `inputs` array. |
 | `width` | int | 0 | Frame width (required for raw YUV or shared source) |
 | `height` | int | 0 | Frame height |
-| `profile` | int | 3 | AV2 profile (0-3 = Main 4:2:0 10-bit variants, 4 = Main 4:2:2 10-bit, 5 = Main 4:4:4 10-bit) |
+| `profile` | int | 2 | `seq_profile_idc` written to the sequence header, the LCR and the OPS: 0 Main_420_10_IP0, 1 Main_420_10_IP1, 2 Main_420_10_IP2, 3 Main_422_10_IP1, 4 Main_444_10_IP1, 5 Main_444C_12_IP2. The profile fixes the interoperability point (IP0/IP1/IP2); multi-layer streams need IP2 (see Conformance checks). |
 | `tier` | int | 0 | Tier |
-| `level` | int | 16 | Level index (e.g. 16 = Level 4.0) |
+| `level` | int | 4 | Level index written to the sequence header (`seq_level_idx`), the LCR and the OPS (0 = 2.0, 1 = 2.1, 2 = 3.0, 3 = 3.1, 4 = 4.0, 5 = 4.1, 6 = 5.0, ...). The encoder fails if it is too low for the picture size (or, with `frame_rate`, the display rate; all embedded layers are counted). |
 | `layer_type` | string | `"texture"` | `"texture"`, `"auxiliary"`, `"stereo"`, or `"dependent"` |
 | `auxiliary_type` | string | `"alpha"` | Only when `layer_type` is `"auxiliary"`: `"alpha"`, `"depth"`, `"segmentation"`, `"gain_map"` |
-| `view_type` | string | `"unspecified"` | `"unspecified"`, `"center"`, `"left"`, `"right"`, `"explicit"` |
+| `view_type` | string | `"unspecified"` | `"unspecified"`, `"center"`, `"left"`, `"right"`, `"explicit"`. Also accepted per entry of `embedded_layers`, where it overrides the xlayer value for that mlayer (e.g. left and right eye as two mlayers). |
+| `view_id` | int | -1 (unset) | View id, 0-255. A layer and its auxiliary layer (alpha, depth) share the id of the view they belong to. Written to the LCR only for `view_type` `"explicit"`; giving `view_id` without `view_type` implies `"explicit"`, and with another `view_type` it is ignored (warning). Also accepted per `embedded_layers` entry. |
 | `qp` | int | -1 | Fixed QP (0-255). -1 = use global default. |
 | `bitrate` | int | -1 | Target bitrate in kbps. -1 = use QP mode. |
 | `cpu_used` | int | -1 | Encoder speed preset (0=slowest, 9=fastest). -1 = default (5). |
@@ -318,7 +331,7 @@ structure in the bitstream.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enable` | bool | `true` | Write a Global LCR OBU |
-| `purpose_id` | int | 0 | LCR purpose (0=unspecified, 6=multiview, etc.) |
+| `purpose_id` | int | 0 | `lcr_global_purpose_id` (0 unspecified, 1 stereoscopic viewports, 2 immersive multiple viewports, 3 +alpha, 4 +depth, 5 +alpha+depth, 6 multiview playback, 7 subregion playback) |
 | `dependent_xlayers` | bool | `false` | Signal dependent xlayers |
 | `doh_constraint` | bool | `true` | Decode order hint constraint |
 
@@ -352,9 +365,9 @@ independently decoded. Each operating point specifies which xlayers
     "intent_present": true,
     "ptl_present": true,
     "operating_points": [
-      { "intent": 0, "xlayer_map": [0], "mlayer_count": [1] },
-      { "intent": 1, "xlayer_map": [0], "mlayer_count": [3] },
-      { "intent": 2, "xlayer_map": [0, 1], "mlayer_count": [3, 1] }
+      { "intent": "unspecified", "xlayer_map": [0], "mlayer_count": [1] },
+      { "intent": "scalability", "xlayer_map": [0], "mlayer_count": [3] },
+      { "intent": "texture_depth", "xlayer_map": [0, 1], "mlayer_count": [3, 1] }
     ]
   }
 ]
@@ -374,7 +387,7 @@ Each operating point entry:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `intent` | int | Display intent |
+| `intent` | string or int | Operating point intent (`ops_op_intent`): `"unspecified"` (0), `"scalability"` (1), `"stereo"` (2), `"texture_alpha"` (3), `"texture_depth"` (4), `"gain_map"` (5), `"multiview"` (6), or an integer 0-127 (7-127 are reserved and give a warning). The `OPSI_` prefix is optional and names are case-insensitive. |
 | `xlayer_map` | array | List of xlayer IDs included in this OP |
 | `mlayer_count` | array | Number of embedded layers per xlayer in this OP (0=all) |
 
@@ -674,8 +687,8 @@ Encode a texture layer and a depth map as two independent xlayers:
   "ops": [{
     "ops_id": 0, "priority": 0, "intent_present": true, "ptl_present": true,
     "operating_points": [
-      { "intent": 0, "xlayer_map": [0] },
-      { "intent": 1, "xlayer_map": [0, 1] }
+      { "intent": "unspecified", "xlayer_map": [0] },
+      { "intent": "texture_depth", "xlayer_map": [0, 1] }
     ]
   }],
   "output": "texture_depth.obu"
@@ -702,8 +715,8 @@ between views. For stereo with inter-layer prediction, see
   "ops": [{
     "ops_id": 0, "priority": 0, "intent_present": true, "ptl_present": true,
     "operating_points": [
-      { "intent": 0, "xlayer_map": [0] },
-      { "intent": 1, "xlayer_map": [0, 1] }
+      { "intent": "unspecified", "xlayer_map": [0] },
+      { "intent": "stereo", "xlayer_map": [0, 1] }
     ]
   }],
   "output": "stereo.obu"
@@ -736,8 +749,8 @@ Tile a 1920x1080 frame into 4 quadrants from a single input source:
   "ops": [{
     "ops_id": 0, "priority": 0, "intent_present": true, "ptl_present": true,
     "operating_points": [
-      { "intent": 0, "xlayer_map": [0] },
-      { "intent": 1, "xlayer_map": [0, 1, 2, 3] }
+      { "intent": "unspecified", "xlayer_map": [0] },
+      { "intent": "unspecified", "xlayer_map": [0, 1, 2, 3] }
     ]
   }],
   "output": "subpicture_4q.obu"
@@ -796,9 +809,9 @@ depth layer at full resolution only:
   "ops": [{
     "ops_id": 0, "priority": 0, "intent_present": true, "ptl_present": true,
     "operating_points": [
-      { "intent": 0, "xlayer_map": [0], "mlayer_count": [1] },
-      { "intent": 1, "xlayer_map": [0], "mlayer_count": [3] },
-      { "intent": 2, "xlayer_map": [0, 1], "mlayer_count": [3, 1] }
+      { "intent": "unspecified", "xlayer_map": [0], "mlayer_count": [1] },
+      { "intent": "scalability", "xlayer_map": [0], "mlayer_count": [3] },
+      { "intent": "texture_depth", "xlayer_map": [0, 1], "mlayer_count": [3, 1] }
     ]
   }],
   "output": "scalable_texture_depth.obu"
@@ -852,8 +865,8 @@ inter-layer prediction between views when `depends_on` is set:
     "ops_id": 0, "priority": 0, "intent_present": true, "ptl_present": true,
     "mlayer_info_idc": 2,
     "operating_points": [
-      { "intent": 0, "xlayer_map": [0], "mlayer_count": [1] },
-      { "intent": 1, "xlayer_map": [0], "mlayer_count": [2] }
+      { "intent": "unspecified", "xlayer_map": [0], "mlayer_count": [1] },
+      { "intent": "stereo", "xlayer_map": [0], "mlayer_count": [2] }
     ]
   }],
   "output": "stereo_embedded.obu"
@@ -948,9 +961,9 @@ sources separately:
     "ops_id": 0, "priority": 0, "intent_present": true, "ptl_present": true,
     "mlayer_info_idc": 2,
     "operating_points": [
-      { "intent": 0, "xlayer_map": [0], "mlayer_count": [1] },
-      { "intent": 1, "xlayer_map": [0], "mlayer_count": [3] },
-      { "intent": 2, "xlayer_map": [0, 1], "mlayer_count": [3, 2] }
+      { "intent": "unspecified", "xlayer_map": [0], "mlayer_count": [1] },
+      { "intent": "scalability", "xlayer_map": [0], "mlayer_count": [3] },
+      { "intent": "texture_depth", "xlayer_map": [0, 1], "mlayer_count": [3, 2] }
     ]
   }],
   "output": "texture_depth_embedded.obu"

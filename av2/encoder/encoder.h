@@ -1207,6 +1207,9 @@ typedef struct AV2EncoderConfig {
 
   // Indicates the target sequence level index for each operating point(OP).
   AV2_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
+  // Level to write in the sequence header, -1 = derived from the picture size
+  // and frame rate.
+  int seq_level_idx;
 
   // Indicates the bitstream profile to be used.
   BITSTREAM_PROFILE profile;

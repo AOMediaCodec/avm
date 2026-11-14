@@ -34,6 +34,7 @@ typedef struct XLayerEncoderState {
   avm_image_t raw_shift;
   int allocated_raw_shift;
   int input_shift;
+  int explicit_frame_rate;  // 1 = frame rate came from the config (written as CI timing info)
   unsigned int frames_out;
   uint32_t
       frame_count;  // PTS counter (advances per encode call, not per frame)

@@ -19,7 +19,7 @@
       "input_source": "texture",
       "width": 960,
       "height": 540,
-      "profile": 3,
+      "profile": 2,
       "level": 12,
       "tier": 0,
       "layer_type": "texture",
@@ -36,7 +36,7 @@
       "input_source": "texture",
       "width": 960,
       "height": 540,
-      "profile": 3,
+      "profile": 2,
       "level": 12,
       "tier": 0,
       "layer_type": "texture",
@@ -53,7 +53,7 @@
       "input_source": "alpha",
       "width": 960,
       "height": 540,
-      "profile": 3,
+      "profile": 2,
       "level": 12,
       "tier": 0,
       "layer_type": "auxiliary",
@@ -71,7 +71,7 @@
       "input_source": "alpha",
       "width": 960,
       "height": 540,
-      "profile": 3,
+      "profile": 2,
       "level": 12,
       "tier": 0,
       "layer_type": "auxiliary",
@@ -102,12 +102,12 @@
       "ptl_present": true,
       "operating_points": [
         {
-          "intent": 0,
+          "intent": "unspecified",
           "xlayer_map": [0, 1],
           "comment": "OP0: texture only"
         },
         {
-          "intent": 1,
+          "intent": "texture_alpha",
           "xlayer_map": [0, 1, 2, 3],
           "comment": "OP1: texture + alpha"
         }

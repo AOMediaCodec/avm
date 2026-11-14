@@ -7,6 +7,7 @@
       "width": 1920,
       "height": 1080,
       "layer_type": "texture",
+      "view_id": 0,
       "qp": 128,
       "cpu_used": 9,
       "lag_in_frames": 0,
@@ -29,6 +30,7 @@
       "width": 1920,
       "height": 1080,
       "layer_type": "auxiliary",
+      "view_id": 0,
       "auxiliary_type": "depth",
       "qp": 160,
       "cpu_used": 9,
@@ -59,8 +61,8 @@
       "intent_present": true,
       "ptl_present": true,
       "operating_points": [
-        { "intent": 0, "xlayer_map": [0] },
-        { "intent": 1, "xlayer_map": [0, 1] }
+        { "intent": "unspecified", "xlayer_map": [0] },
+        { "intent": "texture_depth", "xlayer_map": [0, 1] }
       ]
     }
   ],

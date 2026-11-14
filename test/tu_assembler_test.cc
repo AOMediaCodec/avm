@@ -452,6 +452,83 @@ TEST(TUAssembler, PopulateOps) {
   EXPECT_EQ(ops.op[1].OpsxLayerID[1], 3);
 }
 
+// lcr_max_mlayer_count carries the SeqMaxMlayerCnt of each xlayer
+TEST(TUAssembler, PopulateGlobalLcrMaxMlayerCount) {
+  int ids[] = { 0, 1, 2 };
+  MultiXLayerConfig cfg;
+  MakeMinimalConfig(&cfg, 3, ids);
+  cfg.xlayers[0].num_embedded_layers = 1;
+  cfg.xlayers[1].num_embedded_layers = 2;
+  cfg.xlayers[2].num_embedded_layers = 3;
+
+  GlobalLayerConfigurationRecord glcr;
+  populate_global_lcr_from_config(&cfg, &glcr);
+  EXPECT_EQ(glcr.seq_ptl[0].lcr_max_mlayer_count, 1);
+  EXPECT_EQ(glcr.seq_ptl[1].lcr_max_mlayer_count, 2);
+  EXPECT_EQ(glcr.seq_ptl[2].lcr_max_mlayer_count, 3);
+}
+
+// OPS copy the profile / level / tier of every layer and declare the
+// interoperability point their profiles need
+TEST(TUAssembler, PopulateOpsCopiesSequenceInfo) {
+  OPSConfig ops_cfg;
+  memset(&ops_cfg, 0, sizeof(ops_cfg));
+  ops_cfg.enable = 1;
+  ops_cfg.intent_present_flag = 1;
+  ops_cfg.ptl_present_flag = 1;
+  ops_cfg.num_operating_points = 2;
+  ops_cfg.ops[0].xlayer_map = (1u << 0);
+  ops_cfg.ops[0].mlayer_count[0] = 1;
+  ops_cfg.ops[1].xlayer_map = (1u << 0) | (1u << 1);
+  ops_cfg.ops[1].mlayer_count[0] = 2;
+  ops_cfg.ops[1].mlayer_count[1] = 1;
+
+  int ids[] = { 0, 1 };
+  MultiXLayerConfig mcfg;
+  MakeMinimalConfig(&mcfg, 2, ids);
+  mcfg.xlayers[0].profile = MAIN_420_10_IP2;
+  mcfg.xlayers[0].level = SEQ_LEVEL_4_1;
+  mcfg.xlayers[1].profile = MAIN_420_10_IP1;
+  mcfg.xlayers[1].level = SEQ_LEVEL_3_1;
+
+  OperatingPointSet ops;
+  populate_ops_from_config(&ops_cfg, GLOBAL_XLAYER_ID, &mcfg, &ops);
+
+  EXPECT_EQ(ops.op[0].ops_seq_profile_idc[0], MAIN_420_10_IP2);
+  EXPECT_EQ(ops.op[0].ops_level_idx[0], SEQ_LEVEL_4_1);
+  EXPECT_EQ(ops.op[0].ops_tier_flag[0], 0);
+  EXPECT_EQ(ops.op[0].ops_max_interop, 2);
+  EXPECT_EQ(ops.op[1].ops_seq_profile_idc[0], MAIN_420_10_IP2);
+  EXPECT_EQ(ops.op[1].ops_level_idx[0], SEQ_LEVEL_4_1);
+  // mlayer_count is never 0 in the OPS
+  EXPECT_EQ(ops.op[0].ops_mlayer_count[0], 1);
+  EXPECT_EQ(ops.op[1].ops_mlayer_count[0], 2);
+  EXPECT_EQ(ops.op[1].ops_mlayer_count[1], 1);
+  EXPECT_EQ(ops.op[1].ops_seq_profile_idc[1], MAIN_420_10_IP1);
+  EXPECT_EQ(ops.op[1].ops_level_idx[1], SEQ_LEVEL_3_1);
+  EXPECT_EQ(ops.op[1].ops_max_interop, 2);
+}
+
+// mlayer_count 0 / missing means all embedded layers of the xlayer
+TEST(TUAssembler, PopulateOpsDefaultMlayerCount) {
+  OPSConfig ops_cfg;
+  memset(&ops_cfg, 0, sizeof(ops_cfg));
+  ops_cfg.enable = 1;
+  ops_cfg.num_operating_points = 1;
+  ops_cfg.ops[0].xlayer_map = (1u << 0) | (1u << 1);  // no mlayer_count given
+
+  int ids[] = { 0, 1 };
+  MultiXLayerConfig mcfg;
+  MakeMinimalConfig(&mcfg, 2, ids);
+  mcfg.xlayers[0].num_embedded_layers = 2;
+  mcfg.xlayers[1].num_embedded_layers = 1;
+
+  OperatingPointSet ops;
+  populate_ops_from_config(&ops_cfg, GLOBAL_XLAYER_ID, &mcfg, &ops);
+  EXPECT_EQ(ops.op[0].ops_mlayer_count[0], 2);
+  EXPECT_EQ(ops.op[0].ops_mlayer_count[1], 1);
+}
+
 // --- Global LCR OBU Write Test ---
 
 TEST(TUAssembler, WriteGlobalLcrObu) {

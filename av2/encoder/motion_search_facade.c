@@ -1175,7 +1175,7 @@ static AVM_INLINE void build_second_inter_pred(const AV2_COMP *cpi,
                                                MACROBLOCK *x, BLOCK_SIZE bsize,
                                                const MV *other_mv, int ref_idx,
                                                uint16_t *second_pred) {
-  const AV2_COMMON *const cm = &cpi->common;
+  (void)cpi;
   const int pw = block_size_wide[bsize];
   const int ph = block_size_high[bsize];
   MACROBLOCKD *xd = &x->e_mbd;
@@ -1191,15 +1191,16 @@ static AVM_INLINE void build_second_inter_pred(const AV2_COMP *cpi,
   const int plane = 0;
   struct buf_2d ref_yv12 = xd->plane[plane].pre[!ref_idx];
 
-  struct scale_factors sf;
-  av2_setup_scale_factors_for_frame(
-      &sf, ref_yv12.crop_width, ref_yv12.crop_height, cm->width, cm->height);
-  assert(av2_is_valid_scale(&sf));
+  // Use the scale factors set up for this reference when the block was
+  // initialized: the buf_2d crop size is aligned to the MI grid, so deriving
+  // them from it fails the validity check for scaled (multi-mlayer) refs.
+  const struct scale_factors *sf = xd->block_ref_scale_factors[!ref_idx];
+  assert(av2_is_valid_scale(sf));
 
   InterPredParams inter_pred_params;
 
   av2_init_inter_params(&inter_pred_params, pw, ph, p_row, p_col,
-                        pd->subsampling_x, pd->subsampling_y, xd->bd, 0, &sf,
+                        pd->subsampling_x, pd->subsampling_y, xd->bd, 0, sf,
                         &ref_yv12, EIGHTTAP_REGULAR);
   inter_pred_params.conv_params = get_conv_params(0, plane, xd->bd);
 

@@ -7,6 +7,7 @@
     { "xlayer_id": 0, "input_source": "texture", "width": 1920, "height": 1080,
       "atlas_pos_x": 0, "atlas_pos_y": 0,
       "layer_type": "texture",
+      "view_id": 0,
       "color_primaries": 1, "transfer_characteristics": 1,
       "matrix_coefficients": 1, "full_range_flag": 0,
       "num_embedded_layers": 3,
@@ -18,7 +19,7 @@
       "qp": 128, "cpu_used": 5 },
     { "xlayer_id": 1, "input_source": "texture", "width": 1920, "height": 1080,
       "atlas_pos_x": 0, "atlas_pos_y": 0,
-      "layer_type": "auxiliary", "auxiliary_type": "depth",
+      "layer_type": "auxiliary", "view_id": 0, "auxiliary_type": "depth",
       "color_primaries": 1, "transfer_characteristics": 1,
       "matrix_coefficients": 1, "full_range_flag": 0,
       "num_embedded_layers": 2,
@@ -37,9 +38,9 @@
     "ops_id": 0, "priority": 0, "intent_present": true, "ptl_present": true,
     "mlayer_info_idc": 2,
     "operating_points": [
-      { "intent": 0, "xlayer_map": [0], "mlayer_count": [1] },
-      { "intent": 1, "xlayer_map": [0], "mlayer_count": [3] },
-      { "intent": 2, "xlayer_map": [0, 1], "mlayer_count": [3, 2] }
+      { "intent": "unspecified", "xlayer_map": [0], "mlayer_count": [1] },
+      { "intent": "scalability", "xlayer_map": [0], "mlayer_count": [3] },
+      { "intent": "texture_depth", "xlayer_map": [0, 1], "mlayer_count": [3, 2] }
     ]
   }],
   "output": "texture_depth_embedded.obu"

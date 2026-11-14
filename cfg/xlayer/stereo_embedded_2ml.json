@@ -25,8 +25,8 @@
     "ops_id": 0, "priority": 0, "intent_present": true, "ptl_present": true,
     "mlayer_info_idc": 2,
     "operating_points": [
-      { "intent": 0, "xlayer_map": [0], "mlayer_count": [1] },
-      { "intent": 1, "xlayer_map": [0], "mlayer_count": [2] }
+      { "intent": "unspecified", "xlayer_map": [0], "mlayer_count": [1] },
+      { "intent": "stereo", "xlayer_map": [0], "mlayer_count": [2] }
     ]
   }],
   "output": "stereo_embedded.obu"

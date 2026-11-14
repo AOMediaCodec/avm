@@ -213,12 +213,13 @@ static int mlayer_crop_differs(const XLayerEncConfig *xlcfg, int ml);
 // Initialize a single xlayer encoder from its config entry.
 // Uses the global config for defaults that aren't overridden per-layer.
 // When use_shared_source is true, input file opening is skipped (source is
-// provided externally via crop_region_to_xlayer).
+// provided externally via crop_region_to_xlayer); shared_bit_depth is then the
+// bit depth of that source, so the raw buffer and upshift match its samples.
 static int init_xlayer_encoder(XLayerEncoderState *state,
                                const XLayerEncConfig *xlcfg,
                                const MultiXLayerConfig *mcfg,
                                const struct AvxEncoderConfig *global,
-                               int use_shared_source) {
+                               int use_shared_source, int shared_bit_depth) {
   avm_codec_iface_t *iface = get_avm_encoder_by_short_name("av2");
   if (!iface) {
     fprintf(stderr, "Error: AV2 encoder not available\n");
@@ -261,6 +262,7 @@ static int init_xlayer_encoder(XLayerEncoderState *state,
     state->input.fmt = AVM_IMG_FMT_I420;  // default, profile may override
     state->input.framerate.numerator = 30;
     state->input.framerate.denominator = 1;
+    state->input.bit_depth = shared_bit_depth;
   }
 
   // Derive input image format from profile (chroma subsampling)
@@ -290,12 +292,20 @@ static int init_xlayer_encoder(XLayerEncoderState *state,
   // Set timebase from input framerate (or global).
   // When using a named input source with an explicit frame rate, use that
   // rate so the encoder's internal timing matches the source content rate.
+  // An explicit frame rate (named input source, or "frame_rate" of the config)
+  // is also written to the bitstream as CI timing info (see below).
+  state->explicit_frame_rate = 0;
   if (xlcfg->input_source_idx >= 0 &&
       mcfg->input_sources[xlcfg->input_source_idx].frame_rate_num > 0) {
     state->cfg.g_timebase.num =
         mcfg->input_sources[xlcfg->input_source_idx].frame_rate_den;
     state->cfg.g_timebase.den =
         mcfg->input_sources[xlcfg->input_source_idx].frame_rate_num;
+    state->explicit_frame_rate = 1;
+  } else if (mcfg->frame_rate_num > 0) {
+    state->cfg.g_timebase.num = mcfg->frame_rate_den;
+    state->cfg.g_timebase.den = mcfg->frame_rate_num;
+    state->explicit_frame_rate = 1;
   } else if (global->have_framerate) {
     state->cfg.g_timebase.num = global->framerate.den;
     state->cfg.g_timebase.den = global->framerate.num;
@@ -325,6 +335,8 @@ static int init_xlayer_encoder(XLayerEncoderState *state,
   if (xlcfg->lag_in_frames >= 0) {
     state->cfg.g_lag_in_frames = xlcfg->lag_in_frames;
   }
+
+  if (xlcfg->threads > 0) state->cfg.g_threads = (unsigned int)xlcfg->threads;
 
   // Set keyframe interval.
   // For multi-mlayer xlayers with lag_in_frames == 0, disable encoder-internal
@@ -402,6 +414,21 @@ static int init_xlayer_encoder(XLayerEncoderState *state,
   int cpu = xlcfg->cpu_used >= 0 ? xlcfg->cpu_used : 5;
   avm_codec_control(&state->encoder, AVME_SET_CPUUSED, cpu);
   avm_codec_control(&state->encoder, AVME_SET_XLAYER_ID, xlcfg->xlayer_id);
+  // The sequence header carries the configured level (not one derived by the
+  // encoder from its own idea of the frame rate); LCR and OPS use the same.
+  if (avm_codec_control(&state->encoder, AV2E_SET_SEQ_LEVEL_IDX,
+                        (int)xlcfg->level) != AVM_CODEC_OK) {
+    fprintf(stderr, "Error: xlayer %d: cannot use level index %u: %s\n",
+            xlcfg->xlayer_id, xlcfg->level,
+            avm_codec_error(&state->encoder));
+    return -1;
+  }
+  if (state->explicit_frame_rate) {
+    avm_codec_control(&state->encoder, AV2E_SET_TIMING_INFO_TYPE,
+                      AVM_TIMING_EQUAL);
+  }
+  if (xlcfg->threads > 1)
+    avm_codec_control(&state->encoder, AV2E_SET_ROW_MT, 1);
 
   // Set QP via codec control (not via rc_min/max_quantizer)
   if (xlcfg->qp >= 0) {
@@ -885,8 +912,12 @@ int encode_multi_xlayer(const MultiXLayerConfig *mcfg,
   // Initialize all xlayer encoders
   for (int i = 0; i < num_xlayers; i++) {
     int xl_uses_shared = (mcfg->xlayers[i].input_source_idx >= 0);
+    int sidx = mcfg->xlayers[i].input_source_idx;
+    int shared_bd = (xl_uses_shared && sidx < num_shared_srcs)
+                        ? shared_srcs[sidx].input.bit_depth
+                        : 0;
     if (init_xlayer_encoder(&states[i], &mcfg->xlayers[i], mcfg, global,
-                            xl_uses_shared) != 0) {
+                            xl_uses_shared, shared_bd) != 0) {
       goto cleanup;
     }
   }

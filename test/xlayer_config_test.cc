@@ -60,7 +60,7 @@ TEST(XLayerConfig, InitDefaults) {
     EXPECT_EQ(cfg.xlayers[i].bitrate, -1);
     EXPECT_EQ(cfg.xlayers[i].cpu_used, -1);
     EXPECT_EQ(cfg.xlayers[i].lag_in_frames, -1);
-    EXPECT_EQ(cfg.xlayers[i].profile, (unsigned int)MAIN_420_10_IP1);
+    EXPECT_EQ(cfg.xlayers[i].profile, (unsigned int)MAIN_420_10_IP2);
     EXPECT_EQ(cfg.xlayers[i].level, (unsigned int)SEQ_LEVEL_4_0);
     EXPECT_EQ(cfg.xlayers[i].num_temporal_layers, 1);
     EXPECT_EQ(cfg.xlayers[i].num_embedded_layers, 1);
@@ -252,7 +252,7 @@ TEST(XLayerConfigParse, EncoderOverrideDefaults) {
   EXPECT_EQ(cfg.xlayers[0].lag_in_frames, -1);
 
   // Defaults from init
-  EXPECT_EQ(cfg.xlayers[0].profile, (unsigned int)MAIN_420_10_IP1);
+  EXPECT_EQ(cfg.xlayers[0].profile, (unsigned int)MAIN_420_10_IP2);
   EXPECT_EQ(cfg.xlayers[0].num_temporal_layers, 1);
   EXPECT_EQ(cfg.xlayers[0].num_embedded_layers, 1);
 }
@@ -1132,7 +1132,7 @@ TEST(XLayerConfigValidate, MultiSourceChromaValidation) {
   cfg.xlayers[0].height = 540;
   cfg.xlayers[0].atlas_pos_x = 0;
   cfg.xlayers[0].atlas_pos_y = 0;
-  cfg.xlayers[0].profile = MAIN_420_10_IP1;
+  cfg.xlayers[0].profile = MAIN_420_10_IP2;
   cfg.xlayers[1].xlayer_id = 1;
   cfg.xlayers[1].input_source_idx = 0;
   cfg.xlayers[1].width = 960;
@@ -1144,7 +1144,7 @@ TEST(XLayerConfigValidate, MultiSourceChromaValidation) {
   EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);
 
   // Fix chroma mismatch
-  cfg.xlayers[1].profile = MAIN_420_10_IP1;
+  cfg.xlayers[1].profile = MAIN_420_10_IP2;
   EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
 }
 
@@ -1968,6 +1968,202 @@ TEST(XLayerConfigParse, LimitField) {
   ASSERT_NE(path, nullptr);
   ASSERT_EQ(parse_multi_xlayer_config(path, &cfg), 0);
   EXPECT_EQ(cfg.limit, 5);
+}
+
+// --- View signalling and operating point intents ---
+
+TEST(XLayerConfigParse, ViewIdImpliesExplicit) {
+  const char *json = R"({
+    "xlayers": [
+      { "xlayer_id": 0, "input": "a.raw", "view_id": 3 },
+      { "xlayer_id": 1, "input": "b.raw", "view_type": "left" },
+      { "xlayer_id": 2, "input": "c.raw" }
+    ]
+  })";
+  const char *path = WriteTempJson(json);
+  ASSERT_NE(path, nullptr);
+  MultiXLayerConfig cfg;
+  ASSERT_EQ(parse_multi_xlayer_config(path, &cfg), 0);
+  EXPECT_EQ(cfg.xlayers[0].view_type, VIEW_EXPLICIT);
+  EXPECT_EQ(cfg.xlayers[0].view_id, 3);
+  EXPECT_EQ(cfg.xlayers[1].view_type, VIEW_LEFT);
+  EXPECT_EQ(cfg.xlayers[1].view_id, -1);
+  EXPECT_EQ(cfg.xlayers[2].view_type, VIEW_UNSPECIFIED);
+  EXPECT_EQ(cfg.xlayers[2].view_id, -1);
+}
+
+TEST(XLayerConfigParse, ViewIdOutOfRange) {
+  const char *json = R"({
+    "xlayers": [ { "xlayer_id": 0, "input": "a.raw", "view_id": 256 } ]
+  })";
+  const char *path = WriteTempJson(json);
+  ASSERT_NE(path, nullptr);
+  MultiXLayerConfig cfg;
+  EXPECT_NE(parse_multi_xlayer_config(path, &cfg), 0);
+}
+
+TEST(XLayerConfigParse, PerMlayerViewOverrides) {
+  const char *json = R"({
+    "xlayers": [
+      { "xlayer_id": 0, "input": "a.raw", "layer_type": "texture",
+        "num_embedded_layers": 2,
+        "embedded_layers": [
+          { "view_type": "left" },
+          { "view_type": "right" }
+        ] },
+      { "xlayer_id": 1, "input": "b.raw", "num_embedded_layers": 2,
+        "embedded_layers": [ { "view_id": 0 }, { "view_id": 1 } ] }
+    ]
+  })";
+  const char *path = WriteTempJson(json);
+  ASSERT_NE(path, nullptr);
+  MultiXLayerConfig cfg;
+  ASSERT_EQ(parse_multi_xlayer_config(path, &cfg), 0);
+  EXPECT_EQ(cfg.xlayers[0].mlayer_sources[0].view_type, VIEW_LEFT);
+  EXPECT_EQ(cfg.xlayers[0].mlayer_sources[1].view_type, VIEW_RIGHT);
+  EXPECT_EQ(cfg.xlayers[1].mlayer_sources[0].view_type, VIEW_EXPLICIT);
+  EXPECT_EQ(cfg.xlayers[1].mlayer_sources[1].view_id, 1);
+  // Not specified: inherit from the xlayer.
+  EXPECT_EQ(cfg.xlayers[0].mlayer_sources[0].view_id, -1);
+}
+
+TEST(XLayerConfigParse, IntentNamesAndIntegers) {
+  const char *json = R"({
+    "xlayers": [
+      { "xlayer_id": 0, "input": "a.raw" },
+      { "xlayer_id": 1, "input": "b.raw" }
+    ],
+    "ops": [ {
+      "ops_id": 0,
+      "operating_points": [
+        { "intent": "unspecified", "xlayer_map": [0] },
+        { "intent": "TEXTURE_ALPHA", "xlayer_map": [0, 1] },
+        { "intent": "OPSI_STEREO", "xlayer_map": [0] },
+        { "intent": "multiview", "xlayer_map": [0, 1] },
+        { "intent": 5, "xlayer_map": [0] }
+      ]
+    } ]
+  })";
+  const char *path = WriteTempJson(json);
+  ASSERT_NE(path, nullptr);
+  MultiXLayerConfig cfg;
+  ASSERT_EQ(parse_multi_xlayer_config(path, &cfg), 0);
+  ASSERT_EQ(cfg.ops_sets[0].num_operating_points, 5);
+  EXPECT_EQ(cfg.ops_sets[0].ops[0].intent, 0);
+  EXPECT_EQ(cfg.ops_sets[0].ops[1].intent, 3);
+  EXPECT_EQ(cfg.ops_sets[0].ops[2].intent, 2);
+  EXPECT_EQ(cfg.ops_sets[0].ops[3].intent, 6);
+  EXPECT_EQ(cfg.ops_sets[0].ops[4].intent, 5);
+}
+
+TEST(XLayerConfigParse, InvalidIntent) {
+  const char *bad[] = {
+    R"({ "xlayers": [ { "xlayer_id": 0, "input": "a.raw" } ],
+         "ops": [ { "ops_id": 0, "operating_points": [
+           { "intent": "bogus", "xlayer_map": [0] } ] } ] })",
+    R"({ "xlayers": [ { "xlayer_id": 0, "input": "a.raw" } ],
+         "ops": [ { "ops_id": 0, "operating_points": [
+           { "intent": 128, "xlayer_map": [0] } ] } ] })",
+  };
+  for (const char *json : bad) {
+    const char *path = WriteTempJson(json);
+    ASSERT_NE(path, nullptr);
+    MultiXLayerConfig cfg;
+    EXPECT_NE(parse_multi_xlayer_config(path, &cfg), 0) << json;
+  }
+}
+
+// --- Conformance checks (interoperability points, levels) ---
+
+static void MakeLayout(MultiXLayerConfig *cfg, int num_x, int num_m,
+                       unsigned profile, unsigned level, unsigned w,
+                       unsigned h) {
+  xlayer_config_init(cfg);
+  cfg->num_xlayers = num_x;
+  for (int i = 0; i < num_x; i++) {
+    XLayerEncConfig *xl = &cfg->xlayers[i];
+    xl->xlayer_id = i;
+    snprintf(xl->input_filename, sizeof(xl->input_filename), "x%d.y4m", i);
+    xl->width = w;
+    xl->height = h;
+    xl->profile = profile;
+    xl->level = level;
+    xl->num_embedded_layers = num_m;
+  }
+}
+
+TEST(XLayerConfigValidate, InteropPointLayouts) {
+  MultiXLayerConfig cfg;
+  // 2 xlayers x 2 mlayers needs IP2 with a global LCR (no MSDO)
+  MakeLayout(&cfg, 2, 2, MAIN_420_10_IP2, SEQ_LEVEL_4_0, 1280, 720);
+  EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+  MakeLayout(&cfg, 2, 2, MAIN_420_10_IP1, SEQ_LEVEL_4_0, 1280, 720);
+  EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);
+  // several xlayers with IP1 need an MSDO; IP2 accepts a global LCR instead
+  MakeLayout(&cfg, 2, 1, MAIN_420_10_IP1, SEQ_LEVEL_4_0, 1280, 720);
+  EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);
+  cfg.enable_msdo = 1;
+  EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+  MakeLayout(&cfg, 2, 1, MAIN_420_10_IP2, SEQ_LEVEL_4_0, 1280, 720);
+  EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+  cfg.enable_global_lcr = 0;
+  EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);
+  // limits of IP2: 4 xlayers, 3 mlayers, 8 layers in total
+  MakeLayout(&cfg, 5, 1, MAIN_420_10_IP2, SEQ_LEVEL_4_0, 640, 360);
+  EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);
+  MakeLayout(&cfg, 1, 4, MAIN_420_10_IP2, SEQ_LEVEL_4_0, 640, 360);
+  EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);
+  MakeLayout(&cfg, 3, 3, MAIN_420_10_IP2, SEQ_LEVEL_4_0, 640, 360);
+  EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);  // 9 layers
+  cfg.allow_nonconforming = 1;
+  EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+}
+
+TEST(XLayerConfigValidate, LevelLimits) {
+  MultiXLayerConfig cfg;
+  // 1280x720 at 60 fps (55.3 Msamples/s) does not fit level 3.1 (31.9M)
+  MakeLayout(&cfg, 1, 1, MAIN_420_10_IP2, SEQ_LEVEL_3_1, 1280, 720);
+  cfg.frame_rate = 60;
+  EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);
+  cfg.xlayers[0].level = SEQ_LEVEL_4_0;
+  EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+  // two mlayers count twice in the display rate
+  cfg.xlayers[0].num_embedded_layers = 2;
+  EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);
+  cfg.xlayers[0].level = SEQ_LEVEL_4_1;
+  EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+  // picture size: 1920x1080 does not fit level 3.1
+  MakeLayout(&cfg, 1, 1, MAIN_420_10_IP2, SEQ_LEVEL_3_1, 1920, 1080);
+  EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);
+}
+
+TEST(XLayerConfigValidate, OperatingPointMlayerCountRange) {
+  MultiXLayerConfig cfg;
+  MakeLayout(&cfg, 2, 2, MAIN_420_10_IP2, SEQ_LEVEL_4_0, 640, 360);
+  cfg.num_ops_sets = 1;
+  cfg.ops_sets[0].enable = 1;
+  cfg.ops_sets[0].num_operating_points = 1;
+  cfg.ops_sets[0].ops[0].xlayer_map = 3;
+  cfg.ops_sets[0].ops[0].mlayer_count[0] = 2;
+  cfg.ops_sets[0].ops[0].mlayer_count[1] = 0;  // 0 = all
+  EXPECT_EQ(validate_multi_xlayer_config(&cfg), 0);
+  cfg.ops_sets[0].ops[0].mlayer_count[1] = 3;  // xlayer has only 2
+  EXPECT_NE(validate_multi_xlayer_config(&cfg), 0);
+}
+
+TEST(XLayerConfigParse, FrameRateAndProfileDefault) {
+  const char *json = R"({
+    "frame_rate": "24000/1001",
+    "xlayers": [ { "xlayer_id": 0, "input": "a.raw" } ]
+  })";
+  const char *path = WriteTempJson(json);
+  ASSERT_NE(path, nullptr);
+  MultiXLayerConfig cfg;
+  ASSERT_EQ(parse_multi_xlayer_config(path, &cfg), 0);
+  EXPECT_EQ(cfg.frame_rate_num, 24000);
+  EXPECT_EQ(cfg.frame_rate_den, 1001);
+  EXPECT_NEAR(cfg.frame_rate, 23.976, 0.001);
+  EXPECT_EQ(cfg.xlayers[0].profile, (unsigned int)MAIN_420_10_IP2);
 }
 
 }  // namespace

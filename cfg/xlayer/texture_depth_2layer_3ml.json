@@ -8,6 +8,7 @@
       "num_embedded_layers": 3,
       "scaling_mode": ["1/4", "1/2", "1:1"],
       "layer_type": "texture",
+      "view_id": 0,
       "color_primaries": 1,
       "transfer_characteristics": 1,
       "matrix_coefficients": 1,
@@ -22,6 +23,7 @@
       "height": 1080,
       "num_embedded_layers": 1,
       "layer_type": "auxiliary",
+      "view_id": 0,
       "auxiliary_type": "depth",
       "color_primaries": 1,
       "transfer_characteristics": 1,
@@ -44,17 +46,17 @@
       "ptl_present": true,
       "operating_points": [
         {
-          "intent": 0,
+          "intent": "unspecified",
           "xlayer_map": [0],
           "mlayer_count": [1]
         },
         {
-          "intent": 1,
+          "intent": "scalability",
           "xlayer_map": [0],
           "mlayer_count": [3]
         },
         {
-          "intent": 2,
+          "intent": "texture_depth",
           "xlayer_map": [0, 1],
           "mlayer_count": [3, 1]
         }

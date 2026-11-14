@@ -327,6 +327,10 @@ static_assert(MAX_PROFILES == (1 << PROFILE_BITS), "");
 enum {
   TEXTURE_LAYER = 0,
   AUX_LAYER = 1,
+  // NOTE: STEREO_LAYER and DEPENDENT_LAYER are not defined in the AV2 spec,
+  // which only defines 0 (texture) and 1 (auxiliary) for lcr_layer_type
+  // (2-255 are reserved). This is a mismatch between the code and the spec that
+  // needs a VCWG contribution.
   STEREO_LAYER = 2,
   DEPENDENT_LAYER = 3,
   // Reserved: 4-15

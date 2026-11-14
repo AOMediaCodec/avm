@@ -1313,6 +1313,13 @@ enum avme_enc_control_id {
    */
   AV2E_SET_MLAYER_COLOR_RANGE = 195,
 
+  /*!\brief Codec control function to set the level written in the sequence
+   * header (seq_max_level_idx), int parameter. -1 (default) derives the level
+   * from the picture size and frame rate; a value that is lower than the
+   * derived minimum level makes the encoder fail to initialize.
+   */
+  AV2E_SET_SEQ_LEVEL_IDX = 196,
+
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1577,6 +1584,9 @@ AVM_CTRL_USE_TYPE(AV2E_SET_MTU, unsigned int)
 
 AVM_CTRL_USE_TYPE(AV2E_SET_TIMING_INFO_TYPE, int) /* avm_timing_info_type_t */
 #define AVM_CTRL_AV2E_SET_TIMING_INFO_TYPE
+
+AVM_CTRL_USE_TYPE(AV2E_SET_SEQ_LEVEL_IDX, int)
+#define AVM_CTRL_AV2E_SET_SEQ_LEVEL_IDX
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_RECT_PARTITIONS, int)
 #define AVM_CTRL_AV2E_SET_ENABLE_RECT_PARTITIONS

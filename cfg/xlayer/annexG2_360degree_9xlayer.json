@@ -3,6 +3,7 @@
   "comment2": "9 extended layers in a 3x3 grid covering 3840x1920 equirectangular projection",
   "comment3": "Each xlayer has 3 embedded layers: texture, alpha, depth",
   "comment4": "Uses LCR (not MSDO, which is limited to 4 streams)",
+  "allow_nonconforming": true,
   "xlayers": [
     {
       "xlayer_id": 0,

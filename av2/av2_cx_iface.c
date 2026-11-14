@@ -209,6 +209,9 @@ struct av2_extracfg {
   int quant_b_adapt;
   unsigned int vbr_corpus_complexity_lap;
   AV2_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
+  // Level written in the sequence header (-1: derive from picture size and
+  // frame rate). Set through AV2E_SET_SEQ_LEVEL_IDX.
+  int seq_level_idx;
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
   unsigned int tier_mask;
@@ -543,6 +546,7 @@ static struct av2_extracfg default_extra_cfg = {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
   },            // target_seq_level_idx
+  -1,           // seq_level_idx
   0,            // tier_mask
   0,            // min_cr
   COST_UPD_SB,  // coeff_cost_upd_freq
@@ -745,6 +749,7 @@ static struct av2_extracfg default_extra_cfg_rt = {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
   },
+  .seq_level_idx = -1,
   .tier_mask = 0,
   .min_cr = 0,
   .coeff_cost_upd_freq = (COST_UPDATE_TYPE)2,
@@ -2069,6 +2074,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
       resize_cfg->resize_mode ? AVM_BORDER_IN_PIXELS : AVM_ENC_NO_SCALE_BORDER;
   memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
          sizeof(oxcf->target_seq_level_idx));
+  oxcf->seq_level_idx = extra_cfg->seq_level_idx;
   oxcf->tier_mask = extra_cfg->tier_mask;
   oxcf->unit_test_cfg.multi_layers_lag_test = extra_cfg->multi_layers_lag_test;
   oxcf->unit_test_cfg.force_deferred_frames_for_ras_test =
@@ -3012,6 +3018,13 @@ static avm_codec_err_t ctrl_set_target_seq_level_idx(avm_codec_alg_priv_t *ctx,
       operating_point_idx < MAX_NUM_OPERATING_POINTS) {
     extra_cfg.target_seq_level_idx[operating_point_idx] = (AV2_LEVEL)level;
   }
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static avm_codec_err_t ctrl_set_seq_level_idx(avm_codec_alg_priv_t *ctx,
+                                              va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.seq_level_idx = CAST(AV2E_SET_SEQ_LEVEL_IDX, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -5188,6 +5201,7 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_SET_NUM_TG, ctrl_set_num_tg },
   { AV2E_SET_MTU, ctrl_set_mtu },
   { AV2E_SET_TIMING_INFO_TYPE, ctrl_set_timing_info_type },
+  { AV2E_SET_SEQ_LEVEL_IDX, ctrl_set_seq_level_idx },
   { AV2E_SET_FRAME_PARALLEL_DECODING, ctrl_set_frame_parallel_decoding_mode },
   { AV2E_SET_ENABLE_CDF_AVERAGING, ctrl_set_enable_cdf_averaging },
   { AV2E_SET_ENABLE_SFRAME, ctrl_set_enable_sframe },
