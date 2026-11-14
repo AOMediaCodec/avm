@@ -116,7 +116,6 @@ typedef struct av2_codec_arg_definitions {
   arg_def_t enable_atlas;
   arg_def_t noise_sens;
   arg_def_t sharpness;
-  arg_def_t static_thresh;
   arg_def_t auto_altref;
   arg_def_t arnr_maxframes;
   arg_def_t arnr_strength;

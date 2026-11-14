@@ -328,7 +328,7 @@ def EncodeWithAOM_AV1_Unconstrained(
     elif CTC_VERSION in ["7.0", "8.0", "9.0"]:
         if EnableVerificationTestConfig:
             args += " --tile-rows=0 --tile-columns=0 --threads=0 --row-mt=0  "
-            args += " --drop-frame=0 --static-thresh=0 --minsection-pct=0 --maxsection-pct=200 --arnr-maxframes=7 --arnr-strength=5 --sharpness=0 "
+            args += " --drop-frame=0 --minsection-pct=0 --maxsection-pct=200 --arnr-maxframes=7 --arnr-strength=5 --sharpness=0 "
         elif test_cfg == "RA":
             if clip.file_class in ["A1", "E", "G1"]:
                 # 4 column tiles should be used

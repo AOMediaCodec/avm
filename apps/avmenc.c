@@ -392,7 +392,6 @@ const arg_def_t *av2_key_val_args[] = {
   &g_av2_codec_arg_defs.set_min_cr,
   &g_av2_codec_arg_defs.set_tier_mask,
   &g_av2_codec_arg_defs.sharpness,
-  &g_av2_codec_arg_defs.static_thresh,
   &g_av2_codec_arg_defs.superblock_size,
   &g_av2_codec_arg_defs.tile_cols,
   &g_av2_codec_arg_defs.tile_rows,

@@ -39,7 +39,6 @@ if [[ -e $f.fpf ]]; then
     --lag-in-frames=25 \
     --kf-min-dist=0 \
     --kf-max-dist=99999 \
-    --static-thresh=0 \
     --min-qp=0 \
     --max-qp=255 \
     --drop-frame=0 \
@@ -68,7 +67,6 @@ else
     --lag-in-frames=25 \
     --kf-min-dist=0 \
     --kf-max-dist=99999 \
-    --static-thresh=0 \
     --min-qp=0 \
     --max-qp=255 \
     --drop-frame=0
@@ -89,7 +87,6 @@ else
     --lag-in-frames=25 \
     --kf-min-dist=0 \
     --kf-max-dist=99999 \
-    --static-thresh=0 \
     --min-qp=0 \
     --max-qp=255 \
     --drop-frame=0 \
