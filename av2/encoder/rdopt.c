@@ -6367,10 +6367,14 @@ static int64_t handle_inter_mode(
       if (ref_set[1] > 1) ref_set[1]--;
     }
   }
-  // Dry pass: look at no more than 2 reference MV candidates per reference.
+  // Dry pass: look at no more than 2 reference MV candidates per reference,
+  // and fewer for NEAR_NEARMV (near_near_ref_mv_set_cap); the first pair
+  // stands in for the others.
   if (x->apply_dry_pass_shortcuts) {
-    ref_set[0] = AVMMIN(ref_set[0], cfg->ref_mv_set_cap);
-    ref_set[1] = AVMMIN(ref_set[1], cfg->ref_mv_set_cap);
+    const int cap = this_mode == NEAR_NEARMV ? cfg->near_near_ref_mv_set_cap
+                                             : cfg->ref_mv_set_cap;
+    ref_set[0] = AVMMIN(ref_set[0], cap);
+    ref_set[1] = AVMMIN(ref_set[1], cap);
   }
   cap_ref_mv_count_by_bsize(ref_set, has_two_drls, is_comp_pred, bsize,
                             cpi->sf.inter_sf.limit_max_ref_mv_idx);
@@ -10030,6 +10034,7 @@ void av2_rd_pick_inter_mode_sb(struct AV2_COMP *cpi,
       .ref_rank_cap = 1,
       .same_ref_compound_rank_cap = 0,
       .ref_mv_set_cap = 2,
+      .near_near_ref_mv_set_cap = cpi->oxcf.speed >= 4 ? 1 : 2,
       .warp_ref_idx_cap = 1,
       .warp_precision_cap = 1,
       .warpmv_with_mvd_cap = 1,
