@@ -91,17 +91,6 @@ static unsigned int coeff_opt_satd_thresholds[3][MODE_EVAL_TYPES] = {
   { 25, 10, UINT_MAX },
 };
 
-// Transform size to be used for default, mode and winner mode evaluation
-// Index 0: Default mode evaluation, Winner mode processing is not applicable
-// (Eg : IntraBc) Index 1: Mode evaluation. Index 2: Winner mode evaluation.
-// Index 1 and 2 are applicable when enable_winner_mode_for_tx_size_srch speed
-// feature is ON
-static TX_SIZE_SEARCH_METHOD tx_size_search_methods[3][MODE_EVAL_TYPES] = {
-  { USE_FULL_RD, USE_LARGESTALL, USE_FULL_RD },
-  { USE_FAST_RD, USE_LARGESTALL, USE_FULL_RD },
-  { USE_LARGESTALL, USE_LARGESTALL, USE_FULL_RD }
-};
-
 // Predict transform skip levels to be used for default, mode and winner mode
 // evaluation. Index 0: Default mode evaluation, Winner mode processing is not
 // applicable. Index 1: Mode evaluation, Index 2: Winner mode evaluation
@@ -484,8 +473,6 @@ static void set_good_speed_features_framesize_independent(
       sf->winner_mode_sf.multi_winner_mode_type = MULTI_WINNER_MODE_DEFAULT;
 
       sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 0;
-      sf->winner_mode_sf.tx_size_search_level = 0;
-      sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 0;
 
       sf->tx_sf.tx_type_search.fast_inter_tx_type_search = 0;
       sf->inter_sf.prune_warpmv_prob_thresh = 0;
@@ -740,8 +727,6 @@ static void set_good_speed_features_framesize_independent(
     // TODO(any):this speed feature cause coding loss with no speed up, disable
     // it before the issue is fixed
     // sf->winner_mode_sf.enable_winner_mode_for_coeff_opt = 1;
-    // TODO(any): Re-enable for inter frames after fixing speed feature.
-    sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 0;
     sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
     sf->winner_mode_sf.motion_mode_for_winner_cand =
         boosted                                                      ? 0
@@ -856,9 +841,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 5;
     sf->rd_sf.tx_domain_dist_thres_level = 1;
-
-    // TODO(any): Re-enable for all frames after fixing speed feature.
-    sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 0;
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.gdf_prune_qp_cands =
@@ -1243,7 +1225,7 @@ static void set_rt_speed_features_framesize_independent(
     sf->rt_sf.source_metrics_sb = 1;
     sf->rt_sf.disable_primary_ref_frame_search = 1;
     sf->rt_sf.estimate_motion_for_var_based_partition = 1;
-    sf->winner_mode_sf.tx_size_search_level = USE_FAST_RD;
+    sf->tx_sf.tx_size_search_method = USE_FAST_RD;
     sf->tx_sf.restrict_tx_partition_type_search = 3;
     sf->tx_sf.enable_tx_partition = true;
     if (cpi->oxcf.rc_cfg.mode == AVM_CBR) {
@@ -1581,7 +1563,7 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->tx_type_search.disable_inter_ist = false;
   tx_sf->tx_type_search.prune_tx_type_using_stats = 0;
   tx_sf->tx_type_search.winner_mode_tx_type_pruning = 0;
-  tx_sf->txb_split_cap = 1;
+  tx_sf->tx_size_search_method = USE_FULL_RD;
   tx_sf->skip_pixel_dist_calc_using_tx_dist = false;
   tx_sf->adaptive_tx_type_search_idx = 0;
   tx_sf->adaptive_tx_partition_type_search_idx = 0;
@@ -1633,11 +1615,8 @@ static AVM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
 static AVM_INLINE void init_winner_mode_sf(
     WINNER_MODE_SPEED_FEATURES *winner_mode_sf) {
   winner_mode_sf->motion_mode_for_winner_cand = 0;
-  // Set this at the appropriate speed levels
-  winner_mode_sf->tx_size_search_level = USE_FULL_RD;
   winner_mode_sf->enable_winner_mode_for_coeff_opt = 0;
   winner_mode_sf->disable_multiway_tx_part_in_rough_mode = 0;
-  winner_mode_sf->enable_winner_mode_for_tx_size_srch = 0;
   winner_mode_sf->enable_winner_mode_for_use_tx_domain_dist = 0;
   winner_mode_sf->multi_winner_mode_type = 0;
   winner_mode_sf->dc_blk_pred_level = 0;
@@ -2015,12 +1994,6 @@ static void set_speed_feature_params(AV2_COMP *cpi) {
                                  .use_skip_flag_prediction],
          sizeof(winner_mode_params->skip_txfm_level));
 
-  // assert ensures that tx_size_search_level is accessed correctly
-  assert(cpi->sf.winner_mode_sf.tx_size_search_level >= 0 &&
-         cpi->sf.winner_mode_sf.tx_size_search_level < 3);
-  memcpy(winner_mode_params->tx_size_search_methods,
-         tx_size_search_methods[cpi->sf.winner_mode_sf.tx_size_search_level],
-         sizeof(winner_mode_params->tx_size_search_methods));
   memcpy(winner_mode_params->predict_dc_level,
          predict_dc_levels[cpi->sf.winner_mode_sf.dc_blk_pred_level],
          sizeof(winner_mode_params->predict_dc_level));

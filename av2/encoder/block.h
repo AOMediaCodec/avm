@@ -689,7 +689,9 @@ typedef struct {
   unsigned int coeff_opt_satd_threshold;
   //! \copydoc coeff_opt_dist_threshold
   unsigned int tx_domain_dist_threshold;
-  //! \copydoc coeff_opt_dist_threshold
+  //! Transform size search method for the current block, initialized from
+  //! TX_SPEED_FEATURES::tx_size_search_method and refined for small inter
+  //! blocks or dry-pass partition search.
   TX_SIZE_SEARCH_METHOD tx_size_search_method;
   //! \copydoc coeff_opt_dist_threshold
   unsigned int use_transform_domain_distortion;

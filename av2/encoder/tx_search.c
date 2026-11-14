@@ -3588,9 +3588,7 @@ static void select_tx_partition_type(
 
     // Early termination based on rd of NONE mode
     if (type == TX_PARTITION_NONE && tmp_rd != INT64_MAX) {
-      if (cpi->sf.tx_sf.txb_split_cap) {
-        if (p->eobs[block] == 0) break;
-      }
+      if (p->eobs[block] == 0) break;
 
       const int search_level =
           tx_partition_prune_level[max_txw_txh == 64]
