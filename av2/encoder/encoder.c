@@ -2515,10 +2515,15 @@ void av2_validate_crop_window_chroma_alignment(AV2_COMP *cpi, int frame_width,
 
   const int SubX = seq_params->subsampling_x + 1;
   const int SubY = seq_params->subsampling_y + 1;
+  // Scale in 64 bits: the offsets can be as large as max_frame_{width,height} -
+  // 1, so the product with frame_{width,height} can exceed INT_MAX, and the
+  // signed overflow would yield a bogus scaled position.
   const int LeftPosX =
-      (conf->conf_win_left_offset * frame_width) / seq_params->max_frame_width;
+      (int)(((int64_t)conf->conf_win_left_offset * frame_width) /
+            seq_params->max_frame_width);
   const int TopPosY =
-      (conf->conf_win_top_offset * frame_height) / seq_params->max_frame_height;
+      (int)(((int64_t)conf->conf_win_top_offset * frame_height) /
+            seq_params->max_frame_height);
 
   // Conformance requirement 1: LeftPosX == SubX * (LeftPosX/Subx)
   if (!seq_params->monochrome && SubX > 1 &&
