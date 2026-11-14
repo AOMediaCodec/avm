@@ -4201,6 +4201,15 @@ static int skip_similar_ref_mv(AV2_COMP *const cpi, MACROBLOCK *x,
   return 0;
 }
 
+// Return a mask containing only the lowest set bit.
+static INLINE int mask_lowest_bit(int mask) { return mask & -mask; }
+
+// Return a mask containing only the two lowest set bits.
+static INLINE int mask_lowest_two_bits(int mask) {
+  const int lowest = mask_lowest_bit(mask);
+  return lowest | mask_lowest_bit(mask & ~lowest);
+}
+
 // Before performing the full MV search in handle_inter_mode, do a simple
 // translation search and see if we can eliminate any motion vectors.
 // Returns an integer where, if the i-th bit is set, it means that the i-th
@@ -4215,6 +4224,7 @@ static int ref_mv_idx_to_search(AV2_COMP *const cpi, MACROBLOCK *x,
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
+  const int prune_drl = cpi->sf.inter_sf.prune_drl_candidates;
 
   if (this_mode == WARPMV) return 1;  // Always search WARPMV mode
 
@@ -4245,10 +4255,16 @@ static int ref_mv_idx_to_search(AV2_COMP *const cpi, MACROBLOCK *x,
 
   // Only prune in NEARMV mode, if the speed feature is set, and the block
   // size is large enough. If these conditions are not met, return all good
-  // indices found so far.
+  // indices found so far. With prune_drl_candidates, modes without NEARMV keep
+  // the lowest-index candidate in the dry pass and the two lowest-index
+  // candidates in the wet pass.
   if (!cpi->sf.inter_sf.prune_mode_search_simple_translation)
     return good_indices;
-  if (!have_nearmv_in_inter_mode(this_mode)) return good_indices;
+  if (!have_nearmv_in_inter_mode(this_mode)) {
+    if (!prune_drl) return good_indices;
+    return x->apply_dry_pass_shortcuts ? mask_lowest_bit(good_indices)
+                                       : mask_lowest_two_bits(good_indices);
+  }
   if (num_pels_log2_lookup[bsize] <= 6) return good_indices;
   // Do not prune when there is internal resizing. TODO(elliottk) fix this
   // so b/2384 can be resolved.
@@ -4312,6 +4328,26 @@ static int ref_mv_idx_to_search(AV2_COMP *const cpi, MACROBLOCK *x,
         mask_set_bit(&result, i);
       }
     }
+  }
+
+  // Keep the candidate with the lowest valid translation RD cost.
+  if (prune_drl) {
+    if (result == 0) return 0;
+    int scored_idx = -1;
+    int64_t best_scored = INT64_MAX;
+    for (ref_mv_idx[1] = 0; ref_mv_idx[1] < ref_set[1]; ++ref_mv_idx[1]) {
+      for (ref_mv_idx[0] = 0; ref_mv_idx[0] < ref_set[0]; ++ref_mv_idx[0]) {
+        const int j = av2_ref_mv_idx_type(mbmi, ref_mv_idx);
+        if (!mask_check_bit(result, j)) continue;
+        if (idx_rdcost[j] == INT64_MAX) continue;
+        if (idx_rdcost[j] < best_scored) {
+          best_scored = idx_rdcost[j];
+          scored_idx = j;
+        }
+      }
+    }
+    if (scored_idx >= 0) return 1 << scored_idx;
+    return mask_lowest_bit(result);
   }
 
   return result;
