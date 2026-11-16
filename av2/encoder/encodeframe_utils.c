@@ -730,7 +730,7 @@ void av2_sum_intra_stats(const AV2_COMMON *const cm, FRAME_COUNTS *counts,
           update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
       }
     }
-    if (uv_mode == UV_CFL_PRED) {
+    if (uv_mode == UV_CFL_PRED && mbmi->cfl_idx == 0) {
       const int8_t joint_sign = mbmi->cfl_alpha_signs;
       const uint8_t idx = mbmi->cfl_alpha_idx;
 
