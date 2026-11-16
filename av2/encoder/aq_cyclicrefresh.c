@@ -592,8 +592,9 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
     } else {
       // Screen content (is_screen_content is true).
       const double ratio_base = is_le_720p_sc ? 1.85 : 3.0;
+      const double max_dist_factor = cpi->sf.rt_sf.rtc_use_lt_ref ? 1.25 : 0.75;
       const double distance_from_sc_factor =
-          AVMMIN(0.75, (int)(frames_since_scene_change / 10) * 0.1);
+          AVMMIN(max_dist_factor, (int)(frames_since_scene_change / 10) * 0.1);
       cr->rate_ratio_qdelta =
           AVMMAX(1.25, ratio_base + cr->rate_ratio_qdelta_adjustment -
                            distance_from_sc_factor);

@@ -430,9 +430,11 @@ TEST_P(RtcCbrBruTest, ActiveRegionsAndSlideChange) {
     for (int explicit_ref_frame_map : { 0, 1 }) {
       aq_mode_ = aq_mode;
       explicit_ref_frame_map_ = explicit_ref_frame_map;
-      // Non-SB-aligned dimensions (656x392) exercise border cropping, active
-      // luma/chroma regions (frames 10..19), and a slide transition (frame 20).
-      RunScreenTest(656, 392, 58,
+      // Non-SB-aligned dimensions (656x488 > 640x480, so LTR period = 32)
+      // exercise border cropping, active luma/chroma regions (frames 10..19),
+      // a slide transition (frame 20), and periodic LTR refresh before BRU
+      // skip.
+      RunScreenTest(656, 488, 58,
                     SyntheticScreenVideoSource::PatternMode::
                         kActiveRegionsAndSlideChange);
       EXPECT_EQ(seq_enable_bru_, 1);
