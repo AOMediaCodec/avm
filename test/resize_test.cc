@@ -421,6 +421,11 @@ class SyntheticSubgopVideoSource : public ::libavm_test::DummyVideoSource {
   ~SyntheticSubgopVideoSource() override {}
 
  protected:
+  static int SmoothWave(unsigned int u) {
+    const unsigned int phase = u & 511u;
+    return static_cast<int>(phase < 256u ? phase : (511u - phase));
+  }
+
   void FillFrame() override {
     if (img_ == NULL) return;
     uint8_t *y_plane = img_->planes[AVM_PLANE_Y];
@@ -428,9 +433,12 @@ class SyntheticSubgopVideoSource : public ::libavm_test::DummyVideoSource {
     for (unsigned int r = 0; r < height_; ++r) {
       for (unsigned int c = 0; c < width_; ++c) {
         if (frame_ <= 8) {
-          // Smooth gradient: low resampling MSE, favors downscaling.
-          y_plane[r * y_stride + c] =
-              static_cast<uint8_t>((r * 2 + c * 2 + frame_ * 5) & 0xff);
+          // Continuous counter-propagating smooth waves: low spatial resampling
+          // MSE without wraparound step cliffs and distributed
+          // non-translational temporal residual energy, favoring downscaling.
+          const int w1 = SmoothWave(r * 6u + c * 4u + frame_ * 53u);
+          const int w2 = SmoothWave(r * 4u + (kWidth - c) * 6u + frame_ * 79u);
+          y_plane[r * y_stride + c] = static_cast<uint8_t>((w1 + w2) >> 1);
         } else {
           // High-frequency pattern: higher resampling MSE, favors larger scale.
           y_plane[r * y_stride + c] = static_cast<uint8_t>(
