@@ -21,6 +21,7 @@
 #include "avm/internal/avm_image_internal.h"
 #include "avm/avmdx.h"
 #include "avm/avm_decoder.h"
+#include "avm/avm_image.h"
 #include "avm_dsp/bitreader_buffer.h"
 #include "avm_dsp/avm_dsp_common.h"
 #include "avm_ports/mem_ops.h"
@@ -814,18 +815,21 @@ static size_t check_frame_unit_data(struct AV2Decoder *pbi, const uint8_t *data,
       struct avm_read_bit_buffer rb = { data_read + bytes_read,
                                         data_read + bytes_read + payload_size,
                                         0, &failed, bitreader_set_failed };
-      avm_rb_read_bit(&rb);                     // is_first_tile_group
-      uint32_t mfh_id = avm_rb_read_uvlc(&rb);  // cur_mfh_id (0 = no MFH)
+      const int is_first_tg = avm_rb_read_bit(&rb);  // is_first_tile_group
+      const int has_frame_hdr = is_first_tg ? 1 : avm_rb_read_bit(&rb);
       uint32_t sh_id = UINT32_MAX;
-      if (mfh_id == 0) {
-        sh_id = avm_rb_read_uvlc(&rb);  // seq_header_id_in_frame_header
-      } else if (mfh_id < MAX_MFH_NUM) {
-        sh_id = prescan_mfh_sh[mfh_id] >= 0
-                    ? (uint32_t)prescan_mfh_sh[mfh_id]
-                    : (pbi->common.mfh_valid[mfh_id]
-                           ? (uint32_t)pbi->common.mfh_params[mfh_id]
-                                 .mfh_seq_header_id
-                           : UINT32_MAX);
+      if (has_frame_hdr) {
+        uint32_t mfh_id = avm_rb_read_uvlc(&rb);  // cur_mfh_id (0 = no MFH)
+        if (mfh_id == 0) {
+          sh_id = avm_rb_read_uvlc(&rb);  // seq_header_id_in_frame_header
+        } else if (mfh_id < MAX_MFH_NUM) {
+          sh_id = prescan_mfh_sh[mfh_id] >= 0
+                      ? (uint32_t)prescan_mfh_sh[mfh_id]
+                      : (pbi->common.mfh_valid[mfh_id]
+                             ? (uint32_t)pbi->common.mfh_params[mfh_id]
+                                   .mfh_seq_header_id
+                             : UINT32_MAX);
+        }
       }
 
       if (sh_id < MAX_SEQ_NUM) {
@@ -1154,6 +1158,7 @@ static avm_image_t *add_grain_if_needed(avm_codec_alg_priv_t *ctx,
   AllocCbParam param;
   param.pool = pool;
   param.fb = fb;
+  avm_img_remove_metadata(grain_img);
   if (!avm_img_alloc_with_cb(grain_img, img->fmt, w_even, h_even, 16,
                              AllocWithGetFrameBufferCb, &param)) {
     return NULL;
@@ -1161,7 +1166,6 @@ static avm_image_t *add_grain_if_needed(avm_codec_alg_priv_t *ctx,
 
   grain_img->user_priv = img->user_priv;
   grain_img->fb_priv = fb->priv;
-  avm_img_remove_metadata(grain_img);
   grain_img->metadata = img->metadata;
   grain_img->tlayer_id = img->tlayer_id;
   grain_img->mlayer_id = img->mlayer_id;
