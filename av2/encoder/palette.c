@@ -123,8 +123,14 @@ int av2_palette_color_cost_y(const PALETTE_MODE_INFO *const pmi,
   const int n_out_cache =
       av2_index_color_cache(color_cache, n_cache, pmi->palette_colors, n,
                             cache_color_found, out_cache_colors);
+  int in_cache_bits = 0;
+  for (int i = 0, n_in_cache = 0; i < n_cache && n_in_cache < n; ++i) {
+    n_in_cache += cache_color_found[i];
+    ++in_cache_bits;
+  }
   const int total_bits =
-      n_cache + delta_encode_cost(out_cache_colors, n_out_cache, bit_depth, 1);
+      in_cache_bits +
+      delta_encode_cost(out_cache_colors, n_out_cache, bit_depth, 1);
   return av2_cost_literal(total_bits);
 }
 
