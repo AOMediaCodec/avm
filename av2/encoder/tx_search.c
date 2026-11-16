@@ -3177,6 +3177,8 @@ static AVM_INLINE void try_tx_block_no_split(
     rd_stats->dist = rd_stats->sse;
     p->eobs[block] = 0;
     p->bobs[block] = 0;
+    // The block is coded as all-zero, so its entropy context is 0.
+    p->txb_entropy_ctx[block] = 0;
     update_txk_array(xd, blk_row, blk_col, tx_size,
                      MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT));
   }

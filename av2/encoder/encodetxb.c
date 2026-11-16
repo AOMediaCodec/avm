@@ -1667,6 +1667,17 @@ static AVM_FORCE_INLINE int warehouse_efficients_txb(
       coeff_costs->lps_lf_cost;
   const int(*lps_cost_uv)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
       coeff_costs->lps_cost_uv;
+  // Parity hiding is decided by the number of non-zero coefficients outside
+  // DC. It has to be known up front, since the bitstream codes every
+  // dc_sign symbol in the block (including the first column / row of 1D
+  // transforms) with the dc_sign_cdf group selected by is_hidden.
+  int num_nz = 0;
+  if (enable_parity_hiding) {
+    for (int si = eob - 1; si > 0; --si) num_nz += !!qcoeff[scan[si]];
+  }
+  const bool is_hidden = enable_parity_hiding && num_nz >= PHTHRESH;
+  const int dc_ph_group = is_hidden ? 1 : 0;
+
   int hr_level = 0;
   int c = eob - 1;
   {
@@ -1731,7 +1742,6 @@ static AVM_FORCE_INLINE int warehouse_efficients_txb(
       const bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
       const bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
       if (dc_2dtx || dc_hor || dc_ver) {
-        const int dc_ph_group = 0;  // PH disabled
         const int dc_sign_ctx = dc_2dtx ? txb_ctx->dc_sign_ctx : 0;
         const int sign01 = (sign ^ sign) - sign;
         if (plane == AVM_PLANE_V) {
@@ -1782,7 +1792,6 @@ static AVM_FORCE_INLINE int warehouse_efficients_txb(
       const bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
       const bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
       if (dc_2dtx || dc_hor || dc_ver) {
-        const int dc_ph_group = 0;  // PH disabled
         const int dc_sign_ctx = dc_2dtx ? txb_ctx->dc_sign_ctx : 0;
         const int sign = AVMSIGN(v);
         const int sign01 = (sign ^ sign) - sign;
@@ -1828,17 +1837,8 @@ static AVM_FORCE_INLINE int warehouse_efficients_txb(
     }
   }
   // c == 0 after previous loop
-  int num_nz = 0;
-  hr_level_avg = 0;
-  // num_nz is only needed to decide whether parity hiding applies.
-  if (enable_parity_hiding) {
-    for (c = eob - 1; c > 0; --c) {
-      const int pos = scan[c];
-      num_nz += !!qcoeff[pos];
-    }
-  }
-  c = 0;
-  if (num_nz >= PHTHRESH && enable_parity_hiding) {
+  assert(c == 0);
+  if (is_hidden) {
     const int pos = scan[c];
     const tran_low_t v = qcoeff[pos];
     const int level = abs(v);
@@ -1846,10 +1846,8 @@ static AVM_FORCE_INLINE int warehouse_efficients_txb(
     cost += coeff_costs_ph->base_ph_cost[get_base_ctx_ph(
         levels, pos, bwl, tx_class)][AVMMIN(q_index, 3)];
     if (v) {
-      const int dc_ph_group = 1;  // PH enabled
-      const bool dc_2dtx = (c == 0);
-      const int dc_sign_ctx = dc_2dtx ? txb_ctx->dc_sign_ctx : 0;
-      cost += coeff_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][v < 0];
+      cost +=
+          coeff_costs->dc_sign_cost[dc_ph_group][txb_ctx->dc_sign_ctx][v < 0];
 
       if (q_index > NUM_BASE_LEVELS) {
         cost += get_br_ph_cost(q_index, hr_level_avg >> 1, &hr_level);
@@ -1881,11 +1879,10 @@ static AVM_FORCE_INLINE int warehouse_efficients_txb(
     }
 
     if (v) {
-      // sign bit cost
-      const int dc_ph_group = 0;  // PH disabled
-      const bool dc_2dtx = (c == 0);
+      // sign bit cost (parity hiding is not used here, so dc_ph_group == 0)
+      assert(dc_ph_group == 0);
       const int sign01 = (sign ^ sign) - sign;
-      const int dc_sign_ctx = dc_2dtx ? txb_ctx->dc_sign_ctx : 0;
+      const int dc_sign_ctx = txb_ctx->dc_sign_ctx;
       if (plane == AVM_PLANE_V) {
         cost +=
             coeff_costs->v_dc_sign_cost[xd->tmp_sign[pos]][dc_sign_ctx][sign01];
@@ -1976,7 +1973,7 @@ int av2_cost_coeffs_txb(const AV2_COMMON *cm, const MACROBLOCK *x,
 }
 
 static AVM_FORCE_INLINE int get_two_coeff_cost_simple(
-    int plane, int ci, tran_low_t abs_qc, int coeff_ctx,
+    int plane, int ci, tran_low_t qc, tran_low_t abs_qc, int coeff_ctx,
     const LV_MAP_COEFF_COST *txb_costs, int bwl, TX_CLASS tx_class,
     const uint8_t *levels, int *cost_low, int limits, int hr_level_avg,
     int *hr_level) {
@@ -2032,9 +2029,16 @@ static AVM_FORCE_INLINE int get_two_coeff_cost_simple(
       }
     }
   }
-  diff += (abs_qc == 1) ? av2_cost_literal(1) : 0;
+  const int row = ci >> bwl;
+  const int col = ci - (row << bwl);
+  const bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
+  const bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
+  const int sign_cost = (dc_hor || dc_ver)
+                            ? txb_costs->dc_sign_cost[0][0][qc < 0 ? 1 : 0]
+                            : av2_cost_literal(1);
+  diff += (abs_qc == 1) ? sign_cost : 0;
   if (abs_qc) {
-    cost += av2_cost_literal(1);
+    cost += sign_cost;
     if (plane > 0) {
       if (limits) {
         if (abs_qc > LF_NUM_BASE_LEVELS) {
@@ -2147,10 +2151,13 @@ static AVM_FORCE_INLINE int get_coeff_cost_eob(
     const bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
     const bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
     if (dc_2dtx || dc_hor || dc_ver) {
+      // The dc_sign context is only used for the 2D DC coefficient (scan
+      // index 0). The first column / row of 1D transforms uses context 0.
+      const int sign_ctx = dc_2dtx ? dc_sign_ctx : 0;
       if (plane == AVM_PLANE_V)
-        cost += txb_costs->v_dc_sign_cost[tmp_sign[ci]][dc_sign_ctx][sign];
+        cost += txb_costs->v_dc_sign_cost[tmp_sign[ci]][sign_ctx][sign];
       else
-        cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
+        cost += txb_costs->dc_sign_cost[dc_ph_group][sign_ctx][sign];
     } else {
       cost += av2_cost_literal(1);
     }
@@ -2236,10 +2243,13 @@ static AVM_FORCE_INLINE int get_coeff_cost_general(
     const bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
     const bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
     if (dc_2dtx || dc_hor || dc_ver) {
+      // The dc_sign context is only used for the 2D DC coefficient (scan
+      // index 0). The first column / row of 1D transforms uses context 0.
+      const int sign_ctx = dc_2dtx ? dc_sign_ctx : 0;
       if (plane == AVM_PLANE_V)
-        cost += txb_costs->v_dc_sign_cost[tmp_sign[ci]][dc_sign_ctx][sign];
+        cost += txb_costs->v_dc_sign_cost[tmp_sign[ci]][sign_ctx][sign];
       else
-        cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
+        cost += txb_costs->dc_sign_cost[dc_ph_group][sign_ctx][sign];
     } else {
       cost += av2_cost_literal(1);
     }
@@ -2516,7 +2526,7 @@ static AVM_FORCE_INLINE void update_coeff_simple(
     const tran_low_t abs_dqc = abs(dqcoeff[ci]);
     int rate_low = 0;
     const int rate = get_two_coeff_cost_simple(
-        plane, ci, abs_qc, coeff_ctx, txb_costs, bwl, tx_class, levels,
+        plane, ci, qc, abs_qc, coeff_ctx, txb_costs, bwl, tx_class, levels,
         &rate_low, limits, *hr_level_avg, &hr_level);
 
     if (abs_dqc < abs_tqc) {
@@ -2603,7 +2613,7 @@ static AVM_FORCE_INLINE void update_coeff_bob(
       dist_low = get_coeff_dist(tqc, dqc_low, shift) - dist0;
       rate_low =
           get_coeff_cost_fsc(0, pos, abs_qc_low, sign, coeff_ctx, txb_costs,
-                             bwl, levels, signs, *hr_level_avg, &hr_level);
+                             bwl, levels, signs, *hr_level_avg, &hr_level_low);
       rd_low = RDCOST(rdmult, *accu_rate + rate_low, *accu_dist + dist_low);
     }
     int lower_level_new_bob = 0;
