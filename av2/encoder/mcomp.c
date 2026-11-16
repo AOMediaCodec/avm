@@ -98,9 +98,9 @@ void av2_make_default_fullpel_ms_params(
     search_method = get_faster_search_method(search_method);
   }
   // MV search of flex MV precision is supported only for NSTEP or DIAMOND
-  // search
+  // search (both sub-pel > 1-pel and multi-pel < 1-pel precisions).
   if (cpi->common.seq_params.enable_flex_mvres &&
-      (pb_mv_precision > MV_PRECISION_ONE_PEL ||
+      (pb_mv_precision != MV_PRECISION_ONE_PEL ||
        !cpi->sf.mv_sf.fast_mv_search) &&
       (search_method != NSTEP && search_method != DIAMOND))
     search_method = cpi->sf.mv_sf.fast_mv_search ? DIAMOND : NSTEP;
@@ -285,7 +285,10 @@ int opfl_refine_fullpel_mv_one_sided(
   const struct buf_2d *const src = ms_params->ms_buffers.src;
   uint16_t *pred_ptr = &pred->buf[smv->row * pred->stride + smv->col];
 
-  if (cpi->oxcf.mode == REALTIME || cpi->speed >= 6) {
+  const int sp6_enable_omvs =
+      cpi->oxcf.mode == GOOD && cpi->speed == 6 &&
+      (frame_is_kf_gf_arf(cpi) || cpi->common.current_frame.pyramid_level <= 2);
+  if ((cpi->oxcf.mode == REALTIME || cpi->speed >= 6) && !sp6_enable_omvs) {
     const int sad =
         ms_params->vfp->sdf(src->buf, src->stride, pred_ptr, pred->stride);
     if (sad < bw * bh * OMVS_SAD_THR) return 1;

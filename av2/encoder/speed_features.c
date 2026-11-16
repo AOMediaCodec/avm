@@ -304,22 +304,16 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
     }
 
-    // Below 4K, speed 6 relaxes the breakout rate threshold (see
-    // set_erp_speed_features_framesize_dependent()), and the relaxed gate is
-    // too loose to also skip PARTITION_SPLIT.
-    if (!is_4k_or_larger) {
-      sf->part_sf.partition_search_breakout_prune_split = 0;
-    }
-
     if (is_720p_or_larger) {
       sf->inter_sf.prune_ref_mv_idx_search = 2;
     }
 
-    if (is_4k_or_larger) {
-      sf->part_sf.prune_by_struct_orient = 2;
+    sf->part_sf.intra_two_pass_max_qindex =
+        (is_270p_or_lesser || is_4k_or_larger) ? 95 : 255;
+    if (is_720p_or_larger && !is_1080p_or_larger &&
+        (frame_is_boosted(cpi) || cm->current_frame.pyramid_level <= 2)) {
+      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 0;
     }
-
-    sf->part_sf.intra_two_pass_max_qindex = is_270p_or_lesser ? 95 : 255;
   }
   sf->inter_sf.prune_warp_delta_modes =
       prune_warp_delta_modes_level(speed, is_4k_or_larger);
@@ -999,6 +993,33 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 4;
   }
 
+  if (cpi->oxcf.mode == GOOD && speed == 6) {
+    const int pyr = cm->current_frame.pyramid_level;
+    const int boost_or_pyr2 = frame_is_intra_only(cm) || boosted || pyr <= 2;
+    const int is_scc = cm->features.is_scc_content_by_detector;
+
+    if (!allow_screen_content_tools) {
+      sf->inter_sf.prune_warp_extend_sse_pct = 80;
+    }
+    if (is_scc) {
+      sf->lpf_sf.ccso_terminate_search_luma_pass_count = 4;
+      sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 8;
+    } else if (boost_or_pyr2) {
+      sf->lpf_sf.ccso_terminate_search_luma_pass_count = 3;
+      sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 6;
+    }
+    if (is_720p_or_larger && !is_scc && (boosted || pyr <= 2)) {
+      sf->inter_sf.prune_cwp_search = 0;
+    }
+    if (is_1080p_or_larger && !is_4k_or_larger && frame_is_intra_only(cm)) {
+      sf->inter_sf.skip_eval_intrabc_in_inter_frame = 0;
+    }
+    sf->inter_sf.dry_pass_mv_prec_from_top =
+        is_4k_or_larger
+            ? 0
+            : ((!boosted && !allow_screen_content_tools && pyr >= 3) ? 1 : 0);
+  }
+
   if (enable_motion_mode_search_in_winner_mode(&sf->inter_sf)) {
     sf->winner_mode_sf.motion_mode_for_winner_cand = 2;
     if (speed == 6) sf->winner_mode_sf.motion_mode_for_winner_cand = 3;
@@ -1600,13 +1621,6 @@ static AVM_INLINE void init_rt_sf(REALTIME_SPEED_FEATURES *rt_sf) {
   rt_sf->rtc_use_lt_ref = 0;
 }
 
-// Speed >= 6 partition search breakout tuning: left shift applied to the
-// distortion threshold and the (absolute) rate threshold.
-#define PART_BREAKOUT_SF_DIST_SHIFT 1
-// Rate threshold for 4K and above, and for resolutions below 4K.
-#define PART_BREAKOUT_SF_RATE_THR_4K 150
-#define PART_BREAKOUT_SF_RATE_THR 550
-
 static AVM_INLINE void set_erp_speed_features_framesize_dependent(
     AV2_COMP *cpi) {
   SPEED_FEATURES *const sf = &cpi->sf;
@@ -1694,16 +1708,10 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
     }
   }
 
-  // At speed >= 6, relax the partition search breakout thresholds set by the
-  // ERP level above (dist_thr and rate_thr were assigned afresh in the switch
-  // above, so this is not cumulative across frames).
-  if (cpi->speed >= 6 && erp_pruning_level >= 5 &&
-      !cpi->is_screen_content_type) {
-    sf->part_sf.partition_search_breakout_dist_thr <<=
-        PART_BREAKOUT_SF_DIST_SHIFT;
-    sf->part_sf.partition_search_breakout_rate_thr =
-        is_2160p_or_larger ? PART_BREAKOUT_SF_RATE_THR_4K
-                           : PART_BREAKOUT_SF_RATE_THR;
+  if (cpi->speed >= 6) {
+    if (is_1080p_or_larger) {
+      sf->part_sf.prune_rect_with_split_depth = 3;
+    }
   }
 }
 
@@ -2168,6 +2176,13 @@ static AVM_INLINE void set_post_none_early_term_level(AV2_COMP *cpi,
   const int eff_speed = use_sp2_thresh ? 2 : AVMMIN(speed, 6);
   cpi->sf.part_sf.ml_post_none_early_term_thresh =
       cpi->oxcf.mode == GOOD ? thresh_by_speed[eff_speed] : 0;
+  if (cpi->oxcf.mode == GOOD && speed == 6) {
+    const int low_q = cm->quant_params.base_qindex <= 113 + qindex_offset;
+    const int key_boost_p2 = frame_is_intra_only(cm) || frame_is_boosted(cpi) ||
+                             cm->current_frame.pyramid_level <= 2;
+    cpi->sf.part_sf.ml_post_none_early_term_thresh =
+        low_q ? 14 : (key_boost_p2 ? 6 : 10);
+  }
 }
 
 // The SMS-based split decision (simple_motion_search_split) runs a simple
@@ -2613,9 +2628,9 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
       }
     }
 
-    // Speed 5 and deep pyramid levels, except for 4K: prune MV precisions by
+    // Speeds 5-6 and deep pyramid levels, except for 4K: prune MV precisions by
     // the best precision so far regardless of qindex.
-    if (speed == 5 && !cm->features.allow_screen_content_tools &&
+    if (speed >= 5 && !cm->features.allow_screen_content_tools &&
         !is_2160p_or_larger && !frame_is_kf_gf_arf(cpi) &&
         cm->current_frame.pyramid_level >= 3) {
       sf->flexmv_sf.prune_mv_prec_using_best_mv_prec_so_far = 1;
@@ -2664,10 +2679,11 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
   set_sms_split_level(cpi, speed);
   set_sms_term_none_level(cpi, speed);
 
-  // Set the predict_dc level to { 2, 2, 0 } at speeds 2-3 for high qindex
-  // frames when dc_blk_pred_level is left at 0.
-  if ((speed == 2 || (cpi->oxcf.mode == GOOD && speed == 3)) &&
-      sf->winner_mode_sf.dc_blk_pred_level == 0) {
+  // Set the predict_dc level to { 2, 2, 0 } at speeds 2-3 (and >=720p at speed
+  // 6) for high qindex frames.
+  if (((speed == 2 || (cpi->oxcf.mode == GOOD && speed == 3)) &&
+       sf->winner_mode_sf.dc_blk_pred_level == 0) ||
+      (cpi->oxcf.mode == GOOD && speed == 6 && is_720p_or_larger)) {
     const int dc_blk_pred_qmin = 113 + qindex_offset;
     if (cm->quant_params.base_qindex > dc_blk_pred_qmin) {
       sf->winner_mode_sf.dc_blk_pred_level = 3;
@@ -2708,7 +2724,9 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
         sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
       }
     } else if (speed >= 6) {
-      if (!is_1080p_or_larger && is_720p_or_larger) {
+      if (!is_1080p_or_larger && is_720p_or_larger &&
+          !(cpi->oxcf.mode == GOOD &&
+            (boosted || cm->current_frame.pyramid_level <= 2))) {
         sf->part_sf.use_square_partition_only_threshold =
             boosted ? BLOCK_128X128 : BLOCK_64X64;
       } else if (!is_720p_or_larger && !boosted) {
@@ -2719,6 +2737,49 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
 
   set_inter_frame_speed_features(cpi, speed);
   set_faster_speed_features(cpi, speed);
+
+  if (cpi->oxcf.mode == GOOD && speed == 6) {
+    const int pyr = cm->current_frame.pyramid_level;
+    const int low_qindex = !frame_is_intra_only(cm) && !boosted &&
+                           cm->quant_params.base_qindex <= 113 + qindex_offset;
+    const int in_faster5_equiv =
+        !frame_is_intra_only(cm) && !boosted && (low_qindex || pyr >= 5);
+    const int boost_or_pyr2_no_lowq =
+        (frame_is_intra_only(cm) || boosted || pyr <= 2) && !low_qindex;
+    const int is_scc = cm->features.is_scc_content_by_detector;
+    const int allow_scc = cm->features.allow_screen_content_tools;
+
+    if (is_2160p_or_larger && in_faster5_equiv) {
+      sf->inter_sf.dry_pass_mv_prec_from_top = !allow_scc;
+    }
+    if (boost_or_pyr2_no_lowq) {
+      sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 1;
+    }
+    if (is_1080p_or_larger && !is_2160p_or_larger && !is_scc &&
+        boost_or_pyr2_no_lowq) {
+      sf->mv_sf.fast_mv_search = 0;
+      sf->mv_sf.search_method = NSTEP;
+    }
+    if (!is_2160p_or_larger && is_scc && (boosted || pyr <= 3)) {
+      sf->mv_sf.newmv_drl_search_limit = 2;
+    }
+    if (is_2160p_or_larger &&
+        cm->quant_params.base_qindex > 113 + qindex_offset &&
+        (boosted || pyr <= 2)) {
+      sf->part_sf.sms_unified_prune_horz = 0;
+      sf->part_sf.sms_unified_prune_vert = 0;
+    }
+    if (boost_or_pyr2_no_lowq) {
+      sf->part_sf.prune_inter_modes_by_none_part = 0;
+    }
+    if (is_scc && (frame_is_intra_only(cm) || boosted)) {
+      sf->mv_sf.intrabc_mesh_patterns[0] = (MESH_PATTERN){ 32, 1 };
+      sf->mv_sf.intrabc_mesh_patterns[1] = (MESH_PATTERN){ 32, 1 };
+      sf->mv_sf.intrabc_mesh_patterns[2] = (MESH_PATTERN){ 0, 0 };
+      sf->mv_sf.intrabc_mesh_patterns[3] = (MESH_PATTERN){ 0, 0 };
+      sf->intra_sf.intrabc_max_rd_cands = 2;
+    }
+  }
 
   // At speed 5, use the faster inter-frame mode search on all inter frames,
   // not only on the frames that use the speed-6 values. Key frames and
