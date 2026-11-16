@@ -410,10 +410,19 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
   // if frame_source_sad is non-trivial, relax max_delta_up and bypass the
   // oscillation clamp below so Q can increase rapidly.
   const bool is_cbr_bru_frame = cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled;
+  // Suppress the +120 low-buffer overshoot jump on screen aq-mode=3 scene cuts
+  // (where av2_encodedframe_overshoot_cbr() already blends Q toward 160) and
+  // on whole-frame skips or positive-buffer >=75%-skip BRU frames.
   const bool suppress_bru_overshoot =
-      is_cbr_bru_frame && cpi->is_screen_content_type &&
-      cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && cm->bru.total_units > 0 &&
-      cm->bru.blocks_skipped * 4 >= cm->bru.total_units * 3;
+      (cpi->sf.rt_sf.rtc_enable_bru && cpi->is_screen_content_type &&
+       cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+       cpi->sf.rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ &&
+       rc->high_source_sad) ||
+      (is_cbr_bru_frame && cpi->is_screen_content_type &&
+       cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+       (cm->bru.frame_inactive_flag ||
+        (rc->buffer_level > 0 && cm->bru.total_units > 0 &&
+         cm->bru.blocks_skipped * 4 >= cm->bru.total_units * 3)));
   const bool overshoot_buffer_low =
       !suppress_bru_overshoot &&
       (rc->rc_1_frame == -1 && rc->frame_source_sad > 1000 &&
@@ -427,16 +436,21 @@ static int adjust_q_cbr(const AV2_COMP *cpi, int q, int active_worst_quality) {
   int max_delta_up;
   if (cpi->is_screen_content_type) {
     max_delta_up = overshoot_buffer_low ? 120 : 16;
+    // Keep whole-frame BRU skips on the gentler mid-cycle Q clamp, while
+    // routing >720p partial-BRU frames to the faster else-branch Q step-down.
     const bool bru_keep_cr_adj =
-        is_cbr_bru_frame && !rc->high_source_sad &&
-        (cm->bru.frame_inactive_flag || cm->width * cm->height <= 1280 * 720);
-    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+        is_cbr_bru_frame && cm->bru.frame_inactive_flag && !rc->high_source_sad;
+    const bool bru_partial_gt_720p =
+        is_cbr_bru_frame && !cm->bru.frame_inactive_flag &&
+        cm->bru.blocks_skipped > 0 && cm->width * cm->height > 1280 * 720 &&
+        !rc->high_source_sad;
+    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && !bru_partial_gt_720p &&
         (cpi->cyclic_refresh->apply_cyclic_refresh || bru_keep_cr_adj)) {
       const int bd_q_offset = ((int)cm->seq_params.bit_depth - 8) * 24;
       // For static screen type content limit the Q drop till the start of the
       // next refresh cycle (including the first frame after a scene change,
       // where sb_index == last_sb_index == 0 starts the initial cycle).
-      if (is_cbr_bru_frame ||
+      if ((is_cbr_bru_frame && cm->bru.frame_inactive_flag) ||
           cpi->cyclic_refresh->sb_index > cpi->cyclic_refresh->last_sb_index ||
           (rc->frames_since_key > 1 &&
            cpi->cyclic_refresh->counter_encode_maxq_scene_change == 0)) {
@@ -1189,6 +1203,9 @@ void av2_rc_free_rtc_bru(RATE_CONTROL *rc) {
   avm_free(rc->rtc_bru.cur_sb_q);
   rc->rtc_bru.cur_sb_q = NULL;
   rc->rtc_bru.sb_units = 0;
+  rc->rtc_bru.last_sc_base_q = 0;
+  rc->rtc_bru.dpb_sync_min_q = 0;
+  rc->rtc_bru.last_coded_disp = -1;
 }
 
 static int gf_group_pyramid_level(const GF_GROUP *gf_group, int gf_index) {
@@ -1987,6 +2004,14 @@ int av2_rc_pick_q_and_bounds(const AV2_COMP *cpi, RATE_CONTROL *rc, int width,
   if ((cpi->common.bru.enabled && cpi->common.bru.frame_inactive_flag) ||
       cpi->common.bridge_frame_info.is_bridge_frame) {
     q = cpi->common.quant_params.base_qindex;
+  } else if (cpi->sf.rt_sf.rtc_enable_bru && cpi->common.bru.enabled &&
+             !cpi->common.bru.frame_inactive_flag &&
+             cpi->rc.rtc_bru.dpb_sync_min_q > 0) {
+    // Floor base_qindex on static DPB-slot sync frames to prev_slot's base_q
+    // so synced SBs copy via 0-MV skip without triggering extra Q re-refines.
+    const int sync_q = AVMMIN(cpi->rc.rtc_bru.dpb_sync_min_q,
+                              AVMMAX(cpi->rc.worst_quality, 1));
+    q = AVMMAX(q, sync_q);
   } else if (width != cpi->oxcf.frm_dim_cfg.width ||
              height != cpi->oxcf.frm_dim_cfg.height) {
     // Only apply the resize QP offset when picking q for a downscaled frame

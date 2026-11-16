@@ -2620,6 +2620,7 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
       cm->seg.update_map) {
     cm->seg.temporal_update =
         (!frame_is_intra_only(cm) && cm->current_frame.frame_type != S_FRAME &&
+         !cm->bru.enabled &&
          cm->features.primary_ref_frame != PRIMARY_REF_NONE &&
          cm->last_frame_seg_map != NULL &&
          rdc->seg_tmp_pred_cost[1] < rdc->seg_tmp_pred_cost[0])

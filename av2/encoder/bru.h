@@ -100,10 +100,11 @@ int av2_find_rtc_cbr_bru_slot(const AV2_COMP *cpi,
                               const struct lookahead_entry *bru_ref_source,
                               int cur_frame_disp);
 
-/*!\brief Disable segmentation and cyclic refresh on RTC CBR BRU frames.
+/*!\brief Disable segmentation on whole-frame RTC CBR BRU skips.
  *
- * Clears \c cm->seg.enabled and disables cyclic refresh on the current frame
- * when 1-pass RTC CBR BRU is active (\c cm->bru.enabled == 1).
+ * Clears \c cm->seg.enabled on the current frame when 1-pass RTC CBR BRU
+ * skips the entire frame (\c cm->bru.enabled && \c
+ * cm->bru.frame_inactive_flag).
  *
  * \param[in,out] cpi  Top-level encoder structure
  */

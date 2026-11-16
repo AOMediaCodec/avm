@@ -307,8 +307,27 @@ void av2_cyclic_refresh_postencode(AV2_COMP *const cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
   const int avg_qp = rc->avg_frame_qindex[INTER_FRAME];
 
+  int tot_cnt_zeromv = x->cnt_zeromv;
+  if (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled &&
+      !cm->bru.frame_inactive_flag && cm->bru.active_mode_map != NULL) {
+    const int sb_cols = (mi_params->mi_cols + cm->mib_size - 1) / cm->mib_size;
+    const int sb_rows = (mi_params->mi_rows + cm->mib_size - 1) / cm->mib_size;
+    const int sbs_in_frame =
+        AVMMIN(sb_cols * sb_rows, (int)cm->bru.total_units);
+    for (int i = 0; i < sbs_in_frame; ++i) {
+      if (cm->bru.active_mode_map[i] != BRU_ACTIVE_SB) {
+        const int sb_row = i / sb_cols;
+        const int sb_col = i - sb_row * sb_cols;
+        const int mi_row = sb_row * cm->mib_size;
+        const int mi_col = sb_col * cm->mib_size;
+        const int xmis = AVMMIN(mi_params->mi_cols - mi_col, cm->mib_size);
+        const int ymis = AVMMIN(mi_params->mi_rows - mi_row, cm->mib_size);
+        tot_cnt_zeromv += xmis * ymis;
+      }
+    }
+  }
   cr->cnt_zeromv =
-      100 * x->cnt_zeromv / (mi_params->mi_rows * mi_params->mi_cols);
+      100 * tot_cnt_zeromv / (mi_params->mi_rows * mi_params->mi_cols);
 
   const int bd_shift = cm->seq_params.bit_depth - 8;
   // In 10-15fps screen captures padded to 30fps, duplicate frames
@@ -395,6 +414,10 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
   i = cr->sb_index;
   cr->last_sb_index = cr->sb_index;
   cr->target_num_seg_blocks = 0;
+  int candidate_block_count = 0;
+  const bool is_partial_bru = cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled &&
+                              !cm->bru.frame_inactive_flag &&
+                              cm->bru.active_mode_map != NULL;
   do {
     int sum_map = 0;
     uint64_t sb_sad = 0;
@@ -469,17 +492,22 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
     // If segment is at least half of superblock, set to 1.
     // Enforce that block sad (sb_sad) is not too high.
     if (sum_map >= (xmis * ymis) >> 1 && sb_sad < thresh_sad) {
-      for (y = 0; y < ymis; y++)
-        for (x = 0; x < xmis; x++) {
-          seg_map[bl_index + y * mi_params->mi_cols + x] = CR_SEGMENT_ID_BOOST1;
-        }
-      cr->target_num_seg_blocks += xmis * ymis;
+      candidate_block_count += xmis * ymis;
+      if (!is_partial_bru || (i < (int)cm->bru.total_units &&
+                              cm->bru.active_mode_map[i] == BRU_ACTIVE_SB)) {
+        for (y = 0; y < ymis; y++)
+          for (x = 0; x < xmis; x++) {
+            seg_map[bl_index + y * mi_params->mi_cols + x] =
+                CR_SEGMENT_ID_BOOST1;
+          }
+        cr->target_num_seg_blocks += xmis * ymis;
+      }
     }
     i++;
     if (i == sbs_in_frame) {
       i = 0;
     }
-  } while (cr->target_num_seg_blocks < block_count && i != cr->sb_index);
+  } while (candidate_block_count < block_count && i != cr->sb_index);
   cr->sb_index = i;
   if (cr->target_num_seg_blocks == 0) {
     av2_disable_segmentation(&cm->seg);
