@@ -803,6 +803,8 @@ const int kConv2DSrTables = 7;
 const int kConv2DSrOddTapTable = 7;
 const int kConv2DSrSharp2Table = 8;
 
+// Every size, for the NEON sweep (the C baseline uses kConv2DSrCSizes).
+#if HAVE_NEON
 std::vector<Conv2DSrSize> GetConv2DSrSizes() {
   std::set<Conv2DSrSize> sizes;
   for (int b = BLOCK_4X4; b < BLOCK_SIZES_ALL; ++b) {
@@ -870,6 +872,7 @@ std::vector<Conv2DSrSize> GetConv2DSrSizes() {
   for (const Conv2DSrSize &s : kExtra) sizes.insert(s);
   return std::vector<Conv2DSrSize>(sizes.begin(), sizes.end());
 }
+#endif  // HAVE_NEON
 
 class AV2Convolve2DSrHighbdTest
     : public ::testing::TestWithParam<Conv2DSrParam> {
@@ -1265,13 +1268,13 @@ TEST_P(AV2Convolve2DSrHighbdFallbackTest, FallbackPaths) {
   }
 }
 
+#if HAVE_NEON
 // 6xN (C fallback), the fused shape (8x8), w % 8 == 4 (12x8) and h % 4 != 0
 // (16x7).
 const Conv2DSrSize kFallbackSizes[] = {
   { 6, 6 }, { 6, 12 }, { 8, 8 }, { 12, 8 }, { 16, 7 }
 };
 
-#if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, AV2Convolve2DSrHighbdFallbackTest,
     ::testing::Combine(::testing::Values(av2_highbd_convolve_2d_sr_c),
