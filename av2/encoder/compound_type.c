@@ -964,8 +964,8 @@ static int64_t masked_compound_type_rd(
   const COMPOUND_TYPE compound_type = mbmi->interinter_comp.type;
   // This function will be called only for COMPOUND_WEDGE and COMPOUND_DIFFWTD.
   assert(compound_type == COMPOUND_WEDGE || compound_type == COMPOUND_DIFFWTD);
-  int rate_sum = 0, tmp_skip_txfm_sb;
-  int64_t dist_sum = 0, tmp_skip_sse_sb;
+  int rate_sum, tmp_skip_txfm_sb;
+  int64_t dist_sum, tmp_skip_sse_sb;
   pick_interinter_mask_type pick_interinter_mask[2] = { pick_interinter_wedge,
                                                         pick_interinter_seg };
 
@@ -1045,16 +1045,11 @@ static int64_t masked_compound_type_rd(
                                                  pred1, stride);
     }
     // Get the RD cost from model RD.
-    *comp_model_rd_cur = INT64_MAX;
-    if (wedge_newmv_search || cpi->sf.inter_sf.prune_comp_type_by_model_rd ||
-        cpi->sf.inter_sf.reuse_compound_type_data) {
-      model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
-          cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum, &tmp_skip_txfm_sb,
-          &tmp_skip_sse_sb, NULL, NULL, NULL);
-      rd = RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv + rate_sum,
-                  dist_sum);
-      *comp_model_rd_cur = rd;
-    }
+    model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
+        cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum, &tmp_skip_txfm_sb,
+        &tmp_skip_sse_sb, NULL, NULL, NULL);
+    rd = RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv + rate_sum, dist_sum);
+    *comp_model_rd_cur = rd;
     // Override with best if current is worse than best for new MV.
     if (wedge_newmv_search) {
       if (rd >= best_rd_cur) {
@@ -1084,10 +1079,8 @@ static int64_t masked_compound_type_rd(
       rd = RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv + rd_stats.rate,
                   rd_stats.dist);
       // Backup rate and distortion for future reuse.
-      if (cpi->sf.inter_sf.reuse_compound_type_data) {
-        backup_stats(compound_type, comp_stats, rate_sum, dist_sum, &rd_stats,
-                     *comp_type_rate);
-      }
+      backup_stats(compound_type, comp_stats, rate_sum, dist_sum, &rd_stats,
+                   *comp_type_rate);
     }
   } else {
     // Reuse data as matching record is found.
@@ -1223,8 +1216,8 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
         const int64_t tmp_rd_thresh = AVMMIN(*rd, rd_thresh) - mode_rd;
         int64_t est_rd = INT64_MAX;
         int eval_txfm = 1;
-        int rate_sum = 0, tmp_skip_txfm_sb;
-        int64_t dist_sum = 0, tmp_skip_sse_sb;
+        int rate_sum, tmp_skip_txfm_sb;
+        int64_t dist_sum, tmp_skip_sse_sb;
         // Check if the mode is good enough based on skip rd.
         if (inter_sf->txfm_rd_gate_level) {
           int64_t sse_y = compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize);
@@ -1243,20 +1236,15 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
           best_rd_cur =
               RDCOST(x->rdmult, comp_type_rate + *rate_mv + est_rd_stats.rate,
                      est_rd_stats.dist);
-          if ((inter_sf->prune_comp_type_by_model_rd && valid_type_count > 1) ||
-              reuse_compound_type_data) {
-            model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
-                cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum,
-                &tmp_skip_txfm_sb, &tmp_skip_sse_sb, NULL, NULL, NULL);
-            comp_model_rd_cur = RDCOST(
-                x->rdmult, comp_type_rate + *rate_mv + rate_sum, dist_sum);
-          }
+          model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
+              cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum, &tmp_skip_txfm_sb,
+              &tmp_skip_sse_sb, NULL, NULL, NULL);
+          comp_model_rd_cur =
+              RDCOST(x->rdmult, comp_type_rate + *rate_mv + rate_sum, dist_sum);
 
           // Backup rate and distortion for future reuse.
-          if (reuse_compound_type_data) {
-            backup_stats(cur_type, comp_stats, rate_sum, dist_sum,
-                         &est_rd_stats, comp_type_rate);
-          }
+          backup_stats(cur_type, comp_stats, rate_sum, dist_sum, &est_rd_stats,
+                       comp_type_rate);
         }
       } else {
         // Calculate RD cost based on stored stats.
