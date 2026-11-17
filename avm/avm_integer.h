@@ -18,9 +18,11 @@
 #if defined(_MSC_VER)
 #define AVM_FORCE_INLINE __forceinline
 #define AVM_INLINE __inline
+#define AVM_NOINLINE __declspec(noinline)
 #else
 #define AVM_FORCE_INLINE __inline__ __attribute__((always_inline))
 #define AVM_INLINE inline
+#define AVM_NOINLINE __attribute__((noinline))
 #endif
 
 /* Assume platforms have the C99 standard integer types. */

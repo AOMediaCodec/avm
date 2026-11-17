@@ -556,12 +556,6 @@ static AVM_FORCE_INLINE void highbd_convolve_2d_sr_horiz_neon(
 // The vertical rounding shift of every bd 8/10 call (round_0 == ROUND0_BITS).
 #define HBD_2D_ROUND1_BITS (2 * FILTER_BITS - ROUND0_BITS)
 
-#if defined(_MSC_VER)
-#define HBD_2D_NOINLINE __declspec(noinline)
-#else
-#define HBD_2D_NOINLINE __attribute__((noinline))
-#endif
-
 // Sum of the taps-wide vertical window r[0..taps) for one 4-lane half.
 static AVM_FORCE_INLINE int32x4_t highbd_convolve_4_2d_v_sum(
     const int16x4_t r0, const int16x4_t r1, const int16x4_t r2,
@@ -926,7 +920,7 @@ static AVM_FORCE_INLINE void highbd_2d_sr_two_pass(
 
 // bd 8/10 (round_0 == ROUND0_BITS): out of line, so the fused path's caller
 // neither inlines these loops nor reserves im.
-static HBD_2D_NOINLINE void highbd_2d_sr_two_pass_neon(
+static AVM_NOINLINE void highbd_2d_sr_two_pass_neon(
     const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
     int h, const int16x8_t x_filter, const int taps_x, const int16x8_t y_filter,
     const int taps_y, const int h16, int bd) {
@@ -939,7 +933,7 @@ static HBD_2D_NOINLINE void highbd_2d_sr_two_pass_neon(
 
 // bd 12 (convolve.h raises round_0 and lowers round_1 by as much): runtime
 // shifts, out of line and cold.
-static HBD_2D_NOINLINE void highbd_2d_sr_two_pass_bd12_neon(
+static AVM_NOINLINE void highbd_2d_sr_two_pass_bd12_neon(
     const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
     int h, const int16x8_t x_filter, const int taps_x, const int16x8_t y_filter,
     const int taps_y, const int round_0, const int round_1, int bd) {
