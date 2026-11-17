@@ -21,3 +21,22 @@ TEST(AV2CommonInt, TestGetTxSize) {
     GTEST_ASSERT_EQ(tx_size_high[t], tx_size_high[t2]);
   }
 }
+
+// T2 depends directly on T1, T1 on T0, but T2 has no direct edge to T0.
+TEST(AV2CommonInt, TestIsTlayerTransitivelyDependent) {
+  SequenceHeader seq;
+  memset(&seq, 0, sizeof(seq));
+  seq.tlayer_dependency_present_flag = 1;
+  seq.max_tlayer_id = 2;
+  seq.max_mlayer_id = 0;
+
+  seq.tlayer_dependency_map[0][1][0] = 1;
+  seq.tlayer_dependency_map[0][2][1] = 1;
+
+  EXPECT_EQ(is_tlayer_scalable_and_dependent(&seq, 2, 0, 0), 0);
+
+  EXPECT_EQ(is_tlayer_transitively_dependent(&seq, 0, 2, 0), 1);
+  EXPECT_EQ(is_tlayer_transitively_dependent(&seq, 0, 1, 0), 1);
+  EXPECT_EQ(is_tlayer_transitively_dependent(&seq, 0, 2, 2), 1);
+  EXPECT_EQ(is_tlayer_transitively_dependent(&seq, 0, 0, 2), 0);
+}
