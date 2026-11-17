@@ -51,10 +51,15 @@
 #define RESIZE_DYNAMIC_MC_DEADZONE 7.0e-6
 #define RESIZE_DYNAMIC_MC_GRAIN_WEIGHT 2.0
 #define RESIZE_DYNAMIC_MC_PAN_GRAIN_WEIGHT 8.0
+#define RESIZE_DYNAMIC_MC_UNIFORM_NOISE_GRAIN_WEIGHT 14.0
 #define RESIZE_DYNAMIC_MC_FLAT_NOISE_UNI0 0.60
 #define RESIZE_DYNAMIC_MC_FLAT_NOISE_SPAN 0.15
 #define RESIZE_DYNAMIC_MC_FLAT_NOISE_ACR_MAX 0.30
 #define RESIZE_DYNAMIC_MC_FLAT_NOISE_ACR_SPAN 0.15
+#define RESIZE_DYNAMIC_MC_UNIFORM_NOISE_UNI_MIN 0.65
+#define RESIZE_DYNAMIC_MC_UNIFORM_NOISE_P50_MIN 15.0
+#define RESIZE_DYNAMIC_MC_UNIFORM_NOISE_MIN_QRAT_SQ 4.0
+#define RESIZE_DYNAMIC_SUBGOP_UNIFORM_NOISE_THRESH_BOOST 1.68
 #define RESIZE_DYNAMIC_REF_PELS (1920.0 * 1080.0)
 #define RESIZE_DYNAMIC_MAX_PEL_RATIO 4.0
 #define RESIZE_DYNAMIC_HIGHRES_PEL_RATIO 2.0
@@ -539,12 +544,14 @@ static double compute_mc_effective_energy(double mc_p50, double mc_nz,
                                           double mc_acr, double qstep_ref_sq,
                                           double pel_ratio, double grain_weight,
                                           int linear_uni,
+                                          int bypass_flat_noise_damper,
                                           avm_bit_depth_t bit_depth) {
   const double bds2 = (double)(1 << (2 * ((int)bit_depth - AVM_BITS_8)));
   const double uni = mc_p50 / AVMMAX(mc_nz, bds2);
   const double uni_clamped = AVMMIN(uni, 1.0);
   double grain_scale = 1.0;
-  if (uni_clamped > RESIZE_DYNAMIC_MC_FLAT_NOISE_UNI0 &&
+  if (!bypass_flat_noise_damper &&
+      uni_clamped > RESIZE_DYNAMIC_MC_FLAT_NOISE_UNI0 &&
       mc_acr < RESIZE_DYNAMIC_MC_FLAT_NOISE_ACR_MAX) {
     const double w_uni =
         AVMMIN((uni_clamped - RESIZE_DYNAMIC_MC_FLAT_NOISE_UNI0) /
@@ -694,7 +701,8 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
                               orig_h, bit_depth, &mc_p50, &mc_nz, &mc_acr)) {
       mc_eff = compute_mc_effective_energy(
           mc_p50, mc_nz, mc_acr, qstep_base * qstep_base, pel_ratio,
-          RESIZE_DYNAMIC_MC_GRAIN_WEIGHT, /*linear_uni=*/0, bit_depth);
+          RESIZE_DYNAMIC_MC_GRAIN_WEIGHT, /*linear_uni=*/0,
+          /*bypass_flat_noise_damper=*/0, bit_depth);
       mc_bg = compute_mc_bg_energy(mc_p50, mc_nz, mc_acr);
       have_mc = 1;
     }
@@ -1087,13 +1095,29 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
                                    RESIZE_DYNAMIC_MC_RATIO_MAX);
   const double subgop_ac_thresh_fallback =
       RESIZE_DYNAMIC_AC_THRESH_KF * qstep_ratio_sq;
-  const double grain_weight = is_highres_pan
-                                  ? RESIZE_DYNAMIC_MC_PAN_GRAIN_WEIGHT
-                                  : RESIZE_DYNAMIC_MC_GRAIN_WEIGHT;
+  // At coarse QPs (qstep_ratio_sq > 4.0) on <= 1080p scenes whose temporal MC
+  // residual is spatially pervasive (mc_uni > 0.65) and substantial (mc_p50 >
+  // 15 * bds^2) despite low structured motion (mc_acr < 0.30), round-trip
+  // resampling MSE is dominated by attenuated uncorrelated sensor/shadow noise
+  // rather than lost scene structure. Now that closed-GOP keyframes co-scale
+  // with the subgop, treat the pervasive noise floor as incompressible temporal
+  // coding energy and relax subgop_thresh accordingly.
+  const int is_uniform_noise =
+      have_mc && pel_ratio <= 1.0 &&
+      mc_uni > RESIZE_DYNAMIC_MC_UNIFORM_NOISE_UNI_MIN &&
+      mc_acr < RESIZE_DYNAMIC_MC_FLAT_NOISE_ACR_MAX &&
+      mc_p50 > RESIZE_DYNAMIC_MC_UNIFORM_NOISE_P50_MIN * bds2 &&
+      qstep_ratio_sq > RESIZE_DYNAMIC_MC_UNIFORM_NOISE_MIN_QRAT_SQ;
+  const double grain_weight =
+      is_highres_pan
+          ? RESIZE_DYNAMIC_MC_PAN_GRAIN_WEIGHT
+          : (is_uniform_noise ? RESIZE_DYNAMIC_MC_UNIFORM_NOISE_GRAIN_WEIGHT
+                              : RESIZE_DYNAMIC_MC_GRAIN_WEIGHT);
   const double mc_eff =
       have_mc ? compute_mc_effective_energy(
                     mc_p50, mc_nz, mc_acr, qstep_subgop * qstep_subgop,
-                    pel_ratio, grain_weight, is_highres_pan, bit_depth)
+                    pel_ratio, grain_weight, is_highres_pan || is_uniform_noise,
+                    is_uniform_noise, bit_depth)
               : 1.0;
   const double mc_bg =
       have_mc ? compute_mc_bg_energy(mc_p50, mc_nz, mc_acr) : 1.0;
@@ -1108,7 +1132,9 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
           ? pow(RESIZE_DYNAMIC_SUBGOP_HYST_KEEP, pel_ratio)
           : (RESIZE_DYNAMIC_SUBGOP_HYST_KEEP +
              RESIZE_DYNAMIC_SUBGOP_HYST_KEEP_COARSE_ADD * coarse_keep_ramp);
-  if (have_mc && pel_ratio <= 1.0) {
+  if (is_uniform_noise) {
+    subgop_thresh *= RESIZE_DYNAMIC_SUBGOP_UNIFORM_NOISE_THRESH_BOOST;
+  } else if (have_mc && pel_ratio <= 1.0) {
     if (mc_acr < RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MAX &&
         mc_uni > RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MIN_UNI) {
       // When temporal motion compensation removes > 91% of block AC variance
@@ -1353,8 +1379,9 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
     *out_coscale_kf =
         (best_denom >= RESIZE_DYNAMIC_KF_COSCALE_MIN_DENOM &&
          (pel_ratio <= 1.0 || is_highres_pan) &&
-         avg_ratio_arr[best_denom] <
-             RESIZE_DYNAMIC_KF_COSCALE_MAX_Q_NORM * base_subgop_thresh);
+         (is_uniform_noise ||
+          avg_ratio_arr[best_denom] <
+              RESIZE_DYNAMIC_KF_COSCALE_MAX_Q_NORM * base_subgop_thresh));
   }
 
   avm_free(downscaled_buf);
