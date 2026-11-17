@@ -729,8 +729,8 @@ static AVM_FORCE_INLINE void highbd_2d_sr_fused_h16_neon(
   const int16x4_t fy_lo = vget_low_s16(fy);
   const int16x4_t fy_hi = vget_high_s16(fy);
   // round_1 is HBD_2D_ROUND1_BITS, so highbd_convolve_8_2d_v never reads its
-  // runtime shift vector; it holds that same shift.
-  const int32x4_t unused_shift = vdupq_n_s32(-HBD_2D_ROUND1_BITS);
+  // runtime shift vector.
+  const int32x4_t unused_shift = vdupq_n_s32(0);
   const uint16x8_t max_val = vdupq_n_u16((uint16_t)((1 << bd) - 1));
   const int16x8_t z = vdupq_n_s16(0);
   const ptrdiff_t ss = src_stride;
@@ -924,12 +924,11 @@ static AVM_NOINLINE void highbd_2d_sr_two_pass_neon(
     const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
     int h, const int16x8_t x_filter, const int taps_x, const int16x8_t y_filter,
     const int taps_y, const int h16, int bd) {
-  // The immediate rounding narrows never read the shift vectors; they hold
-  // the same shifts.
+  // The immediate rounding narrows never read the shift vectors.
+  const int32x4_t unused_shift = vdupq_n_s32(0);
   highbd_2d_sr_two_pass(src, src_stride, dst, dst_stride, w, h, x_filter,
-                        taps_x, y_filter, taps_y, ROUND0_BITS,
-                        vdupq_n_s32(-ROUND0_BITS), HBD_2D_ROUND1_BITS,
-                        vdupq_n_s32(-HBD_2D_ROUND1_BITS), h16, bd);
+                        taps_x, y_filter, taps_y, ROUND0_BITS, unused_shift,
+                        HBD_2D_ROUND1_BITS, unused_shift, h16, bd);
 }
 
 // bd 12 (convolve.h raises round_0 and lowers round_1 by as much): runtime
