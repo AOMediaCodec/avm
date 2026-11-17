@@ -290,7 +290,7 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.prune_by_struct_orient = 1;
       sf->part_sf.dry_pass_simple_motion_search_split = 1;
     }
-    sf->part_sf.intra_two_pass_max_qindex = 255;
+    sf->part_sf.intra_two_pass_max_qindex = is_4k_or_larger ? 95 : 255;
   }
 
   if (speed >= 5) {
@@ -871,16 +871,27 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 5) {
-    sf->lpf_sf.ccso_terminate_search_luma_pass_count = 3;
-    sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 6;
+    if (!cm->features.is_scc_content_by_detector) {
+      sf->lpf_sf.ccso_terminate_search_luma_pass_count = 3;
+      sf->lpf_sf.ccso_terminate_search_chroma_pass_count = 6;
+    }
     sf->intra_sf.intra_mode_prune_top = 2;
     sf->intra_sf.disable_palette = true;
     sf->part_sf.simple_motion_search_prune_agg = 3;
+    sf->inter_sf.skip_eval_intrabc_in_inter_frame =
+        (cm->features.allow_screen_content_tools ||
+         (is_1080p_or_larger && !is_4k_or_larger && frame_is_intra_only(cm)))
+            ? 0
+            : 1;
     sf->inter_sf.disable_interinter_wedge = 1;
     sf->inter_sf.disable_onesided_comp = true;
     sf->hl_sf.tip_direct_output_early_term_margin_pct = 0;
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
-    sf->inter_sf.prune_cwp_search = 1;
+    sf->inter_sf.prune_cwp_search =
+        (is_720p_or_larger && !cm->features.is_scc_content_by_detector &&
+         (boosted || cm->current_frame.pyramid_level <= 2))
+            ? 0
+            : 1;
     sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid =
         boosted ? (cm->current_frame.pyramid_level >= 2 ? 1 : 0) : 1;
     sf->inter_sf.prune_warpmv_by_pyr_lvl = cm->current_frame.pyramid_level > 2;
@@ -898,6 +909,12 @@ static void set_good_speed_features_framesize_independent(
                                           : MULTI_WINNER_MODE_OFF;
 
     sf->mv_sf.prune_mesh_search = 1;
+    sf->mv_sf.newmv_drl_search_limit =
+        (!is_4k_or_larger &&
+         (boosted || (cm->features.is_scc_content_by_detector &&
+                      cm->current_frame.pyramid_level <= 3)))
+            ? 2
+            : 1;
 
     sf->tpl_sf.prune_starting_mv = 3;
   }
@@ -964,6 +981,7 @@ static void set_good_speed_features_framesize_independent(
     }
     sf->mv_sf.use_bsize_dependent_search_method = 1;
     sf->mv_sf.fast_mv_search = cm->features.is_scc_content_by_detector ? 0 : 1;
+    sf->mv_sf.newmv_drl_search_limit = 1;
 
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
     sf->tpl_sf.disable_filtered_key_tpl = 1;
@@ -982,6 +1000,9 @@ static void set_good_speed_features_framesize_independent(
 
     sf->inter_sf.enable_six_param_warp_in_winner_mode_by_tid = 1;
 
+    sf->inter_sf.skip_eval_intrabc_in_inter_frame =
+        cm->features.allow_screen_content_tools ? 0 : 1;
+    sf->inter_sf.prune_cwp_search = 1;
     sf->inter_sf.prune_amvd = true;
     sf->inter_sf.prune_opfl = 2;
     sf->inter_sf.prune_warpmv_by_pyr_lvl =
@@ -1695,20 +1716,10 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
   }
 
   if (cpi->speed >= 3) {
-    if (cpi->speed >= 4 && is_1080p_or_larger &&
-        (!is_2160p_or_larger || cpi->speed == 4)) {
-      sf->part_sf.prune_rect_with_split_depth = 3;
-    }
     sf->part_sf.simple_motion_search_early_term_none = 1;
   }
 
-  if (cpi->speed >= 5) {
-    if (is_1080p_or_larger && !is_2160p_or_larger) {
-      sf->part_sf.prune_rect_with_split_depth = 4;
-    }
-  }
-
-  if (cpi->speed >= 6) {
+  if (cpi->speed >= 4) {
     if (is_1080p_or_larger) {
       sf->part_sf.prune_rect_with_split_depth = 3;
     }
@@ -2176,7 +2187,15 @@ static AVM_INLINE void set_post_none_early_term_level(AV2_COMP *cpi,
   const int eff_speed = use_sp2_thresh ? 2 : AVMMIN(speed, 6);
   cpi->sf.part_sf.ml_post_none_early_term_thresh =
       cpi->oxcf.mode == GOOD ? thresh_by_speed[eff_speed] : 0;
-  if (cpi->oxcf.mode == GOOD && speed == 6) {
+  if (speed == 5) {
+    cpi->sf.part_sf.ml_post_none_early_term_thresh =
+        (cm->quant_params.base_qindex <= 113 + qindex_offset)
+            ? 10
+            : ((frame_is_intra_only(cm) || frame_is_boosted(cpi) ||
+                cm->current_frame.pyramid_level <= 2)
+                   ? 5
+                   : 8);
+  } else if (cpi->oxcf.mode == GOOD && speed == 6) {
     const int low_q = cm->quant_params.base_qindex <= 113 + qindex_offset;
     const int key_boost_p2 = frame_is_intra_only(cm) || frame_is_boosted(cpi) ||
                              cm->current_frame.pyramid_level <= 2;
@@ -2781,10 +2800,26 @@ void av2_set_speed_features_qindex_dependent(AV2_COMP *cpi, int speed) {
     }
   }
 
+  if (speed == 5 && cm->features.is_scc_content_by_detector &&
+      (frame_is_intra_only(cm) || boosted)) {
+    sf->mv_sf.intrabc_mesh_patterns[0] = (MESH_PATTERN){ 32, 1 };
+    sf->mv_sf.intrabc_mesh_patterns[1] = (MESH_PATTERN){ 32, 1 };
+    sf->mv_sf.intrabc_mesh_patterns[2] = (MESH_PATTERN){ 0, 0 };
+    sf->mv_sf.intrabc_mesh_patterns[3] = (MESH_PATTERN){ 0, 0 };
+  }
+
   // At speed 5, use the faster inter-frame mode search on all inter frames,
   // not only on the frames that use the speed-6 values. Key frames and
   // intra-only frames do not change.
-  if (cpi->oxcf.mode == GOOD && speed == 5 && !frame_is_intra_only(cm)) {
+  if (speed == 5 && !frame_is_intra_only(cm)) {
     set_fast_inter_mode_search(sf);
+    if (!cm->features.is_scc_content_by_detector) {
+      const int low_q = cm->quant_params.base_qindex <= 113 + qindex_offset;
+      if (is_2160p_or_larger && !low_q) {
+        sf->inter_sf.full_pool_inter_mode_prune_top = 0;
+      } else if (!use_faster_speed_features(cpi, 5)) {
+        sf->inter_sf.full_pool_inter_mode_prune_top = 8;
+      }
+    }
   }
 }
