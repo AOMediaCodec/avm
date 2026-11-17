@@ -2056,6 +2056,26 @@ TEST(XLayerConfigParse, IntentNamesAndIntegers) {
   EXPECT_EQ(cfg.ops_sets[0].ops[4].intent, 5);
 }
 
+TEST(XLayerConfigParse, OpsLevelIntent) {
+  const char *json = R"({
+    "xlayers": [ { "xlayer_id": 0, "input": "a.raw" } ],
+    "ops": [
+      { "ops_id": 0, "intent": "texture_alpha",
+        "operating_points": [ { "intent": "unspecified", "xlayer_map": [0] } ] },
+      { "ops_id": 1,
+        "operating_points": [ { "intent": "stereo", "xlayer_map": [0] } ] }
+    ]
+  })";
+  const char *path = WriteTempJson(json);
+  ASSERT_NE(path, nullptr);
+  MultiXLayerConfig cfg;
+  ASSERT_EQ(parse_multi_xlayer_config(path, &cfg), 0);
+  EXPECT_EQ(cfg.ops_sets[0].intent, 3);
+  EXPECT_EQ(cfg.ops_sets[0].ops[0].intent, 0);
+  EXPECT_EQ(cfg.ops_sets[1].intent, 0);  // default
+  EXPECT_EQ(cfg.ops_sets[1].ops[0].intent, 2);
+}
+
 TEST(XLayerConfigParse, InvalidIntent) {
   const char *bad[] = {
     R"({ "xlayers": [ { "xlayer_id": 0, "input": "a.raw" } ],

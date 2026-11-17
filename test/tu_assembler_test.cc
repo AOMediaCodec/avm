@@ -417,6 +417,7 @@ TEST(TUAssembler, PopulateOps) {
   // OP1: xlayers 0 and 3
   ops_cfg.ops[1].intent = 1;
   ops_cfg.ops[1].xlayer_map = (1u << 0) | (1u << 3);
+  ops_cfg.intent = 3;
 
   // Set up a minimal MultiXLayerConfig for derivation
   int ids[] = { 0, 3 };
@@ -436,6 +437,7 @@ TEST(TUAssembler, PopulateOps) {
   EXPECT_EQ(ops.ops_id, 0);
   EXPECT_EQ(ops.ops_cnt, 2);
   EXPECT_EQ(ops.ops_priority, 1);
+  EXPECT_EQ(ops.ops_intent, 3);
   EXPECT_EQ(ops.ops_intent_present_flag, 1);
 
   // OP0: single xlayer

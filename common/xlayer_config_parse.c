@@ -620,6 +620,13 @@ static int parse_ops_entry(const cJSON *entry, OPSConfig *ops_cfg) {
   ops_cfg->enable = 1;
   ops_cfg->ops_id = json_get_int(entry, "ops_id", 0);
   ops_cfg->priority = json_get_int(entry, "priority", 0);
+  {
+    char isec[64];
+    snprintf(isec, sizeof(isec), "ops %d", ops_cfg->ops_id);
+    const cJSON *it = cJSON_GetObjectItemCaseSensitive(entry, "intent");
+    ops_cfg->intent = it ? parse_intent_value(it, isec) : 0;
+    if (ops_cfg->intent < 0) return -1;
+  }
   ops_cfg->intent_present_flag = json_get_bool(entry, "intent_present", 1);
   ops_cfg->ptl_present_flag = json_get_bool(entry, "ptl_present", 1);
   ops_cfg->color_info_present_flag =
@@ -688,7 +695,8 @@ static int parse_ops_entry(const cJSON *entry, OPSConfig *ops_cfg) {
   // Warn about unknown keys in this OPS entry
   {
     static const char *const known[] = {
-      "ops_id",           "priority",           "intent_present",
+      "ops_id",           "priority",           "intent",
+      "intent_present",
       "ptl_present",      "color_info_present", "mlayer_info_idc",
       "operating_points",
     };

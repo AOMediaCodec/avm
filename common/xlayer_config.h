@@ -152,6 +152,7 @@ typedef struct OPSConfig {
   int enable;
   int ops_id;    // OPS ID (0-15)
   int priority;  // OPS priority
+  int intent;    // OPS-level intent (ops_intent), same values as the per-OP one
   int intent_present_flag;
   int ptl_present_flag;
   int color_info_present_flag;

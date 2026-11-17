@@ -377,6 +377,7 @@ independently decoded. Each operating point specifies which xlayers
 |-------|------|-------------|
 | `ops_id` | int | OPS identifier (0-15) |
 | `priority` | int | OPS priority |
+| `intent` | string or int | Intent of the whole OPS (`ops_intent`), same values and names as the per-operating-point `intent` below. Default `"unspecified"` (0) |
 | `intent_present` | bool | Signal intent per operating point |
 | `ptl_present` | bool | Signal profile/tier/level per operating point |
 | `color_info_present` | bool | Signal color info per operating point |

@@ -1345,6 +1345,7 @@ void populate_ops_from_config(const OPSConfig *ops_cfg, int xlayer_id,
   ops->ops_id = ops_cfg->ops_id;
   ops->ops_cnt = ops_cfg->num_operating_points;
   ops->ops_priority = ops_cfg->priority;
+  ops->ops_intent = ops_cfg->intent;
   ops->ops_intent_present_flag = ops_cfg->intent_present_flag;
   ops->ops_ptl_present_flag = ops_cfg->ptl_present_flag;
   ops->ops_color_info_present_flag = ops_cfg->color_info_present_flag;
