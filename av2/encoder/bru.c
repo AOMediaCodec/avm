@@ -220,12 +220,118 @@ static bool cluster_cbr_bru_active_sbs(BruInfo *bru_info,
   return ok;
 }
 
+// Returns true if DPB slot s holds a valid matching-resolution frame with
+// initialized per-SB certified quantizers.
+static inline bool is_cbr_bru_slot_valid(const AV2_COMP *cpi, int s,
+                                         int total_units) {
+  const AV2_COMMON *const cm = &cpi->common;
+  return s >= 0 && s < REF_FRAMES && total_units > 0 &&
+         total_units == cpi->rc.rtc_bru.sb_units &&
+         cm->ref_frame_map[s] != NULL &&
+         cm->ref_frame_map[s]->buf.y_crop_width == cm->width &&
+         cm->ref_frame_map[s]->buf.y_crop_height == cm->height &&
+         cpi->rc.rtc_bru.sb_q[s] != NULL &&
+         cpi->rc.rtc_bru.sb_q[s][0] != UINT16_MAX;
+}
+
+// Returns true if at least half of the superblock has cr->map == 0 and is
+// therefore eligible to be boosted by cyclic refresh.
+static inline bool is_sb_cr_eligible(const AV2_COMP *cpi, int mi_row,
+                                     int mi_col, int unit_size) {
+  const CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
+  if (cr == NULL || cr->map == NULL) return false;
+  const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
+  const int xmis = AVMMIN(mi_params->mi_cols - mi_col, unit_size);
+  const int ymis = AVMMIN(mi_params->mi_rows - mi_row, unit_size);
+  if (xmis <= 0 || ymis <= 0) return false;
+  const int bl_index = mi_row * mi_params->mi_cols + mi_col;
+  int sum_map = 0;
+  for (int y = 0; y < ymis; y += 2) {
+    for (int x = 0; x < xmis; x += 2) {
+      if (cr->map[bl_index + y * mi_params->mi_cols + x] == 0) {
+        sum_map += 4;
+      }
+    }
+  }
+  return sum_map >= ((xmis * ymis) >> 1);
+}
+
+// Checks whether prev_slot remains in the active inter reference list after
+// BRU reserves update_ref_idx and max_reference_frames pruning runs.
+static bool is_prev_slot_in_active_refs(AV2_COMP *cpi, int prev_slot) {
+  AV2_COMMON *const cm = &cpi->common;
+  if (cpi->is_ras_frame) return false;
+  const int max_allowed_refs =
+      get_max_allowed_ref_frames(cpi->sf.inter_sf.selective_ref_frame,
+                                 cpi->oxcf.ref_frm_cfg.max_reference_frames);
+  if (max_allowed_refs <= 0) return false;
+  const int cur_disp = (int)cm->current_frame.display_order_hint;
+  av2_get_ref_frames(cm, cur_disp, 1, 0, cm->ref_frame_map_pairs);
+  const int num_total_refs = cm->ref_frames_info.num_total_refs;
+  const int num_past_refs = cm->ref_frames_info.num_past_refs;
+  if (num_total_refs <= 0 || num_past_refs <= 0) return false;
+
+  int bru_ref_idx = -1;
+  for (int i = 0; i < num_past_refs; ++i) {
+    const int slot = cm->remapped_ref_idx[i];
+    if (slot >= 0 && slot < REF_FRAMES && cm->ref_frame_map[slot] != NULL &&
+        (int)cm->ref_frame_map[slot]->display_order_hint ==
+            cm->bru.ref_disp_order) {
+      bru_ref_idx = i;
+      break;
+    }
+  }
+  if (bru_ref_idx < 0) {
+    if (!cm->seq_params.enable_explicit_ref_frame_map && !frame_is_sframe(cm)) {
+      return false;
+    }
+    const RefScoreData *const scores = (const RefScoreData *)cm->bru.ref_scores;
+    const int max_ranked = AVMMIN(cm->bru.ref_n_ranked, REF_FRAMES);
+    for (int i = num_past_refs; i < max_ranked; ++i) {
+      const int slot = scores[i].index;
+      if (slot >= 0 && slot < REF_FRAMES && cm->ref_frame_map[slot] != NULL &&
+          (int)cm->ref_frame_map[slot]->display_order_hint ==
+              cm->bru.ref_disp_order) {
+        bru_ref_idx = num_total_refs - 1;
+        break;
+      }
+    }
+    if (bru_ref_idx < 0) return false;
+  }
+
+  int ref_flags = (1 << num_total_refs) - 1;
+  ref_flags &= ~(1 << bru_ref_idx);
+  int total_valid_refs = 0;
+  for (int r = 0; r < INTER_REFS_PER_FRAME; ++r) {
+    if (ref_flags & (1 << r)) ++total_valid_refs;
+  }
+  const int num_refs_to_disable = INTER_REFS_PER_FRAME - max_allowed_refs;
+  for (int i = 0;
+       i < num_refs_to_disable && total_valid_refs > max_allowed_refs; ++i) {
+    const int r_disable = INTER_REFS_PER_FRAME - i - 1;
+    if (!(ref_flags & (1 << r_disable))) continue;
+    ref_flags &= ~(1 << r_disable);
+    --total_valid_refs;
+  }
+
+  for (int r = 0; r < num_total_refs; ++r) {
+    if (r != bru_ref_idx && (ref_flags & (1 << r)) &&
+        cm->remapped_ref_idx[r] == prev_slot) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void av2_detect_cbr_bru_regions(AV2_COMP *cpi,
                                 const YV12_BUFFER_CONFIG *cur_src,
                                 const YV12_BUFFER_CONFIG *bru_src,
                                 int bru_slot) {
   AV2_COMMON *const cm = &cpi->common;
   BruInfo *const bru_info = &cm->bru;
+  // Reset per-frame BRU state before av2_rc_estimate_cbr_q() reads it.
+  cpi->rc.rtc_bru.dpb_sync_min_q = 0;
+  bru_info->blocks_skipped = 0;
   const int unit_rows = (int)bru_info->unit_rows;
   const int unit_cols = (int)bru_info->unit_cols;
   const int total_units = (int)bru_info->total_units;
@@ -247,15 +353,7 @@ void av2_detect_cbr_bru_regions(AV2_COMP *cpi,
     return;
   }
 
-  const bool bru_slot_valid =
-      bru_slot >= 0 && bru_slot < REF_FRAMES &&
-      cm->ref_frame_map[bru_slot] != NULL &&
-      cm->ref_frame_map[bru_slot]->buf.y_crop_width == cm->width &&
-      cm->ref_frame_map[bru_slot]->buf.y_crop_height == cm->height &&
-      total_units == cpi->rc.rtc_bru.sb_units &&
-      cpi->rc.rtc_bru.sb_q[bru_slot] != NULL &&
-      cpi->rc.rtc_bru.sb_q[bru_slot][0] != UINT16_MAX;
-  if (!bru_slot_valid) {
+  if (!is_cbr_bru_slot_valid(cpi, bru_slot, total_units)) {
     bru_info->blocks_skipped = 0;
     bru_info->num_active_regions = MAX_ACTIVE_REGION + 1;
     if (orig_active != stack_orig) avm_free(orig_active);
@@ -266,43 +364,67 @@ void av2_detect_cbr_bru_regions(AV2_COMP *cpi,
   const int bd_q_offset = ((int)cm->seq_params.bit_depth - 8) * 24;
   const int unit_size = cm->seq_params.mib_size;
 
+  // Estimate cyclic-refresh segment-1 Q and initial boost threshold so static
+  // SBs awaiting cyclic-refresh boost are not locked in at coarse Q by BRU.
+  bool will_apply_cr = false;
+  bool in_first_sc_cycle = false;
   int q_boost_thresh = -1;
-  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
-      cpi->cyclic_refresh != NULL) {
+  int cur_seg1_q = target_q;
+  const bool is_cr_aq = (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ);
+  if (is_cr_aq && cpi->cyclic_refresh != NULL) {
     const CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
-    const int frames_since_sc =
-        (cpi->oxcf.tune_cfg.content != AVM_CONTENT_SCREEN)
-            ? cpi->rc.frames_since_key
-            : AVMMIN(cpi->rc.frames_since_key,
-                     cr->counter_encode_maxq_scene_change);
-    const int max_holdoff_frames =
-        2 * (100 / AVMMAX(1, cr->percent_refresh)) + 4;
+    const avm_bit_depth_t bit_depth = cm->seq_params.bit_depth;
+    const int qp_thresh =
+        (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN)
+            ? AVMMAX(84 + bd_q_offset, cpi->rc.best_quality + 4)
+            : AVMMAX(63 + bd_q_offset, cpi->rc.best_quality + 4);
     if (cr->apply_cyclic_refresh && cr->percent_refresh > 0 &&
-        frames_since_sc <= max_holdoff_frames) {
-      const avm_bit_depth_t bit_depth = cm->seq_params.bit_depth;
-      const int bd_offset = MAXQ_FOR_GIVEN_BIT_DEPTH(bit_depth) - MAXQ_8_BITS;
-      const int ref_base_q =
-          AVMMAX(target_q, cpi->rc.avg_frame_qindex[INTER_FRAME]);
-      const int q_base = AVMMAX(0, ref_base_q - bd_offset);
-      int qdelta = av2_compute_qdelta_by_rate(
-          &cpi->rc, cm->current_frame.frame_type, ref_base_q,
+        !cpi->rc.high_source_sad &&
+        cpi->rc.avg_frame_qindex[INTER_FRAME] >= qp_thresh) {
+      will_apply_cr = true;
+      const int cur_q_base = AVMMAX(0, target_q - bd_q_offset);
+      int cur_qdelta = av2_compute_qdelta_by_rate(
+          &cpi->rc, cm->current_frame.frame_type, target_q,
           cr->rate_ratio_qdelta, cpi->is_screen_content_type, bit_depth);
-      const int max_deltaq = AVMMIN(cr->max_qdelta_perc * q_base / 100,
-                                    (cr->max_qdelta_perc * 3) >> 2);
-      if ((-qdelta) > max_deltaq) qdelta = -max_deltaq;
-      if (qdelta < -4) {
-        q_boost_thresh = ref_base_q + (qdelta >> 1);
+      const int cur_max_deltaq = AVMMIN(cr->max_qdelta_perc * cur_q_base / 100,
+                                        (cr->max_qdelta_perc * 3) >> 2);
+      if ((-cur_qdelta) > cur_max_deltaq) cur_qdelta = -cur_max_deltaq;
+      cur_seg1_q =
+          AVMMAX(target_q + cur_qdelta, AVMMAX(cpi->rc.best_quality, 1));
+
+      const int frames_since_sc =
+          (cpi->oxcf.tune_cfg.content != AVM_CONTENT_SCREEN)
+              ? cpi->rc.frames_since_key
+              : AVMMIN(cpi->rc.frames_since_key,
+                       cr->counter_encode_maxq_scene_change);
+      const int cycle_frames = 100 / AVMMAX(1, cr->percent_refresh);
+      in_first_sc_cycle = (frames_since_sc <= cycle_frames + 2);
+      const int max_holdoff_frames = 2 * cycle_frames + 4;
+      if (frames_since_sc <= max_holdoff_frames) {
+        const int ref_base_q =
+            AVMMAX(target_q, cpi->rc.avg_frame_qindex[INTER_FRAME]);
+        const int q_base = AVMMAX(0, ref_base_q - bd_q_offset);
+        int qdelta = av2_compute_qdelta_by_rate(
+            &cpi->rc, cm->current_frame.frame_type, ref_base_q,
+            cr->rate_ratio_qdelta, cpi->is_screen_content_type, bit_depth);
+        const int max_deltaq = AVMMIN(cr->max_qdelta_perc * q_base / 100,
+                                      (cr->max_qdelta_perc * 3) >> 2);
+        if ((-qdelta) > max_deltaq) qdelta = -max_deltaq;
+        if (qdelta < -4) {
+          q_boost_thresh = ref_base_q + (qdelta >> 1);
+        }
       }
     }
   }
 
   // With LTR enabled in NO_AQ mode, one DPB slot holds the LTR while the two
   // short-term slots alternate across even/odd frames. Locate the newer
-  // short-term slot (prev_slot) so that if it just refined an identical SB to a
-  // lower sb_q (even if target_q bounced up after an overshoot), bru_slot can
-  // synchronize via a cheap 0-MV skip copy rather than leapfrogging later.
-  int prev_slot = -1;
-  const YV12_BUFFER_CONFIG *prev_src = NULL;
+  // short-term slot (no_aq_prev_slot) so that if it just refined an identical
+  // SB to a lower sb_q (even if target_q bounced up after an overshoot),
+  // bru_slot can synchronize via a cheap 0-MV skip copy rather than
+  // leapfrogging later.
+  int no_aq_prev_slot = -1;
+  const YV12_BUFFER_CONFIG *no_aq_prev_src = NULL;
   if (cpi->sf.rt_sf.rtc_use_lt_ref && cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
       cpi->lookahead != NULL) {
     const int cur_disp = (int)cm->current_frame.display_order_hint;
@@ -325,16 +447,17 @@ void av2_detect_cbr_bru_regions(AV2_COMP *cpi,
             cpi->lookahead->buf[k].disp_order_hint == slot_disp &&
             cpi->lookahead->buf[k].img.y_crop_width == cm->width &&
             cpi->lookahead->buf[k].img.y_crop_height == cm->height) {
-          prev_slot = s;
-          prev_src = &cpi->lookahead->buf[k].img;
+          no_aq_prev_slot = s;
+          no_aq_prev_src = &cpi->lookahead->buf[k].img;
           break;
         }
       }
-      if (prev_slot >= 0) break;
+      if (no_aq_prev_slot >= 0) break;
     }
   }
 
-  int inactive_units = 0;
+  int pixel_active_units = 0;
+  int refine_units = 0;
   int unboosted_static_sbs = 0;
   for (int r = 0, mi_row = 0, unit_idx = 0; r < unit_rows;
        ++r, mi_row += unit_size) {
@@ -342,47 +465,133 @@ void av2_detect_cbr_bru_regions(AV2_COMP *cpi,
          ++c, ++unit_idx, mi_col += unit_size) {
       bool is_active =
           !av2_sb_planes_identical(cpi, cur_src, bru_src, mi_row, mi_col);
-      if (!is_active) {
+      if (is_active) {
+        ++pixel_active_units;
+      } else {
         const int bru_q = cpi->rc.rtc_bru.sb_q[bru_slot][unit_idx];
         // Refine if CBR's target quantizer (or the synchronized short-term
-        // slot's certified quantizer) is substantially below bru_slot's sb_q.
-        const int q_margin = (bru_q > 104 + bd_q_offset) ? 4 : 6;
+        // slot's certified quantizer) is substantially below bru_slot's sb_q;
+        // widen q_margin at fine cyclic-refresh Q (<= 48) to avoid re-refining.
+        const int q_margin =
+            (bru_q > 104 + bd_q_offset)
+                ? 4
+                : ((!is_cr_aq || bru_q > 48 + bd_q_offset) ? 6 : 12);
         int ref_target_q = target_q;
-        if (prev_slot >= 0 && prev_src != NULL &&
-            av2_sb_planes_identical(cpi, cur_src, prev_src, mi_row, mi_col)) {
-          ref_target_q =
-              AVMMIN(target_q, (int)cpi->rc.rtc_bru.sb_q[prev_slot][unit_idx]);
+        if (no_aq_prev_slot >= 0 && no_aq_prev_src != NULL &&
+            av2_sb_planes_identical(cpi, cur_src, no_aq_prev_src, mi_row,
+                                    mi_col)) {
+          ref_target_q = AVMMIN(
+              target_q, (int)cpi->rc.rtc_bru.sb_q[no_aq_prev_slot][unit_idx]);
         }
         if (bru_q > ref_target_q + q_margin) {
           is_active = true;
-        } else if (q_boost_thresh >= 0 && bru_q > q_boost_thresh) {
+          ++refine_units;
+        } else if (
+            // Hold off BRU on static SBs still awaiting boost after a
+            // moderate-Q cut, during the 2-cycle holdoff, or after scrolling.
+            (in_first_sc_cycle &&
+             cpi->rc.rtc_bru.last_sc_base_q >= 84 + bd_q_offset &&
+             cpi->rc.rtc_bru.last_sc_base_q <= 112 + bd_q_offset &&
+             cur_seg1_q + 8 < bru_q &&
+             bru_q + 6 >= cpi->rc.rtc_bru.last_sc_base_q) ||
+            (q_boost_thresh >= 0 && bru_q > q_boost_thresh &&
+             bru_q > cur_seg1_q + 4) ||
+            (will_apply_cr && bru_q >= 92 + bd_q_offset &&
+             bru_q + 2 >= target_q && bru_q > cur_seg1_q + 16 &&
+             is_sb_cr_eligible(cpi, mi_row, mi_col, unit_size))) {
           ++unboosted_static_sbs;
         }
       }
       orig_active[unit_idx] = is_active ? 1 : 0;
-      if (!is_active) ++inactive_units;
     }
   }
 
-  // When cyclic refresh is actively boosting static blocks after a keyframe or
-  // scene change, hold off BRU until at least 75% of inactive superblocks have
-  // been boosted so whole-frame BRU skips do not lock in unboosted slides.
-  if (inactive_units > 0 && unboosted_static_sbs * 4 > inactive_units) {
+  const int static_units = total_units - pixel_active_units;
+  // When cyclic refresh is actively boosting static blocks after a keyframe,
+  // scene change, or scroll stop, hold off BRU until almost all static
+  // superblocks have been boosted so BRU skips do not lock in coarse UI.
+  if (static_units > 0 && unboosted_static_sbs * 16 > static_units) {
     bru_info->blocks_skipped = 0;
     bru_info->num_active_regions = MAX_ACTIVE_REGION + 1;
     if (orig_active != stack_orig) avm_free(orig_active);
     return;
   }
 
+  int inactive_units = static_units - refine_units;
+  // When a static frame would otherwise whole-frame skip from bru_slot (t-2)
+  // right after the newer short-term DPB slot (t-1) coded higher-quality
+  // boosted SBs for the same source pixels, copy those SBs from t-1 in a
+  // single 0-MV skip frame so both short-term DPB slots converge.
+  if (is_cr_aq && pixel_active_units == 0 && refine_units == 0 &&
+      cpi->rc.rtc_bru.last_coded_disp >= 0 && !frame_is_intra_only(cm) &&
+      cpi->lookahead != NULL && cur_src->y_crop_width == cm->width &&
+      cur_src->y_crop_height == cm->height) {
+    const int bru_disp = (int)cm->ref_frame_map[bru_slot]->display_order_hint;
+    int prev_slot = -1;
+    int best_prev_disp = bru_disp;
+    for (int s = 0; s < cm->seq_params.ref_frames; ++s) {
+      if (s == bru_slot || !is_cbr_bru_slot_valid(cpi, s, total_units) ||
+          cm->ref_frame_map[s]->is_restricted) {
+        continue;
+      }
+      const int s_disp = (int)cm->ref_frame_map[s]->display_order_hint;
+      if (cpi->sf.rt_sf.rtc_use_lt_ref && s_disp == cpi->rc.lt_ref_disp_order) {
+        continue;
+      }
+      if (s_disp > best_prev_disp &&
+          s_disp < (int)cm->current_frame.display_order_hint) {
+        best_prev_disp = s_disp;
+        prev_slot = s;
+      }
+    }
+    const YV12_BUFFER_CONFIG *prev_src = NULL;
+    if (prev_slot >= 0 && best_prev_disp == cpi->rc.rtc_bru.last_coded_disp &&
+        is_prev_slot_in_active_refs(cpi, prev_slot)) {
+      for (int k = 0; k < cpi->lookahead->max_sz; ++k) {
+        if (&cpi->lookahead->buf[k].img != cur_src &&
+            cpi->lookahead->buf[k].disp_order_hint >= 0 &&
+            cpi->lookahead->buf[k].disp_order_hint == best_prev_disp &&
+            cpi->lookahead->buf[k].img.y_crop_width == cm->width &&
+            cpi->lookahead->buf[k].img.y_crop_height == cm->height) {
+          prev_src = &cpi->lookahead->buf[k].img;
+          break;
+        }
+      }
+    }
+    if (prev_src != NULL) {
+      int sync_units = 0;
+      for (int r = 0, mi_row = 0, unit_idx = 0; r < unit_rows;
+           ++r, mi_row += unit_size) {
+        for (int c = 0, mi_col = 0; c < unit_cols;
+             ++c, ++unit_idx, mi_col += unit_size) {
+          if (cpi->rc.rtc_bru.sb_q[prev_slot][unit_idx] + 4 <
+                  cpi->rc.rtc_bru.sb_q[bru_slot][unit_idx] &&
+              av2_sb_planes_identical(cpi, cur_src, prev_src, mi_row, mi_col)) {
+            orig_active[unit_idx] = 1;
+            ++sync_units;
+          }
+        }
+      }
+      if (sync_units > 0) {
+        inactive_units -= sync_units;
+        cpi->rc.rtc_bru.dpb_sync_min_q =
+            AVMMAX(1, cm->ref_frame_map[prev_slot]->base_qindex);
+      }
+    }
+  }
+
   bru_info->blocks_skipped = inactive_units;
   if (inactive_units == total_units) {
     memset(bru_info->active_mode_map, BRU_INACTIVE_SB, (size_t)total_units);
     bru_info->num_active_regions = 0;
+    cpi->rc.rtc_bru.dpb_sync_min_q = 0;
   } else if (inactive_units * 100 / total_units < BRU_OFF_RATIO) {
     bru_info->blocks_skipped = 0;
     bru_info->num_active_regions = MAX_ACTIVE_REGION + 1;
+    cpi->rc.rtc_bru.dpb_sync_min_q = 0;
   } else if (!cluster_cbr_bru_active_sbs(bru_info, orig_active)) {
     bru_info->blocks_skipped = 0;
+    cpi->rc.rtc_bru.dpb_sync_min_q = 0;
   }
 
   if (orig_active != stack_orig) avm_free(orig_active);
@@ -459,18 +668,15 @@ int av2_find_rtc_cbr_bru_slot(
   return (valid_dpb_refs >= 3) ? cbr_bru_slot : -1;
 }
 
+// Disable segmentation only on whole-frame BRU skips; partial-active BRU
+// frames keep cyclic refresh active on BRU_ACTIVE_SB superblocks.
 void av2_disable_rtc_bru_segmentation(AV2_COMP *const cpi) {
   AV2_COMMON *const cm = &cpi->common;
-  if (!cpi->sf.rt_sf.rtc_enable_bru || !cm->bru.enabled) return;
-  // TODO(jianj): Enable cyclic refresh on partial-active BRU frames
-  // (cm->bru.enabled && !cm->bru.frame_inactive_flag) by restricting
-  // cyclic_refresh_update_map() to BRU_ACTIVE_SB superblocks and counting
-  // skipped BRU superblocks in av2_cyclic_refresh_postencode().
-  av2_disable_segmentation(&cm->seg);
-  if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
-      cpi->cyclic_refresh != NULL) {
-    cpi->cyclic_refresh->apply_cyclic_refresh = 0;
+  if (!cpi->sf.rt_sf.rtc_enable_bru || !cm->bru.enabled ||
+      !cm->bru.frame_inactive_flag) {
+    return;
   }
+  av2_disable_segmentation(&cm->seg);
 }
 
 static inline void invalidate_cbr_bru_slot(AV2_COMP *cpi, int s) {
@@ -479,24 +685,13 @@ static inline void invalidate_cbr_bru_slot(AV2_COMP *cpi, int s) {
   }
 }
 
-static inline bool is_cbr_bru_slot_valid(const AV2_COMP *cpi, int s,
-                                         int total_units) {
-  const AV2_COMMON *const cm = &cpi->common;
-  return s >= 0 && s < REF_FRAMES && total_units > 0 &&
-         total_units == cpi->rc.rtc_bru.sb_units &&
-         cm->ref_frame_map[s] != NULL &&
-         cm->ref_frame_map[s]->buf.y_crop_width == cm->width &&
-         cm->ref_frame_map[s]->buf.y_crop_height == cm->height &&
-         cpi->rc.rtc_bru.sb_q[s] != NULL &&
-         cpi->rc.rtc_bru.sb_q[s][0] != UINT16_MAX;
-}
-
 bool av2_preserve_zero_lag_cbr_bru_lookahead(const AV2_COMP *cpi) {
   return cpi->oxcf.mode == REALTIME && cpi->oxcf.gf_cfg.lag_in_frames == 0 &&
          cpi->sf.rt_sf.rtc_enable_bru && cpi->common.seq_params.enable_bru;
 }
 
 void av2_rewind_zero_lag_cbr_bru_lookahead_on_drop(AV2_COMP *cpi) {
+  cpi->rc.rtc_bru.dpb_sync_min_q = 0;
   if (!av2_preserve_zero_lag_cbr_bru_lookahead(cpi) || cpi->lookahead == NULL) {
     return;
   }
@@ -541,6 +736,8 @@ static bool ensure_cbr_bru_sb_q_alloc(AV2_COMP *cpi, int total_units) {
            (size_t)total_units * sizeof(uint16_t));
   }
   cpi->rc.rtc_bru.sb_units = total_units;
+  cpi->rc.rtc_bru.last_sc_base_q = MAXQ;
+  cpi->rc.rtc_bru.last_coded_disp = -1;
   return true;
 }
 
@@ -600,6 +797,9 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
       (cm->mi_params.mi_cols + unit_size - 1) >> cm->seq_params.mib_size_log2;
   const int total_units = unit_rows * unit_cols;
   if (!ensure_cbr_bru_sb_q_alloc(cpi, total_units)) return;
+  if (frame_is_intra_only(cm) || cpi->rc.high_source_sad) {
+    cpi->rc.rtc_bru.last_sc_base_q = cm->quant_params.base_qindex;
+  }
   if (cm->bru.enabled && cm->bru.frame_inactive_flag) {
     cpi->rc.rtc_bru.cur_sb_q[0] = UINT16_MAX;
     return;
@@ -754,18 +954,18 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
             const int base_q = cm->delta_q_info.delta_q_present_flag
                                    ? mbmi->current_qindex
                                    : cm->quant_params.base_qindex;
-            int cert_q = has_per_block_q
-                             ? av2_get_qindex(&cm->seg, mbmi->segment_id,
-                                              base_q, bit_depth)
-                             : base_q;
             // On skip_txfm blocks, segment_id is spatially predicted rather
-            // than signaled; keep q_init when an unboosted SB (q_init > cert_q)
-            // inherits a predicted boost segment without being quantized at
-            // cert_q, or when a 0-MV skip preserves a better prior q_init.
+            // than signaled; use CR_SEGMENT_ID_BASE unless a 0-MV skip
+            // preserves a boosted q_init.
+            const int seg_id = (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+                                mbmi->skip_txfm[0])
+                                   ? CR_SEGMENT_ID_BASE
+                                   : mbmi->segment_id;
+            int cert_q = has_per_block_q ? av2_get_qindex(&cm->seg, seg_id,
+                                                          base_q, bit_depth)
+                                         : base_q;
             if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
-                ((cpi->sf.rt_sf.rtc_use_lt_ref && q_init > cert_q &&
-                  mbmi->skip_txfm[0]) ||
-                 (q_init < cert_q && is_zero_mv_skip_inter))) {
+                q_init < cert_q && is_zero_mv_skip_inter) {
               cert_q = q_init;
             }
             if (any_slot_src && is_zero_mv_skip_inter) {
@@ -813,6 +1013,9 @@ void av2_compute_cbr_bru_frame_sb_q(AV2_COMP *cpi) {
 
 void av2_commit_cbr_bru_dpb_sb_q(AV2_COMP *cpi) {
   AV2_COMMON *const cm = &cpi->common;
+  const bool was_dpb_sync = cm->bru.enabled && !cm->bru.frame_inactive_flag &&
+                            (cpi->rc.rtc_bru.dpb_sync_min_q > 0);
+  cpi->rc.rtc_bru.dpb_sync_min_q = 0;
   const int refresh_flags = cm->current_frame.refresh_frame_flags;
   const bool is_key_frame = (cm->current_frame.frame_type == KEY_FRAME);
   const bool is_whole_frame_bru_skip =
@@ -832,6 +1035,7 @@ void av2_commit_cbr_bru_dpb_sb_q(AV2_COMP *cpi) {
       cpi->oxcf.mode != REALTIME || cpi->oxcf.rc_cfg.mode != AVM_CBR ||
       total_units <= 0 || total_units != cpi->rc.rtc_bru.sb_units ||
       (!cur_sb_q_valid && !is_whole_frame_bru_skip)) {
+    if (is_key_frame) cpi->rc.rtc_bru.last_coded_disp = -1;
     for (int s = 0; s < REF_FRAMES; ++s) {
       if (is_key_frame || ((refresh_flags >> s) & 1) ||
           cm->ref_frame_map[s] == NULL ||
@@ -844,6 +1048,14 @@ void av2_commit_cbr_bru_dpb_sb_q(AV2_COMP *cpi) {
       cpi->rc.rtc_bru.cur_sb_q[0] = UINT16_MAX;
     }
     return;
+  }
+
+  // Record the latest coded non-skip, non-sync reference frame so static DPB
+  // slot sync runs at most once per newly coded frame.
+  if (is_key_frame) {
+    cpi->rc.rtc_bru.last_coded_disp = -1;
+  } else if (!is_whole_frame_bru_skip && !was_dpb_sync && refresh_flags != 0) {
+    cpi->rc.rtc_bru.last_coded_disp = (int)cm->current_frame.display_order_hint;
   }
 
   if (cm->bru.enabled) {

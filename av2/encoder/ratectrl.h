@@ -307,6 +307,13 @@ typedef struct {
     uint16_t *cur_sb_q;
     // Number of superblock units allocated in sb_q and cur_sb_q.
     int sb_units;
+    // Base qindex of the most recent keyframe or scene-change frame.
+    int last_sc_base_q;
+    // Non-zero minimum base_qindex when the current static frame is only
+    // syncing already-boosted SBs from the newer DPB slot into bru_slot.
+    int dpb_sync_min_q;
+    // Display order hint of the most recent non-skip, non-sync reference frame.
+    int last_coded_disp;
   } rtc_bru;
   /*!\endcond */
 } RATE_CONTROL;

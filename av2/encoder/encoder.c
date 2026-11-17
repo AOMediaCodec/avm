@@ -3828,6 +3828,34 @@ static void set_primary_ref_frame(AV2_COMP *cpi) {
   }
 }
 
+static void bru_cyclic_refresh_postencode(AV2_COMP *const cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
+  CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
+  if (cr == NULL) return;
+  cr->actual_num_seg1_blocks = 0;
+  cr->actual_num_seg2_blocks = 0;
+  const bool is_bru_dpb_sync =
+      cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled &&
+      !cm->bru.frame_inactive_flag && cpi->rc.rtc_bru.dpb_sync_min_q > 0;
+  if (cm->bru.total_units > 0 || is_bru_dpb_sync) {
+    cr->cnt_zeromv =
+        is_bru_dpb_sync
+            ? 100
+            : (int)(100 * cm->bru.blocks_skipped / cm->bru.total_units);
+    const int bd_shift = cm->seq_params.bit_depth - 8;
+    const bool is_dup_screen_motion_frame =
+        cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN &&
+        cpi->rc.frames_since_key > 30 && cpi->rc.frame_source_sad == 0 &&
+        cpi->rc.avg_source_sad > ((uint64_t)(64 * 64) << bd_shift);
+    if (!is_dup_screen_motion_frame) {
+      cr->avg_frame_low_motion =
+          (cpi->rc.frames_since_key < 4)
+              ? (double)cr->cnt_zeromv
+              : (3.0 * cr->avg_frame_low_motion + (double)cr->cnt_zeromv) / 4.0;
+    }
+  }
+}
+
 /*!\brief Encode a frame without the recode loop, usually used in one-pass
  * encoding.
  *
@@ -3959,17 +3987,22 @@ static int encode_without_recode(AV2_COMP *cpi) {
   av2_setup_frame(cpi);
 
   if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) {
-    if (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled) {
-      // While cyclic refresh is still boosting static superblocks,
-      // av2_detect_cbr_bru_regions() sets cm->bru.enabled = 0 so the else
-      // branch below runs av2_cyclic_refresh_setup(). Once static superblocks
-      // are boosted and BRU activates on the current frame (cm->bru.enabled ==
-      // 1), disable segmentation for this frame.
-      // TODO(jianj): Enable cyclic refresh on partial-active BRU frames
-      // (cm->bru.enabled && !cm->bru.frame_inactive_flag).
+    if (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled &&
+        (cm->bru.frame_inactive_flag || cpi->rc.rtc_bru.dpb_sync_min_q > 0)) {
+      // On whole-frame BRU skips or static DPB-slot sync frames, disable
+      // segmentation for this frame.
       av2_disable_segmentation(&cm->seg);
       if (cpi->cyclic_refresh != NULL) {
         cpi->cyclic_refresh->counter_encode_maxq_scene_change++;
+        const int bd_offset =
+            MAXQ_FOR_GIVEN_BIT_DEPTH(cm->seq_params.bit_depth) - MAXQ_8_BITS;
+        const int qp_thresh =
+            (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN)
+                ? AVMMAX(84 + bd_offset, cpi->rc.best_quality + 4)
+                : AVMMAX(63 + bd_offset, cpi->rc.best_quality + 4);
+        if (cpi->rc.avg_frame_qindex[INTER_FRAME] < qp_thresh) {
+          cpi->cyclic_refresh->apply_cyclic_refresh = 0;
+        }
       }
     } else {
       suppress_active_map(cpi);
@@ -4024,31 +4057,10 @@ static int encode_without_recode(AV2_COMP *cpi) {
   }
 
   // Update some stats from cyclic refresh.
-  // TODO(jianj): Enable cyclic refresh on partial-active BRU frames
-  // (cm->bru.enabled && !cm->bru.frame_inactive_flag).
   if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) {
-    if (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled) {
-      CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
-      if (cr != NULL) {
-        cr->actual_num_seg1_blocks = 0;
-        cr->actual_num_seg2_blocks = 0;
-        if (cm->bru.total_units > 0) {
-          cr->cnt_zeromv =
-              (int)(100 * cm->bru.blocks_skipped / cm->bru.total_units);
-          const int bd_shift = cm->seq_params.bit_depth - 8;
-          const bool is_dup_screen_motion_frame =
-              cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN &&
-              cpi->rc.frames_since_key > 30 && cpi->rc.frame_source_sad == 0 &&
-              cpi->rc.avg_source_sad > ((uint64_t)(64 * 64) << bd_shift);
-          if (!is_dup_screen_motion_frame) {
-            cr->avg_frame_low_motion = (cpi->rc.frames_since_key < 4)
-                                           ? (double)cr->cnt_zeromv
-                                           : (3.0 * cr->avg_frame_low_motion +
-                                              (double)cr->cnt_zeromv) /
-                                                 4.0;
-          }
-        }
-      }
+    if (cpi->sf.rt_sf.rtc_enable_bru && cm->bru.enabled &&
+        (cm->bru.frame_inactive_flag || cpi->rc.rtc_bru.dpb_sync_min_q > 0)) {
+      bru_cyclic_refresh_postencode(cpi);
     } else {
       av2_cyclic_refresh_postencode(cpi);
     }
@@ -4888,7 +4900,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
           cm->last_frame_seg_map = saved_last_frame_seg_map;
           cm->seg.update_map = saved_update_map;
           if (cm->seg.update_map && cm->current_frame.frame_type != S_FRAME &&
-              cm->last_frame_seg_map)
+              !cm->bru.enabled && cm->last_frame_seg_map)
             temporal_update_allowed = 1;
         } else {
           // Conservatively force update_map=1, in theory update_map could
@@ -4901,7 +4913,8 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
           } else {
             cm->last_frame_seg_map = NULL;
           }
-          if (cm->current_frame.frame_type != S_FRAME && cm->last_frame_seg_map)
+          if (cm->current_frame.frame_type != S_FRAME && !cm->bru.enabled &&
+              cm->last_frame_seg_map)
             temporal_update_allowed = 1;
         }
       }
