@@ -41,29 +41,12 @@
 // Number of sub-partitions in split partition type.
 #define SUB_PARTITIONS_SPLIT 4
 
-// Structure to keep win flags for HORZ and VERT partition evaluations.
-typedef struct {
-  int rect_part_win[NUM_RECT_PARTS];
-} RD_RECT_PART_WIN_INFO;
-
 struct PartitionSearchState;
-
-void av2_intra_mode_cnn_partition(
-    const AV2_COMMON *const cm, MACROBLOCK *x, BLOCK_SIZE bsize, int label_idx,
-    struct PartitionSearchState *partition_search_state, bool *do_square_split);
 
 // Performs a simple_motion_search with a single reference frame and extract
 // the variance of residues. Then use the features to determine whether we want
 // to go straight to splitting without trying PARTITION_NONE
 void av2_simple_motion_search_based_split(
-    AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
-    int mi_row, int mi_col, BLOCK_SIZE bsize,
-    struct PartitionSearchState *partition_search_state, bool *do_square_split);
-
-// Performs a simple_motion_search with two reference frames and extract
-// the variance of residues. Then use the features to determine whether we want
-// to prune some partitions.
-void av2_simple_motion_search_prune_rect(
     AV2_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize,
     struct PartitionSearchState *partition_search_state);
@@ -91,20 +74,24 @@ BLOCK_SIZE av2_predict_max_partition(const AV2_COMP *const cpi,
                                      const MACROBLOCK *const x,
                                      const float *features);
 
-// ML-based partition search breakout after PARTITION_NONE.
-int av2_ml_predict_breakout(const AV2_COMP *const cpi, BLOCK_SIZE bsize,
-                            const MACROBLOCK *const x,
-                            const RD_STATS *const rd_stats,
-                            unsigned int pb_source_variance);
-
 // The first round of partition pruning determined before any partition
 // has been tested. The decisions will be updated and passed back
 // to the partition search function.
 void av2_prune_partitions_before_search(
     AV2_COMP *const cpi, MACROBLOCK *const x, int mi_row, int mi_col,
     BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
-    struct PartitionSearchState *partition_search_state, bool *do_square_split,
+    struct PartitionSearchState *partition_search_state,
     const PC_TREE *pc_tree);
+
+// Run SMS motion search for a square block and populate sms_tree features.
+// Safe to call from av2_prune_partitions_before_search() (before any RD
+// search). Used by the unified SMS pre-screener to populate features
+// independently of the anchor SMS gate flags
+// (disable_ml_partition_speed_features etc.). No-op if sms_none_valid is
+// already set, or if block is intra/screen/256x256.
+void av2_sms_run_motion_search(AV2_COMP *const cpi, MACROBLOCK *x,
+                               SIMPLE_MOTION_DATA_TREE *sms_tree, int mi_row,
+                               int mi_col, BLOCK_SIZE bsize);
 
 // Prune out partitions that lead to coding block sizes outside the min and max
 // bsizes set by the encoder. Max and min square partition levels are defined as
@@ -112,7 +99,7 @@ void av2_prune_partitions_before_search(
 // reach.
 void av2_prune_partitions_by_max_min_bsize(
     SuperBlockEnc *sb_enc, BLOCK_SIZE bsize, int is_not_edge_block,
-    struct PartitionSearchState *partition_search_state, bool *do_square_split);
+    struct PartitionSearchState *partition_search_state);
 
 SimpleMotionData *av2_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
                                          int mi_row, int mi_col,
@@ -206,6 +193,7 @@ static INLINE void init_simple_motion_search_mvs(
   av2_zero(sms_tree->sms_rect_feat);
   av2_zero(sms_tree->sms_none_valid);
   av2_zero(sms_tree->sms_rect_valid);
+  sms_tree->sms_unified_valid = 0;
 
   if (sms_tree->block_size >= BLOCK_8X8) {
     init_simple_motion_search_mvs(sms_tree->split[0]);
@@ -221,6 +209,27 @@ PARTITION_TYPE av2_get_prev_partition(MACROBLOCK *x, int mi_row, int mi_col,
 
 static INLINE void av2_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
   memset(data_bufs, 0, sizeof(*data_bufs));
+}
+
+// Boundary reset between the two passes of the fast two-pass partition search.
+// Preserves the motion-search results (MVs, sse/var, rate/dist/rdcost,
+// start_mv_list, ref_frame, rdmult, and ML residual stats -- all pass-invariant
+// functions of source + reference + geometry) so the wet pass reuses them, and
+// clears only what must not cross the pass boundary (mode_cache, old_sms,
+// prev_partition).
+static INLINE void av2_reset_sms_cross_pass_state(
+    SimpleMotionDataBufs *data_bufs) {
+  static_assert(sizeof(SimpleMotionDataBufs) % sizeof(SimpleMotionData) == 0,
+                "SimpleMotionDataBufs must hold a whole number of entries");
+  SimpleMotionData *const entries = (SimpleMotionData *)data_bufs;
+  const size_t num_entries = sizeof(*data_bufs) / sizeof(SimpleMotionData);
+  for (size_t i = 0; i < num_entries; i++) {
+    SimpleMotionData *const entry = &entries[i];
+    av2_zero(entry->mode_cache);
+    entry->old_sms = NULL;
+    entry->has_prev_partition = 0;
+    entry->prev_partition = (PARTITION_TYPE)0;
+  }
 }
 
 struct PartitionSearchState;

@@ -195,8 +195,6 @@ typedef struct {
   int max_frame_bandwidth;  // Maximum burst rate allowed for a frame.
   int prev_avg_frame_bandwidth;
 
-  int ni_av_qi;
-  int ni_tot_qi;
   int ni_frames;
   int avg_frame_qindex[FRAME_TYPES];
   double tot_q;
@@ -213,14 +211,10 @@ typedef struct {
   int rolling_target_bits;
   int rolling_actual_bits;
 
-  int long_rolling_target_bits;
-  int long_rolling_actual_bits;
-
   int rate_error_estimate;
 
   int64_t total_actual_bits;
   int64_t total_target_bits;
-  int64_t total_target_vs_actual;
 
   /*!\endcond */
   /*!
@@ -272,7 +266,6 @@ typedef struct {
   int active_best_quality[MAX_ARF_LAYERS + 1];
 
   /*!\cond */
-  int base_layer_qp;
 
   // Total number of stats used only for kf_boost calculation.
   int num_stats_used_for_kf_boost;
@@ -299,8 +292,7 @@ typedef struct {
 struct AV2_COMP;
 struct AV2EncoderConfig;
 
-void av2_rc_init(const struct AV2EncoderConfig *oxcf, int pass,
-                 RATE_CONTROL *rc);
+void av2_rc_init(const struct AV2EncoderConfig *oxcf, RATE_CONTROL *rc);
 
 int av2_estimate_bits_at_q(FRAME_TYPE frame_kind, int q, int mbs,
                            double correction_factor, avm_bit_depth_t bit_depth,
@@ -497,6 +489,20 @@ int av2_calc_pframe_target_size_one_pass_cbr(
  * \return  Returns the target number of bits for this frame.
  */
 int av2_calc_iframe_target_size_one_pass_cbr(const struct AV2_COMP *cpi);
+
+/*!\brief Setup the rate control parameters for 1 pass real-time mode.
+ *
+ * \ingroup rate_control
+ * \param[in,out]   cpi          Top level encoder structure
+ * \param[out]      frame_type   Encoder frame type
+ * \param[in]       frame_flags  Encoder frame flags
+ *
+ * \remark Nothing is returned. Instead the settings computed in this
+ * function are set in: \c frame_type, \c cpi->common, \c cpi->rc.
+ */
+void av2_get_one_pass_rt_params(struct AV2_COMP *cpi,
+                                FRAME_TYPE *const frame_type,
+                                unsigned int frame_flags);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -48,10 +48,12 @@ typedef unsigned int (*SubpixAvgVarMxNFunc)(const uint16_t *a, int a_stride,
 typedef unsigned int (*Get4x4SseFunc)(const uint16_t *a, int a_stride,
                                       const uint16_t *b, int b_stride);
 typedef unsigned int (*SumOfSquaresFunction)(const int16_t *src);
-typedef unsigned int (*DistWtdSubpixAvgVarMxNFunc)(
-    const uint16_t *a, int a_stride, int xoffset, int yoffset,
-    const uint16_t *b, int b_stride, uint32_t *sse, const uint16_t *second_pred,
-    const DIST_WTD_COMP_PARAMS *jcp_param);
+typedef unsigned int (*CwpSubpixAvgVarMxNFunc)(const uint16_t *a, int a_stride,
+                                               int xoffset, int yoffset,
+                                               const uint16_t *b, int b_stride,
+                                               uint32_t *sse,
+                                               const uint16_t *second_pred,
+                                               const CWP_PARAMS *cwp_param);
 
 using libavm_test::ACMRandom;
 
@@ -519,7 +521,7 @@ class SubpelVarianceTest
   uint16_t *ref_;
   uint16_t *sec_;
   TestParams<FunctionType> params_;
-  DIST_WTD_COMP_PARAMS jcp_param_;
+  CWP_PARAMS cwp_param_;
 
   // some relay helpers
   int byte_shift() const { return params_.bit_depth - 8; }
@@ -661,7 +663,7 @@ INSTANTIATE_TEST_SUITE_P(C, SumOfSquaresTest,
 typedef TestParams<VarianceMxNFunc> VarianceParams;
 typedef TestParams<SubpixVarMxNFunc> SubpelVarianceParams;
 typedef TestParams<SubpixAvgVarMxNFunc> SubpelAvgVarianceParams;
-typedef TestParams<DistWtdSubpixAvgVarMxNFunc> DistWtdSubpelAvgVarianceParams;
+typedef TestParams<CwpSubpixAvgVarMxNFunc> CwpSubpelAvgVarianceParams;
 
 typedef uint64_t (*MseHBDWxH16bitFunc)(uint16_t *dst, int dstride,
                                        uint16_t *src, int sstride, int w,

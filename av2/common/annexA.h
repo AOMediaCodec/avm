@@ -74,6 +74,12 @@ int av2_check_profile_interop_conformance(
 // ProfileScalingFactor.
 int get_profile_factor_table_row_index(int seq_profile_idc);
 
+// BitrateProfileFactor and PicSizeProfileFactor from Table A.2, indexed by the
+// row returned by get_profile_factor_table_row_index(). These are the single
+// source of truth for both factors; do not re-declare them elsewhere.
+double get_bitrate_profile_factor(int profile_factor_row);
+double get_picture_size_profile_factor(int profile_factor_row);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

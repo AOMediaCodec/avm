@@ -60,7 +60,16 @@ void compute_residual_stats(AV2_COMP *const cpi, ThreadData *td, MACROBLOCK *x,
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
 
-  av2_setup_xform(cm, x, plane, tx_size, DCT_DCT, CCTX_NONE, &txfm_param);
+  av2_setup_xform(cm, x, plane, tx_size,
+                  MAKE_TX_TYPE_FROM_PRIMARY_TX_TYPE(DCT_DCT), CCTX_NONE,
+                  &txfm_param);
+  // These stats are ML features for partition pruning and are not used for
+  // coding, so always use the lossy full-size DCT_DCT. For lossless segments,
+  // av2_setup_xform() sets lossless = 1, which selects the 4x4 WHT that only
+  // writes 16 coefficients, while the loop below reads
+  // av2_get_max_eob(tx_size) coefficients (up to 1024), i.e. uninitialized
+  // memory in the shared coeff buffer.
+  txfm_param.lossless = 0;
   av2_setup_quant(tx_size, 0, AV2_XFORM_QUANT_B, cpi->oxcf.q_cfg.quant_b_adapt,
                   &quant_param);
   av2_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, DCT_DCT,
@@ -660,12 +669,14 @@ int av2_ml_part_split_infer(AV2_COMP *const cpi, MACROBLOCK *x, int mi_row,
   for (int mi = 0; mi < num_models; mi++) {
     MODEL_TYPE model_type = model_types[mi];
     struct ModelParams params = model_params[mi];
+    const int part_type = get_model_part_type(model_type);
+    const bool above_qp_high = qp > (params.qp_high + qp_offset);
+    const bool below_qp_low = qp < (params.qp_low + qp_offset);
     bool model_disabled = (cpi->sf.part_sf.remove_qp_restriction_with_ml
                                ? 0
-                               : (qp > (params.qp_high + qp_offset) ||
-                                  qp < (params.qp_low + qp_offset)));
-    model_disabled |= get_model_part_type(model_type) == PT_NONE &&
-                      !cpi->sf.part_sf.prune_none_with_ml;
+                               : (above_qp_high || below_qp_low));
+    model_disabled |=
+        part_type == PT_NONE && !cpi->sf.part_sf.prune_none_with_ml;
     if (model_disabled) continue;
 
     if (!has_features) {
@@ -679,9 +690,6 @@ int av2_ml_part_split_infer(AV2_COMP *const cpi, MACROBLOCK *x, int mi_row,
       has_features = true;
     }
 
-    // printf("%s l:%f h:%f qpl:%d qph:%d\n", get_model_name(model_type),
-    //        params.thresh_low, params.thresh_high, params.qp_low,
-    //        params.qp_high);
     bool had_error = av2_part_prune_tflite_exec(&td->partition_model, ml_input,
                                                 ml_output, model_type);
 
@@ -690,10 +698,13 @@ int av2_ml_part_split_infer(AV2_COMP *const cpi, MACROBLOCK *x, int mi_row,
     if (had_error)
       continue;
     else {
-      int part_type = get_model_part_type(model_type);
       if (part_type >= 0 && part_type < 2) {
-        bool low_test = ml_output[0] < params.thresh_low;
-        bool high_test = ml_output[0] > params.thresh_high;
+        const bool allow_low_test =
+            (part_type == PT_SPLIT) ? !below_qp_low : !above_qp_high;
+        const bool allow_high_test =
+            (part_type == PT_SPLIT) ? !above_qp_high : !below_qp_low;
+        bool low_test = allow_low_test && (ml_output[0] < params.thresh_low);
+        bool high_test = allow_high_test && (ml_output[0] > params.thresh_high);
         if (high_test) return ML_PART_FORCE_NONE + part_type;
         if (low_test) prune_list[part_type] = true;
       }

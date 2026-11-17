@@ -65,7 +65,7 @@ static AVM_INLINE void alloc_compressor_data(AV2_COMP *cpi) {
   TokenInfo *token_info = &cpi->token_info;
   cpi->alloc_width = cm->width;
   cpi->alloc_height = cm->height;
-  if (av2_alloc_context_buffers(cm, cm->width, cm->height)) {
+  if (av2_alloc_context_buffers(cm, cm->width, cm->height, cpi->oxcf.speed)) {
     avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");
   }
@@ -239,6 +239,8 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   cpi->td.vt64x64 = NULL;
   av2_free_sms_tree(&cpi->td);
   av2_free_sms_bufs(&cpi->td);
+  av2_free_pc_tree_recursive(cpi->td.pc_root, av2_num_planes(cm), 0, 0);
+  cpi->td.pc_root = NULL;
 #if CONFIG_ML_PART_SPLIT
   av2_part_prune_tflite_close(&(cpi->td.partition_model));
 #endif  // CONFIG_ML_PART_SPLIT
@@ -255,9 +257,7 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   avm_free(cpi->td.mb.opfl_vxy_bufs);
   avm_free(cpi->td.mb.opfl_gxy_bufs);
   avm_free(cpi->td.mb.opfl_dst_bufs);
-  for (int j = 0; j < 2; ++j) {
-    avm_free(cpi->td.mb.tmp_pred_bufs[j]);
-  }
+  avm_free(cpi->td.mb.tmp_pred_bufs);
 
 #if CONFIG_DENOISE
   if (cpi->denoise_and_model) {

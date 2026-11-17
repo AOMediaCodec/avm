@@ -341,9 +341,7 @@ int av2_check_profile_interop_conformance(
 /* clang-format on */
 
 // Returns the row index used to look up a profile's factors in the
-// PicSize/Bitrate factor tables (see bitrate_profile_factor_table[] and
-// picture_size_profile_factor_table[] in level.c, and bitrate_profile_factor[]
-// in timing.c).
+// PicSize/Bitrate factor tables below.
 //
 // NOTE: This is a table row index, NOT the spec's ProfileScalingFactor from
 // Table A.2. The two coincide for profiles 0..4 (0, 0, 0, 1, 2), but profile
@@ -375,4 +373,31 @@ int get_profile_factor_table_row_index(int seq_profile_idc) {
 
   // Default for invalid combinations and Configurable profile
   return 0;
+}
+
+// BitrateProfileFactor and PicSizeProfileFactor from Table A.2, indexed by the
+// row returned by get_profile_factor_table_row_index().
+static const double bitrate_profile_factor_table[] = { 1.0, 1.667, 2.5, 3.0 };
+static const double picture_size_profile_factor_table[] = { 15.0, 20.0, 30.0,
+                                                            36.0 };
+
+#define NUM_PROFILE_FACTOR_ROWS \
+  (int)(sizeof(bitrate_profile_factor_table) / sizeof(double))
+
+double get_bitrate_profile_factor(int profile_factor_row) {
+  assert(profile_factor_row >= 0 &&
+         profile_factor_row < NUM_PROFILE_FACTOR_ROWS);
+  if (profile_factor_row < 0 || profile_factor_row >= NUM_PROFILE_FACTOR_ROWS) {
+    return 0.0;
+  }
+  return bitrate_profile_factor_table[profile_factor_row];
+}
+
+double get_picture_size_profile_factor(int profile_factor_row) {
+  assert(profile_factor_row >= 0 &&
+         profile_factor_row < NUM_PROFILE_FACTOR_ROWS);
+  if (profile_factor_row < 0 || profile_factor_row >= NUM_PROFILE_FACTOR_ROWS) {
+    return 0.0;
+  }
+  return picture_size_profile_factor_table[profile_factor_row];
 }

@@ -14,8 +14,15 @@
 ##
 . $(dirname $0)/tools_common.sh
 
+AV2_ML_ALPHA_DEMUXED_FILE="${LIBAVM_TEST_DATA_PATH}/av2-04-ml-alpha.demuxed.obu"
+
 # Environment check: Make sure input is available.
 avmdec_verify_environment() {
+  if [ ! -e "${AV2_ML_ALPHA_DEMUXED_FILE}" ]; then
+    elog "The file ${AV2_ML_ALPHA_DEMUXED_FILE##*/} must exist in"
+    elog "LIBAVM_TEST_DATA_PATH."
+    return 1
+  fi
   if [ "$(av2_encode_available)" != "yes" ] ; then
     if [ ! -e "${AV2_IVF_FILE}" ] || \
        [ ! -e "${AV2_OBU_FILE}" ] || \
@@ -114,6 +121,12 @@ avmdec_av2_obu() {
   fi
 }
 
+avmdec_av2_ml_alpha_demuxed_obu() {
+  if [ "$(avmdec_can_decode_av2)" = "yes" ]; then
+    avmdec "${AV2_ML_ALPHA_DEMUXED_FILE}" --summary --noblit
+  fi
+}
+
 avmdec_av2_webm() {
   if [ "$(avmdec_can_decode_av2)" = "yes" ] && \
      [ "$(webm_io_available)" = "yes" ]; then
@@ -180,6 +193,7 @@ avmdec_tests="avmdec_av2_ivf
               avmdec_av2_ivf_error_resilient
               avmdec_avm_ivf_pipe_input
               avmdec_av2_obu
+              avmdec_av2_ml_alpha_demuxed_obu
               avmdec_av2_webm
               avmdec_random_access_kf0
               avmdec_random_access_kf1

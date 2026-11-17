@@ -85,7 +85,8 @@ static void update_subgop_stats(const AV2_COMMON *const cm,
 }
 
 static void dec_set_mb_mi(CommonModeInfoParams *mi_params, int width,
-                          int height) {
+                          int height, int speed) {
+  (void)speed;
   // Ensure that the decoded width and height are both multiples of
   // 8 luma pixels (note: this may only be a multiple of 4 chroma pixels if
   // subsampling is used).

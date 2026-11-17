@@ -90,7 +90,6 @@ static void read_wienerns_framefilters_hdr(AV2_COMMON *cm, int plane,
 void copy_frame_filters_to_runits_if_needed(AV2_COMMON *cm) {
   const int num_planes = av2_num_planes(cm);
   for (int plane = 0; plane < num_planes; plane++) {
-    if (!is_frame_filters_enabled(plane)) continue;
     RestorationInfo *rsi = &cm->rst_info[plane];
     if ((rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
          rsi->frame_restoration_type == RESTORE_SWITCHABLE) &&
@@ -1861,9 +1860,6 @@ static AVM_INLINE void decode_partition(
   // Half block width/height.
   const int hbs_w = mi_size_wide[bsize] / 2;
   const int hbs_h = mi_size_high[bsize] / 2;
-  // One-eighth block width/height.
-  const int ebs_w = mi_size_wide[bsize] / 8;
-  const int ebs_h = mi_size_high[bsize] / 8;
   PARTITION_TYPE partition;
   const int has_rows = (mi_row + hbs_h) < cm->mi_params.mi_rows;
   const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
@@ -2017,77 +2013,19 @@ static AVM_INLINE void decode_partition(
       }
     }
 
-    switch (partition) {
-      case PARTITION_HORZ_4A:
-      case PARTITION_HORZ_4B:
-      case PARTITION_VERT_4A:
-      case PARTITION_VERT_4B:
-      case PARTITION_SPLIT:
-        ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-        ptree->sub_tree[2] = av2_alloc_ptree_node(ptree, 2);
-        ptree->sub_tree[3] = av2_alloc_ptree_node(ptree, 3);
+    if (partition == PARTITION_NONE) {
+      xd->is_cfl_allowed_in_sdp = is_cfl_allowed_in_sdp;
+    } else {
+      const int num_subblocks = get_subblock_count(partition);
+      for (int sub_idx = 0; sub_idx < num_subblocks; ++sub_idx) {
+        ptree->sub_tree[sub_idx] = av2_alloc_ptree_node(ptree, sub_idx);
+        ptree->sub_tree[sub_idx]->is_cfl_allowed_for_this_chroma_partition =
+            is_cfl_allowed_in_sdp;
         if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
-          ptree_luma->sub_tree[0] = av2_alloc_ptree_node(ptree_luma, 0);
-          ptree_luma->sub_tree[1] = av2_alloc_ptree_node(ptree_luma, 1);
-          ptree_luma->sub_tree[2] = av2_alloc_ptree_node(ptree_luma, 2);
-          ptree_luma->sub_tree[3] = av2_alloc_ptree_node(ptree_luma, 3);
+          ptree_luma->sub_tree[sub_idx] =
+              av2_alloc_ptree_node(ptree_luma, sub_idx);
         }
-        break;
-      case PARTITION_HORZ:
-      case PARTITION_VERT:
-        ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-
-        if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
-          ptree_luma->sub_tree[0] = av2_alloc_ptree_node(ptree_luma, 0);
-          ptree_luma->sub_tree[1] = av2_alloc_ptree_node(ptree_luma, 1);
-        }
-        break;
-      case PARTITION_HORZ_3:
-      case PARTITION_VERT_3:
-        ptree->sub_tree[0] = av2_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av2_alloc_ptree_node(ptree, 1);
-        ptree->sub_tree[2] = av2_alloc_ptree_node(ptree, 2);
-        ptree->sub_tree[3] = av2_alloc_ptree_node(ptree, 3);
-
-        if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
-          ptree_luma->sub_tree[0] = av2_alloc_ptree_node(ptree_luma, 0);
-          ptree_luma->sub_tree[1] = av2_alloc_ptree_node(ptree_luma, 1);
-          ptree_luma->sub_tree[2] = av2_alloc_ptree_node(ptree_luma, 2);
-          ptree_luma->sub_tree[3] = av2_alloc_ptree_node(ptree_luma, 3);
-        }
-        break;
-      default: break;
-    }
-    switch (partition) {
-      case PARTITION_NONE:
-        xd->is_cfl_allowed_in_sdp = is_cfl_allowed_in_sdp;
-        break;
-      case PARTITION_HORZ_4A:
-      case PARTITION_HORZ_4B:
-      case PARTITION_VERT_4A:
-      case PARTITION_VERT_4B:
-      case PARTITION_HORZ_3:
-      case PARTITION_VERT_3:
-      case PARTITION_SPLIT:
-        ptree->sub_tree[0]->is_cfl_allowed_for_this_chroma_partition =
-            is_cfl_allowed_in_sdp;
-        ptree->sub_tree[1]->is_cfl_allowed_for_this_chroma_partition =
-            is_cfl_allowed_in_sdp;
-        ptree->sub_tree[2]->is_cfl_allowed_for_this_chroma_partition =
-            is_cfl_allowed_in_sdp;
-        ptree->sub_tree[3]->is_cfl_allowed_for_this_chroma_partition =
-            is_cfl_allowed_in_sdp;
-        break;
-      case PARTITION_HORZ:
-      case PARTITION_VERT:
-        ptree->sub_tree[0]->is_cfl_allowed_for_this_chroma_partition =
-            is_cfl_allowed_in_sdp;
-        ptree->sub_tree[1]->is_cfl_allowed_for_this_chroma_partition =
-            is_cfl_allowed_in_sdp;
-        break;
-      default: break;
+      }
     }
   } else {
     partition = ptree->partition;
@@ -2146,108 +2084,21 @@ static AVM_INLINE void decode_partition(
                        mi_col << MI_SIZE_LOG2);
   }
 
-#define DEC_BLOCK_STX_ARG
-#define DEC_BLOCK_EPT_ARG partition,
-#define DEC_BLOCK(db_r, db_c, db_subsize, index)                               \
-  block_visit[parse_decode_flag](pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c),     \
-                                 reader, DEC_BLOCK_EPT_ARG(db_subsize), ptree, \
-                                 index)
-#define DEC_PARTITION(db_r, db_c, db_subsize, index)                 \
-  decode_partition(pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c), reader, \
-                   (db_subsize), sbi, ptree->sub_tree[(index)],      \
-                   get_partition_subtree_const(ptree_luma, index),   \
-                   parse_decode_flag)
-
-  switch (partition) {
-    case PARTITION_NONE: DEC_BLOCK(mi_row, mi_col, subsize, 0); break;
-    case PARTITION_HORZ:
-      DEC_PARTITION(mi_row, mi_col, subsize, 0);
-      DEC_PARTITION(mi_row + hbs_h, mi_col, subsize, 1);
-      break;
-    case PARTITION_VERT:
-      DEC_PARTITION(mi_row, mi_col, subsize, 0);
-      DEC_PARTITION(mi_row, mi_col + hbs_w, subsize, 1);
-      break;
-    case PARTITION_HORZ_4A: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      int this_mi_row = mi_row;
-      DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
-      this_mi_row += ebs_h;
-      DEC_PARTITION(this_mi_row, mi_col, bsize_med, 1);
-      this_mi_row += 2 * ebs_h;
-      DEC_PARTITION(this_mi_row, mi_col, bsize_big, 2);
-      this_mi_row += 4 * ebs_h;
-      DEC_PARTITION(this_mi_row, mi_col, subsize, 3);
-      break;
+  if (partition == PARTITION_NONE) {
+    block_visit[parse_decode_flag](pbi, td, mi_row, mi_col, reader, partition,
+                                   subsize, ptree, 0);
+  } else {
+    BLOCK_SIZE sub_sizes[4];
+    int mi_rows[4], mi_cols[4];
+    get_partition_subblock_layout(partition, bsize, mi_row, mi_col, sub_sizes,
+                                  mi_rows, mi_cols);
+    const int num_subblocks = get_subblock_count(partition);
+    for (int sub_idx = 0; sub_idx < num_subblocks; ++sub_idx) {
+      decode_partition(pbi, td, mi_rows[sub_idx], mi_cols[sub_idx], reader,
+                       sub_sizes[sub_idx], sbi, ptree->sub_tree[sub_idx],
+                       get_partition_subtree_const(ptree_luma, sub_idx),
+                       parse_decode_flag);
     }
-    case PARTITION_HORZ_4B: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
-      int this_mi_row = mi_row;
-      DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
-      this_mi_row += ebs_h;
-      DEC_PARTITION(this_mi_row, mi_col, bsize_big, 1);
-      this_mi_row += 4 * ebs_h;
-      DEC_PARTITION(this_mi_row, mi_col, bsize_med, 2);
-      this_mi_row += 2 * ebs_h;
-      DEC_PARTITION(this_mi_row, mi_col, subsize, 3);
-      break;
-    }
-    case PARTITION_VERT_4A: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      int this_mi_col = mi_col;
-      DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
-      this_mi_col += ebs_w;
-      DEC_PARTITION(mi_row, this_mi_col, bsize_med, 1);
-      this_mi_col += 2 * ebs_w;
-      DEC_PARTITION(mi_row, this_mi_col, bsize_big, 2);
-      this_mi_col += 4 * ebs_w;
-      DEC_PARTITION(mi_row, this_mi_col, subsize, 3);
-      break;
-    }
-    case PARTITION_VERT_4B: {
-      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
-      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
-      int this_mi_col = mi_col;
-      DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
-      this_mi_col += ebs_w;
-      DEC_PARTITION(mi_row, this_mi_col, bsize_big, 1);
-      this_mi_col += 4 * ebs_w;
-      DEC_PARTITION(mi_row, this_mi_col, bsize_med, 2);
-      this_mi_col += 2 * ebs_w;
-      DEC_PARTITION(mi_row, this_mi_col, subsize, 3);
-      break;
-    }
-    case PARTITION_HORZ_3:
-    case PARTITION_VERT_3: {
-      for (int i = 0; i < 4; ++i) {
-        BLOCK_SIZE this_bsize = get_h_partition_subsize(bsize, i, partition);
-        const int offset_r = get_h_partition_offset_mi_row(bsize, i, partition);
-        const int offset_c = get_h_partition_offset_mi_col(bsize, i, partition);
-
-        assert(this_bsize != BLOCK_INVALID);
-        assert(offset_r >= 0 && offset_c >= 0);
-
-        const int this_mi_row = mi_row + offset_r;
-        const int this_mi_col = mi_col + offset_c;
-
-        DEC_PARTITION(this_mi_row, this_mi_col, this_bsize, i);
-      }
-      break;
-    }
-    case PARTITION_SPLIT:
-      DEC_PARTITION(mi_row, mi_col, subsize, 0);
-      DEC_PARTITION(mi_row, mi_col + hbs_w, subsize, 1);
-      DEC_PARTITION(mi_row + hbs_h, mi_col, subsize, 2);
-      DEC_PARTITION(mi_row + hbs_h, mi_col + hbs_w, subsize, 3);
-      break;
-    default: assert(0 && "Invalid partition type");
   }
 
   PARTITION_TREE *parent = ptree->parent;
@@ -2257,16 +2108,12 @@ static AVM_INLINE void decode_partition(
         ptree->region_type == INTRA_REGION) {
       // decode chroma part in one intra region
       xd->tree_type = CHROMA_PART;
-      DEC_BLOCK(mi_row, mi_col, bsize, 0);
+      block_visit[parse_decode_flag](pbi, td, mi_row, mi_col, reader, partition,
+                                     bsize, ptree, 0);
       // reset back to shared part
       xd->tree_type = SHARED_PART;
     }
   }
-
-#undef DEC_PARTITION
-#undef DEC_BLOCK
-#undef DEC_BLOCK_EPT_ARG
-#undef DEC_BLOCK_STX_ARG
 
   if (parse_decode_flag & 1) {
     update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
@@ -2542,65 +2389,59 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
         rsi->frame_restoration_type == RESTORE_SWITCHABLE;
     if (is_wiener_nonsep_possible) {
       rsi->frame_filters_initialized = 0;
-      if (is_frame_filters_enabled(p)) {
-        rsi->frame_filters_on = avm_rb_read_bit(rb);
-        rsi->rst_ref_pic_idx = 0;
-        rsi->temporal_pred_flag = 0;
-        if (rsi->frame_filters_on) {
-          const int num_ref_frames =
-              (frame_is_intra_only(cm) || frame_is_sframe(cm))
-                  ? 0
-                  : cm->ref_frames_info.num_total_refs;
+      rsi->frame_filters_on = avm_rb_read_bit(rb);
+      rsi->rst_ref_pic_idx = 0;
+      rsi->temporal_pred_flag = 0;
+      if (rsi->frame_filters_on) {
+        const int num_ref_frames =
+            (frame_is_intra_only(cm) || frame_is_sframe(cm))
+                ? 0
+                : cm->ref_frames_info.num_total_refs;
 
-          if (num_ref_frames > 0) rsi->temporal_pred_flag = avm_rb_read_bit(rb);
-          int num_ref_frames_available = 0;
-          for (int i = 0; i < num_ref_frames; i++) {
-            if (cm->ref_frame_map[cm->remapped_ref_idx[i]] != NULL)
-              num_ref_frames_available +=
-                  !cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted;
-          }
-          if (num_ref_frames_available == 0)
-            assert(rsi->temporal_pred_flag == 0);
-          if (rsi->temporal_pred_flag && num_ref_frames > 1) {
-            rsi->rst_ref_pic_idx = avm_rb_read_literal(
-                rb,
-                avm_ceil_log2(num_ref_frames));  // read_lr_reference_idx
-            if (get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->is_restricted) {
-              avm_internal_error(
-                  &cm->error, AVM_CODEC_ERROR,
-                  "Invalid rst_ref_pic_idx: restricted reference buffer");
-            }
-          }
+        if (num_ref_frames > 0) rsi->temporal_pred_flag = avm_rb_read_bit(rb);
+        int num_ref_frames_available = 0;
+        for (int i = 0; i < num_ref_frames; i++) {
+          if (cm->ref_frame_map[cm->remapped_ref_idx[i]] != NULL)
+            num_ref_frames_available +=
+                !cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted;
         }
-
-        if (rsi->temporal_pred_flag) {
-          RestorationInfo tmp_rsi =
-              get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->rst_info[p];
-          if (!tmp_rsi.frame_filters_on) {
-            const int alternate_plane = alternate_ref_plane(p);
-            assert(alternate_plane != -1);
-            tmp_rsi = get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
-                          ->rst_info[alternate_plane];
-          }
-          if (!tmp_rsi.frame_filters_on) {
+        if (num_ref_frames_available == 0) assert(rsi->temporal_pred_flag == 0);
+        if (rsi->temporal_pred_flag && num_ref_frames > 1) {
+          rsi->rst_ref_pic_idx = avm_rb_read_literal(
+              rb,
+              avm_ceil_log2(num_ref_frames));  // read_lr_reference_idx
+          if (get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->is_restricted) {
             avm_internal_error(
                 &cm->error, AVM_CODEC_ERROR,
-                "Invalid rst_ref_pic_idx: ref frame frame filter disabled");
+                "Invalid rst_ref_pic_idx: restricted reference buffer");
           }
-          av2_copy_rst_frame_filters(rsi, &tmp_rsi);
-          rsi->frame_filters_initialized = 1;
-
-          av2_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
-        } else {
-          if (rsi->frame_filters_on && max_num_classes(p) > 1) {
-            rsi->num_filter_classes = decode_num_filter_classes(
-                avm_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
-          } else
-            rsi->num_filter_classes = 1;
         }
+      }
+
+      if (rsi->temporal_pred_flag) {
+        RestorationInfo tmp_rsi =
+            get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->rst_info[p];
+        if (!tmp_rsi.frame_filters_on) {
+          const int alternate_plane = alternate_ref_plane(p);
+          assert(alternate_plane != -1);
+          tmp_rsi = get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
+                        ->rst_info[alternate_plane];
+        }
+        if (!tmp_rsi.frame_filters_on) {
+          avm_internal_error(
+              &cm->error, AVM_CODEC_ERROR,
+              "Invalid rst_ref_pic_idx: ref frame frame filter disabled");
+        }
+        av2_copy_rst_frame_filters(rsi, &tmp_rsi);
+        rsi->frame_filters_initialized = 1;
+
+        av2_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
       } else {
-        rsi->frame_filters_on = 0;
-        rsi->num_filter_classes = NUM_WIENERNS_CLASS_INIT_CHROMA;
+        if (rsi->frame_filters_on && max_num_classes(p) > 1) {
+          rsi->num_filter_classes = decode_num_filter_classes(
+              avm_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
+        } else
+          rsi->num_filter_classes = 1;
       }
     }
     assert(IMPLIES(!rsi->frame_filters_on, !rsi->temporal_pred_flag));
@@ -2715,8 +2556,7 @@ static AVM_INLINE void decode_restoration_mode(AV2_COMMON *cm,
   }
 
   for (int p = 0; p < num_planes; ++p) {
-    if (is_frame_filters_enabled(p) &&
-        to_readwrite_framefilters(&cm->rst_info[p], 0, 0)) {
+    if (to_readwrite_framefilters(&cm->rst_info[p], 0, 0)) {
       read_wienerns_framefilters_hdr(cm, p, rb);
     }
   }
@@ -2786,7 +2626,6 @@ static void read_wienerns_framefilters_hdr(AV2_COMMON *cm, int plane,
   const int is_uv = plane != AVM_PLANE_Y;
   const int nopcw = disable_pcwiener_filters_in_framefilters(&cm->seq_params);
   RestorationInfo *rsi = &cm->rst_info[plane];
-  assert(is_frame_filters_enabled(plane));
   assert(rsi->frame_filters_on && !rsi->frame_filters_initialized);
   if (cm->frame_filter_dictionary == NULL) {
     allocate_frame_filter_dictionary(cm);
@@ -3164,7 +3003,7 @@ static AVM_INLINE void setup_gdf(AV2_COMMON *cm,
     cm->gdf_info.gdf_mode = avm_rb_read_bit(rb);
   }
   if (cm->gdf_info.gdf_mode > 0) {
-    alloc_gdf_buffers(&cm->gdf_info);
+    alloc_gdf_buffers(&cm->gdf_info, cm->cur_frame->buf.y_width);
     if (cm->gdf_info.gdf_block_num > 1) {
       cm->gdf_info.gdf_mode += avm_rb_read_bit(rb);
     }
@@ -3267,8 +3106,7 @@ static AVM_INLINE void setup_ccso(AV2_COMMON *cm,
     }
   }
   if (cm->ccso_info.ccso_frame_flag) {
-    const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
-        cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+    const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(cm);
     cm->ccso_info.ccso_blk_size = ccso_blk_size;
     cm->cur_frame->ccso_info.ccso_blk_size = ccso_blk_size;
     for (int plane = 0; plane < av2_num_planes(cm); plane++) {
@@ -3754,7 +3592,7 @@ static AVM_INLINE void resize_context_buffers(AV2_COMMON *cm, int width,
     // dimensions as well as the overall size.
     if (new_mi_cols > cm->mi_params.mi_cols ||
         new_mi_rows > cm->mi_params.mi_rows) {
-      if (av2_alloc_context_buffers(cm, width, height)) {
+      if (av2_alloc_context_buffers(cm, width, height, 0)) {
         // The cm->mi_* values have been cleared and any existing context
         // buffers have been freed. Clear cm->width and cm->height to be
         // consistent and to force a realloc next time.
@@ -3764,7 +3602,7 @@ static AVM_INLINE void resize_context_buffers(AV2_COMMON *cm, int width,
                            "Failed to allocate context buffers");
       }
     } else {
-      cm->mi_params.set_mb_mi(&cm->mi_params, width, height);
+      cm->mi_params.set_mb_mi(&cm->mi_params, width, height, 0);
     }
     av2_init_mi_buffers(&cm->mi_params);
     cm->width = width;
@@ -4634,9 +4472,8 @@ static AVM_INLINE void decode_tile(AV2Decoder *pbi, ThreadData *const td,
       BruActiveMode sb_active_mode = BRU_ACTIVE_SB;
       av2_set_sb_info(cm, xd, mi_row, mi_col, sb_active_mode);
       set_cb_buffer(pbi, dcb, &td->cb_buffer_base, num_planes, 0, 0);
-      // td->ref_mv_bank is initialized as xd->ref_mv_bank, and used
-      // for MV referencing during decoding the tile.
-      // xd->ref_mv_bank is updated as decoding goes.
+      // xd->ref_mv_bank is used for MV referencing during decoding the tile,
+      // and is updated as decoding goes.
       av2_reset_refmv_bank(cm, xd, &tile_info, mi_row, mi_col);
 
       decode_partition_sb(pbi, td, mi_row, mi_col, td->bit_reader, cm->sb_size,
@@ -6778,6 +6615,25 @@ static INLINE void read_intrabc_params(AV2_COMMON *const cm,
   FeatureFlags *const features = &cm->features;
   features->allow_intrabc = avm_rb_read_bit(rb);
 
+  // Bitstream conformance: for a coded video sequence containing an
+  // OBU_SWITCH frame, at least one of the BAWP/IBC/OPFL/RefineMV
+  // constraints must hold for the switch frame and every dependent inter
+  // frame that follows it (the switch frame itself, frame_type == S_FRAME,
+  // is excluded from this particular constraint). When enable_refmvbank is
+  // 1 and OPFL refinement/RefineMV are not both off sequence-wide,
+  // allow_intrabc must be 0 here.
+  if (features->allow_intrabc && in_switch_risk_window(cm) &&
+      current_frame->frame_type == INTER_FRAME &&
+      cm->seq_params.enable_refmvbank &&
+      !(cm->seq_params.enable_opfl_refine == AVM_OPFL_REFINE_NONE &&
+        cm->seq_params.enable_refinemv == 0)) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "allow_intrabc must be 0 for an inter frame depending on the layer "
+        "of a preceding OBU_SWITCH frame when enable_refmvbank is 1, unless "
+        "enable_opfl_refine is REFINE_NONE and enable_refinemv is 0");
+  }
+
   if (features->allow_intrabc) {
     if (current_frame->frame_type == KEY_FRAME ||
         current_frame->frame_type == INTRA_ONLY_FRAME) {
@@ -7150,7 +7006,12 @@ static int read_show_existing_frame(AV2Decoder *pbi, bool is_regular_obu,
       // are always shown).
       pbi->last_olk_tu_display_order_hint = current_frame->display_order_hint;
     }
-    if (pbi->this_is_first_vcl_obu_in_tu) pbi->olk_encountered = 0;
+    if (pbi->this_is_first_vcl_obu_in_tu) {
+      // This SEF is the first regular frame after the OLK's temporal unit,
+      // which ends the risk window (see read_uncompressed_header()).
+      close_switch_risk_windows(cm);
+      pbi->olk_encountered = 0;
+    }
   }
 
   lock_buffer_pool(pool);
@@ -8074,6 +7935,28 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       current_frame->frame_type =
           avm_rb_read_bit(rb) ? INTER_FRAME : INTRA_ONLY_FRAME;
     }
+
+    // Track the "risk window" opened by an OBU_SWITCH frame, used below to
+    // enforce the bitstream conformance requirement constraining BAWP/IBC
+    // around switch frames (decoder state derived from reconstructed
+    // samples can diverge across bitstreams spliced at the switch frame
+    // even though parsing stays deterministic). A CLK or an OBU_RAS_FRAME
+    // closes any risk window opened by a prior OBU_SWITCH frame. An OLK does
+    // not: its leading frames may reference frames that precede it, so the
+    // window stays open until the first regular frame that follows the
+    // temporal unit of the OLK, which is also where olk_encountered is
+    // cleared below.
+    const bool olk_leading_span_ended = pbi->olk_encountered &&
+                                        av2_is_regular_non_olk_obu(obu_type) &&
+                                        pbi->this_is_first_vcl_obu_in_tu;
+    if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_RAS_FRAME ||
+        olk_leading_span_ended) {
+      close_switch_risk_windows(cm);
+    }
+    if (obu_type == OBU_SWITCH && cm->restricted_prediction_switch) {
+      open_switch_risk_window(cm);
+    }
+
     current_frame->long_term_id = -1;
     if (current_frame->frame_type == KEY_FRAME) {
       const int long_term_id_plus_1 =
@@ -9302,6 +9185,23 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     features->enable_bawp = avm_rb_read_bit(rb);
   else
     features->enable_bawp = 0;
+
+  // Bitstream conformance: for a coded video sequence containing an
+  // OBU_SWITCH frame, at least one of the BAWP/IBC/OPFL/RefineMV
+  // constraints must hold for the switch frame and every dependent inter
+  // frame that follows it (the switch frame itself, frame_type == S_FRAME,
+  // is excluded from this particular constraint). If OPFL refinement and
+  // RefineMV are not both off sequence-wide, then BAWP must be off here.
+  if (features->enable_bawp && in_switch_risk_window(cm) &&
+      current_frame->frame_type == INTER_FRAME &&
+      !(seq_params->enable_opfl_refine == AVM_OPFL_REFINE_NONE &&
+        seq_params->enable_refinemv == 0)) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "enable_bawp must be 0 for an inter frame depending on the layer of "
+        "a preceding OBU_SWITCH frame, unless enable_opfl_refine is "
+        "REFINE_NONE and enable_refinemv is 0");
+  }
 
   features->enable_intra_bawp = seq_params->enable_bawp;
 

@@ -22,15 +22,14 @@
 #include "av2/common/av2_common_int.h"
 
 // Derivation of CCSO unit size, ccso unit shall not across tile boundaries
-int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm,
-                                          int sb_size_log2,
-                                          int unit_size_log2) {
+int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm) {
+  const int sb_size_log2 = cm->mib_size_log2 + MI_SIZE_LOG2;
   if (cm->seq_params.ccso_unit_matches_sb_size)
     return sb_size_log2;
   else if (cm->tiles.cols == 1 && cm->tiles.rows == 1)
-    return unit_size_log2;
-  int unit_size = unit_size_log2;
-  if (sb_size_log2 < unit_size_log2) {
+    return CCSO_BLK_SIZE;
+  int unit_size = CCSO_BLK_SIZE;
+  if (sb_size_log2 < CCSO_BLK_SIZE) {
     int e2 = 0, e4 = 0;
     for (int i = 0; i < cm->tiles.cols - 1; ++i) {
       const int size =
@@ -45,11 +44,11 @@ int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm,
       e4 += size & 3;
     }
     if (e4 == 0)
-      unit_size = AVMMIN(sb_size_log2 + 2, unit_size_log2);
+      unit_size = AVMMIN(sb_size_log2 + 2, CCSO_BLK_SIZE);
     else if (e2 == 0)
-      unit_size = AVMMIN(sb_size_log2 + 1, unit_size_log2);
+      unit_size = AVMMIN(sb_size_log2 + 1, CCSO_BLK_SIZE);
     else
-      unit_size = AVMMIN(sb_size_log2, unit_size_log2);
+      unit_size = AVMMIN(sb_size_log2, CCSO_BLK_SIZE);
   } else {
     unit_size = sb_size_log2;
   }
@@ -422,8 +421,7 @@ void apply_ccso_filter(AV2_COMMON *cm, MACROBLOCKD *xd, int plane,
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
-  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
-      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(cm);
   const int blk_log2 = ccso_blk_size;
   const int blk_size = 1 << blk_log2;
   const int blk_log2_x = blk_log2 - y_uv_hscale;

@@ -170,6 +170,10 @@ static INLINE void update_frames_till_gf_update(AV2_COMP *cpi) {
 }
 
 static INLINE void update_gf_group_index(AV2_COMP *cpi) {
+  if (cpi->oxcf.mode == REALTIME && cpi->oxcf.gf_cfg.lag_in_frames == 0) {
+    cpi->gf_group.index = 0;
+    return;
+  }
   // Increment the gf group index ready for the next frame. If this is
   // a show_existing_frame with a source other than altref, or if it is not
   // a displayed forward keyframe, the index was incremented when it was
@@ -670,6 +674,20 @@ static int get_refresh_idx(int update_arf, int refresh_level,
 
   int oldest_ref_level_order = INT32_MAX;
   int oldest_ref_level_idx = -1;
+
+  int num_past_frames = 0;
+  for (int map_idx = 0; map_idx < ref_frames; map_idx++) {
+    RefFrameMapPair ref_pair = ref_frame_map_pairs[map_idx];
+    if (ref_pair.ref_frame_for_inference == -1) continue;
+    if (is_ras_frame == 1 && ref_pair.frame_type == KEY_FRAME) continue;
+    if ((olk_flags_to_keep >> map_idx) & 1u) continue;
+    if (ref_pair.disp_order_removed <= cur_frame_disp - 1) {
+      num_past_frames++;
+    }
+  }
+  const int past_frames_to_keep =
+      is_multi_layers_lag_test ? 1 : AVMMIN(3, num_past_frames);
+
   for (int map_idx = 0; map_idx < ref_frames; map_idx++) {
     RefFrameMapPair ref_pair = ref_frame_map_pairs[map_idx];
     if (ref_pair.ref_frame_for_inference == -1) continue;
@@ -678,14 +696,9 @@ static int get_refresh_idx(int update_arf, int refresh_level,
     const int frame_order = ref_pair.disp_order_removed;
     const int reference_frame_level = ref_pair.pyr_level;
 
-    if (is_multi_layers_lag_test) {
-      // For multi layer, need to manage the buffer more flexibly.
-      // Keep future frames and one closest previous frames in output order
-      if (frame_order > cur_frame_disp - 1) continue;
-    } else {
-      // Keep future frames and three closest previous frames in output order
-      if (frame_order > cur_frame_disp - 3) continue;
-    }
+    // Keep future frames and up to past_frames_to_keep closest previous frames
+    // in output order
+    if (frame_order > cur_frame_disp - past_frames_to_keep) continue;
 
     // Keep track of the oldest reference frame matching the specified
     // refresh level from the subgop cfg
@@ -1224,8 +1237,13 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   // Work out some encoding parameters specific to the pass:
 
   if (has_no_stats_stage(cpi)) {
-    if (*frame_flags & FRAMEFLAGS_KEY) {
-      frame_params.frame_type = KEY_FRAME;
+    if (cpi->oxcf.gf_cfg.lag_in_frames == 0 && cpi->oxcf.mode == REALTIME) {
+      av2_get_one_pass_rt_params(cpi, &frame_params.frame_type, *frame_flags);
+      frame_update_type = get_frame_update_type(gf_group);
+    } else {
+      if (*frame_flags & FRAMEFLAGS_KEY) {
+        frame_params.frame_type = KEY_FRAME;
+      }
     }
     if (oxcf->q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
       av2_cyclic_refresh_update_parameters(cpi, frame_params.frame_type);

@@ -317,6 +317,33 @@ avmenc_av2_obu_temporal_delimiter_lag() {
   fi
 }
 
+avmenc_av2_obu_max_drl_refmvs() {
+  if [ "$(avmenc_can_encode_av2)" = "yes" ]; then
+    local output="${AVM_TEST_OUTPUT_DIR}/av2_max_drl_refmvs.obu"
+    avmenc $(yuv_raw_input) \
+      --cpu-used=1 \
+      --limit=2 \
+      --lag-in-frames=0 \
+      --passes=1 \
+      --end-usage=q \
+      --qp=235 \
+      --sb-size=64 \
+      --min-partition-size=64 \
+      --max-partition-size=64 \
+      --tile-columns=0 \
+      --tile-rows=0 \
+      --threads=1 \
+      --max-drl-refmvs=6 \
+      --obu \
+      --output="${output}" || return 1
+
+    if [ ! -e "${output}" ]; then
+      elog "Output file does not exist."
+      return 1
+    fi
+  fi
+}
+
 avmenc_tests="avmenc_av2_ivf
               avmenc_av2_obu
               avmenc_av2_obu_lcr_ops_atlas
@@ -328,6 +355,7 @@ avmenc_tests="avmenc_av2_ivf
               avmenc_av2_webm_non_square_par
               avmenc_av2_webm_cdf_update_mode
               avmenc_av2_obu_temporal_delimiter
-              avmenc_av2_obu_temporal_delimiter_lag"
+              avmenc_av2_obu_temporal_delimiter_lag
+              avmenc_av2_obu_max_drl_refmvs"
 
 run_tests avmenc_verify_environment "${avmenc_tests}"

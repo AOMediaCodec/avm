@@ -290,6 +290,12 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
       ARG_DEF(NULL, "sframe-mode", 1, "S-Frame insertion mode (0..2)"),
   .sframe_type = ARG_DEF(NULL, "sframe-type", 1,
                          "(0: Regular S-Frame (default), 1: RAS frame)"),
+  .sframe_conformance_option = ARG_DEF(
+      NULL, "sframe-conformance-option", 1,
+      "How to satisfy the BAWP/IBC/OPFL/RefineMV bitstream-conformance "
+      "requirement around switch frames (0: disable refmvbank (default), "
+      "1: keep refmvbank, disable BAWP/IntraBC after switch, "
+      "2: disable OPFL refinement and RefineMV)"),
   .enable_lcr =
       ARG_DEF(NULL, "enable-lcr", 1,
               "Enable layer config record (LCR) OBU (0: off (default), 1: on)"),
@@ -826,7 +832,7 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .max_drl_refmvs =
       ARG_DEF(NULL, "max-drl-refmvs", 1,
               "Maximum number of drl reference MVs per reference. "
-              "(0 (auto), 2-8 (fixed)) default is 0 (auto)."),
+              "(0 (auto), 2-6 (fixed)) default is 0 (auto)."),
   .max_drl_refbvs = ARG_DEF(NULL, "max-drl-refbvs", 1,
                             "Maximum number of drl reference BVs for IntraBC. "
                             "(0 (auto), 2-4 (fixed)) default is 0 (auto)."),
@@ -888,8 +894,9 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
                                 "(0: GROUP format [default], 1: SHORT format)"),
   .enable_low_complexity_decode =
       ARG_DEF(NULL, "enable-low-complexity-decode", 1,
-              "Enable low complexity decode "
-              "(0: false (default), 1: true)"),
+              "Enable low complexity decode. "
+              "(0: false (default), 1: standard low-complexity level, 2: "
+              "aggressive low-complexity level)"),
 #endif  // CONFIG_AV2_ENCODER
   .enable_short_refresh_frame_flags =
       ARG_DEF(NULL, "enable-short-refresh-frame-flags", 1,

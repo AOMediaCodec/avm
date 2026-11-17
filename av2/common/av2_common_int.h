@@ -433,12 +433,10 @@ typedef struct BufferPool {
  */
 typedef struct {
   uint16_t
-      gdf_save_above[GDF_TEST_EXTRA_VER_BORDER]
-                    [RESTORATION_LINEBUFFER_WIDTH]; /*!< GDF temporary buffer to
+      *gdf_save_above[GDF_TEST_EXTRA_VER_BORDER]; /*!< GDF temporary buffer to
                                                      save/restore above */
   uint16_t
-      gdf_save_below[GDF_TEST_EXTRA_VER_BORDER]
-                    [RESTORATION_LINEBUFFER_WIDTH]; /*!< GDF temporary buffer to
+      *gdf_save_below[GDF_TEST_EXTRA_VER_BORDER]; /*!< GDF temporary buffer to
                                                      save/restore below */
 } GDFLineBuffers;
 
@@ -521,8 +519,6 @@ typedef struct {
   int cdef_on_skip_txfm_frame_enable;
   //! CDEF on/off for current frame
   int cdef_frame_enable;
-  //! Number of CDEF strength values in bits
-  int cdef_bits;
   //! Number of rows in the frame in 4 pixel
   int allocated_mi_rows;
   //! Number of CDEF workers
@@ -710,7 +706,6 @@ typedef struct {
   // unit
   int brt_from_leading;
   int br_ops_dependent_flag;
-  int ops_id;
   int br_ops_id;
   int br_ops_cnt[MAX_NUM_OPS_ID];
   int br_decoder_model_present_op_flag[MAX_NUM_OPS_ID][MAX_OPS_COUNT];
@@ -724,10 +719,6 @@ typedef struct CroppingWindow {
   int crop_win_right_offset;
   int crop_win_top_offset;
   int crop_win_bottom_offset;
-
-  int crop_info_seq_flag;
-  int crop_max_width;
-  int crop_max_height;
 } CroppingWindow;
 
 typedef struct RepresentationInfo {
@@ -811,21 +802,18 @@ typedef struct GlobalLayerConfigurationRecord {
   int lcr_global_payload_present_flag;
   int lcr_seq_profile_tier_level_info_present_flag;
   int lcr_global_atlas_id_present_flag;
-  int lcr_reserved_zero_2bits;
   int lcr_global_atlas_id;
   int lcr_reserved_zero_3bits;
   int lcr_reserved_zero_5bits;
-  int lcr_data_size_present_flag;
   int lcr_global_purpose_id;
   int lcr_dependent_xlayers_flag;
 
   // Derived
-  int LcrMaxNumXLayerCount;  // NUmber of xlauers in this global LCR
+  int LcrMaxNumXLayerCount;  // number of xlayers in this global LCR
   int LcrXLayerID[31];       // number of xlayers in this global LCR
 
   int lcr_doh_constraint_flag;
   int lcr_enforce_tile_alignment_flag;
-  int lcr_reserved_zero_6bits;
   uint32_t lcr_data_size[MAX_NUM_XLAYERS];
   uint32_t lcr_num_dependent_xlayer_map[MAX_NUM_XLAYERS];
   // Xlayer infor for each extended layer in this global LCR
@@ -1258,7 +1246,6 @@ typedef struct SequenceHeader {
   CropWindow conf;
   uint8_t seq_seg_info_present_flag;
   SegmentationInfoSyntax seg_params;
-  int allow_seg_info_change;
   int seq_extension_present_flag;
   // IMPORTANT: the op_params member must be the last syntax member so that
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
@@ -1300,7 +1287,6 @@ typedef struct {
   int xlayer_id;
   SkipModeInfo skip_mode_info;
   int refresh_frame_flags;  // Which ref frames are overwritten by this frame
-  bool tile_info_present_in_frame_header;
 } CurrentFrame;
 
 /*!\endcond */
@@ -1542,10 +1528,6 @@ typedef struct MultiFrameHeader {
    */
   int mfh_frame_height;
   /*!
-   * Render size present flag
-   */
-  int mfh_render_size_present_flag;
-  /*!
    * Presence of deblocking loop filter levels in this multi-frame header
    */
   int mfh_deblocking_filter_update_flag;
@@ -1633,9 +1615,8 @@ struct CommonModeInfoParams {
   int mi_alloc_stride;
   /*!
    * The minimum block size that each element in 'mi_alloc' can correspond to.
-   * For decoder, this is always BLOCK_4X4.
-   * For encoder, this is currently set to BLOCK_4X4 for resolution < 4k,
-   * and BLOCK_8X8 for resolution >= 4k.
+   * For decoder, always BLOCK_4X4. For encoder, BLOCK_8X8 at 4k, and at 1080p
+   * from speed 1; BLOCK_4X4 otherwise. Computed in 'enc_set_mb_mi()'.
    */
   BLOCK_SIZE mi_alloc_bsize;
 
@@ -1665,10 +1646,9 @@ struct CommonModeInfoParams {
    * Number of allocated elements is same as 'mi_grid_size', and stride is
    * same as 'mi_grid_size'. So, indexing into 'tx_type_map' is same as that of
    * 'mi_grid_base'.
-   * If secondary transform in enabled (IST) each element of the array
-   * stores both primary and secondary transform types as shown below: Bits 4~5
-   * of each element stores secondary tx_type Bits 0~3 of each element stores
-   * primary tx_type
+   * If secondary transform in enabled (IST) each element of the array is union
+   * of transform types. Refer to the TX_TYPE enum in enums.h for details of bit
+   * layout.
    */
   TX_TYPE *tx_type_map;
   /*!
@@ -1723,9 +1703,10 @@ struct CommonModeInfoParams {
    * \param[in,out]   mi_params   object containing common mode info parameters
    * \param           width       frame width
    * \param           height      frame height
+   * \param           speed       encoder speed level (ignored by the decoder)
    */
   void (*set_mb_mi)(struct CommonModeInfoParams *mi_params, int width,
-                    int height);
+                    int height, int speed);
   /**@}*/
 };
 
@@ -3030,6 +3011,15 @@ typedef struct AV2Common {
    */
   bool restricted_prediction_switch;
 
+  /*!
+   * switch_risk_window[ m ][ t ] is 1 when a frame with embedded layer ID m
+   * and temporal layer ID t depends on the layer of a preceding coded frame
+   * with obu_type equal to OBU_SWITCH, and no random access point has
+   * occurred since. Used to enforce the bitstream conformance requirement
+   * constraining BAWP/IBC around switch frames.
+   */
+  bool switch_risk_window[MAX_NUM_MLAYERS][MAX_NUM_TLAYERS];
+
 } AV2_COMMON;
 
 /*!\cond */
@@ -3098,8 +3088,7 @@ av2_get_chroma_format_idc(int subsampling_x, int subsampling_y, int monochrome,
   return AVM_CODEC_OK;
 }
 
-int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm,
-                                          int sb_size_log2, int unit_size_log2);
+int get_ccso_unit_size_log2_adaptive_tile(const AV2_COMMON *cm);
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic
 // frame reference count.
@@ -3335,6 +3324,59 @@ static INLINE int is_mlayer_transitively_dependent(
     }
   }
   return 0;
+}
+
+// Returns true if tlayer `layer_a` of embedded layer `mlayer_id` transitively
+// depends on tlayer `layer_b`. Also returns true if both layer IDs are the
+// same. Otherwise, returns false.
+static INLINE int is_tlayer_transitively_dependent(
+    const SequenceHeader *const seq, int mlayer_id, int layer_a, int layer_b) {
+  if (layer_a == layer_b) return 1;
+
+  int visited[MAX_NUM_TLAYERS] = { 0 };
+  int queue[MAX_NUM_TLAYERS];
+  int head = 0, tail = 0;
+
+  queue[tail++] = layer_a;
+  visited[layer_a] = 1;
+
+  while (head < tail) {
+    int layer = queue[head++];
+    if (layer == layer_b) return 1;
+    for (int i = 0; i <= seq->max_tlayer_id; i++) {
+      if (seq->tlayer_dependency_map[mlayer_id][layer][i] && !visited[i]) {
+        visited[i] = 1;
+        queue[tail++] = i;
+      }
+    }
+  }
+  return 0;
+}
+
+// Opens the switch risk window for every (embedded layer, temporal layer)
+// that depends on the layer of the current frame, which must be an
+// OBU_SWITCH frame. Windows opened by earlier switch frames stay open.
+static INLINE void open_switch_risk_window(AV2_COMMON *const cm) {
+  const SequenceHeader *const seq = &cm->seq_params;
+  for (int m = 0; m < MAX_NUM_MLAYERS; m++) {
+    if (!is_mlayer_transitively_dependent(seq, m, cm->mlayer_id)) continue;
+    for (int t = 0; t < MAX_NUM_TLAYERS; t++) {
+      if (is_tlayer_transitively_dependent(seq, m, t, cm->tlayer_id))
+        cm->switch_risk_window[m][t] = true;
+    }
+  }
+}
+
+// A random access point closes the windows opened by all earlier switch
+// frames.
+static INLINE void close_switch_risk_windows(AV2_COMMON *const cm) {
+  memset(cm->switch_risk_window, 0, sizeof(cm->switch_risk_window));
+}
+
+// Returns true if the current frame depends on the layer of a preceding
+// OBU_SWITCH frame, with no random access point in between.
+static INLINE bool in_switch_risk_window(const AV2_COMMON *const cm) {
+  return cm->switch_risk_window[cm->mlayer_id][cm->tlayer_id];
 }
 
 static INLINE void get_secondary_reference_frame_idx(const AV2_COMMON *const cm,
@@ -4184,18 +4226,6 @@ static INLINE void av2_zero_left_context(MACROBLOCKD *const xd) {
   av2_zero(xd->left_entropy_context);
   av2_zero(xd->left_partition_context);
 }
-
-// Disable array-bounds checks as the TX_SIZE enum contains values larger than
-// TX_SIZES_ALL (TX_INVALID) which make extending the array as a workaround
-// infeasible. The assert is enough for static analysis and this or other tools
-// asan, valgrind would catch oob access at runtime.
-#if defined(__GNUC__) && __GNUC__ >= 4
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#endif
-
-#if defined(__GNUC__) && __GNUC__ >= 4
-#pragma GCC diagnostic warning "-Warray-bounds"
-#endif
 
 static INLINE int get_mi_grid_idx(const CommonModeInfoParams *const mi_params,
                                   int mi_row, int mi_col) {
@@ -5667,6 +5697,11 @@ static INLINE bool is_warp_mode(MOTION_MODE motion_mode) {
   return (motion_mode >= WARP_CAUSAL);
 }
 
+static INLINE int is_intermode_selected(PREDICTION_MODE this_mode) {
+  return this_mode == NEW_NEWMV || this_mode == NEAR_NEARMV ||
+         this_mode == WARPMV || this_mode == WARP_NEWMV;
+}
+
 // Returns whether warp causal is allowed
 // by checking only four neighboring blocks.
 // It does not check all the neighboring blocks used
@@ -6056,6 +6091,22 @@ static INLINE bool av2_frame_clears_multiple_inserted_in_one(
 static INLINE bool av2_skip_reference_buffer_update(
     bool clear_multiple_insert_in_one, int ref_index, int first_ref_index) {
   return clear_multiple_insert_in_one && ref_index != first_ref_index;
+}
+
+// Returns the starting mi location of chroma reference block for the current
+// mbmi, by setting `chroma_mi_row_start` and `chroma_mi_col_start`.
+static INLINE void av2_get_chroma_start_location(const MB_MODE_INFO *mbmi,
+                                                 TREE_TYPE tree_type,
+                                                 int *chroma_mi_row_start,
+                                                 int *chroma_mi_col_start) {
+  assert(tree_type == SHARED_PART || tree_type == CHROMA_PART);
+  if (tree_type == SHARED_PART) {
+    *chroma_mi_row_start = mbmi->chroma_ref_info.mi_row_chroma_base;
+    *chroma_mi_col_start = mbmi->chroma_ref_info.mi_col_chroma_base;
+  } else {
+    *chroma_mi_row_start = mbmi->chroma_mi_row_start;
+    *chroma_mi_col_start = mbmi->chroma_mi_col_start;
+  }
 }
 
 #ifdef __cplusplus

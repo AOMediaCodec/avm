@@ -21,8 +21,8 @@ extern "C" {
 // TODO(any): These two variables are only used in avx2, sse2, sse4
 // implementations, where the block size is still hard coded. This should be
 // fixed to align with the c implementation.
-#define BH 32
-#define BW 32
+#define BH 64
+#define BW 64
 
 // Block size used in temporal filtering.
 #define TF_BLOCK_SIZE BLOCK_64X64

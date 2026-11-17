@@ -117,6 +117,14 @@ std::vector<TestParam<T>> GetTestParams(std::initializer_list<int> bit_depths,
     }
   }
   sizes.insert(BlockSize(24, 24));
+  // AV2 extended partition sizes seen in convolve histograms (not in BLOCK_SIZE
+  // enum).
+  sizes.insert(BlockSize(12, 12));
+  sizes.insert(BlockSize(12, 20));
+  sizes.insert(BlockSize(16, 24));
+  sizes.insert(BlockSize(20, 12));
+  sizes.insert(BlockSize(20, 20));
+  sizes.insert(BlockSize(24, 16));
   std::vector<TestParam<T>> result;
   for (const BlockSize &block : sizes) {
     for (int bd : bit_depths) {
@@ -142,7 +150,7 @@ template <typename T>
 
 TEST_F(AV2ConvolveParametersTest, GetHighbdTestParams) {
   auto v = GetHighbdTestParams(av2_highbd_convolve_x_sr_c);
-  ASSERT_EQ(74U, v.size());
+  ASSERT_EQ(86U, v.size());
   int num_10 = 0;
   int num_12 = 0;
   for (const auto &p : v) {
@@ -348,6 +356,8 @@ class AV2ConvolveXHighbdTest : public AV2ConvolveTest<highbd_convolve_x_func> {
     }
   }
 
+  void SpeedTest() { TestConvolveSpeed(EIGHTTAP_REGULAR, 8, 20000); }
+
  private:
   void TestConvolve(const int sub_x, const InterpFilter filter) {
     const int width = GetParam().Block().Width();
@@ -370,9 +380,48 @@ class AV2ConvolveXHighbdTest : public AV2ConvolveTest<highbd_convolve_x_func> {
                               filter_params_x, sub_x, &conv_params2, bit_depth);
     AssertOutputBufferEq(reference, test, width, height);
   }
+
+  void TestConvolveSpeed(const InterpFilter filter, const int sub_x,
+                         const int num_iters) {
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+    const int bit_depth = GetParam().BitDepth();
+    const InterpFilterParams *filter_params_x =
+        av2_get_interp_filter_params_with_block_size(filter, width);
+    const uint16_t *input = FirstRandomInput12(GetParam());
+    DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
+
+    ConvolveParams conv_params1 =
+        get_conv_params_no_round(0, 0, nullptr, 0, 0, bit_depth);
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
+    for (int i = 0; i < num_iters; ++i) {
+      av2_highbd_convolve_x_sr_c(input, width, reference, kOutputStride, width,
+                                 height, filter_params_x, sub_x, &conv_params1,
+                                 bit_depth);
+    }
+    avm_usec_timer_mark(&timer);
+    const int time1 = static_cast<int>(avm_usec_timer_elapsed(&timer));
+
+    ConvolveParams conv_params2 =
+        get_conv_params_no_round(0, 0, nullptr, 0, 0, bit_depth);
+    avm_usec_timer_start(&timer);
+    for (int i = 0; i < num_iters; ++i) {
+      GetParam().TestFunction()(input, width, test, kOutputStride, width,
+                                height, filter_params_x, sub_x, &conv_params2,
+                                bit_depth);
+    }
+    avm_usec_timer_mark(&timer);
+    const int time2 = static_cast<int>(avm_usec_timer_elapsed(&timer));
+
+    printf("f%d %3dx%-3d bd: %d ref: %d mod: %d (%3.2f)\n", filter, width,
+           height, bit_depth, time1, time2, (double)time1 / time2);
+  }
 };
 
 TEST_P(AV2ConvolveXHighbdTest, RunTest) { RunTest(); }
+TEST_P(AV2ConvolveXHighbdTest, DISABLED_Speed) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(C, AV2ConvolveXHighbdTest,
                          BuildHighbdParams(av2_highbd_convolve_x_sr_c));
@@ -390,6 +439,10 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveXHighbdTest,
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(NEON, AV2ConvolveXHighbdTest,
                          BuildHighbdParams(av2_highbd_convolve_x_sr_neon));
+#endif
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(AVX512, AV2ConvolveXHighbdTest,
+                         BuildHighbdParams(av2_highbd_convolve_x_sr_avx512));
 #endif
 
 /////////////////////////////////////////////////////////
@@ -412,6 +465,8 @@ class AV2ConvolveYHighbdTest : public AV2ConvolveTest<highbd_convolve_y_func> {
     }
   }
 
+  void SpeedTest() { TestConvolveSpeed(EIGHTTAP_REGULAR, 8, 20000); }
+
  private:
   void TestConvolve(const int sub_y, const InterpFilter filter) {
     const int width = GetParam().Block().Width();
@@ -428,9 +483,42 @@ class AV2ConvolveYHighbdTest : public AV2ConvolveTest<highbd_convolve_y_func> {
                               filter_params_y, sub_y, bit_depth);
     AssertOutputBufferEq(reference, test, width, height);
   }
+
+  void TestConvolveSpeed(const InterpFilter filter, const int sub_y,
+                         const int num_iters) {
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+    const int bit_depth = GetParam().BitDepth();
+    const InterpFilterParams *filter_params_y =
+        av2_get_interp_filter_params_with_block_size(filter, height);
+    const uint16_t *input = FirstRandomInput12(GetParam());
+    DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
+
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
+    for (int i = 0; i < num_iters; ++i) {
+      av2_highbd_convolve_y_sr_c(input, width, reference, kOutputStride, width,
+                                 height, filter_params_y, sub_y, bit_depth);
+    }
+    avm_usec_timer_mark(&timer);
+    const int time1 = static_cast<int>(avm_usec_timer_elapsed(&timer));
+
+    avm_usec_timer_start(&timer);
+    for (int i = 0; i < num_iters; ++i) {
+      GetParam().TestFunction()(input, width, test, kOutputStride, width,
+                                height, filter_params_y, sub_y, bit_depth);
+    }
+    avm_usec_timer_mark(&timer);
+    const int time2 = static_cast<int>(avm_usec_timer_elapsed(&timer));
+
+    printf("f%d %3dx%-3d bd: %d ref: %d mod: %d (%3.2f)\n", filter, width,
+           height, bit_depth, time1, time2, (double)time1 / time2);
+  }
 };
 
 TEST_P(AV2ConvolveYHighbdTest, RunTest) { RunTest(); }
+TEST_P(AV2ConvolveYHighbdTest, DISABLED_Speed) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(C, AV2ConvolveYHighbdTest,
                          BuildHighbdParams(av2_highbd_convolve_y_sr_c));
@@ -448,6 +536,10 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveYHighbdTest,
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(NEON, AV2ConvolveYHighbdTest,
                          BuildHighbdParams(av2_highbd_convolve_y_sr_neon));
+#endif
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(AVX512, AV2ConvolveYHighbdTest,
+                         BuildHighbdParams(av2_highbd_convolve_y_sr_avx512));
 #endif
 
 ///////////////////////////////////////////////////////////////
@@ -643,13 +735,13 @@ std::vector<TestParam<T>> GetHighbdLumaTestParams(T test_func) {
 }
 
 TEST_F(AV2ConvolveParametersTest, GetHighbdLumaTestParams) {
-  auto v = GetHighbdLumaTestParams(av2_highbd_dist_wtd_convolve_x_c);
+  auto v = GetHighbdLumaTestParams(av2_highbd_cwp_convolve_x_c);
   ASSERT_EQ(static_cast<size_t>(BLOCK_SIZES_ALL * 2), v.size());
   int num_10 = 0;
   int num_12 = 0;
   for (const auto &e : v) {
     ASSERT_TRUE(10 == e.BitDepth() || 12 == e.BitDepth());
-    bool same_fn = av2_highbd_dist_wtd_convolve_x_c == e.TestFunction();
+    bool same_fn = av2_highbd_cwp_convolve_x_c == e.TestFunction();
     ASSERT_TRUE(same_fn);
     if (e.BitDepth() == 10) {
       ++num_10;
@@ -694,12 +786,17 @@ std::vector<CompoundParam> GetCompoundParams() {
                                      quant_dist_lookup_table[l][1 - k]));
     }
   }
+  // CWP and TIP weights can go negative (e.g., {20,-4}, {18,-2}).
+  result.push_back(CompoundParam(20, -4));
+  result.push_back(CompoundParam(-4, 20));
+  result.push_back(CompoundParam(18, -2));
+  result.push_back(CompoundParam(-2, 18));
   return result;
 }
 
 TEST_F(AV2ConvolveParametersTest, GetCompoundParams) {
   auto v = GetCompoundParams();
-  ASSERT_EQ(9U, v.size());
+  ASSERT_EQ(13U, v.size());
   ASSERT_FALSE(v[0].UseWtdCompAvg());
   for (size_t i = 1; i < v.size(); ++i) {
     ASSERT_TRUE(v[i].UseWtdCompAvg());
@@ -741,7 +838,7 @@ class AV2ConvolveXHighbdCompoundTest
   }
 
   virtual highbd_convolve_x_func ReferenceFunc() const {
-    return av2_highbd_dist_wtd_convolve_x_c;
+    return av2_highbd_cwp_convolve_x_c;
   }
 
  private:
@@ -788,20 +885,18 @@ class AV2ConvolveXHighbdCompoundTest
 
 TEST_P(AV2ConvolveXHighbdCompoundTest, RunTest) { RunTest(); }
 
-INSTANTIATE_TEST_SUITE_P(
-    C, AV2ConvolveXHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_x_c));
+INSTANTIATE_TEST_SUITE_P(C, AV2ConvolveXHighbdCompoundTest,
+                         BuildHighbdLumaParams(av2_highbd_cwp_convolve_x_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV2ConvolveXHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_x_sse4_1));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_x_sse4_1));
 #endif
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV2ConvolveXHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_x_avx2));
+INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveXHighbdCompoundTest,
+                         BuildHighbdLumaParams(av2_highbd_cwp_convolve_x_avx2));
 #endif
 
 /////////////////////////////////////////////////
@@ -811,7 +906,7 @@ INSTANTIATE_TEST_SUITE_P(
 // Again, the X and Y convolve functions have the same type signature and logic.
 class AV2ConvolveYHighbdCompoundTest : public AV2ConvolveXHighbdCompoundTest {
   virtual highbd_convolve_x_func ReferenceFunc() const override {
-    return av2_highbd_dist_wtd_convolve_y_c;
+    return av2_highbd_cwp_convolve_y_c;
   }
   virtual const InterpFilterParams *FilterParams(
       InterpFilter f, const BlockSize &block) const override {
@@ -821,20 +916,18 @@ class AV2ConvolveYHighbdCompoundTest : public AV2ConvolveXHighbdCompoundTest {
 
 TEST_P(AV2ConvolveYHighbdCompoundTest, RunTest) { RunTest(); }
 
-INSTANTIATE_TEST_SUITE_P(
-    C, AV2ConvolveYHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_y_c));
+INSTANTIATE_TEST_SUITE_P(C, AV2ConvolveYHighbdCompoundTest,
+                         BuildHighbdLumaParams(av2_highbd_cwp_convolve_y_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV2ConvolveYHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_y_sse4_1));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_y_sse4_1));
 #endif
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV2ConvolveYHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_y_avx2));
+INSTANTIATE_TEST_SUITE_P(AVX2, AV2ConvolveYHighbdCompoundTest,
+                         BuildHighbdLumaParams(av2_highbd_cwp_convolve_y_avx2));
 #endif
 
 ///////////////////////////////////////////////////////
@@ -884,12 +977,11 @@ class AV2Convolve2DCopyHighbdCompoundTest
     avm_usec_timer timer;
     avm_usec_timer_start(&timer);
     for (int i = 0; i < nob; i++) {
-      av2_highbd_dist_wtd_convolve_2d_copy_c(input, width, conv_buf,
-                                             kOutputStride, width, height,
-                                             &conv_params, bit_depth);
-      av2_highbd_dist_wtd_convolve_2d_copy_c(input, width, conv_buf,
-                                             kOutputStride, width, height,
-                                             &conv_params_do_avg, bit_depth);
+      av2_highbd_cwp_convolve_2d_copy_c(input, width, conv_buf, kOutputStride,
+                                        width, height, &conv_params, bit_depth);
+      av2_highbd_cwp_convolve_2d_copy_c(input, width, conv_buf, kOutputStride,
+                                        width, height, &conv_params_do_avg,
+                                        bit_depth);
     }
     avm_usec_timer_mark(&timer);
     const int elapsed_time = static_cast<int>(avm_usec_timer_elapsed(&timer));
@@ -918,7 +1010,7 @@ class AV2Convolve2DCopyHighbdCompoundTest
     const uint16_t *input2 = SecondRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
-    Convolve(av2_highbd_dist_wtd_convolve_2d_copy_c, input1, input2, reference,
+    Convolve(av2_highbd_cwp_convolve_2d_copy_c, input1, input2, reference,
              reference_conv_buf, compound);
 
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
@@ -955,18 +1047,18 @@ TEST_P(AV2Convolve2DCopyHighbdCompoundTest, DISABLED_SpeedTest) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(
     C, AV2Convolve2DCopyHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_2d_copy_c));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_copy_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV2Convolve2DCopyHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_2d_copy_sse4_1));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_copy_sse4_1));
 #endif
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV2Convolve2DCopyHighbdCompoundTest,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_2d_copy_avx2));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_copy_avx2));
 #endif
 
 //////////////////////////////////////////////////
@@ -1015,7 +1107,7 @@ class AV2Convolve2DHighbdCompoundTestLarge
     const uint16_t *input2 = SecondRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
-    Convolve(av2_highbd_dist_wtd_convolve_2d_c, input1, input2, reference,
+    Convolve(av2_highbd_cwp_convolve_2d_c, input1, input2, reference,
              reference_conv_buf, compound, h_f, v_f, sub_x, sub_y);
 
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
@@ -1053,14 +1145,14 @@ class AV2Convolve2DHighbdCompoundTestLarge
     avm_usec_timer timer;
     avm_usec_timer_start(&timer);
     for (int i = 0; i < num_iters; ++i) {
-      av2_highbd_dist_wtd_convolve_2d_c(input1, width, reference, kOutputStride,
-                                        width, height, filter_params_x,
-                                        filter_params_y, sub_x, sub_y,
-                                        &conv_params_ref1, bit_depth);
-      av2_highbd_dist_wtd_convolve_2d_c(input1, width, reference, kOutputStride,
-                                        width, height, filter_params_x,
-                                        filter_params_y, sub_x, sub_y,
-                                        &conv_params_ref2, bit_depth);
+      av2_highbd_cwp_convolve_2d_c(input1, width, reference, kOutputStride,
+                                   width, height, filter_params_x,
+                                   filter_params_y, sub_x, sub_y,
+                                   &conv_params_ref1, bit_depth);
+      av2_highbd_cwp_convolve_2d_c(input1, width, reference, kOutputStride,
+                                   width, height, filter_params_x,
+                                   filter_params_y, sub_x, sub_y,
+                                   &conv_params_ref2, bit_depth);
     }
     avm_usec_timer_mark(&timer);
     const int time1 = static_cast<int>(avm_usec_timer_elapsed(&timer));
@@ -1119,20 +1211,25 @@ class AV2Convolve2DHighbdCompoundTestLarge
 TEST_P(AV2Convolve2DHighbdCompoundTestLarge, RunTest) { RunTest(); }
 TEST_P(AV2Convolve2DHighbdCompoundTestLarge, DISABLED_Speed) { SpeedTest(); }
 
-INSTANTIATE_TEST_SUITE_P(
-    C, AV2Convolve2DHighbdCompoundTestLarge,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_2d_c));
+INSTANTIATE_TEST_SUITE_P(C, AV2Convolve2DHighbdCompoundTestLarge,
+                         BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV2Convolve2DHighbdCompoundTestLarge,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_2d_sse4_1));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_sse4_1));
 #endif
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV2Convolve2DHighbdCompoundTestLarge,
-    BuildHighbdLumaParams(av2_highbd_dist_wtd_convolve_2d_avx2));
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_avx2));
+#endif
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV2Convolve2DHighbdCompoundTestLarge,
+    BuildHighbdLumaParams(av2_highbd_cwp_convolve_2d_neon));
 #endif
 
 //////////////////////////////////////////////////////////

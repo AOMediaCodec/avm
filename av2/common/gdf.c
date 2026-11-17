@@ -113,7 +113,28 @@ void init_gdf(AV2_COMMON *cm) {
   gi->err_stride = gi->gdf_unit_size + GDF_ERR_STRIDE_MARGIN;
 }
 
-void alloc_gdf_buffers(GdfInfo *gi) {
+static GDFLineBuffers *alloc_gdf_line_buffers(int frame_width) {
+  GDFLineBuffers *glbs = (GDFLineBuffers *)avm_malloc(sizeof(*glbs));
+
+  const int row_len = frame_width + 2 * GDF_TEST_EXTRA_HOR_BORDER;
+  for (int i = 0; i < GDF_TEST_EXTRA_VER_BORDER; ++i) {
+    glbs->gdf_save_above[i] = (uint16_t *)avm_memalign(
+        32, row_len * sizeof(*glbs->gdf_save_above[i]));
+    glbs->gdf_save_below[i] = (uint16_t *)avm_memalign(
+        32, row_len * sizeof(*glbs->gdf_save_below[i]));
+  }
+  return glbs;
+}
+
+static void free_gdf_line_buffers(GDFLineBuffers *glbs) {
+  for (int i = 0; i < GDF_TEST_EXTRA_VER_BORDER; ++i) {
+    avm_free(glbs->gdf_save_above[i]);
+    avm_free(glbs->gdf_save_below[i]);
+  }
+  avm_free(glbs);
+}
+
+void alloc_gdf_buffers(GdfInfo *gi, int frame_width) {
   free_gdf_buffers(gi);
   gi->lap_ptr =
       (uint16_t **)avm_malloc(GDF_NET_INP_GRD_NUM * sizeof(uint16_t *));
@@ -133,7 +154,7 @@ void alloc_gdf_buffers(GdfInfo *gi) {
   memset(gi->err_ptr, 0, gi->err_height * gi->err_stride * sizeof(int16_t));
   gi->gdf_block_flags = (int32_t *)avm_malloc(gi->gdf_block_num * sizeof(int));
   memset(gi->gdf_block_flags, 0, gi->gdf_block_num * sizeof(int));
-  gi->glbs = (GDFLineBuffers *)avm_malloc(sizeof(GDFLineBuffers));
+  gi->glbs = alloc_gdf_line_buffers(frame_width);
   gi->tmp_save_left = (uint16_t *)avm_malloc(
       (gi->gdf_unit_size + 2 * GDF_TEST_EXTRA_VER_BORDER) *
       GDF_TEST_EXTRA_HOR_BORDER * sizeof(*gi->tmp_save_left));
@@ -164,7 +185,7 @@ void free_gdf_buffers(GdfInfo *gi) {
     gi->gdf_block_flags = NULL;
   }
   if (gi->glbs != NULL) {
-    avm_free(gi->glbs);
+    free_gdf_line_buffers(gi->glbs);
     gi->glbs = NULL;
   }
   if (gi->tmp_save_left != NULL) {

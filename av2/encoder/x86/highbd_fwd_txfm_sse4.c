@@ -29,7 +29,7 @@ void fwd_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
   // processing needs. This avoids on-the-fly conversion from int16_t to int32_t
   // during execution by letting SIMD variants directly load the pre-converted
   // filter weights.
-  assert(stx_idx < 4);
+  assert(stx_idx < STX_TYPES - 1);
   const int32_t *kernel = (size == 0) ? ist_4x4_kernel_int32[mode][stx_idx][0]
                                       : ist_8x8_kernel_int32[mode][stx_idx][0];
   int coef;

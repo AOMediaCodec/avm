@@ -187,6 +187,24 @@ static TX_MODE select_tx_mode(
     return TX_MODE_SELECT;
   }
 }
+
+// Restrict transform type and size search in the dry pass of the fast two-pass
+// partition search, which only needs a rough shape ranking.
+static INLINE void set_dry_pass_txfm_params(const AV2_COMMON *cm,
+                                            MACROBLOCK *x) {
+  if (!x->apply_dry_pass_shortcuts) return;
+  TxfmSearchParams *txfm_params = &x->txfm_search_params;
+  txfm_params->use_default_intra_tx_type = 1;
+  txfm_params->use_default_inter_tx_type = 1;
+  // Preserve USE_LARGESTALL: it already routes through the fast
+  // choose_largest_tx_size() path, so demoting to USE_FAST_RD would be a
+  // regression. USE_FULL_RD -> USE_FAST_RD relaxes the recursive size search.
+  if (txfm_params->tx_size_search_method != USE_LARGESTALL)
+    txfm_params->tx_size_search_method = USE_FAST_RD;
+  txfm_params->tx_mode_search_type =
+      select_tx_mode(cm, txfm_params->tx_size_search_method);
+}
+
 // Checks the conditions to enable winner mode processing
 static INLINE int is_winner_mode_processing_enabled(
     const struct AV2_COMP *cpi, MB_MODE_INFO *const mbmi,
@@ -381,11 +399,14 @@ static INLINE void set_mode_eval_params(const struct AV2_COMP *cpi,
       // the decisions would have been sub-optimal
       // TODO(any): Move the evaluation of palette/IntraBC modes before winner
       // mode is processed and clean-up the code below
-      reset_hash_records(txfm_info, cpi->sf.tx_sf.use_inter_txb_hash);
+      reset_hash_records(txfm_info);
 
       break;
     default: assert(0);
   }
+
+  // Applied last so the dry-pass overrides win over per-stage defaults.
+  set_dry_pass_txfm_params(cm, x);
 }
 
 // Similar to store_cfl_required(), but for use during the RDO process,
@@ -413,6 +434,23 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required_rdo(const AV2_COMMON *cm,
 static AVM_INLINE void init_sbuv_mode(MB_MODE_INFO *const mbmi) {
   mbmi->uv_mode = UV_DC_PRED;
   mbmi->palette_mode_info.palette_size[1] = 0;
+}
+
+// Copies one winner-mode entry. The 64 KB palette colour map is copied only
+// for palette entries: it is read for nothing else.
+static INLINE void copy_winner_mode_stat(WinnerModeStats *dst,
+                                         const WinnerModeStats *src) {
+  dst->mbmi = src->mbmi;
+  dst->rd_cost = src->rd_cost;
+  dst->rd = src->rd;
+  dst->rate_y = src->rate_y;
+  dst->rate_uv = src->rate_uv;
+  dst->mode = src->mode;
+  dst->refs[0] = src->refs[0];
+  dst->refs[1] = src->refs[1];
+  if (src->mbmi.palette_mode_info.palette_size[PLANE_TYPE_Y] > 0)
+    memcpy(dst->color_index_map, src->color_index_map,
+           sizeof(dst->color_index_map));
 }
 
 // Store best mode stats for winner mode processing
@@ -452,9 +490,8 @@ static INLINE void store_winner_mode_stats(
       return;
     } else if (mode_idx < max_winner_mode_count - 1) {
       // Create a slot for current mode and move others to the next slot
-      memmove(
-          &winner_mode_stats[mode_idx + 1], &winner_mode_stats[mode_idx],
-          (max_winner_mode_count - mode_idx - 1) * sizeof(*winner_mode_stats));
+      for (int i = max_winner_mode_count - 1; i > mode_idx; i--)
+        copy_winner_mode_stat(&winner_mode_stats[i], &winner_mode_stats[i - 1]);
     }
   }
   // Add a mode stat for winner mode processing

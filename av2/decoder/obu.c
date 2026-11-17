@@ -234,6 +234,8 @@ void av2_store_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm, int xlayer_id) {
     pbi->stream_info[stream_idx].qm_protected_buf[i] = pbi->qm_protected[i];
   }
   pbi->stream_info[stream_idx].olk_encountered_buf = pbi->olk_encountered;
+  memcpy(pbi->stream_info[stream_idx].switch_risk_window_buf,
+         cm->switch_risk_window, sizeof(cm->switch_risk_window));
   pbi->stream_info[stream_idx].random_access_point_index_buf =
       pbi->random_access_point_index;
   pbi->stream_info[stream_idx].random_access_point_count_buf =
@@ -304,6 +306,9 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
     pbi->qm_protected[i] = pbi->stream_info[stream_idx].qm_protected_buf[i];
   }
   pbi->olk_encountered = pbi->stream_info[stream_idx].olk_encountered_buf;
+  memcpy(cm->switch_risk_window,
+         pbi->stream_info[stream_idx].switch_risk_window_buf,
+         sizeof(cm->switch_risk_window));
   pbi->random_access_point_index =
       pbi->stream_info[stream_idx].random_access_point_index_buf;
   pbi->random_access_point_count =
@@ -339,6 +344,8 @@ void av2_restore_xlayer_context(AV2Decoder *pbi, AV2_COMMON *cm,
 
 static void init_stream_info(StreamInfo *stream_info) {
   stream_info->olk_encountered_buf = 0;
+  memset(stream_info->switch_risk_window_buf, 0,
+         sizeof(stream_info->switch_risk_window_buf));
   stream_info->random_access_point_index_buf = -1;
   stream_info->random_access_point_count_buf = 0;
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
@@ -1757,19 +1764,23 @@ static int is_coded_frame(OBU_TYPE obu_type) {
 //   local config (LCR -> OPS -> Atlas) -> SH -> frame unit data
 // When the xlayer_id increases, the state resets to TU_STATE_LOCAL_INFO so
 // the new xlayer group may begin with local config, SH, or frame unit data.
+// Note: This function does NOT implement checks related to CI OBU as
+// AV2-ISOBMFF strips all the CI OBUs.
 int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
                                   int xlayer_id, int metadata_is_suffix,
                                   int prev_obu_type, int prev_xlayer_id) {
   // Validate input parameters
   if (!state) return 0;
 
-  // After the global phase, detect an xlayer_id increase and reset the
-  // per-xlayer state machine so the new group starts fresh.
+  // After the global phase, an xlayer_id change starts a fresh per-xlayer
+  // group. No increasing-xlayer constraint: a TU may group all per-xlayer
+  // config ahead of all frame data.
+  // TODO(avm issue #5582): This is more permissive and allows certain OBU
+  // orders not allowed by the AV2 spec.
   if (*state == TU_STATE_LOCAL_INFO || *state == TU_STATE_SEQUENCE_HEADER ||
       *state == TU_STATE_FRAME_UINT_DATA) {
     if (xlayer_id != GLOBAL_XLAYER_ID && prev_xlayer_id != GLOBAL_XLAYER_ID &&
         xlayer_id != prev_xlayer_id) {
-      if (xlayer_id < prev_xlayer_id) return 0;  // Must be increasing
       // New xlayer group: reset to local info phase.
       *state = TU_STATE_LOCAL_INFO;
     }
@@ -2070,12 +2081,11 @@ static void check_valid_layer_id(ObuHeader obu_header, AV2_COMMON *const cm) {
   }
 
   // MSDO, LCR, OPS, Atlas, Short Metadata OBU, Metadata Group OBU, Padding,
-  // Temporal Delimiter, and Buffer removal timing.
+  // and Temporal Delimiter.
   if (obu_header.obu_xlayer_id == GLOBAL_XLAYER_ID &&
       !(obu_header.type == OBU_TEMPORAL_DELIMITER ||
         obu_header.type == OBU_METADATA_SHORT ||
         obu_header.type == OBU_METADATA_GROUP ||
-        obu_header.type == OBU_BUFFER_REMOVAL_TIMING ||
         obu_header.type == OBU_LAYER_CONFIGURATION_RECORD ||
         obu_header.type == OBU_ATLAS_SEGMENT ||
         obu_header.type == OBU_OPERATING_POINT_SET ||

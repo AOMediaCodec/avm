@@ -12,13 +12,16 @@
 #include <assert.h>
 #include <immintrin.h> /*AVX2*/
 
-#include "config/avm_config.h"
 #include "config/av2_rtcd.h"
+#include "config/avm_config.h"
+#include "config/avm_dsp_rtcd.h"
+
 #include "av2/common/av2_txfm.h"
-#include "avm_dsp/txfm_common.h"
-#include "avm_ports/mem.h"
-#include "avm_dsp/x86/txfm_common_sse2.h"
 #include "av2/common/txb_common.h"
+#include "av2/encoder/hybrid_fwd_txfm.h"
+#include "avm_dsp/txfm_common.h"
+#include "avm_dsp/x86/txfm_common_sse2.h"
+#include "avm_ports/mem.h"
 
 static INLINE __m256i round_power_of_two_signed_avx2(__m256i v_val_d,
                                                      int bits) {
@@ -79,76 +82,11 @@ void av2_fwd_cross_chroma_tx_block_avx2(tran_low_t *coeff_c1,
   }
 }
 
-static void fwd_stxfm_transpose_4x8_avx2(__m256i *in, __m128i *out) {
-  __m256i x0, x1;
-
-  // First step: unpack 32-bit elements within lanes
-  const __m256i u0 = _mm256_unpacklo_epi32(in[0], in[1]);
-  const __m256i u1 = _mm256_unpackhi_epi32(in[0], in[1]);
-  const __m256i u2 = _mm256_unpacklo_epi32(in[2], in[3]);
-  const __m256i u3 = _mm256_unpackhi_epi32(in[2], in[3]);
-
-  // Second step: unpack 64-bit elements within lanes
-  x0 = _mm256_unpacklo_epi64(u0, u2);  // A0 A2 B0 B2 C0 C2 D0 D2
-  x1 = _mm256_unpackhi_epi64(u0, u2);  // A1 A3 B1 B3 C1 C3 D1 D3
-
-  // Extract low and high 128-bit lanes to get the transposed 128-bit rows
-  out[0] = _mm256_castsi256_si128(x0);       // A0 A2 B0 B2
-  out[1] = _mm256_castsi256_si128(x1);       // A1 A3 B1 B3
-  out[4] = _mm256_extracti128_si256(x0, 1);  // C0 C2 D0 D2
-  out[5] = _mm256_extracti128_si256(x1, 1);  // C1 C3 D1 D3
-
-  // Repeat for the upper half
-  x0 = _mm256_unpacklo_epi64(u1, u3);  // A4 A6 B4 B6 C4 C6 D4 D6
-  x1 = _mm256_unpackhi_epi64(u1, u3);  // A5 A7 B5 B7 C5 C7 D5 D7
-
-  out[2] = _mm256_castsi256_si128(x0);       // A4 A6 B4 B6
-  out[3] = _mm256_castsi256_si128(x1);       // A5 A7 B5 B7
-  out[6] = _mm256_extracti128_si256(x0, 1);  // C4 C6 D4 D6
-  out[7] = _mm256_extracti128_si256(x1, 1);  // C5 C7 D5 D7
-}
-
-static void fwd_stxfm_transpose_8x8_avx2(__m256i *in, __m256i *out) {
-  __m256i x0, x1;
-
-  const __m256i u0 = _mm256_unpacklo_epi32(in[0], in[1]);
-  const __m256i u1 = _mm256_unpackhi_epi32(in[0], in[1]);
-
-  const __m256i u2 = _mm256_unpacklo_epi32(in[2], in[3]);
-  const __m256i u3 = _mm256_unpackhi_epi32(in[2], in[3]);
-
-  const __m256i u4 = _mm256_unpacklo_epi32(in[4], in[5]);
-  const __m256i u5 = _mm256_unpackhi_epi32(in[4], in[5]);
-
-  const __m256i u6 = _mm256_unpacklo_epi32(in[6], in[7]);
-  const __m256i u7 = _mm256_unpackhi_epi32(in[6], in[7]);
-
-  x0 = _mm256_unpacklo_epi64(u0, u2);
-  x1 = _mm256_unpacklo_epi64(u4, u6);
-  out[0] = _mm256_permute2f128_si256(x0, x1, 0x20);
-  out[4] = _mm256_permute2f128_si256(x0, x1, 0x31);
-
-  x0 = _mm256_unpackhi_epi64(u0, u2);
-  x1 = _mm256_unpackhi_epi64(u4, u6);
-  out[1] = _mm256_permute2f128_si256(x0, x1, 0x20);
-  out[5] = _mm256_permute2f128_si256(x0, x1, 0x31);
-
-  x0 = _mm256_unpacklo_epi64(u1, u3);
-  x1 = _mm256_unpacklo_epi64(u5, u7);
-  out[2] = _mm256_permute2f128_si256(x0, x1, 0x20);
-  out[6] = _mm256_permute2f128_si256(x0, x1, 0x31);
-
-  x0 = _mm256_unpackhi_epi64(u1, u3);
-  x1 = _mm256_unpackhi_epi64(u5, u7);
-  out[3] = _mm256_permute2f128_si256(x0, x1, 0x20);
-  out[7] = _mm256_permute2f128_si256(x0, x1, 0x31);
-}
-
 // Forward secondary transform
 void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
                     const PREDICTION_MODE mode, const uint8_t stx_idx,
                     const int size, const int bd) {
-  assert(stx_idx < 4);
+  assert(stx_idx < STX_TYPES - 1);
   // Secondary transform kernels are stored as 32-bit integers to match SIMD
   // processing needs. This avoids on-the-fly conversion from int16_t to int32_t
   // during execution by letting SIMD variants directly load the pre-converted
@@ -172,7 +110,6 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
   if (reduced_height == 8) {
     assert(reduced_width % 8 == 0);
     __m256i resi_vec[8];
-    __m256i resi_vec_out[8];
     const __m256i max_value = _mm256_set1_epi32((1 << (7 + bd)) - 1);
     const __m256i min_value = _mm256_set1_epi32(-(1 << (7 + bd)));
     const int *out = dst;
@@ -223,11 +160,16 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
       resi_vec[6] = _mm256_add_epi32(resi_vec[6], kernel_vec6);
       resi_vec[7] = _mm256_add_epi32(resi_vec[7], kernel_vec7);
     }
-    fwd_stxfm_transpose_8x8_avx2(resi_vec, resi_vec_out);
-    __m256i sum_vec = _mm256_setzero_si256();
-    for (int i = 0; i < 8; i++) {
-      sum_vec = _mm256_add_epi32(sum_vec, resi_vec_out[i]);
-    }
+    const __m256i horiz_sum_a = _mm256_hadd_epi32(resi_vec[0], resi_vec[1]);
+    const __m256i horiz_sum_b = _mm256_hadd_epi32(resi_vec[2], resi_vec[3]);
+    const __m256i horiz_sum_c = _mm256_hadd_epi32(resi_vec[4], resi_vec[5]);
+    const __m256i horiz_sum_d = _mm256_hadd_epi32(resi_vec[6], resi_vec[7]);
+
+    const __m256i horiz_sum_e = _mm256_hadd_epi32(horiz_sum_a, horiz_sum_b);
+    const __m256i horiz_sum_f = _mm256_hadd_epi32(horiz_sum_c, horiz_sum_d);
+    __m256i sum_vec = _mm256_add_epi32(
+        _mm256_permute2x128_si256(horiz_sum_e, horiz_sum_f, 0x20),
+        _mm256_permute2x128_si256(horiz_sum_e, horiz_sum_f, 0x31));
 
     sum_vec = round_power_of_two_signed_avx2(sum_vec, shift);
     sum_vec = _mm256_min_epi32(_mm256_max_epi32(sum_vec, min_value), max_value);
@@ -235,7 +177,6 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
   } else if (reduced_height % 8 != 0) {
     assert(reduced_height % 4 == 0 && reduced_width % 8 == 0);
     __m256i resi_vec[4];
-    __m128i resi_vec_out[8];
     const int *src_ptr = src;
     const __m128i max_value = _mm_set1_epi32((1 << (7 + bd)) - 1);
     const __m128i min_value = _mm_set1_epi32(-(1 << (7 + bd)));
@@ -267,11 +208,12 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
         resi_vec[2] = _mm256_add_epi32(resi_vec[2], kernel_vec2);
         resi_vec[3] = _mm256_add_epi32(resi_vec[3], kernel_vec3);
       }
-      fwd_stxfm_transpose_4x8_avx2(resi_vec, resi_vec_out);
-      __m128i sum_vec = _mm_setzero_si128();
-      for (int i = 0; i < 8; i++) {
-        sum_vec = _mm_add_epi32(sum_vec, resi_vec_out[i]);
-      }
+      const __m256i horiz_sum_a = _mm256_hadd_epi32(resi_vec[0], resi_vec[1]);
+      const __m256i horiz_sum_b = _mm256_hadd_epi32(resi_vec[2], resi_vec[3]);
+
+      const __m256i horiz_sum_c = _mm256_hadd_epi32(horiz_sum_a, horiz_sum_b);
+      __m128i sum_vec = _mm_add_epi32(_mm256_castsi256_si128(horiz_sum_c),
+                                      _mm256_extracti128_si256(horiz_sum_c, 1));
 
       sum_vec = round_power_of_two_signed_sse2(sum_vec, shift);
       sum_vec = _mm_min_epi32(_mm_max_epi32(sum_vec, min_value), max_value);
@@ -282,7 +224,6 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
   } else {
     assert(reduced_height % 8 == 0 && reduced_width % 8 == 0);
     __m256i resi_vec[8];
-    __m256i resi_vec_out[8];
     const __m256i max_value = _mm256_set1_epi32((1 << (7 + bd)) - 1);
     const __m256i min_value = _mm256_set1_epi32(-(1 << (7 + bd)));
     int *out = dst;
@@ -335,11 +276,16 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
         resi_vec[6] = _mm256_add_epi32(resi_vec[6], kernel_vec6);
         resi_vec[7] = _mm256_add_epi32(resi_vec[7], kernel_vec7);
       }
-      fwd_stxfm_transpose_8x8_avx2(resi_vec, resi_vec_out);
-      __m256i sum_vec = zeros;
-      for (int i = 0; i < 8; i++) {
-        sum_vec = _mm256_add_epi32(sum_vec, resi_vec_out[i]);
-      }
+      const __m256i horiz_sum_a = _mm256_hadd_epi32(resi_vec[0], resi_vec[1]);
+      const __m256i horiz_sum_b = _mm256_hadd_epi32(resi_vec[2], resi_vec[3]);
+      const __m256i horiz_sum_c = _mm256_hadd_epi32(resi_vec[4], resi_vec[5]);
+      const __m256i horiz_sum_d = _mm256_hadd_epi32(resi_vec[6], resi_vec[7]);
+
+      const __m256i horiz_sum_e = _mm256_hadd_epi32(horiz_sum_a, horiz_sum_b);
+      const __m256i horiz_sum_f = _mm256_hadd_epi32(horiz_sum_c, horiz_sum_d);
+      __m256i sum_vec = _mm256_add_epi32(
+          _mm256_permute2x128_si256(horiz_sum_e, horiz_sum_f, 0x20),
+          _mm256_permute2x128_si256(horiz_sum_e, horiz_sum_f, 0x31));
       sum_vec = round_power_of_two_signed_avx2(sum_vec, shift);
       sum_vec =
           _mm256_min_epi32(_mm256_max_epi32(sum_vec, min_value), max_value);
@@ -350,7 +296,7 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
   }
 }
 
-void transpose_store_8x8_avx2(__m256i *a, int *dst, int size) {
+static INLINE void transpose_store_8x8_avx2(__m256i *a, int *dst, int size) {
   __m256i t0 =
       _mm256_unpacklo_epi32(a[0], a[1]);  // { A0 B0 A1 B1 A4 B4 A5 B5 }
   __m256i t1 =
@@ -405,7 +351,7 @@ void transpose_store_8x8_avx2(__m256i *a, int *dst, int size) {
       _mm256_permute2x128_si256(u3, u7, 0x31));  // { A7 B7 C7 D7 E7 F7 G7 H7 }
 }
 
-void transpose_store_8x4_sse4(__m128i *a, int *dst, int size) {
+static INLINE void transpose_store_8x4_sse4(__m128i *a, int *dst, int size) {
   // Step 1: Interleave 32-bit elements
   __m128i t0 = _mm_unpacklo_epi32(a[0], a[1]);  // { A0 B0 A1 B1 }
   __m128i t1 = _mm_unpackhi_epi32(a[0], a[1]);  // { A2 B2 A3 B3 }
@@ -437,7 +383,7 @@ void transpose_store_8x4_sse4(__m128i *a, int *dst, int size) {
   _mm_storeu_si128((__m128i *)(dst + 3 * size + 4), u7);  // { E3 F3 G3 H3 }
 }
 
-void transpose_store_8x4_avx2(__m256i *a, int *dst, int size) {
+static INLINE void transpose_store_8x4_avx2(__m256i *a, int *dst, int size) {
   __m256i t0 =
       _mm256_unpacklo_epi32(a[0], a[1]);  // { A0 B0 A1 B1 A4 B4 A5 B5 }
   __m256i t1 =
@@ -525,12 +471,15 @@ void fwd_txfm_dct2_size4_avx2(const int *src, int *dst, int shift, int line,
     }
   } else {
     __m256i v_offset = _mm256_set1_epi32(offset);
+    const __m256i permute_idx = _mm256_set_epi32(1, 1, 1, 1, 0, 0, 0, 0);
     for (j = 0; j < nz_line; j += 2) {
       __m256i sum = _mm256_set1_epi32(0);
       for (k = 0; k < tx1d_size; k++) {
-        __m128i tmp_src0 = _mm_set1_epi32(src[k * line + j + 0]);
-        __m128i tmp_src1 = _mm_set1_epi32(src[k * line + j + 1]);
-        __m256i tmp_src = _mm256_set_m128i(tmp_src1, tmp_src0);
+        // s0 s0 s0 s0 s1 s1 s1 s1
+        __m256i tmp_src = _mm256_permutevar8x32_epi32(
+            _mm256_castsi128_si256(
+                _mm_loadl_epi64((const __m128i *)&src[k * line + j])),
+            permute_idx);
 
         __m256i tmp_val = _mm256_set_epi32(
             tx_mat[3 * tx1d_size + k], tx_mat[2 * tx1d_size + k],
@@ -2251,2154 +2200,6 @@ void fwd_txfm_dct2_size32_avx2(const int *src, int *dst, int shift, int line,
   }
 }
 
-void fwd_txfm_dct2_size64_avx2(const int *src, int *dst, int shift, int line,
-                               int skip_line, int zero_line) {
-  (void)zero_line;
-  int m, n;
-  const int offset = shift > 0 ? 1 << (shift - 1) : 0;
-  const int nz_line = line - skip_line;
-
-  const int *tx_mat = tx_kernel_dct2_size64[FWD_TXFM][0];
-
-  const int tx1d_size = 64;
-
-  if (nz_line >= 8) {
-    __m256i a[32], b[32];
-    __m256i c[16], d[16];
-    __m256i e[8], f[8];
-    __m256i g[4], h[4];
-    __m256i i[2], j[2];
-
-    __m256i v_offset = _mm256_set1_epi32(offset);
-
-    __m256i txmat_16_0 = _mm256_set1_epi32(tx_mat[16 * 64 + 0]);  // 85
-    __m256i txmat_16_1 = _mm256_set1_epi32(tx_mat[16 * 64 + 1]);  // 35
-
-    __m256i txmat_8_0 = _mm256_set1_epi32(tx_mat[8 * 64 + 0]);  // 89
-    __m256i txmat_8_1 = _mm256_set1_epi32(tx_mat[8 * 64 + 1]);  // 75
-    __m256i txmat_8_2 = _mm256_set1_epi32(tx_mat[8 * 64 + 2]);  // 50
-    __m256i txmat_8_3 = _mm256_set1_epi32(tx_mat[8 * 64 + 3]);  // 18
-
-    __m256i txmat_4_0 = _mm256_set1_epi32(tx_mat[4 * 64 + 0]);  // 90
-    __m256i txmat_4_1 = _mm256_set1_epi32(tx_mat[4 * 64 + 1]);  // 87
-    __m256i txmat_4_2 = _mm256_set1_epi32(tx_mat[4 * 64 + 2]);  // 80
-    __m256i txmat_4_3 = _mm256_set1_epi32(tx_mat[4 * 64 + 3]);  // 70
-    __m256i txmat_4_4 = _mm256_set1_epi32(tx_mat[4 * 64 + 4]);  // 57
-    __m256i txmat_4_5 = _mm256_set1_epi32(tx_mat[4 * 64 + 5]);  // 43
-    __m256i txmat_4_6 = _mm256_set1_epi32(tx_mat[4 * 64 + 6]);  // 26
-    __m256i txmat_4_7 = _mm256_set1_epi32(tx_mat[4 * 64 + 7]);  //  9
-
-    __m256i txmat_2_0 = _mm256_set1_epi32(tx_mat[2 * 64 + 0]);    // 90
-    __m256i txmat_2_1 = _mm256_set1_epi32(tx_mat[2 * 64 + 1]);    // 90
-    __m256i txmat_2_2 = _mm256_set1_epi32(tx_mat[2 * 64 + 2]);    // 88
-    __m256i txmat_2_3 = _mm256_set1_epi32(tx_mat[2 * 64 + 3]);    // 85
-    __m256i txmat_2_4 = _mm256_set1_epi32(tx_mat[2 * 64 + 4]);    // 82
-    __m256i txmat_2_5 = _mm256_set1_epi32(tx_mat[2 * 64 + 5]);    // 78
-    __m256i txmat_2_6 = _mm256_set1_epi32(tx_mat[2 * 64 + 6]);    // 73
-    __m256i txmat_2_7 = _mm256_set1_epi32(tx_mat[2 * 64 + 7]);    // 67
-    __m256i txmat_2_8 = _mm256_set1_epi32(tx_mat[2 * 64 + 8]);    // 61
-    __m256i txmat_2_9 = _mm256_set1_epi32(tx_mat[2 * 64 + 9]);    // 54
-    __m256i txmat_2_10 = _mm256_set1_epi32(tx_mat[2 * 64 + 10]);  // 47
-    __m256i txmat_2_11 = _mm256_set1_epi32(tx_mat[2 * 64 + 11]);  // 39
-    __m256i txmat_2_12 = _mm256_set1_epi32(tx_mat[2 * 64 + 12]);  // 30
-    __m256i txmat_2_13 = _mm256_set1_epi32(tx_mat[2 * 64 + 13]);  // 22
-    __m256i txmat_2_14 = _mm256_set1_epi32(tx_mat[2 * 64 + 14]);  // 13
-    __m256i txmat_2_15 = _mm256_set1_epi32(tx_mat[2 * 64 + 15]);  //  4
-
-    __m256i txmat_1_0 = _mm256_set1_epi32(tx_mat[1 * 64 + 0]);    // 90
-    __m256i txmat_1_1 = _mm256_set1_epi32(tx_mat[1 * 64 + 1]);    // 90
-    __m256i txmat_1_2 = _mm256_set1_epi32(tx_mat[1 * 64 + 2]);    // 90
-    __m256i txmat_1_3 = _mm256_set1_epi32(tx_mat[1 * 64 + 3]);    // 89
-    __m256i txmat_1_4 = _mm256_set1_epi32(tx_mat[1 * 64 + 4]);    // 88
-    __m256i txmat_1_5 = _mm256_set1_epi32(tx_mat[1 * 64 + 5]);    // 87
-    __m256i txmat_1_6 = _mm256_set1_epi32(tx_mat[1 * 64 + 6]);    // 86
-    __m256i txmat_1_7 = _mm256_set1_epi32(tx_mat[1 * 64 + 7]);    // 84
-    __m256i txmat_1_8 = _mm256_set1_epi32(tx_mat[1 * 64 + 8]);    // 83
-    __m256i txmat_1_9 = _mm256_set1_epi32(tx_mat[1 * 64 + 9]);    // 81
-    __m256i txmat_1_10 = _mm256_set1_epi32(tx_mat[1 * 64 + 10]);  // 79
-    __m256i txmat_1_11 = _mm256_set1_epi32(tx_mat[1 * 64 + 11]);  // 76
-    __m256i txmat_1_12 = _mm256_set1_epi32(tx_mat[1 * 64 + 12]);  // 74
-    __m256i txmat_1_13 = _mm256_set1_epi32(tx_mat[1 * 64 + 13]);  // 71
-    __m256i txmat_1_14 = _mm256_set1_epi32(tx_mat[1 * 64 + 14]);  // 69
-    __m256i txmat_1_15 = _mm256_set1_epi32(tx_mat[1 * 64 + 15]);  // 66
-    __m256i txmat_1_16 = _mm256_set1_epi32(tx_mat[1 * 64 + 16]);  // 62
-    __m256i txmat_1_17 = _mm256_set1_epi32(tx_mat[1 * 64 + 17]);  // 59
-    __m256i txmat_1_18 = _mm256_set1_epi32(tx_mat[1 * 64 + 18]);  // 56
-    __m256i txmat_1_19 = _mm256_set1_epi32(tx_mat[1 * 64 + 19]);  // 52
-    __m256i txmat_1_20 = _mm256_set1_epi32(tx_mat[1 * 64 + 20]);  // 48
-    __m256i txmat_1_21 = _mm256_set1_epi32(tx_mat[1 * 64 + 21]);  // 45
-    __m256i txmat_1_22 = _mm256_set1_epi32(tx_mat[1 * 64 + 22]);  // 41
-    __m256i txmat_1_23 = _mm256_set1_epi32(tx_mat[1 * 64 + 23]);  // 37
-    __m256i txmat_1_24 = _mm256_set1_epi32(tx_mat[1 * 64 + 24]);  // 33
-    __m256i txmat_1_25 = _mm256_set1_epi32(tx_mat[1 * 64 + 25]);  // 28
-    __m256i txmat_1_26 = _mm256_set1_epi32(tx_mat[1 * 64 + 26]);  // 24
-    __m256i txmat_1_27 = _mm256_set1_epi32(tx_mat[1 * 64 + 27]);  // 20
-    __m256i txmat_1_28 = _mm256_set1_epi32(tx_mat[1 * 64 + 28]);  // 15
-    __m256i txmat_1_29 = _mm256_set1_epi32(tx_mat[1 * 64 + 29]);  // 11
-    __m256i txmat_1_30 = _mm256_set1_epi32(tx_mat[1 * 64 + 30]);  //  7
-    __m256i txmat_1_31 = _mm256_set1_epi32(tx_mat[1 * 64 + 31]);  //  2
-
-    for (m = 0; m < nz_line; m += 8) {
-      for (n = 0; n < 32; n++) {
-        __m256i src0 = _mm256_loadu_si256((__m256i *)&src[n * line]);
-        __m256i src1 =
-            _mm256_loadu_si256((__m256i *)&src[(tx1d_size - 1 - n) * line]);
-        a[n] = _mm256_add_epi32(src0, src1);
-        b[n] = _mm256_sub_epi32(src0, src1);
-      }
-      for (n = 0; n < 16; n++) {
-        c[n] = _mm256_add_epi32(a[n], a[31 - n]);
-        d[n] = _mm256_sub_epi32(a[n], a[31 - n]);
-      }
-      for (n = 0; n < 8; n++) {
-        e[n] = _mm256_add_epi32(c[n], c[15 - n]);
-        f[n] = _mm256_sub_epi32(c[n], c[15 - n]);
-      }
-      for (n = 0; n < 4; n++) {
-        g[n] = _mm256_add_epi32(e[n], e[7 - n]);
-        h[n] = _mm256_sub_epi32(e[n], e[7 - n]);
-      }
-      i[0] = _mm256_add_epi32(g[0], g[3]);
-      j[0] = _mm256_sub_epi32(g[0], g[3]);
-      i[1] = _mm256_add_epi32(g[1], g[2]);
-      j[1] = _mm256_sub_epi32(g[1], g[2]);
-
-      a[0] = _mm256_slli_epi32(_mm256_add_epi32(i[0], i[1]), 6);
-
-      a[16] = _mm256_add_epi32(_mm256_mullo_epi32(j[0], txmat_16_0),
-                               _mm256_mullo_epi32(j[1], txmat_16_1));
-
-      g[0] = _mm256_mullo_epi32(h[0], txmat_8_0);
-      g[1] = _mm256_mullo_epi32(h[1], txmat_8_1);
-      g[2] = _mm256_mullo_epi32(h[2], txmat_8_2);
-      g[3] = _mm256_mullo_epi32(h[3], txmat_8_3);
-      a[8] = _mm256_add_epi32(_mm256_add_epi32(g[0], g[1]),
-                              _mm256_add_epi32(g[2], g[3]));
-
-      g[0] = _mm256_mullo_epi32(h[0], txmat_8_1);
-      g[1] = _mm256_mullo_epi32(h[1], txmat_8_3);
-      g[2] = _mm256_mullo_epi32(h[2], txmat_8_0);
-      g[3] = _mm256_mullo_epi32(h[3], txmat_8_2);
-      a[24] = _mm256_sub_epi32(_mm256_sub_epi32(g[0], g[1]),
-                               _mm256_add_epi32(g[2], g[3]));
-
-      e[0] = _mm256_mullo_epi32(f[0], txmat_4_0);
-      e[1] = _mm256_mullo_epi32(f[1], txmat_4_1);
-      e[2] = _mm256_mullo_epi32(f[2], txmat_4_2);
-      e[3] = _mm256_mullo_epi32(f[3], txmat_4_3);
-      e[4] = _mm256_mullo_epi32(f[4], txmat_4_4);
-      e[5] = _mm256_mullo_epi32(f[5], txmat_4_5);
-      e[6] = _mm256_mullo_epi32(f[6], txmat_4_6);
-      e[7] = _mm256_mullo_epi32(f[7], txmat_4_7);
-      e[0] = _mm256_add_epi32(_mm256_add_epi32(e[0], e[1]),
-                              _mm256_add_epi32(e[2], e[3]));
-      e[4] = _mm256_add_epi32(_mm256_add_epi32(e[4], e[5]),
-                              _mm256_add_epi32(e[6], e[7]));
-      a[4] = _mm256_add_epi32(e[0], e[4]);
-
-      e[0] = _mm256_mullo_epi32(f[0], txmat_4_1);
-      e[1] = _mm256_mullo_epi32(f[1], txmat_4_4);
-      e[2] = _mm256_mullo_epi32(f[2], txmat_4_7);
-      e[3] = _mm256_mullo_epi32(f[3], txmat_4_5);
-      e[4] = _mm256_mullo_epi32(f[4], txmat_4_2);
-      e[5] = _mm256_mullo_epi32(f[5], txmat_4_0);
-      e[6] = _mm256_mullo_epi32(f[6], txmat_4_3);
-      e[7] = _mm256_mullo_epi32(f[7], txmat_4_6);
-      e[0] = _mm256_add_epi32(_mm256_add_epi32(e[0], e[1]),
-                              _mm256_sub_epi32(e[2], e[3]));
-      e[4] = _mm256_add_epi32(_mm256_add_epi32(e[4], e[5]),
-                              _mm256_add_epi32(e[6], e[7]));
-      a[12] = _mm256_sub_epi32(e[0], e[4]);
-
-      e[0] = _mm256_mullo_epi32(f[0], txmat_4_2);
-      e[1] = _mm256_mullo_epi32(f[1], txmat_4_7);
-      e[2] = _mm256_mullo_epi32(f[2], txmat_4_3);
-      e[3] = _mm256_mullo_epi32(f[3], txmat_4_1);
-      e[4] = _mm256_mullo_epi32(f[4], txmat_4_6);
-      e[5] = _mm256_mullo_epi32(f[5], txmat_4_4);
-      e[6] = _mm256_mullo_epi32(f[6], txmat_4_0);
-      e[7] = _mm256_mullo_epi32(f[7], txmat_4_5);
-      e[0] = _mm256_sub_epi32(_mm256_add_epi32(e[0], e[1]),
-                              _mm256_add_epi32(e[2], e[3]));
-      e[4] = _mm256_sub_epi32(_mm256_sub_epi32(e[4], e[5]),
-                              _mm256_add_epi32(e[6], e[7]));
-      a[20] = _mm256_sub_epi32(e[0], e[4]);
-
-      e[0] = _mm256_mullo_epi32(f[0], txmat_4_3);
-      e[1] = _mm256_mullo_epi32(f[1], txmat_4_5);
-      e[2] = _mm256_mullo_epi32(f[2], txmat_4_1);
-      e[3] = _mm256_mullo_epi32(f[3], txmat_4_7);
-      e[4] = _mm256_mullo_epi32(f[4], txmat_4_0);
-      e[5] = _mm256_mullo_epi32(f[5], txmat_4_6);
-      e[6] = _mm256_mullo_epi32(f[6], txmat_4_2);
-      e[7] = _mm256_mullo_epi32(f[7], txmat_4_4);
-      e[0] = _mm256_sub_epi32(_mm256_sub_epi32(e[0], e[1]),
-                              _mm256_sub_epi32(e[2], e[3]));
-      e[4] = _mm256_sub_epi32(_mm256_add_epi32(e[4], e[5]),
-                              _mm256_add_epi32(e[6], e[7]));
-      a[28] = _mm256_add_epi32(e[0], e[4]);
-
-      e[0] = _mm256_add_epi32(_mm256_mullo_epi32(d[0], txmat_2_0),
-                              _mm256_mullo_epi32(d[1], txmat_2_1));
-      e[1] = _mm256_add_epi32(_mm256_mullo_epi32(d[2], txmat_2_2),
-                              _mm256_mullo_epi32(d[3], txmat_2_3));
-      e[2] = _mm256_add_epi32(_mm256_mullo_epi32(d[4], txmat_2_4),
-                              _mm256_mullo_epi32(d[5], txmat_2_5));
-      e[3] = _mm256_add_epi32(_mm256_mullo_epi32(d[6], txmat_2_6),
-                              _mm256_mullo_epi32(d[7], txmat_2_7));
-      e[4] = _mm256_add_epi32(_mm256_mullo_epi32(d[8], txmat_2_8),
-                              _mm256_mullo_epi32(d[9], txmat_2_9));
-      e[5] = _mm256_add_epi32(_mm256_mullo_epi32(d[10], txmat_2_10),
-                              _mm256_mullo_epi32(d[11], txmat_2_11));
-      e[6] = _mm256_add_epi32(_mm256_mullo_epi32(d[12], txmat_2_12),
-                              _mm256_mullo_epi32(d[13], txmat_2_13));
-      e[7] = _mm256_add_epi32(_mm256_mullo_epi32(d[14], txmat_2_14),
-                              _mm256_mullo_epi32(d[15], txmat_2_15));
-      e[0] = _mm256_add_epi32(_mm256_add_epi32(e[0], e[1]),
-                              _mm256_add_epi32(e[2], e[3]));
-      e[4] = _mm256_add_epi32(_mm256_add_epi32(e[4], e[5]),
-                              _mm256_add_epi32(e[6], e[7]));
-      a[2] = _mm256_add_epi32(e[0], e[4]);
-
-      e[0] = _mm256_add_epi32(_mm256_mullo_epi32(d[0], txmat_2_1),
-                              _mm256_mullo_epi32(d[1], txmat_2_4));
-      e[1] = _mm256_add_epi32(_mm256_mullo_epi32(d[2], txmat_2_7),
-                              _mm256_mullo_epi32(d[3], txmat_2_10));
-      e[2] = _mm256_sub_epi32(_mm256_mullo_epi32(d[4], txmat_2_13),
-                              _mm256_mullo_epi32(d[5], txmat_2_15));
-      e[3] = _mm256_add_epi32(_mm256_mullo_epi32(d[6], txmat_2_12),
-                              _mm256_mullo_epi32(d[7], txmat_2_9));
-      e[4] = _mm256_add_epi32(_mm256_mullo_epi32(d[8], txmat_2_6),
-                              _mm256_mullo_epi32(d[9], txmat_2_3));
-      e[5] = _mm256_add_epi32(_mm256_mullo_epi32(d[10], txmat_2_0),
-                              _mm256_mullo_epi32(d[11], txmat_2_2));
-      e[6] = _mm256_add_epi32(_mm256_mullo_epi32(d[12], txmat_2_5),
-                              _mm256_mullo_epi32(d[13], txmat_2_8));
-      e[7] = _mm256_add_epi32(_mm256_mullo_epi32(d[14], txmat_2_11),
-                              _mm256_mullo_epi32(d[15], txmat_2_14));
-      e[0] = _mm256_add_epi32(_mm256_add_epi32(e[0], e[1]),
-                              _mm256_sub_epi32(e[2], e[3]));
-      e[4] = _mm256_add_epi32(_mm256_add_epi32(e[4], e[5]),
-                              _mm256_add_epi32(e[6], e[7]));
-      a[6] = _mm256_sub_epi32(e[0], e[4]);
-
-      e[0] = _mm256_add_epi32(_mm256_mullo_epi32(d[0], txmat_2_2),
-                              _mm256_mullo_epi32(d[1], txmat_2_7));
-      e[1] = _mm256_sub_epi32(_mm256_mullo_epi32(d[2], txmat_2_12),
-                              _mm256_mullo_epi32(d[3], txmat_2_14));
-      e[2] = _mm256_add_epi32(_mm256_mullo_epi32(d[4], txmat_2_9),
-                              _mm256_mullo_epi32(d[5], txmat_2_4));
-      e[3] = _mm256_add_epi32(_mm256_mullo_epi32(d[6], txmat_2_0),
-                              _mm256_mullo_epi32(d[7], txmat_2_5));
-      e[4] = _mm256_add_epi32(_mm256_mullo_epi32(d[8], txmat_2_10),
-                              _mm256_mullo_epi32(d[9], txmat_2_15));
-      e[5] = _mm256_add_epi32(_mm256_mullo_epi32(d[10], txmat_2_11),
-                              _mm256_mullo_epi32(d[11], txmat_2_6));
-      e[6] = _mm256_add_epi32(_mm256_mullo_epi32(d[12], txmat_2_1),
-                              _mm256_mullo_epi32(d[13], txmat_2_3));
-      e[7] = _mm256_add_epi32(_mm256_mullo_epi32(d[14], txmat_2_8),
-                              _mm256_mullo_epi32(d[15], txmat_2_13));
-      e[0] = _mm256_sub_epi32(_mm256_add_epi32(e[0], e[1]),
-                              _mm256_add_epi32(e[2], e[3]));
-      e[4] = _mm256_sub_epi32(_mm256_sub_epi32(e[4], e[5]),
-                              _mm256_add_epi32(e[6], e[7]));
-      a[10] = _mm256_sub_epi32(e[0], e[4]);
-
-      e[0] = _mm256_add_epi32(_mm256_mullo_epi32(d[0], txmat_2_3),
-                              _mm256_mullo_epi32(d[1], txmat_2_10));
-      e[1] = _mm256_add_epi32(_mm256_mullo_epi32(d[2], txmat_2_14),
-                              _mm256_mullo_epi32(d[3], txmat_2_7));
-      e[2] = _mm256_add_epi32(_mm256_mullo_epi32(d[4], txmat_2_0),
-                              _mm256_mullo_epi32(d[5], txmat_2_6));
-      e[3] = _mm256_sub_epi32(_mm256_mullo_epi32(d[6], txmat_2_13),
-                              _mm256_mullo_epi32(d[7], txmat_2_11));
-      e[4] = _mm256_add_epi32(_mm256_mullo_epi32(d[8], txmat_2_4),
-                              _mm256_mullo_epi32(d[9], txmat_2_2));
-      e[5] = _mm256_sub_epi32(_mm256_mullo_epi32(d[10], txmat_2_9),
-                              _mm256_mullo_epi32(d[11], txmat_2_15));
-      e[6] = _mm256_add_epi32(_mm256_mullo_epi32(d[12], txmat_2_8),
-                              _mm256_mullo_epi32(d[13], txmat_2_1));
-      e[7] = _mm256_add_epi32(_mm256_mullo_epi32(d[14], txmat_2_5),
-                              _mm256_mullo_epi32(d[15], txmat_2_12));
-      e[0] = _mm256_sub_epi32(_mm256_sub_epi32(e[0], e[1]),
-                              _mm256_add_epi32(e[2], e[3]));
-      e[4] = _mm256_sub_epi32(_mm256_add_epi32(e[4], e[5]),
-                              _mm256_add_epi32(e[6], e[7]));
-      a[14] = _mm256_add_epi32(e[0], e[4]);
-
-      e[0] = _mm256_add_epi32(_mm256_mullo_epi32(d[0], txmat_2_4),
-                              _mm256_mullo_epi32(d[1], txmat_2_13));
-      e[1] = _mm256_add_epi32(_mm256_mullo_epi32(d[2], txmat_2_9),
-                              _mm256_mullo_epi32(d[3], txmat_2_0));
-      e[2] = _mm256_sub_epi32(_mm256_mullo_epi32(d[4], txmat_2_8),
-                              _mm256_mullo_epi32(d[5], txmat_2_14));
-      e[3] = _mm256_add_epi32(_mm256_mullo_epi32(d[6], txmat_2_5),
-                              _mm256_mullo_epi32(d[7], txmat_2_3));
-      e[4] = _mm256_sub_epi32(_mm256_mullo_epi32(d[8], txmat_2_12),
-                              _mm256_mullo_epi32(d[9], txmat_2_10));
-      e[5] = _mm256_add_epi32(_mm256_mullo_epi32(d[10], txmat_2_1),
-                              _mm256_mullo_epi32(d[11], txmat_2_7));
-      e[6] = _mm256_add_epi32(_mm256_mullo_epi32(d[12], txmat_2_15),
-                              _mm256_mullo_epi32(d[13], txmat_2_6));
-      e[7] = _mm256_add_epi32(_mm256_mullo_epi32(d[14], txmat_2_2),
-                              _mm256_mullo_epi32(d[15], txmat_2_11));
-      e[0] = _mm256_sub_epi32(_mm256_sub_epi32(e[0], e[1]),
-                              _mm256_sub_epi32(e[2], e[3]));
-      e[4] = _mm256_add_epi32(_mm256_sub_epi32(e[4], e[5]),
-                              _mm256_add_epi32(e[6], e[7]));
-      a[18] = _mm256_add_epi32(e[0], e[4]);
-
-      e[0] = _mm256_sub_epi32(_mm256_mullo_epi32(d[0], txmat_2_5),
-                              _mm256_mullo_epi32(d[1], txmat_2_15));
-      e[1] = _mm256_add_epi32(_mm256_mullo_epi32(d[2], txmat_2_4),
-                              _mm256_mullo_epi32(d[3], txmat_2_6));
-      e[2] = _mm256_add_epi32(_mm256_mullo_epi32(d[4], txmat_2_14),
-                              _mm256_mullo_epi32(d[5], txmat_2_3));
-      e[3] = _mm256_sub_epi32(_mm256_mullo_epi32(d[6], txmat_2_7),
-                              _mm256_mullo_epi32(d[7], txmat_2_13));
-      e[4] = _mm256_add_epi32(_mm256_mullo_epi32(d[8], txmat_2_2),
-                              _mm256_mullo_epi32(d[9], txmat_2_8));
-      e[5] = _mm256_add_epi32(_mm256_mullo_epi32(d[10], txmat_2_12),
-                              _mm256_mullo_epi32(d[11], txmat_2_1));
-      e[6] = _mm256_sub_epi32(_mm256_mullo_epi32(d[12], txmat_2_9),
-                              _mm256_mullo_epi32(d[13], txmat_2_11));
-      e[7] = _mm256_add_epi32(_mm256_mullo_epi32(d[14], txmat_2_0),
-                              _mm256_mullo_epi32(d[15], txmat_2_10));
-      e[0] = _mm256_add_epi32(_mm256_sub_epi32(e[0], e[1]),
-                              _mm256_add_epi32(e[2], e[3]));
-      e[4] = _mm256_sub_epi32(_mm256_sub_epi32(e[4], e[5]),
-                              _mm256_sub_epi32(e[6], e[7]));
-      a[22] = _mm256_sub_epi32(e[0], e[4]);
-
-      e[0] = _mm256_sub_epi32(_mm256_mullo_epi32(d[0], txmat_2_6),
-                              _mm256_mullo_epi32(d[1], txmat_2_12));
-      e[1] = _mm256_add_epi32(_mm256_mullo_epi32(d[2], txmat_2_0),
-                              _mm256_mullo_epi32(d[3], txmat_2_13));
-      e[2] = _mm256_add_epi32(_mm256_mullo_epi32(d[4], txmat_2_5),
-                              _mm256_mullo_epi32(d[5], txmat_2_7));
-      e[3] = _mm256_add_epi32(_mm256_mullo_epi32(d[6], txmat_2_11),
-                              _mm256_mullo_epi32(d[7], txmat_2_1));
-      e[4] = _mm256_sub_epi32(_mm256_mullo_epi32(d[8], txmat_2_14),
-                              _mm256_mullo_epi32(d[9], txmat_2_4));
-      e[5] = _mm256_sub_epi32(_mm256_mullo_epi32(d[10], txmat_2_8),
-                              _mm256_mullo_epi32(d[11], txmat_2_10));
-      e[6] = _mm256_add_epi32(_mm256_mullo_epi32(d[12], txmat_2_2),
-                              _mm256_mullo_epi32(d[13], txmat_2_15));
-      e[7] = _mm256_add_epi32(_mm256_mullo_epi32(d[14], txmat_2_3),
-                              _mm256_mullo_epi32(d[15], txmat_2_9));
-      e[0] = _mm256_add_epi32(_mm256_sub_epi32(e[0], e[1]),
-                              _mm256_sub_epi32(e[2], e[3]));
-      e[4] = _mm256_add_epi32(_mm256_sub_epi32(e[4], e[5]),
-                              _mm256_sub_epi32(e[6], e[7]));
-      a[26] = _mm256_sub_epi32(e[0], e[4]);
-
-      e[0] = _mm256_sub_epi32(_mm256_mullo_epi32(d[0], txmat_2_7),
-                              _mm256_mullo_epi32(d[1], txmat_2_9));
-      e[1] = _mm256_sub_epi32(_mm256_mullo_epi32(d[2], txmat_2_5),
-                              _mm256_mullo_epi32(d[3], txmat_2_11));
-      e[2] = _mm256_sub_epi32(_mm256_mullo_epi32(d[4], txmat_2_3),
-                              _mm256_mullo_epi32(d[5], txmat_2_13));
-      e[3] = _mm256_sub_epi32(_mm256_mullo_epi32(d[6], txmat_2_1),
-                              _mm256_mullo_epi32(d[7], txmat_2_15));
-      e[4] = _mm256_add_epi32(_mm256_mullo_epi32(d[8], txmat_2_0),
-                              _mm256_mullo_epi32(d[9], txmat_2_14));
-      e[5] = _mm256_add_epi32(_mm256_mullo_epi32(d[10], txmat_2_2),
-                              _mm256_mullo_epi32(d[11], txmat_2_12));
-      e[6] = _mm256_add_epi32(_mm256_mullo_epi32(d[12], txmat_2_4),
-                              _mm256_mullo_epi32(d[13], txmat_2_10));
-      e[7] = _mm256_add_epi32(_mm256_mullo_epi32(d[14], txmat_2_6),
-                              _mm256_mullo_epi32(d[15], txmat_2_8));
-      e[0] = _mm256_add_epi32(_mm256_sub_epi32(e[0], e[1]),
-                              _mm256_sub_epi32(e[2], e[3]));
-      e[4] = _mm256_add_epi32(_mm256_sub_epi32(e[4], e[5]),
-                              _mm256_sub_epi32(e[6], e[7]));
-      a[30] = _mm256_add_epi32(e[0], e[4]);
-
-      // 362, 361, 359, 357,      353, 349, 344, 338,      331, 323, 315, 306,
-      // 296, 285, 274, 262,      250, 236, 223, 208,      194, 178, 163, 147,
-      // 130, 114,  97,  79,       62,  44,  27,   9
-      c[0] = _mm256_add_epi32(_mm256_mullo_epi32(b[0], txmat_1_0),
-                              _mm256_mullo_epi32(b[1], txmat_1_1));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_2),
-                              _mm256_mullo_epi32(b[3], txmat_1_3));
-      c[2] = _mm256_add_epi32(_mm256_mullo_epi32(b[4], txmat_1_4),
-                              _mm256_mullo_epi32(b[5], txmat_1_5));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_6),
-                              _mm256_mullo_epi32(b[7], txmat_1_7));
-      c[4] = _mm256_add_epi32(_mm256_mullo_epi32(b[8], txmat_1_8),
-                              _mm256_mullo_epi32(b[9], txmat_1_9));
-      c[5] = _mm256_add_epi32(_mm256_mullo_epi32(b[10], txmat_1_10),
-                              _mm256_mullo_epi32(b[11], txmat_1_11));
-      c[6] = _mm256_add_epi32(_mm256_mullo_epi32(b[12], txmat_1_12),
-                              _mm256_mullo_epi32(b[13], txmat_1_13));
-      c[7] = _mm256_add_epi32(_mm256_mullo_epi32(b[14], txmat_1_14),
-                              _mm256_mullo_epi32(b[15], txmat_1_15));
-      c[8] = _mm256_add_epi32(_mm256_mullo_epi32(b[16], txmat_1_16),
-                              _mm256_mullo_epi32(b[17], txmat_1_17));
-      c[9] = _mm256_add_epi32(_mm256_mullo_epi32(b[18], txmat_1_18),
-                              _mm256_mullo_epi32(b[19], txmat_1_19));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_20),
-                               _mm256_mullo_epi32(b[21], txmat_1_21));
-      c[11] = _mm256_add_epi32(_mm256_mullo_epi32(b[22], txmat_1_22),
-                               _mm256_mullo_epi32(b[23], txmat_1_23));
-      c[12] = _mm256_add_epi32(_mm256_mullo_epi32(b[24], txmat_1_24),
-                               _mm256_mullo_epi32(b[25], txmat_1_25));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_26),
-                               _mm256_mullo_epi32(b[27], txmat_1_27));
-      c[14] = _mm256_add_epi32(_mm256_mullo_epi32(b[28], txmat_1_28),
-                               _mm256_mullo_epi32(b[29], txmat_1_29));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_30),
-                               _mm256_mullo_epi32(b[31], txmat_1_31));
-      c[0] = _mm256_add_epi32(_mm256_add_epi32(c[0], c[1]),
-                              _mm256_add_epi32(c[2], c[3]));
-      c[4] = _mm256_add_epi32(_mm256_add_epi32(c[4], c[5]),
-                              _mm256_add_epi32(c[6], c[7]));
-      c[8] = _mm256_add_epi32(_mm256_add_epi32(c[8], c[9]),
-                              _mm256_add_epi32(c[10], c[11]));
-      c[12] = _mm256_add_epi32(_mm256_add_epi32(c[12], c[13]),
-                               _mm256_add_epi32(c[14], c[15]));
-      a[1] = _mm256_add_epi32(_mm256_add_epi32(c[0], c[4]),
-                              _mm256_add_epi32(c[8], c[12]));
-
-      // 361, 353, 338, 315,      285, 250, 208, 163,      114,  62,   9, -44,
-      // -97,-147,-194,-236,     -274,-306,-331,-349,     -359,-362,-357,-344,
-      // -323,-296,-262,-223,     -178,-130, -79, -27
-      c[0] = _mm256_add_epi32(_mm256_mullo_epi32(b[0], txmat_1_1),
-                              _mm256_mullo_epi32(b[1], txmat_1_4));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_7),
-                              _mm256_mullo_epi32(b[3], txmat_1_10));
-      c[2] = _mm256_add_epi32(_mm256_mullo_epi32(b[4], txmat_1_13),
-                              _mm256_mullo_epi32(b[5], txmat_1_16));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_19),
-                              _mm256_mullo_epi32(b[7], txmat_1_22));
-      c[4] = _mm256_add_epi32(_mm256_mullo_epi32(b[8], txmat_1_25),
-                              _mm256_mullo_epi32(b[9], txmat_1_28));
-      c[5] = _mm256_sub_epi32(_mm256_mullo_epi32(b[10], txmat_1_31),
-                              _mm256_mullo_epi32(b[11], txmat_1_29));
-      c[6] = _mm256_add_epi32(_mm256_mullo_epi32(b[12], txmat_1_26),
-                              _mm256_mullo_epi32(b[13], txmat_1_23));
-      c[7] = _mm256_add_epi32(_mm256_mullo_epi32(b[14], txmat_1_20),
-                              _mm256_mullo_epi32(b[15], txmat_1_17));
-      c[8] = _mm256_add_epi32(_mm256_mullo_epi32(b[16], txmat_1_14),
-                              _mm256_mullo_epi32(b[17], txmat_1_11));
-      c[9] = _mm256_add_epi32(_mm256_mullo_epi32(b[18], txmat_1_8),
-                              _mm256_mullo_epi32(b[19], txmat_1_5));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_2),
-                               _mm256_mullo_epi32(b[21], txmat_1_0));
-      c[11] = _mm256_add_epi32(_mm256_mullo_epi32(b[22], txmat_1_3),
-                               _mm256_mullo_epi32(b[23], txmat_1_6));
-      c[12] = _mm256_add_epi32(_mm256_mullo_epi32(b[24], txmat_1_9),
-                               _mm256_mullo_epi32(b[25], txmat_1_12));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_15),
-                               _mm256_mullo_epi32(b[27], txmat_1_18));
-      c[14] = _mm256_add_epi32(_mm256_mullo_epi32(b[28], txmat_1_21),
-                               _mm256_mullo_epi32(b[29], txmat_1_24));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_27),
-                               _mm256_mullo_epi32(b[31], txmat_1_30));
-      c[0] = _mm256_add_epi32(_mm256_add_epi32(c[0], c[1]),
-                              _mm256_add_epi32(c[2], c[3]));
-      c[4] = _mm256_sub_epi32(_mm256_add_epi32(c[4], c[5]),
-                              _mm256_add_epi32(c[6], c[7]));
-      c[8] = _mm256_add_epi32(_mm256_add_epi32(c[8], c[9]),
-                              _mm256_add_epi32(c[10], c[11]));
-      c[12] = _mm256_add_epi32(_mm256_add_epi32(c[12], c[13]),
-                               _mm256_add_epi32(c[14], c[15]));
-      a[3] = _mm256_sub_epi32(_mm256_add_epi32(c[0], c[4]),
-                              _mm256_add_epi32(c[8], c[12]));
-
-      // 359, 338, 296, 236,      163,  79,  -9, -97,     -178,-250,-306,-344,
-      // -361,-357,-331,-285,     -223,-147, -62,  27,      114, 194, 262, 315,
-      // 349, 362, 353, 323,      274, 208, 130,  44
-      c[0] = _mm256_add_epi32(_mm256_mullo_epi32(b[0], txmat_1_2),
-                              _mm256_mullo_epi32(b[1], txmat_1_7));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_12),
-                              _mm256_mullo_epi32(b[3], txmat_1_17));
-      c[2] = _mm256_add_epi32(_mm256_mullo_epi32(b[4], txmat_1_22),
-                              _mm256_mullo_epi32(b[5], txmat_1_27));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_31),
-                              _mm256_mullo_epi32(b[7], txmat_1_26));
-      c[4] = _mm256_add_epi32(_mm256_mullo_epi32(b[8], txmat_1_21),
-                              _mm256_mullo_epi32(b[9], txmat_1_16));
-      c[5] = _mm256_add_epi32(_mm256_mullo_epi32(b[10], txmat_1_11),
-                              _mm256_mullo_epi32(b[11], txmat_1_6));
-      c[6] = _mm256_add_epi32(_mm256_mullo_epi32(b[12], txmat_1_1),
-                              _mm256_mullo_epi32(b[13], txmat_1_3));
-      c[7] = _mm256_add_epi32(_mm256_mullo_epi32(b[14], txmat_1_8),
-                              _mm256_mullo_epi32(b[15], txmat_1_13));
-      c[8] = _mm256_add_epi32(_mm256_mullo_epi32(b[16], txmat_1_18),
-                              _mm256_mullo_epi32(b[17], txmat_1_23));
-      c[9] = _mm256_sub_epi32(_mm256_mullo_epi32(b[18], txmat_1_28),
-                              _mm256_mullo_epi32(b[19], txmat_1_30));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_25),
-                               _mm256_mullo_epi32(b[21], txmat_1_20));
-      c[11] = _mm256_add_epi32(_mm256_mullo_epi32(b[22], txmat_1_15),
-                               _mm256_mullo_epi32(b[23], txmat_1_10));
-      c[12] = _mm256_add_epi32(_mm256_mullo_epi32(b[24], txmat_1_5),
-                               _mm256_mullo_epi32(b[25], txmat_1_0));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_4),
-                               _mm256_mullo_epi32(b[27], txmat_1_9));
-      c[14] = _mm256_add_epi32(_mm256_mullo_epi32(b[28], txmat_1_14),
-                               _mm256_mullo_epi32(b[29], txmat_1_19));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_24),
-                               _mm256_mullo_epi32(b[31], txmat_1_29));
-      c[0] = _mm256_add_epi32(_mm256_add_epi32(c[0], c[1]),
-                              _mm256_sub_epi32(c[2], c[3]));
-      c[4] = _mm256_add_epi32(_mm256_add_epi32(c[4], c[5]),
-                              _mm256_add_epi32(c[6], c[7]));
-      c[8] = _mm256_sub_epi32(_mm256_add_epi32(c[8], c[9]),
-                              _mm256_add_epi32(c[10], c[11]));
-      c[12] = _mm256_add_epi32(_mm256_add_epi32(c[12], c[13]),
-                               _mm256_add_epi32(c[14], c[15]));
-      a[5] = _mm256_sub_epi32(_mm256_sub_epi32(c[0], c[4]),
-                              _mm256_sub_epi32(c[8], c[12]));
-
-      // 357, 315, 236, 130,        9,-114,-223,-306,     -353,-359,-323,-250,
-      // -147, -27,  97, 208,      296, 349, 361, 331,      262, 163,  44, -79,
-      // -194,-285,-344,-362,     -338,-274,-178, -62
-      c[0] = _mm256_add_epi32(_mm256_mullo_epi32(b[0], txmat_1_3),
-                              _mm256_mullo_epi32(b[1], txmat_1_10));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_17),
-                              _mm256_mullo_epi32(b[3], txmat_1_24));
-      c[2] = _mm256_sub_epi32(_mm256_mullo_epi32(b[4], txmat_1_31),
-                              _mm256_mullo_epi32(b[5], txmat_1_25));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_18),
-                              _mm256_mullo_epi32(b[7], txmat_1_11));
-      c[4] = _mm256_add_epi32(_mm256_mullo_epi32(b[8], txmat_1_4),
-                              _mm256_mullo_epi32(b[9], txmat_1_2));
-      c[5] = _mm256_add_epi32(_mm256_mullo_epi32(b[10], txmat_1_9),
-                              _mm256_mullo_epi32(b[11], txmat_1_16));
-      c[6] = _mm256_add_epi32(_mm256_mullo_epi32(b[12], txmat_1_23),
-                              _mm256_mullo_epi32(b[13], txmat_1_30));
-      c[7] = _mm256_add_epi32(_mm256_mullo_epi32(b[14], txmat_1_26),
-                              _mm256_mullo_epi32(b[15], txmat_1_19));
-      c[8] = _mm256_add_epi32(_mm256_mullo_epi32(b[16], txmat_1_12),
-                              _mm256_mullo_epi32(b[17], txmat_1_5));
-      c[9] = _mm256_add_epi32(_mm256_mullo_epi32(b[18], txmat_1_1),
-                              _mm256_mullo_epi32(b[19], txmat_1_8));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_15),
-                               _mm256_mullo_epi32(b[21], txmat_1_22));
-      c[11] = _mm256_sub_epi32(_mm256_mullo_epi32(b[22], txmat_1_29),
-                               _mm256_mullo_epi32(b[23], txmat_1_27));
-      c[12] = _mm256_add_epi32(_mm256_mullo_epi32(b[24], txmat_1_20),
-                               _mm256_mullo_epi32(b[25], txmat_1_13));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_6),
-                               _mm256_mullo_epi32(b[27], txmat_1_0));
-      c[14] = _mm256_add_epi32(_mm256_mullo_epi32(b[28], txmat_1_7),
-                               _mm256_mullo_epi32(b[29], txmat_1_14));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_21),
-                               _mm256_mullo_epi32(b[31], txmat_1_28));
-      c[0] = _mm256_add_epi32(_mm256_add_epi32(c[0], c[1]),
-                              _mm256_sub_epi32(c[2], c[3]));
-      c[4] = _mm256_add_epi32(_mm256_add_epi32(c[4], c[5]),
-                              _mm256_sub_epi32(c[6], c[7]));
-      c[8] = _mm256_add_epi32(_mm256_add_epi32(c[8], c[9]),
-                              _mm256_add_epi32(c[10], c[11]));
-      c[12] = _mm256_add_epi32(_mm256_add_epi32(c[12], c[13]),
-                               _mm256_add_epi32(c[14], c[15]));
-      a[7] = _mm256_add_epi32(_mm256_sub_epi32(c[0], c[4]),
-                              _mm256_sub_epi32(c[8], c[12]));
-
-      // 353, 285, 163,   9,     -147,-274,-349,-357,     -296,-178, -27, 130,
-      // 262, 344, 359, 306,      194,  44,-114,-250,     -338,-361,-315,-208,
-      // -62,  97, 236, 331,      362, 323, 223,  79
-      c[0] = _mm256_add_epi32(_mm256_mullo_epi32(b[0], txmat_1_4),
-                              _mm256_mullo_epi32(b[1], txmat_1_13));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_22),
-                              _mm256_mullo_epi32(b[3], txmat_1_31));
-      c[2] = _mm256_add_epi32(_mm256_mullo_epi32(b[4], txmat_1_23),
-                              _mm256_mullo_epi32(b[5], txmat_1_14));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_5),
-                              _mm256_mullo_epi32(b[7], txmat_1_3));
-      c[4] = _mm256_add_epi32(_mm256_mullo_epi32(b[8], txmat_1_12),
-                              _mm256_mullo_epi32(b[9], txmat_1_21));
-      c[5] = _mm256_sub_epi32(_mm256_mullo_epi32(b[10], txmat_1_30),
-                              _mm256_mullo_epi32(b[11], txmat_1_24));
-      c[6] = _mm256_add_epi32(_mm256_mullo_epi32(b[12], txmat_1_15),
-                              _mm256_mullo_epi32(b[13], txmat_1_6));
-      c[7] = _mm256_add_epi32(_mm256_mullo_epi32(b[14], txmat_1_2),
-                              _mm256_mullo_epi32(b[15], txmat_1_11));
-      c[8] = _mm256_add_epi32(_mm256_mullo_epi32(b[16], txmat_1_20),
-                              _mm256_mullo_epi32(b[17], txmat_1_29));
-      c[9] = _mm256_add_epi32(_mm256_mullo_epi32(b[18], txmat_1_25),
-                              _mm256_mullo_epi32(b[19], txmat_1_16));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_7),
-                               _mm256_mullo_epi32(b[21], txmat_1_1));
-      c[11] = _mm256_add_epi32(_mm256_mullo_epi32(b[22], txmat_1_10),
-                               _mm256_mullo_epi32(b[23], txmat_1_19));
-      c[12] = _mm256_sub_epi32(_mm256_mullo_epi32(b[24], txmat_1_28),
-                               _mm256_mullo_epi32(b[25], txmat_1_26));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_17),
-                               _mm256_mullo_epi32(b[27], txmat_1_8));
-      c[14] = _mm256_add_epi32(_mm256_mullo_epi32(b[28], txmat_1_0),
-                               _mm256_mullo_epi32(b[29], txmat_1_9));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_18),
-                               _mm256_mullo_epi32(b[31], txmat_1_27));
-      c[0] = _mm256_sub_epi32(_mm256_add_epi32(c[0], c[1]),
-                              _mm256_add_epi32(c[2], c[3]));
-      c[4] = _mm256_sub_epi32(_mm256_add_epi32(c[4], c[5]),
-                              _mm256_add_epi32(c[6], c[7]));
-      c[8] = _mm256_sub_epi32(_mm256_sub_epi32(c[8], c[9]),
-                              _mm256_add_epi32(c[10], c[11]));
-      c[12] = _mm256_sub_epi32(_mm256_sub_epi32(c[12], c[13]),
-                               _mm256_add_epi32(c[14], c[15]));
-      a[9] = _mm256_add_epi32(_mm256_sub_epi32(c[0], c[4]),
-                              _mm256_sub_epi32(c[8], c[12]));
-
-      // 349, 250,  79,-114,     -274,-357,-338,-223,      -44, 147, 296, 361,
-      // 323, 194,   9,-178,     -315,-362,-306,-163,       27, 208, 331, 359,
-      // 285, 130, -62,-236,     -344,-353,-262, -97
-      c[0] = _mm256_add_epi32(_mm256_mullo_epi32(b[0], txmat_1_5),
-                              _mm256_mullo_epi32(b[1], txmat_1_16));
-      c[1] = _mm256_sub_epi32(_mm256_mullo_epi32(b[2], txmat_1_27),
-                              _mm256_mullo_epi32(b[3], txmat_1_25));
-      c[2] = _mm256_add_epi32(_mm256_mullo_epi32(b[4], txmat_1_14),
-                              _mm256_mullo_epi32(b[5], txmat_1_3));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_7),
-                              _mm256_mullo_epi32(b[7], txmat_1_18));
-      c[4] = _mm256_sub_epi32(_mm256_mullo_epi32(b[8], txmat_1_29),
-                              _mm256_mullo_epi32(b[9], txmat_1_23));
-      c[5] = _mm256_add_epi32(_mm256_mullo_epi32(b[10], txmat_1_12),
-                              _mm256_mullo_epi32(b[11], txmat_1_1));
-      c[6] = _mm256_add_epi32(_mm256_mullo_epi32(b[12], txmat_1_9),
-                              _mm256_mullo_epi32(b[13], txmat_1_20));
-      c[7] = _mm256_sub_epi32(_mm256_mullo_epi32(b[14], txmat_1_31),
-                              _mm256_mullo_epi32(b[15], txmat_1_21));
-      c[8] = _mm256_add_epi32(_mm256_mullo_epi32(b[16], txmat_1_10),
-                              _mm256_mullo_epi32(b[17], txmat_1_0));
-      c[9] = _mm256_add_epi32(_mm256_mullo_epi32(b[18], txmat_1_11),
-                              _mm256_mullo_epi32(b[19], txmat_1_22));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_30),
-                               _mm256_mullo_epi32(b[21], txmat_1_19));
-      c[11] = _mm256_add_epi32(_mm256_mullo_epi32(b[22], txmat_1_8),
-                               _mm256_mullo_epi32(b[23], txmat_1_2));
-      c[12] = _mm256_add_epi32(_mm256_mullo_epi32(b[24], txmat_1_13),
-                               _mm256_mullo_epi32(b[25], txmat_1_24));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_28),
-                               _mm256_mullo_epi32(b[27], txmat_1_17));
-      c[14] = _mm256_add_epi32(_mm256_mullo_epi32(b[28], txmat_1_6),
-                               _mm256_mullo_epi32(b[29], txmat_1_4));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_15),
-                               _mm256_mullo_epi32(b[31], txmat_1_26));
-      c[0] = _mm256_sub_epi32(_mm256_add_epi32(c[0], c[1]),
-                              _mm256_add_epi32(c[2], c[3]));
-      c[4] = _mm256_sub_epi32(_mm256_sub_epi32(c[4], c[5]),
-                              _mm256_add_epi32(c[6], c[7]));
-      c[8] = _mm256_sub_epi32(_mm256_add_epi32(c[8], c[9]),
-                              _mm256_add_epi32(c[10], c[11]));
-      c[12] = _mm256_sub_epi32(_mm256_sub_epi32(c[12], c[13]),
-                               _mm256_add_epi32(c[14], c[15]));
-      a[11] = _mm256_sub_epi32(_mm256_sub_epi32(c[0], c[4]),
-                               _mm256_sub_epi32(c[8], c[12]));
-
-      // 344, 208,  -9,-223,     -349,-338,-194,  27,      236, 353, 331, 178,
-      // -44,-250,-357,-323,     -163,  62, 262, 359,      315, 147, -79,-274,
-      // -361,-306,-130,  97,      285, 362, 296, 114
-      c[0] = _mm256_add_epi32(_mm256_mullo_epi32(b[0], txmat_1_6),
-                              _mm256_mullo_epi32(b[1], txmat_1_19));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_31),
-                              _mm256_mullo_epi32(b[3], txmat_1_18));
-      c[2] = _mm256_add_epi32(_mm256_mullo_epi32(b[4], txmat_1_5),
-                              _mm256_mullo_epi32(b[5], txmat_1_7));
-      c[3] = _mm256_sub_epi32(_mm256_mullo_epi32(b[6], txmat_1_20),
-                              _mm256_mullo_epi32(b[7], txmat_1_30));
-      c[4] = _mm256_add_epi32(_mm256_mullo_epi32(b[8], txmat_1_17),
-                              _mm256_mullo_epi32(b[9], txmat_1_4));
-      c[5] = _mm256_add_epi32(_mm256_mullo_epi32(b[10], txmat_1_8),
-                              _mm256_mullo_epi32(b[11], txmat_1_21));
-      c[6] = _mm256_add_epi32(_mm256_mullo_epi32(b[12], txmat_1_29),
-                              _mm256_mullo_epi32(b[13], txmat_1_16));
-      c[7] = _mm256_add_epi32(_mm256_mullo_epi32(b[14], txmat_1_3),
-                              _mm256_mullo_epi32(b[15], txmat_1_9));
-      c[8] = _mm256_sub_epi32(_mm256_mullo_epi32(b[16], txmat_1_22),
-                              _mm256_mullo_epi32(b[17], txmat_1_28));
-      c[9] = _mm256_add_epi32(_mm256_mullo_epi32(b[18], txmat_1_15),
-                              _mm256_mullo_epi32(b[19], txmat_1_2));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_10),
-                               _mm256_mullo_epi32(b[21], txmat_1_23));
-      c[11] = _mm256_add_epi32(_mm256_mullo_epi32(b[22], txmat_1_27),
-                               _mm256_mullo_epi32(b[23], txmat_1_14));
-      c[12] = _mm256_add_epi32(_mm256_mullo_epi32(b[24], txmat_1_1),
-                               _mm256_mullo_epi32(b[25], txmat_1_11));
-      c[13] = _mm256_sub_epi32(_mm256_mullo_epi32(b[26], txmat_1_24),
-                               _mm256_mullo_epi32(b[27], txmat_1_26));
-      c[14] = _mm256_add_epi32(_mm256_mullo_epi32(b[28], txmat_1_13),
-                               _mm256_mullo_epi32(b[29], txmat_1_0));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_12),
-                               _mm256_mullo_epi32(b[31], txmat_1_25));
-      c[0] = _mm256_sub_epi32(_mm256_sub_epi32(c[0], c[1]),
-                              _mm256_add_epi32(c[2], c[3]));
-      c[4] = _mm256_sub_epi32(_mm256_add_epi32(c[4], c[5]),
-                              _mm256_add_epi32(c[6], c[7]));
-      c[8] = _mm256_sub_epi32(_mm256_sub_epi32(c[8], c[9]),
-                              _mm256_sub_epi32(c[10], c[11]));
-      c[12] = _mm256_sub_epi32(_mm256_add_epi32(c[12], c[13]),
-                               _mm256_add_epi32(c[14], c[15]));
-      a[13] = _mm256_sub_epi32(_mm256_add_epi32(c[0], c[4]),
-                               _mm256_add_epi32(c[8], c[12]));
-
-      // 338, 163, -97,-306,     -357,-223,  27, 262,      362, 274,  44,-208,
-      // -353,-315,-114, 147,      331, 344, 178, -79,     -296,-359,-236,   9,
-      // 250, 361, 285,  62,     -194,-349,-323,-130
-      c[0] = _mm256_add_epi32(_mm256_mullo_epi32(b[0], txmat_1_7),
-                              _mm256_mullo_epi32(b[1], txmat_1_22));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_26),
-                              _mm256_mullo_epi32(b[3], txmat_1_11));
-      c[2] = _mm256_add_epi32(_mm256_mullo_epi32(b[4], txmat_1_3),
-                              _mm256_mullo_epi32(b[5], txmat_1_18));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_30),
-                              _mm256_mullo_epi32(b[7], txmat_1_15));
-      c[4] = _mm256_add_epi32(_mm256_mullo_epi32(b[8], txmat_1_0),
-                              _mm256_mullo_epi32(b[9], txmat_1_14));
-      c[5] = _mm256_sub_epi32(_mm256_mullo_epi32(b[10], txmat_1_29),
-                              _mm256_mullo_epi32(b[11], txmat_1_19));
-      c[6] = _mm256_add_epi32(_mm256_mullo_epi32(b[12], txmat_1_4),
-                              _mm256_mullo_epi32(b[13], txmat_1_10));
-      c[7] = _mm256_sub_epi32(_mm256_mullo_epi32(b[14], txmat_1_25),
-                              _mm256_mullo_epi32(b[15], txmat_1_23));
-      c[8] = _mm256_add_epi32(_mm256_mullo_epi32(b[16], txmat_1_8),
-                              _mm256_mullo_epi32(b[17], txmat_1_6));
-      c[9] = _mm256_sub_epi32(_mm256_mullo_epi32(b[18], txmat_1_21),
-                              _mm256_mullo_epi32(b[19], txmat_1_27));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_12),
-                               _mm256_mullo_epi32(b[21], txmat_1_2));
-      c[11] = _mm256_sub_epi32(_mm256_mullo_epi32(b[22], txmat_1_17),
-                               _mm256_mullo_epi32(b[23], txmat_1_31));
-      c[12] = _mm256_add_epi32(_mm256_mullo_epi32(b[24], txmat_1_16),
-                               _mm256_mullo_epi32(b[25], txmat_1_1));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_13),
-                               _mm256_mullo_epi32(b[27], txmat_1_28));
-      c[14] = _mm256_add_epi32(_mm256_mullo_epi32(b[28], txmat_1_20),
-                               _mm256_mullo_epi32(b[29], txmat_1_5));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_9),
-                               _mm256_mullo_epi32(b[31], txmat_1_24));
-      c[0] = _mm256_sub_epi32(_mm256_sub_epi32(c[0], c[1]),
-                              _mm256_sub_epi32(c[2], c[3]));
-      c[4] = _mm256_sub_epi32(_mm256_add_epi32(c[4], c[5]),
-                              _mm256_add_epi32(c[6], c[7]));
-      c[8] = _mm256_sub_epi32(_mm256_add_epi32(c[8], c[9]),
-                              _mm256_add_epi32(c[10], c[11]));
-      c[12] = _mm256_sub_epi32(_mm256_add_epi32(c[12], c[13]),
-                               _mm256_add_epi32(c[14], c[15]));
-      a[15] = _mm256_add_epi32(_mm256_add_epi32(c[0], c[4]),
-                               _mm256_add_epi32(c[8], c[12]));
-
-      // 331, 114,-178,-353,     -296, -44, 236, 362,      250, -27,-285,-357,
-      // -194,  97, 323, 338,      130,-163,-349,-306,      -62, 223, 361, 262,
-      // -9,-274,-359,-208,       79, 315, 344, 147
-      c[0] = _mm256_add_epi32(_mm256_mullo_epi32(b[0], txmat_1_8),
-                              _mm256_mullo_epi32(b[1], txmat_1_25));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_21),
-                              _mm256_mullo_epi32(b[3], txmat_1_4));
-      c[2] = _mm256_add_epi32(_mm256_mullo_epi32(b[4], txmat_1_12),
-                              _mm256_mullo_epi32(b[5], txmat_1_29));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_17),
-                              _mm256_mullo_epi32(b[7], txmat_1_0));
-      c[4] = _mm256_sub_epi32(_mm256_mullo_epi32(b[8], txmat_1_16),
-                              _mm256_mullo_epi32(b[9], txmat_1_30));
-      c[5] = _mm256_add_epi32(_mm256_mullo_epi32(b[10], txmat_1_13),
-                              _mm256_mullo_epi32(b[11], txmat_1_3));
-      c[6] = _mm256_sub_epi32(_mm256_mullo_epi32(b[12], txmat_1_20),
-                              _mm256_mullo_epi32(b[13], txmat_1_26));
-      c[7] = _mm256_add_epi32(_mm256_mullo_epi32(b[14], txmat_1_9),
-                              _mm256_mullo_epi32(b[15], txmat_1_7));
-      c[8] = _mm256_sub_epi32(_mm256_mullo_epi32(b[16], txmat_1_24),
-                              _mm256_mullo_epi32(b[17], txmat_1_22));
-      c[9] = _mm256_add_epi32(_mm256_mullo_epi32(b[18], txmat_1_5),
-                              _mm256_mullo_epi32(b[19], txmat_1_11));
-      c[10] = _mm256_sub_epi32(_mm256_mullo_epi32(b[20], txmat_1_28),
-                               _mm256_mullo_epi32(b[21], txmat_1_18));
-      c[11] = _mm256_add_epi32(_mm256_mullo_epi32(b[22], txmat_1_1),
-                               _mm256_mullo_epi32(b[23], txmat_1_15));
-      c[12] = _mm256_add_epi32(_mm256_mullo_epi32(b[24], txmat_1_31),
-                               _mm256_mullo_epi32(b[25], txmat_1_14));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_2),
-                               _mm256_mullo_epi32(b[27], txmat_1_19));
-      c[14] = _mm256_add_epi32(_mm256_mullo_epi32(b[28], txmat_1_27),
-                               _mm256_mullo_epi32(b[29], txmat_1_10));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_6),
-                               _mm256_mullo_epi32(b[31], txmat_1_23));
-      c[0] = _mm256_sub_epi32(_mm256_sub_epi32(c[0], c[1]),
-                              _mm256_sub_epi32(c[2], c[3]));
-      c[4] = _mm256_sub_epi32(_mm256_sub_epi32(c[4], c[5]),
-                              _mm256_sub_epi32(c[6], c[7]));
-      c[8] = _mm256_sub_epi32(_mm256_sub_epi32(c[8], c[9]),
-                              _mm256_sub_epi32(c[10], c[11]));
-      c[12] = _mm256_sub_epi32(_mm256_add_epi32(c[12], c[13]),
-                               _mm256_add_epi32(c[14], c[15]));
-      a[17] = _mm256_add_epi32(_mm256_add_epi32(c[0], c[4]),
-                               _mm256_sub_epi32(c[8], c[12]));
-
-      // 323,  62,-250,-359,     -178, 147, 353, 274,      -27,-306,-338, -97,
-      // 223, 362, 208,-114,     -344,-296,  -9, 285,      349, 130,-194,-361,
-      // -236,  79, 331, 315,       44,-262,-357,-163
-      c[0] = _mm256_add_epi32(_mm256_mullo_epi32(b[0], txmat_1_9),
-                              _mm256_mullo_epi32(b[1], txmat_1_28));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_16),
-                              _mm256_mullo_epi32(b[3], txmat_1_2));
-      c[2] = _mm256_sub_epi32(_mm256_mullo_epi32(b[4], txmat_1_21),
-                              _mm256_mullo_epi32(b[5], txmat_1_23));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_4),
-                              _mm256_mullo_epi32(b[7], txmat_1_14));
-      c[4] = _mm256_add_epi32(_mm256_mullo_epi32(b[8], txmat_1_30),
-                              _mm256_mullo_epi32(b[9], txmat_1_11));
-      c[5] = _mm256_add_epi32(_mm256_mullo_epi32(b[10], txmat_1_7),
-                              _mm256_mullo_epi32(b[11], txmat_1_26));
-      c[6] = _mm256_add_epi32(_mm256_mullo_epi32(b[12], txmat_1_18),
-                              _mm256_mullo_epi32(b[13], txmat_1_0));
-      c[7] = _mm256_sub_epi32(_mm256_mullo_epi32(b[14], txmat_1_19),
-                              _mm256_mullo_epi32(b[15], txmat_1_25));
-      c[8] = _mm256_add_epi32(_mm256_mullo_epi32(b[16], txmat_1_6),
-                              _mm256_mullo_epi32(b[17], txmat_1_12));
-      c[9] = _mm256_sub_epi32(_mm256_mullo_epi32(b[18], txmat_1_31),
-                              _mm256_mullo_epi32(b[19], txmat_1_13));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_5),
-                               _mm256_mullo_epi32(b[21], txmat_1_24));
-      c[11] = _mm256_add_epi32(_mm256_mullo_epi32(b[22], txmat_1_20),
-                               _mm256_mullo_epi32(b[23], txmat_1_1));
-      c[12] = _mm256_sub_epi32(_mm256_mullo_epi32(b[24], txmat_1_17),
-                               _mm256_mullo_epi32(b[25], txmat_1_27));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_8),
-                               _mm256_mullo_epi32(b[27], txmat_1_10));
-      c[14] = _mm256_sub_epi32(_mm256_mullo_epi32(b[28], txmat_1_29),
-                               _mm256_mullo_epi32(b[29], txmat_1_15));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_3),
-                               _mm256_mullo_epi32(b[31], txmat_1_22));
-      c[0] = _mm256_sub_epi32(_mm256_sub_epi32(c[0], c[1]),
-                              _mm256_sub_epi32(c[2], c[3]));
-      c[4] = _mm256_sub_epi32(_mm256_add_epi32(c[4], c[5]),
-                              _mm256_add_epi32(c[6], c[7]));
-      c[8] = _mm256_sub_epi32(_mm256_add_epi32(c[8], c[9]),
-                              _mm256_sub_epi32(c[10], c[11]));
-      c[12] = _mm256_sub_epi32(_mm256_sub_epi32(c[12], c[13]),
-                               _mm256_sub_epi32(c[14], c[15]));
-      a[19] = _mm256_sub_epi32(_mm256_sub_epi32(c[0], c[4]),
-                               _mm256_add_epi32(c[8], c[12]));
-
-      // 315,   9,-306,-323,      -27, 296, 331,  44,     -285,-338, -62, 274,
-      // 344,  79,-262,-349,      -97, 250, 353, 114,     -236,-357,-130, 223,
-      // 359, 147,-208,-361,     -163, 194, 362, 178
-      c[0] = _mm256_add_epi32(_mm256_mullo_epi32(b[0], txmat_1_10),
-                              _mm256_mullo_epi32(b[1], txmat_1_31));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_11),
-                              _mm256_mullo_epi32(b[3], txmat_1_9));
-      c[2] = _mm256_sub_epi32(_mm256_mullo_epi32(b[4], txmat_1_30),
-                              _mm256_mullo_epi32(b[5], txmat_1_12));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_8),
-                              _mm256_mullo_epi32(b[7], txmat_1_29));
-      c[4] = _mm256_add_epi32(_mm256_mullo_epi32(b[8], txmat_1_13),
-                              _mm256_mullo_epi32(b[9], txmat_1_7));
-      c[5] = _mm256_sub_epi32(_mm256_mullo_epi32(b[10], txmat_1_28),
-                              _mm256_mullo_epi32(b[11], txmat_1_14));
-      c[6] = _mm256_add_epi32(_mm256_mullo_epi32(b[12], txmat_1_6),
-                              _mm256_mullo_epi32(b[13], txmat_1_27));
-      c[7] = _mm256_add_epi32(_mm256_mullo_epi32(b[14], txmat_1_15),
-                              _mm256_mullo_epi32(b[15], txmat_1_5));
-      c[8] = _mm256_sub_epi32(_mm256_mullo_epi32(b[16], txmat_1_26),
-                              _mm256_mullo_epi32(b[17], txmat_1_16));
-      c[9] = _mm256_add_epi32(_mm256_mullo_epi32(b[18], txmat_1_4),
-                              _mm256_mullo_epi32(b[19], txmat_1_25));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_17),
-                               _mm256_mullo_epi32(b[21], txmat_1_3));
-      c[11] = _mm256_sub_epi32(_mm256_mullo_epi32(b[22], txmat_1_24),
-                               _mm256_mullo_epi32(b[23], txmat_1_18));
-      c[12] = _mm256_add_epi32(_mm256_mullo_epi32(b[24], txmat_1_2),
-                               _mm256_mullo_epi32(b[25], txmat_1_23));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_19),
-                               _mm256_mullo_epi32(b[27], txmat_1_1));
-      c[14] = _mm256_sub_epi32(_mm256_mullo_epi32(b[28], txmat_1_22),
-                               _mm256_mullo_epi32(b[29], txmat_1_20));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_0),
-                               _mm256_mullo_epi32(b[31], txmat_1_21));
-      c[0] = _mm256_sub_epi32(_mm256_sub_epi32(c[0], c[1]),
-                              _mm256_sub_epi32(c[2], c[3]));
-      c[4] = _mm256_sub_epi32(_mm256_add_epi32(c[4], c[5]),
-                              _mm256_sub_epi32(c[6], c[7]));
-      c[8] = _mm256_add_epi32(_mm256_sub_epi32(c[8], c[9]),
-                              _mm256_add_epi32(c[10], c[11]));
-      c[12] = _mm256_sub_epi32(_mm256_sub_epi32(c[12], c[13]),
-                               _mm256_sub_epi32(c[14], c[15]));
-      a[21] = _mm256_sub_epi32(_mm256_sub_epi32(c[0], c[4]),
-                               _mm256_sub_epi32(c[8], c[12]));
-
-      // 306, -44,-344,-250,      130, 361, 178,-208,     -357, -97, 274, 331,
-      // 9,-323,-285,  79,      353, 223,-163,-362,     -147, 236, 349,  62,
-      // -296,-315,  27, 338,      262,-114,-359,-194
-      c[0] = _mm256_sub_epi32(_mm256_mullo_epi32(b[0], txmat_1_11),
-                              _mm256_mullo_epi32(b[1], txmat_1_29));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_6),
-                              _mm256_mullo_epi32(b[3], txmat_1_16));
-      c[2] = _mm256_add_epi32(_mm256_mullo_epi32(b[4], txmat_1_24),
-                              _mm256_mullo_epi32(b[5], txmat_1_1));
-      c[3] = _mm256_sub_epi32(_mm256_mullo_epi32(b[6], txmat_1_21),
-                              _mm256_mullo_epi32(b[7], txmat_1_19));
-      c[4] = _mm256_add_epi32(_mm256_mullo_epi32(b[8], txmat_1_3),
-                              _mm256_mullo_epi32(b[9], txmat_1_26));
-      c[5] = _mm256_add_epi32(_mm256_mullo_epi32(b[10], txmat_1_14),
-                              _mm256_mullo_epi32(b[11], txmat_1_8));
-      c[6] = _mm256_sub_epi32(_mm256_mullo_epi32(b[12], txmat_1_31),
-                              _mm256_mullo_epi32(b[13], txmat_1_9));
-      c[7] = _mm256_sub_epi32(_mm256_mullo_epi32(b[14], txmat_1_13),
-                              _mm256_mullo_epi32(b[15], txmat_1_27));
-      c[8] = _mm256_add_epi32(_mm256_mullo_epi32(b[16], txmat_1_4),
-                              _mm256_mullo_epi32(b[17], txmat_1_18));
-      c[9] = _mm256_add_epi32(_mm256_mullo_epi32(b[18], txmat_1_22),
-                              _mm256_mullo_epi32(b[19], txmat_1_0));
-      c[10] = _mm256_sub_epi32(_mm256_mullo_epi32(b[20], txmat_1_23),
-                               _mm256_mullo_epi32(b[21], txmat_1_17));
-      c[11] = _mm256_add_epi32(_mm256_mullo_epi32(b[22], txmat_1_5),
-                               _mm256_mullo_epi32(b[23], txmat_1_28));
-      c[12] = _mm256_add_epi32(_mm256_mullo_epi32(b[24], txmat_1_12),
-                               _mm256_mullo_epi32(b[25], txmat_1_10));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_30),
-                               _mm256_mullo_epi32(b[27], txmat_1_7));
-      c[14] = _mm256_sub_epi32(_mm256_mullo_epi32(b[28], txmat_1_15),
-                               _mm256_mullo_epi32(b[29], txmat_1_25));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_2),
-                               _mm256_mullo_epi32(b[31], txmat_1_20));
-      c[0] = _mm256_add_epi32(_mm256_sub_epi32(c[0], c[1]),
-                              _mm256_add_epi32(c[2], c[3]));
-      c[4] = _mm256_sub_epi32(_mm256_sub_epi32(c[4], c[5]),
-                              _mm256_sub_epi32(c[6], c[7]));
-      c[8] = _mm256_sub_epi32(_mm256_sub_epi32(c[8], c[9]),
-                              _mm256_sub_epi32(c[10], c[11]));
-      c[12] = _mm256_sub_epi32(_mm256_sub_epi32(c[12], c[13]),
-                               _mm256_sub_epi32(c[14], c[15]));
-      a[23] = _mm256_add_epi32(_mm256_sub_epi32(c[0], c[4]),
-                               _mm256_sub_epi32(c[8], c[12]));
-
-      // 296, -97,-361,-147,      262, 323, -44,-353,     -194, 223, 344,   9,
-      // -338,-236, 178, 357,       62,-315,-274, 130,      362, 114,-285,-306,
-      // 79, 359, 163,-250,     -331,  27, 349, 208
-      c[0] = _mm256_sub_epi32(_mm256_mullo_epi32(b[0], txmat_1_12),
-                              _mm256_mullo_epi32(b[1], txmat_1_26));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_1),
-                              _mm256_mullo_epi32(b[3], txmat_1_23));
-      c[2] = _mm256_add_epi32(_mm256_mullo_epi32(b[4], txmat_1_15),
-                              _mm256_mullo_epi32(b[5], txmat_1_9));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_29),
-                              _mm256_mullo_epi32(b[7], txmat_1_4));
-      c[4] = _mm256_sub_epi32(_mm256_mullo_epi32(b[8], txmat_1_20),
-                              _mm256_mullo_epi32(b[9], txmat_1_18));
-      c[5] = _mm256_add_epi32(_mm256_mullo_epi32(b[10], txmat_1_6),
-                              _mm256_mullo_epi32(b[11], txmat_1_31));
-      c[6] = _mm256_add_epi32(_mm256_mullo_epi32(b[12], txmat_1_7),
-                              _mm256_mullo_epi32(b[13], txmat_1_17));
-      c[7] = _mm256_add_epi32(_mm256_mullo_epi32(b[14], txmat_1_21),
-                              _mm256_mullo_epi32(b[15], txmat_1_3));
-      c[8] = _mm256_sub_epi32(_mm256_mullo_epi32(b[16], txmat_1_28),
-                              _mm256_mullo_epi32(b[17], txmat_1_10));
-      c[9] = _mm256_sub_epi32(_mm256_mullo_epi32(b[18], txmat_1_14),
-                              _mm256_mullo_epi32(b[19], txmat_1_24));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_0),
-                               _mm256_mullo_epi32(b[21], txmat_1_25));
-      c[11] = _mm256_add_epi32(_mm256_mullo_epi32(b[22], txmat_1_13),
-                               _mm256_mullo_epi32(b[23], txmat_1_11));
-      c[12] = _mm256_add_epi32(_mm256_mullo_epi32(b[24], txmat_1_27),
-                               _mm256_mullo_epi32(b[25], txmat_1_2));
-      c[13] = _mm256_sub_epi32(_mm256_mullo_epi32(b[26], txmat_1_22),
-                               _mm256_mullo_epi32(b[27], txmat_1_16));
-      c[14] = _mm256_sub_epi32(_mm256_mullo_epi32(b[28], txmat_1_8),
-                               _mm256_mullo_epi32(b[29], txmat_1_30));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_5),
-                               _mm256_mullo_epi32(b[31], txmat_1_19));
-      c[0] = _mm256_add_epi32(_mm256_sub_epi32(c[0], c[1]),
-                              _mm256_sub_epi32(c[2], c[3]));
-      c[4] = _mm256_add_epi32(_mm256_sub_epi32(c[4], c[5]),
-                              _mm256_sub_epi32(c[6], c[7]));
-      c[8] = _mm256_add_epi32(_mm256_sub_epi32(c[8], c[9]),
-                              _mm256_sub_epi32(c[10], c[11]));
-      c[12] = _mm256_sub_epi32(_mm256_add_epi32(c[12], c[13]),
-                               _mm256_sub_epi32(c[14], c[15]));
-      a[25] = _mm256_add_epi32(_mm256_sub_epi32(c[0], c[4]),
-                               _mm256_add_epi32(c[8], c[12]));
-
-      // 285,-147,-357, -27,      344, 194,-250,-315,       97, 362,  79,-323,
-      // -236, 208, 338, -44,     -359,-130, 296, 274,     -163,-353,  -9, 349,
-      // 178,-262,-306, 114,      361,  62,-331,-223
-      c[0] = _mm256_sub_epi32(_mm256_mullo_epi32(b[0], txmat_1_13),
-                              _mm256_mullo_epi32(b[1], txmat_1_23));
-      c[1] = _mm256_add_epi32(_mm256_mullo_epi32(b[2], txmat_1_3),
-                              _mm256_mullo_epi32(b[3], txmat_1_30));
-      c[2] = _mm256_add_epi32(_mm256_mullo_epi32(b[4], txmat_1_6),
-                              _mm256_mullo_epi32(b[5], txmat_1_20));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_16),
-                              _mm256_mullo_epi32(b[7], txmat_1_10));
-      c[4] = _mm256_add_epi32(_mm256_mullo_epi32(b[8], txmat_1_26),
-                              _mm256_mullo_epi32(b[9], txmat_1_0));
-      c[5] = _mm256_sub_epi32(_mm256_mullo_epi32(b[10], txmat_1_27),
-                              _mm256_mullo_epi32(b[11], txmat_1_9));
-      c[6] = _mm256_sub_epi32(_mm256_mullo_epi32(b[12], txmat_1_17),
-                              _mm256_mullo_epi32(b[13], txmat_1_19));
-      c[7] = _mm256_sub_epi32(_mm256_mullo_epi32(b[14], txmat_1_7),
-                              _mm256_mullo_epi32(b[15], txmat_1_29));
-      c[8] = _mm256_add_epi32(_mm256_mullo_epi32(b[16], txmat_1_2),
-                              _mm256_mullo_epi32(b[17], txmat_1_24));
-      c[9] = _mm256_add_epi32(_mm256_mullo_epi32(b[18], txmat_1_12),
-                              _mm256_mullo_epi32(b[19], txmat_1_14));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_22),
-                               _mm256_mullo_epi32(b[21], txmat_1_4));
-      c[11] = _mm256_sub_epi32(_mm256_mullo_epi32(b[22], txmat_1_31),
-                               _mm256_mullo_epi32(b[23], txmat_1_5));
-      c[12] = _mm256_sub_epi32(_mm256_mullo_epi32(b[24], txmat_1_21),
-                               _mm256_mullo_epi32(b[25], txmat_1_15));
-      c[13] = _mm256_sub_epi32(_mm256_mullo_epi32(b[26], txmat_1_11),
-                               _mm256_mullo_epi32(b[27], txmat_1_25));
-      c[14] = _mm256_add_epi32(_mm256_mullo_epi32(b[28], txmat_1_1),
-                               _mm256_mullo_epi32(b[29], txmat_1_28));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_8),
-                               _mm256_mullo_epi32(b[31], txmat_1_18));
-      c[0] = _mm256_add_epi32(_mm256_sub_epi32(c[0], c[1]),
-                              _mm256_sub_epi32(c[2], c[3]));
-      c[4] = _mm256_sub_epi32(_mm256_add_epi32(c[4], c[5]),
-                              _mm256_sub_epi32(c[6], c[7]));
-      c[8] = _mm256_add_epi32(_mm256_sub_epi32(c[8], c[9]),
-                              _mm256_add_epi32(c[10], c[11]));
-      c[12] = _mm256_add_epi32(_mm256_sub_epi32(c[12], c[13]),
-                               _mm256_sub_epi32(c[14], c[15]));
-      a[27] = _mm256_sub_epi32(_mm256_add_epi32(c[0], c[4]),
-                               _mm256_sub_epi32(c[8], c[12]));
-
-      // 274,-194,-331,  97,      359,   9,-357,-114,      323, 208,-262,-285,
-      // 178, 338, -79,-361,      -27, 353, 130,-315,     -223, 250, 296,-163,
-      // -344,  62, 362,  44,     -349,-147, 306, 236
-      c[0] = _mm256_sub_epi32(_mm256_mullo_epi32(b[0], txmat_1_14),
-                              _mm256_mullo_epi32(b[1], txmat_1_20));
-      c[1] = _mm256_sub_epi32(_mm256_mullo_epi32(b[2], txmat_1_8),
-                              _mm256_mullo_epi32(b[3], txmat_1_26));
-      c[2] = _mm256_add_epi32(_mm256_mullo_epi32(b[4], txmat_1_2),
-                              _mm256_mullo_epi32(b[5], txmat_1_31));
-      c[3] = _mm256_add_epi32(_mm256_mullo_epi32(b[6], txmat_1_3),
-                              _mm256_mullo_epi32(b[7], txmat_1_25));
-      c[4] = _mm256_add_epi32(_mm256_mullo_epi32(b[8], txmat_1_9),
-                              _mm256_mullo_epi32(b[9], txmat_1_19));
-      c[5] = _mm256_add_epi32(_mm256_mullo_epi32(b[10], txmat_1_15),
-                              _mm256_mullo_epi32(b[11], txmat_1_13));
-      c[6] = _mm256_add_epi32(_mm256_mullo_epi32(b[12], txmat_1_21),
-                              _mm256_mullo_epi32(b[13], txmat_1_7));
-      c[7] = _mm256_add_epi32(_mm256_mullo_epi32(b[14], txmat_1_27),
-                              _mm256_mullo_epi32(b[15], txmat_1_1));
-      c[8] = _mm256_sub_epi32(_mm256_mullo_epi32(b[16], txmat_1_30),
-                              _mm256_mullo_epi32(b[17], txmat_1_4));
-      c[9] = _mm256_sub_epi32(_mm256_mullo_epi32(b[18], txmat_1_24),
-                              _mm256_mullo_epi32(b[19], txmat_1_10));
-      c[10] = _mm256_sub_epi32(_mm256_mullo_epi32(b[20], txmat_1_18),
-                               _mm256_mullo_epi32(b[21], txmat_1_16));
-      c[11] = _mm256_sub_epi32(_mm256_mullo_epi32(b[22], txmat_1_12),
-                               _mm256_mullo_epi32(b[23], txmat_1_22));
-      c[12] = _mm256_sub_epi32(_mm256_mullo_epi32(b[24], txmat_1_6),
-                               _mm256_mullo_epi32(b[25], txmat_1_28));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_0),
-                               _mm256_mullo_epi32(b[27], txmat_1_29));
-      c[14] = _mm256_add_epi32(_mm256_mullo_epi32(b[28], txmat_1_5),
-                               _mm256_mullo_epi32(b[29], txmat_1_23));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_11),
-                               _mm256_mullo_epi32(b[31], txmat_1_17));
-      c[0] = _mm256_add_epi32(_mm256_sub_epi32(c[0], c[1]),
-                              _mm256_sub_epi32(c[2], c[3]));
-      c[4] = _mm256_add_epi32(_mm256_sub_epi32(c[4], c[5]),
-                              _mm256_sub_epi32(c[6], c[7]));
-      c[8] = _mm256_add_epi32(_mm256_sub_epi32(c[8], c[9]),
-                              _mm256_sub_epi32(c[10], c[11]));
-      c[12] = _mm256_add_epi32(_mm256_sub_epi32(c[12], c[13]),
-                               _mm256_sub_epi32(c[14], c[15]));
-      a[29] = _mm256_sub_epi32(_mm256_add_epi32(c[0], c[4]),
-                               _mm256_add_epi32(c[8], c[12]));
-
-      // 262,-236,-285, 208,      306,-178,-323, 147,      338,-114,-349,  79,
-      // 357, -44,-361,   9,      362,  27,-359, -62,      353,  97,-344,-130,
-      // 331, 163,-315,-194,      296, 223,-274,-250
-      c[0] = _mm256_sub_epi32(_mm256_mullo_epi32(b[0], txmat_1_15),
-                              _mm256_mullo_epi32(b[1], txmat_1_17));
-      c[1] = _mm256_sub_epi32(_mm256_mullo_epi32(b[2], txmat_1_13),
-                              _mm256_mullo_epi32(b[3], txmat_1_19));
-      c[2] = _mm256_sub_epi32(_mm256_mullo_epi32(b[4], txmat_1_11),
-                              _mm256_mullo_epi32(b[5], txmat_1_21));
-      c[3] = _mm256_sub_epi32(_mm256_mullo_epi32(b[6], txmat_1_9),
-                              _mm256_mullo_epi32(b[7], txmat_1_23));
-      c[4] = _mm256_sub_epi32(_mm256_mullo_epi32(b[8], txmat_1_7),
-                              _mm256_mullo_epi32(b[9], txmat_1_25));
-      c[5] = _mm256_sub_epi32(_mm256_mullo_epi32(b[10], txmat_1_5),
-                              _mm256_mullo_epi32(b[11], txmat_1_27));
-      c[6] = _mm256_sub_epi32(_mm256_mullo_epi32(b[12], txmat_1_3),
-                              _mm256_mullo_epi32(b[13], txmat_1_29));
-      c[7] = _mm256_sub_epi32(_mm256_mullo_epi32(b[14], txmat_1_1),
-                              _mm256_mullo_epi32(b[15], txmat_1_31));
-      c[8] = _mm256_add_epi32(_mm256_mullo_epi32(b[16], txmat_1_0),
-                              _mm256_mullo_epi32(b[17], txmat_1_30));
-      c[9] = _mm256_add_epi32(_mm256_mullo_epi32(b[18], txmat_1_2),
-                              _mm256_mullo_epi32(b[19], txmat_1_28));
-      c[10] = _mm256_add_epi32(_mm256_mullo_epi32(b[20], txmat_1_4),
-                               _mm256_mullo_epi32(b[21], txmat_1_26));
-      c[11] = _mm256_add_epi32(_mm256_mullo_epi32(b[22], txmat_1_6),
-                               _mm256_mullo_epi32(b[23], txmat_1_24));
-      c[12] = _mm256_add_epi32(_mm256_mullo_epi32(b[24], txmat_1_8),
-                               _mm256_mullo_epi32(b[25], txmat_1_22));
-      c[13] = _mm256_add_epi32(_mm256_mullo_epi32(b[26], txmat_1_10),
-                               _mm256_mullo_epi32(b[27], txmat_1_20));
-      c[14] = _mm256_add_epi32(_mm256_mullo_epi32(b[28], txmat_1_12),
-                               _mm256_mullo_epi32(b[29], txmat_1_18));
-      c[15] = _mm256_add_epi32(_mm256_mullo_epi32(b[30], txmat_1_14),
-                               _mm256_mullo_epi32(b[31], txmat_1_16));
-      c[0] = _mm256_add_epi32(_mm256_sub_epi32(c[0], c[1]),
-                              _mm256_sub_epi32(c[2], c[3]));
-      c[4] = _mm256_add_epi32(_mm256_sub_epi32(c[4], c[5]),
-                              _mm256_sub_epi32(c[6], c[7]));
-      c[8] = _mm256_add_epi32(_mm256_sub_epi32(c[8], c[9]),
-                              _mm256_sub_epi32(c[10], c[11]));
-      c[12] = _mm256_add_epi32(_mm256_sub_epi32(c[12], c[13]),
-                               _mm256_sub_epi32(c[14], c[15]));
-      a[31] = _mm256_add_epi32(_mm256_add_epi32(c[0], c[4]),
-                               _mm256_add_epi32(c[8], c[12]));
-
-      for (n = 0; n < 32; n++) {
-        a[n] = _mm256_add_epi32(a[n], v_offset);
-        a[n] = _mm256_srai_epi32(a[n], shift);
-      }
-
-      transpose_store_8x8_avx2(a, dst + 0, tx1d_size);
-      transpose_store_8x8_avx2(a + 8, dst + 8, tx1d_size);
-      transpose_store_8x8_avx2(a + 16, dst + 16, tx1d_size);
-      transpose_store_8x8_avx2(a + 24, dst + 24, tx1d_size);
-
-      src += 8;
-      dst += tx1d_size * 8;
-    }
-  } else {
-    __m128i a[32], b[32];
-    __m128i c[16], d[16];
-    __m128i e[8], f[8];
-    __m128i g[4], h[4];
-    __m128i i[2], j[2];
-
-    __m128i v_offset = _mm_set1_epi32(offset);
-
-    __m128i txmat_16_0 = _mm_set1_epi32(tx_mat[16 * 64 + 0]);  // 85
-    __m128i txmat_16_1 = _mm_set1_epi32(tx_mat[16 * 64 + 1]);  // 35
-
-    __m128i txmat_8_0 = _mm_set1_epi32(tx_mat[8 * 64 + 0]);  // 89
-    __m128i txmat_8_1 = _mm_set1_epi32(tx_mat[8 * 64 + 1]);  // 75
-    __m128i txmat_8_2 = _mm_set1_epi32(tx_mat[8 * 64 + 2]);  // 50
-    __m128i txmat_8_3 = _mm_set1_epi32(tx_mat[8 * 64 + 3]);  // 18
-
-    __m128i txmat_4_0 = _mm_set1_epi32(tx_mat[4 * 64 + 0]);  // 90
-    __m128i txmat_4_1 = _mm_set1_epi32(tx_mat[4 * 64 + 1]);  // 87
-    __m128i txmat_4_2 = _mm_set1_epi32(tx_mat[4 * 64 + 2]);  // 80
-    __m128i txmat_4_3 = _mm_set1_epi32(tx_mat[4 * 64 + 3]);  // 70
-    __m128i txmat_4_4 = _mm_set1_epi32(tx_mat[4 * 64 + 4]);  // 57
-    __m128i txmat_4_5 = _mm_set1_epi32(tx_mat[4 * 64 + 5]);  // 43
-    __m128i txmat_4_6 = _mm_set1_epi32(tx_mat[4 * 64 + 6]);  // 26
-    __m128i txmat_4_7 = _mm_set1_epi32(tx_mat[4 * 64 + 7]);  //  9
-
-    __m128i txmat_2_0 = _mm_set1_epi32(tx_mat[2 * 64 + 0]);    // 90
-    __m128i txmat_2_1 = _mm_set1_epi32(tx_mat[2 * 64 + 1]);    // 90
-    __m128i txmat_2_2 = _mm_set1_epi32(tx_mat[2 * 64 + 2]);    // 88
-    __m128i txmat_2_3 = _mm_set1_epi32(tx_mat[2 * 64 + 3]);    // 85
-    __m128i txmat_2_4 = _mm_set1_epi32(tx_mat[2 * 64 + 4]);    // 82
-    __m128i txmat_2_5 = _mm_set1_epi32(tx_mat[2 * 64 + 5]);    // 78
-    __m128i txmat_2_6 = _mm_set1_epi32(tx_mat[2 * 64 + 6]);    // 73
-    __m128i txmat_2_7 = _mm_set1_epi32(tx_mat[2 * 64 + 7]);    // 67
-    __m128i txmat_2_8 = _mm_set1_epi32(tx_mat[2 * 64 + 8]);    // 61
-    __m128i txmat_2_9 = _mm_set1_epi32(tx_mat[2 * 64 + 9]);    // 54
-    __m128i txmat_2_10 = _mm_set1_epi32(tx_mat[2 * 64 + 10]);  // 47
-    __m128i txmat_2_11 = _mm_set1_epi32(tx_mat[2 * 64 + 11]);  // 39
-    __m128i txmat_2_12 = _mm_set1_epi32(tx_mat[2 * 64 + 12]);  // 30
-    __m128i txmat_2_13 = _mm_set1_epi32(tx_mat[2 * 64 + 13]);  // 22
-    __m128i txmat_2_14 = _mm_set1_epi32(tx_mat[2 * 64 + 14]);  // 13
-    __m128i txmat_2_15 = _mm_set1_epi32(tx_mat[2 * 64 + 15]);  //  4
-
-    __m128i txmat_1_0 = _mm_set1_epi32(tx_mat[1 * 64 + 0]);    // 90
-    __m128i txmat_1_1 = _mm_set1_epi32(tx_mat[1 * 64 + 1]);    // 90
-    __m128i txmat_1_2 = _mm_set1_epi32(tx_mat[1 * 64 + 2]);    // 90
-    __m128i txmat_1_3 = _mm_set1_epi32(tx_mat[1 * 64 + 3]);    // 89
-    __m128i txmat_1_4 = _mm_set1_epi32(tx_mat[1 * 64 + 4]);    // 88
-    __m128i txmat_1_5 = _mm_set1_epi32(tx_mat[1 * 64 + 5]);    // 87
-    __m128i txmat_1_6 = _mm_set1_epi32(tx_mat[1 * 64 + 6]);    // 86
-    __m128i txmat_1_7 = _mm_set1_epi32(tx_mat[1 * 64 + 7]);    // 84
-    __m128i txmat_1_8 = _mm_set1_epi32(tx_mat[1 * 64 + 8]);    // 83
-    __m128i txmat_1_9 = _mm_set1_epi32(tx_mat[1 * 64 + 9]);    // 81
-    __m128i txmat_1_10 = _mm_set1_epi32(tx_mat[1 * 64 + 10]);  // 79
-    __m128i txmat_1_11 = _mm_set1_epi32(tx_mat[1 * 64 + 11]);  // 76
-    __m128i txmat_1_12 = _mm_set1_epi32(tx_mat[1 * 64 + 12]);  // 74
-    __m128i txmat_1_13 = _mm_set1_epi32(tx_mat[1 * 64 + 13]);  // 71
-    __m128i txmat_1_14 = _mm_set1_epi32(tx_mat[1 * 64 + 14]);  // 69
-    __m128i txmat_1_15 = _mm_set1_epi32(tx_mat[1 * 64 + 15]);  // 66
-    __m128i txmat_1_16 = _mm_set1_epi32(tx_mat[1 * 64 + 16]);  // 62
-    __m128i txmat_1_17 = _mm_set1_epi32(tx_mat[1 * 64 + 17]);  // 59
-    __m128i txmat_1_18 = _mm_set1_epi32(tx_mat[1 * 64 + 18]);  // 56
-    __m128i txmat_1_19 = _mm_set1_epi32(tx_mat[1 * 64 + 19]);  // 52
-    __m128i txmat_1_20 = _mm_set1_epi32(tx_mat[1 * 64 + 20]);  // 48
-    __m128i txmat_1_21 = _mm_set1_epi32(tx_mat[1 * 64 + 21]);  // 45
-    __m128i txmat_1_22 = _mm_set1_epi32(tx_mat[1 * 64 + 22]);  // 41
-    __m128i txmat_1_23 = _mm_set1_epi32(tx_mat[1 * 64 + 23]);  // 37
-    __m128i txmat_1_24 = _mm_set1_epi32(tx_mat[1 * 64 + 24]);  // 33
-    __m128i txmat_1_25 = _mm_set1_epi32(tx_mat[1 * 64 + 25]);  // 28
-    __m128i txmat_1_26 = _mm_set1_epi32(tx_mat[1 * 64 + 26]);  // 24
-    __m128i txmat_1_27 = _mm_set1_epi32(tx_mat[1 * 64 + 27]);  // 20
-    __m128i txmat_1_28 = _mm_set1_epi32(tx_mat[1 * 64 + 28]);  // 15
-    __m128i txmat_1_29 = _mm_set1_epi32(tx_mat[1 * 64 + 29]);  // 11
-    __m128i txmat_1_30 = _mm_set1_epi32(tx_mat[1 * 64 + 30]);  //  7
-    __m128i txmat_1_31 = _mm_set1_epi32(tx_mat[1 * 64 + 31]);  //  2
-
-    for (n = 0; n < 32; n++) {
-      __m128i src0 = _mm_loadu_si128((__m128i *)&src[n * line]);
-      __m128i src1 =
-          _mm_loadu_si128((__m128i *)&src[(tx1d_size - 1 - n) * line]);
-      a[n] = _mm_add_epi32(src0, src1);
-      b[n] = _mm_sub_epi32(src0, src1);
-    }
-    for (n = 0; n < 16; n++) {
-      c[n] = _mm_add_epi32(a[n], a[31 - n]);
-      d[n] = _mm_sub_epi32(a[n], a[31 - n]);
-    }
-    for (n = 0; n < 8; n++) {
-      e[n] = _mm_add_epi32(c[n], c[15 - n]);
-      f[n] = _mm_sub_epi32(c[n], c[15 - n]);
-    }
-    for (n = 0; n < 4; n++) {
-      g[n] = _mm_add_epi32(e[n], e[7 - n]);
-      h[n] = _mm_sub_epi32(e[n], e[7 - n]);
-    }
-    i[0] = _mm_add_epi32(g[0], g[3]);
-    j[0] = _mm_sub_epi32(g[0], g[3]);
-    i[1] = _mm_add_epi32(g[1], g[2]);
-    j[1] = _mm_sub_epi32(g[1], g[2]);
-
-    a[0] = _mm_slli_epi32(_mm_add_epi32(i[0], i[1]), 6);
-
-    a[16] = _mm_add_epi32(_mm_mullo_epi32(j[0], txmat_16_0),
-                          _mm_mullo_epi32(j[1], txmat_16_1));
-
-    g[0] = _mm_mullo_epi32(h[0], txmat_8_0);
-    g[1] = _mm_mullo_epi32(h[1], txmat_8_1);
-    g[2] = _mm_mullo_epi32(h[2], txmat_8_2);
-    g[3] = _mm_mullo_epi32(h[3], txmat_8_3);
-    a[8] = _mm_add_epi32(_mm_add_epi32(g[0], g[1]), _mm_add_epi32(g[2], g[3]));
-
-    g[0] = _mm_mullo_epi32(h[0], txmat_8_1);
-    g[1] = _mm_mullo_epi32(h[1], txmat_8_3);
-    g[2] = _mm_mullo_epi32(h[2], txmat_8_0);
-    g[3] = _mm_mullo_epi32(h[3], txmat_8_2);
-    a[24] = _mm_sub_epi32(_mm_sub_epi32(g[0], g[1]), _mm_add_epi32(g[2], g[3]));
-
-    e[0] = _mm_mullo_epi32(f[0], txmat_4_0);
-    e[1] = _mm_mullo_epi32(f[1], txmat_4_1);
-    e[2] = _mm_mullo_epi32(f[2], txmat_4_2);
-    e[3] = _mm_mullo_epi32(f[3], txmat_4_3);
-    e[4] = _mm_mullo_epi32(f[4], txmat_4_4);
-    e[5] = _mm_mullo_epi32(f[5], txmat_4_5);
-    e[6] = _mm_mullo_epi32(f[6], txmat_4_6);
-    e[7] = _mm_mullo_epi32(f[7], txmat_4_7);
-    e[0] = _mm_add_epi32(_mm_add_epi32(e[0], e[1]), _mm_add_epi32(e[2], e[3]));
-    e[4] = _mm_add_epi32(_mm_add_epi32(e[4], e[5]), _mm_add_epi32(e[6], e[7]));
-    a[4] = _mm_add_epi32(e[0], e[4]);
-
-    e[0] = _mm_mullo_epi32(f[0], txmat_4_1);
-    e[1] = _mm_mullo_epi32(f[1], txmat_4_4);
-    e[2] = _mm_mullo_epi32(f[2], txmat_4_7);
-    e[3] = _mm_mullo_epi32(f[3], txmat_4_5);
-    e[4] = _mm_mullo_epi32(f[4], txmat_4_2);
-    e[5] = _mm_mullo_epi32(f[5], txmat_4_0);
-    e[6] = _mm_mullo_epi32(f[6], txmat_4_3);
-    e[7] = _mm_mullo_epi32(f[7], txmat_4_6);
-    e[0] = _mm_add_epi32(_mm_add_epi32(e[0], e[1]), _mm_sub_epi32(e[2], e[3]));
-    e[4] = _mm_add_epi32(_mm_add_epi32(e[4], e[5]), _mm_add_epi32(e[6], e[7]));
-    a[12] = _mm_sub_epi32(e[0], e[4]);
-
-    e[0] = _mm_mullo_epi32(f[0], txmat_4_2);
-    e[1] = _mm_mullo_epi32(f[1], txmat_4_7);
-    e[2] = _mm_mullo_epi32(f[2], txmat_4_3);
-    e[3] = _mm_mullo_epi32(f[3], txmat_4_1);
-    e[4] = _mm_mullo_epi32(f[4], txmat_4_6);
-    e[5] = _mm_mullo_epi32(f[5], txmat_4_4);
-    e[6] = _mm_mullo_epi32(f[6], txmat_4_0);
-    e[7] = _mm_mullo_epi32(f[7], txmat_4_5);
-    e[0] = _mm_sub_epi32(_mm_add_epi32(e[0], e[1]), _mm_add_epi32(e[2], e[3]));
-    e[4] = _mm_sub_epi32(_mm_sub_epi32(e[4], e[5]), _mm_add_epi32(e[6], e[7]));
-    a[20] = _mm_sub_epi32(e[0], e[4]);
-
-    e[0] = _mm_mullo_epi32(f[0], txmat_4_3);
-    e[1] = _mm_mullo_epi32(f[1], txmat_4_5);
-    e[2] = _mm_mullo_epi32(f[2], txmat_4_1);
-    e[3] = _mm_mullo_epi32(f[3], txmat_4_7);
-    e[4] = _mm_mullo_epi32(f[4], txmat_4_0);
-    e[5] = _mm_mullo_epi32(f[5], txmat_4_6);
-    e[6] = _mm_mullo_epi32(f[6], txmat_4_2);
-    e[7] = _mm_mullo_epi32(f[7], txmat_4_4);
-    e[0] = _mm_sub_epi32(_mm_sub_epi32(e[0], e[1]), _mm_sub_epi32(e[2], e[3]));
-    e[4] = _mm_sub_epi32(_mm_add_epi32(e[4], e[5]), _mm_add_epi32(e[6], e[7]));
-    a[28] = _mm_add_epi32(e[0], e[4]);
-
-    e[0] = _mm_add_epi32(_mm_mullo_epi32(d[0], txmat_2_0),
-                         _mm_mullo_epi32(d[1], txmat_2_1));
-    e[1] = _mm_add_epi32(_mm_mullo_epi32(d[2], txmat_2_2),
-                         _mm_mullo_epi32(d[3], txmat_2_3));
-    e[2] = _mm_add_epi32(_mm_mullo_epi32(d[4], txmat_2_4),
-                         _mm_mullo_epi32(d[5], txmat_2_5));
-    e[3] = _mm_add_epi32(_mm_mullo_epi32(d[6], txmat_2_6),
-                         _mm_mullo_epi32(d[7], txmat_2_7));
-    e[4] = _mm_add_epi32(_mm_mullo_epi32(d[8], txmat_2_8),
-                         _mm_mullo_epi32(d[9], txmat_2_9));
-    e[5] = _mm_add_epi32(_mm_mullo_epi32(d[10], txmat_2_10),
-                         _mm_mullo_epi32(d[11], txmat_2_11));
-    e[6] = _mm_add_epi32(_mm_mullo_epi32(d[12], txmat_2_12),
-                         _mm_mullo_epi32(d[13], txmat_2_13));
-    e[7] = _mm_add_epi32(_mm_mullo_epi32(d[14], txmat_2_14),
-                         _mm_mullo_epi32(d[15], txmat_2_15));
-    e[0] = _mm_add_epi32(_mm_add_epi32(e[0], e[1]), _mm_add_epi32(e[2], e[3]));
-    e[4] = _mm_add_epi32(_mm_add_epi32(e[4], e[5]), _mm_add_epi32(e[6], e[7]));
-    a[2] = _mm_add_epi32(e[0], e[4]);
-
-    e[0] = _mm_add_epi32(_mm_mullo_epi32(d[0], txmat_2_1),
-                         _mm_mullo_epi32(d[1], txmat_2_4));
-    e[1] = _mm_add_epi32(_mm_mullo_epi32(d[2], txmat_2_7),
-                         _mm_mullo_epi32(d[3], txmat_2_10));
-    e[2] = _mm_sub_epi32(_mm_mullo_epi32(d[4], txmat_2_13),
-                         _mm_mullo_epi32(d[5], txmat_2_15));
-    e[3] = _mm_add_epi32(_mm_mullo_epi32(d[6], txmat_2_12),
-                         _mm_mullo_epi32(d[7], txmat_2_9));
-    e[4] = _mm_add_epi32(_mm_mullo_epi32(d[8], txmat_2_6),
-                         _mm_mullo_epi32(d[9], txmat_2_3));
-    e[5] = _mm_add_epi32(_mm_mullo_epi32(d[10], txmat_2_0),
-                         _mm_mullo_epi32(d[11], txmat_2_2));
-    e[6] = _mm_add_epi32(_mm_mullo_epi32(d[12], txmat_2_5),
-                         _mm_mullo_epi32(d[13], txmat_2_8));
-    e[7] = _mm_add_epi32(_mm_mullo_epi32(d[14], txmat_2_11),
-                         _mm_mullo_epi32(d[15], txmat_2_14));
-    e[0] = _mm_add_epi32(_mm_add_epi32(e[0], e[1]), _mm_sub_epi32(e[2], e[3]));
-    e[4] = _mm_add_epi32(_mm_add_epi32(e[4], e[5]), _mm_add_epi32(e[6], e[7]));
-    a[6] = _mm_sub_epi32(e[0], e[4]);
-
-    e[0] = _mm_add_epi32(_mm_mullo_epi32(d[0], txmat_2_2),
-                         _mm_mullo_epi32(d[1], txmat_2_7));
-    e[1] = _mm_sub_epi32(_mm_mullo_epi32(d[2], txmat_2_12),
-                         _mm_mullo_epi32(d[3], txmat_2_14));
-    e[2] = _mm_add_epi32(_mm_mullo_epi32(d[4], txmat_2_9),
-                         _mm_mullo_epi32(d[5], txmat_2_4));
-    e[3] = _mm_add_epi32(_mm_mullo_epi32(d[6], txmat_2_0),
-                         _mm_mullo_epi32(d[7], txmat_2_5));
-    e[4] = _mm_add_epi32(_mm_mullo_epi32(d[8], txmat_2_10),
-                         _mm_mullo_epi32(d[9], txmat_2_15));
-    e[5] = _mm_add_epi32(_mm_mullo_epi32(d[10], txmat_2_11),
-                         _mm_mullo_epi32(d[11], txmat_2_6));
-    e[6] = _mm_add_epi32(_mm_mullo_epi32(d[12], txmat_2_1),
-                         _mm_mullo_epi32(d[13], txmat_2_3));
-    e[7] = _mm_add_epi32(_mm_mullo_epi32(d[14], txmat_2_8),
-                         _mm_mullo_epi32(d[15], txmat_2_13));
-    e[0] = _mm_sub_epi32(_mm_add_epi32(e[0], e[1]), _mm_add_epi32(e[2], e[3]));
-    e[4] = _mm_sub_epi32(_mm_sub_epi32(e[4], e[5]), _mm_add_epi32(e[6], e[7]));
-    a[10] = _mm_sub_epi32(e[0], e[4]);
-
-    e[0] = _mm_add_epi32(_mm_mullo_epi32(d[0], txmat_2_3),
-                         _mm_mullo_epi32(d[1], txmat_2_10));
-    e[1] = _mm_add_epi32(_mm_mullo_epi32(d[2], txmat_2_14),
-                         _mm_mullo_epi32(d[3], txmat_2_7));
-    e[2] = _mm_add_epi32(_mm_mullo_epi32(d[4], txmat_2_0),
-                         _mm_mullo_epi32(d[5], txmat_2_6));
-    e[3] = _mm_sub_epi32(_mm_mullo_epi32(d[6], txmat_2_13),
-                         _mm_mullo_epi32(d[7], txmat_2_11));
-    e[4] = _mm_add_epi32(_mm_mullo_epi32(d[8], txmat_2_4),
-                         _mm_mullo_epi32(d[9], txmat_2_2));
-    e[5] = _mm_sub_epi32(_mm_mullo_epi32(d[10], txmat_2_9),
-                         _mm_mullo_epi32(d[11], txmat_2_15));
-    e[6] = _mm_add_epi32(_mm_mullo_epi32(d[12], txmat_2_8),
-                         _mm_mullo_epi32(d[13], txmat_2_1));
-    e[7] = _mm_add_epi32(_mm_mullo_epi32(d[14], txmat_2_5),
-                         _mm_mullo_epi32(d[15], txmat_2_12));
-    e[0] = _mm_sub_epi32(_mm_sub_epi32(e[0], e[1]), _mm_add_epi32(e[2], e[3]));
-    e[4] = _mm_sub_epi32(_mm_add_epi32(e[4], e[5]), _mm_add_epi32(e[6], e[7]));
-    a[14] = _mm_add_epi32(e[0], e[4]);
-
-    e[0] = _mm_add_epi32(_mm_mullo_epi32(d[0], txmat_2_4),
-                         _mm_mullo_epi32(d[1], txmat_2_13));
-    e[1] = _mm_add_epi32(_mm_mullo_epi32(d[2], txmat_2_9),
-                         _mm_mullo_epi32(d[3], txmat_2_0));
-    e[2] = _mm_sub_epi32(_mm_mullo_epi32(d[4], txmat_2_8),
-                         _mm_mullo_epi32(d[5], txmat_2_14));
-    e[3] = _mm_add_epi32(_mm_mullo_epi32(d[6], txmat_2_5),
-                         _mm_mullo_epi32(d[7], txmat_2_3));
-    e[4] = _mm_sub_epi32(_mm_mullo_epi32(d[8], txmat_2_12),
-                         _mm_mullo_epi32(d[9], txmat_2_10));
-    e[5] = _mm_add_epi32(_mm_mullo_epi32(d[10], txmat_2_1),
-                         _mm_mullo_epi32(d[11], txmat_2_7));
-    e[6] = _mm_add_epi32(_mm_mullo_epi32(d[12], txmat_2_15),
-                         _mm_mullo_epi32(d[13], txmat_2_6));
-    e[7] = _mm_add_epi32(_mm_mullo_epi32(d[14], txmat_2_2),
-                         _mm_mullo_epi32(d[15], txmat_2_11));
-    e[0] = _mm_sub_epi32(_mm_sub_epi32(e[0], e[1]), _mm_sub_epi32(e[2], e[3]));
-    e[4] = _mm_add_epi32(_mm_sub_epi32(e[4], e[5]), _mm_add_epi32(e[6], e[7]));
-    a[18] = _mm_add_epi32(e[0], e[4]);
-
-    e[0] = _mm_sub_epi32(_mm_mullo_epi32(d[0], txmat_2_5),
-                         _mm_mullo_epi32(d[1], txmat_2_15));
-    e[1] = _mm_add_epi32(_mm_mullo_epi32(d[2], txmat_2_4),
-                         _mm_mullo_epi32(d[3], txmat_2_6));
-    e[2] = _mm_add_epi32(_mm_mullo_epi32(d[4], txmat_2_14),
-                         _mm_mullo_epi32(d[5], txmat_2_3));
-    e[3] = _mm_sub_epi32(_mm_mullo_epi32(d[6], txmat_2_7),
-                         _mm_mullo_epi32(d[7], txmat_2_13));
-    e[4] = _mm_add_epi32(_mm_mullo_epi32(d[8], txmat_2_2),
-                         _mm_mullo_epi32(d[9], txmat_2_8));
-    e[5] = _mm_add_epi32(_mm_mullo_epi32(d[10], txmat_2_12),
-                         _mm_mullo_epi32(d[11], txmat_2_1));
-    e[6] = _mm_sub_epi32(_mm_mullo_epi32(d[12], txmat_2_9),
-                         _mm_mullo_epi32(d[13], txmat_2_11));
-    e[7] = _mm_add_epi32(_mm_mullo_epi32(d[14], txmat_2_0),
-                         _mm_mullo_epi32(d[15], txmat_2_10));
-    e[0] = _mm_add_epi32(_mm_sub_epi32(e[0], e[1]), _mm_add_epi32(e[2], e[3]));
-    e[4] = _mm_sub_epi32(_mm_sub_epi32(e[4], e[5]), _mm_sub_epi32(e[6], e[7]));
-    a[22] = _mm_sub_epi32(e[0], e[4]);
-
-    e[0] = _mm_sub_epi32(_mm_mullo_epi32(d[0], txmat_2_6),
-                         _mm_mullo_epi32(d[1], txmat_2_12));
-    e[1] = _mm_add_epi32(_mm_mullo_epi32(d[2], txmat_2_0),
-                         _mm_mullo_epi32(d[3], txmat_2_13));
-    e[2] = _mm_add_epi32(_mm_mullo_epi32(d[4], txmat_2_5),
-                         _mm_mullo_epi32(d[5], txmat_2_7));
-    e[3] = _mm_add_epi32(_mm_mullo_epi32(d[6], txmat_2_11),
-                         _mm_mullo_epi32(d[7], txmat_2_1));
-    e[4] = _mm_sub_epi32(_mm_mullo_epi32(d[8], txmat_2_14),
-                         _mm_mullo_epi32(d[9], txmat_2_4));
-    e[5] = _mm_sub_epi32(_mm_mullo_epi32(d[10], txmat_2_8),
-                         _mm_mullo_epi32(d[11], txmat_2_10));
-    e[6] = _mm_add_epi32(_mm_mullo_epi32(d[12], txmat_2_2),
-                         _mm_mullo_epi32(d[13], txmat_2_15));
-    e[7] = _mm_add_epi32(_mm_mullo_epi32(d[14], txmat_2_3),
-                         _mm_mullo_epi32(d[15], txmat_2_9));
-    e[0] = _mm_add_epi32(_mm_sub_epi32(e[0], e[1]), _mm_sub_epi32(e[2], e[3]));
-    e[4] = _mm_add_epi32(_mm_sub_epi32(e[4], e[5]), _mm_sub_epi32(e[6], e[7]));
-    a[26] = _mm_sub_epi32(e[0], e[4]);
-
-    e[0] = _mm_sub_epi32(_mm_mullo_epi32(d[0], txmat_2_7),
-                         _mm_mullo_epi32(d[1], txmat_2_9));
-    e[1] = _mm_sub_epi32(_mm_mullo_epi32(d[2], txmat_2_5),
-                         _mm_mullo_epi32(d[3], txmat_2_11));
-    e[2] = _mm_sub_epi32(_mm_mullo_epi32(d[4], txmat_2_3),
-                         _mm_mullo_epi32(d[5], txmat_2_13));
-    e[3] = _mm_sub_epi32(_mm_mullo_epi32(d[6], txmat_2_1),
-                         _mm_mullo_epi32(d[7], txmat_2_15));
-    e[4] = _mm_add_epi32(_mm_mullo_epi32(d[8], txmat_2_0),
-                         _mm_mullo_epi32(d[9], txmat_2_14));
-    e[5] = _mm_add_epi32(_mm_mullo_epi32(d[10], txmat_2_2),
-                         _mm_mullo_epi32(d[11], txmat_2_12));
-    e[6] = _mm_add_epi32(_mm_mullo_epi32(d[12], txmat_2_4),
-                         _mm_mullo_epi32(d[13], txmat_2_10));
-    e[7] = _mm_add_epi32(_mm_mullo_epi32(d[14], txmat_2_6),
-                         _mm_mullo_epi32(d[15], txmat_2_8));
-    e[0] = _mm_add_epi32(_mm_sub_epi32(e[0], e[1]), _mm_sub_epi32(e[2], e[3]));
-    e[4] = _mm_add_epi32(_mm_sub_epi32(e[4], e[5]), _mm_sub_epi32(e[6], e[7]));
-    a[30] = _mm_add_epi32(e[0], e[4]);
-
-    // 362, 361, 359, 357,      353, 349, 344, 338,      331, 323, 315, 306,
-    // 296, 285, 274, 262,      250, 236, 223, 208,      194, 178, 163, 147,
-    // 130, 114,  97,  79,       62,  44,  27,   9
-    c[0] = _mm_add_epi32(_mm_mullo_epi32(b[0], txmat_1_0),
-                         _mm_mullo_epi32(b[1], txmat_1_1));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_2),
-                         _mm_mullo_epi32(b[3], txmat_1_3));
-    c[2] = _mm_add_epi32(_mm_mullo_epi32(b[4], txmat_1_4),
-                         _mm_mullo_epi32(b[5], txmat_1_5));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_6),
-                         _mm_mullo_epi32(b[7], txmat_1_7));
-    c[4] = _mm_add_epi32(_mm_mullo_epi32(b[8], txmat_1_8),
-                         _mm_mullo_epi32(b[9], txmat_1_9));
-    c[5] = _mm_add_epi32(_mm_mullo_epi32(b[10], txmat_1_10),
-                         _mm_mullo_epi32(b[11], txmat_1_11));
-    c[6] = _mm_add_epi32(_mm_mullo_epi32(b[12], txmat_1_12),
-                         _mm_mullo_epi32(b[13], txmat_1_13));
-    c[7] = _mm_add_epi32(_mm_mullo_epi32(b[14], txmat_1_14),
-                         _mm_mullo_epi32(b[15], txmat_1_15));
-    c[8] = _mm_add_epi32(_mm_mullo_epi32(b[16], txmat_1_16),
-                         _mm_mullo_epi32(b[17], txmat_1_17));
-    c[9] = _mm_add_epi32(_mm_mullo_epi32(b[18], txmat_1_18),
-                         _mm_mullo_epi32(b[19], txmat_1_19));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_20),
-                          _mm_mullo_epi32(b[21], txmat_1_21));
-    c[11] = _mm_add_epi32(_mm_mullo_epi32(b[22], txmat_1_22),
-                          _mm_mullo_epi32(b[23], txmat_1_23));
-    c[12] = _mm_add_epi32(_mm_mullo_epi32(b[24], txmat_1_24),
-                          _mm_mullo_epi32(b[25], txmat_1_25));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_26),
-                          _mm_mullo_epi32(b[27], txmat_1_27));
-    c[14] = _mm_add_epi32(_mm_mullo_epi32(b[28], txmat_1_28),
-                          _mm_mullo_epi32(b[29], txmat_1_29));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_30),
-                          _mm_mullo_epi32(b[31], txmat_1_31));
-    c[0] = _mm_add_epi32(_mm_add_epi32(c[0], c[1]), _mm_add_epi32(c[2], c[3]));
-    c[4] = _mm_add_epi32(_mm_add_epi32(c[4], c[5]), _mm_add_epi32(c[6], c[7]));
-    c[8] =
-        _mm_add_epi32(_mm_add_epi32(c[8], c[9]), _mm_add_epi32(c[10], c[11]));
-    c[12] =
-        _mm_add_epi32(_mm_add_epi32(c[12], c[13]), _mm_add_epi32(c[14], c[15]));
-    a[1] = _mm_add_epi32(_mm_add_epi32(c[0], c[4]), _mm_add_epi32(c[8], c[12]));
-
-    // 361, 353, 338, 315,      285, 250, 208, 163,      114,  62,   9, -44,
-    // -97,-147,-194,-236,     -274,-306,-331,-349,     -359,-362,-357,-344,
-    // -323,-296,-262,-223,     -178,-130, -79, -27
-    c[0] = _mm_add_epi32(_mm_mullo_epi32(b[0], txmat_1_1),
-                         _mm_mullo_epi32(b[1], txmat_1_4));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_7),
-                         _mm_mullo_epi32(b[3], txmat_1_10));
-    c[2] = _mm_add_epi32(_mm_mullo_epi32(b[4], txmat_1_13),
-                         _mm_mullo_epi32(b[5], txmat_1_16));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_19),
-                         _mm_mullo_epi32(b[7], txmat_1_22));
-    c[4] = _mm_add_epi32(_mm_mullo_epi32(b[8], txmat_1_25),
-                         _mm_mullo_epi32(b[9], txmat_1_28));
-    c[5] = _mm_sub_epi32(_mm_mullo_epi32(b[10], txmat_1_31),
-                         _mm_mullo_epi32(b[11], txmat_1_29));
-    c[6] = _mm_add_epi32(_mm_mullo_epi32(b[12], txmat_1_26),
-                         _mm_mullo_epi32(b[13], txmat_1_23));
-    c[7] = _mm_add_epi32(_mm_mullo_epi32(b[14], txmat_1_20),
-                         _mm_mullo_epi32(b[15], txmat_1_17));
-    c[8] = _mm_add_epi32(_mm_mullo_epi32(b[16], txmat_1_14),
-                         _mm_mullo_epi32(b[17], txmat_1_11));
-    c[9] = _mm_add_epi32(_mm_mullo_epi32(b[18], txmat_1_8),
-                         _mm_mullo_epi32(b[19], txmat_1_5));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_2),
-                          _mm_mullo_epi32(b[21], txmat_1_0));
-    c[11] = _mm_add_epi32(_mm_mullo_epi32(b[22], txmat_1_3),
-                          _mm_mullo_epi32(b[23], txmat_1_6));
-    c[12] = _mm_add_epi32(_mm_mullo_epi32(b[24], txmat_1_9),
-                          _mm_mullo_epi32(b[25], txmat_1_12));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_15),
-                          _mm_mullo_epi32(b[27], txmat_1_18));
-    c[14] = _mm_add_epi32(_mm_mullo_epi32(b[28], txmat_1_21),
-                          _mm_mullo_epi32(b[29], txmat_1_24));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_27),
-                          _mm_mullo_epi32(b[31], txmat_1_30));
-    c[0] = _mm_add_epi32(_mm_add_epi32(c[0], c[1]), _mm_add_epi32(c[2], c[3]));
-    c[4] = _mm_sub_epi32(_mm_add_epi32(c[4], c[5]), _mm_add_epi32(c[6], c[7]));
-    c[8] =
-        _mm_add_epi32(_mm_add_epi32(c[8], c[9]), _mm_add_epi32(c[10], c[11]));
-    c[12] =
-        _mm_add_epi32(_mm_add_epi32(c[12], c[13]), _mm_add_epi32(c[14], c[15]));
-    a[3] = _mm_sub_epi32(_mm_add_epi32(c[0], c[4]), _mm_add_epi32(c[8], c[12]));
-
-    // 359, 338, 296, 236,      163,  79,  -9, -97,     -178,-250,-306,-344,
-    // -361,-357,-331,-285,     -223,-147, -62,  27,      114, 194, 262, 315,
-    // 349, 362, 353, 323,      274, 208, 130,  44
-    c[0] = _mm_add_epi32(_mm_mullo_epi32(b[0], txmat_1_2),
-                         _mm_mullo_epi32(b[1], txmat_1_7));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_12),
-                         _mm_mullo_epi32(b[3], txmat_1_17));
-    c[2] = _mm_add_epi32(_mm_mullo_epi32(b[4], txmat_1_22),
-                         _mm_mullo_epi32(b[5], txmat_1_27));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_31),
-                         _mm_mullo_epi32(b[7], txmat_1_26));
-    c[4] = _mm_add_epi32(_mm_mullo_epi32(b[8], txmat_1_21),
-                         _mm_mullo_epi32(b[9], txmat_1_16));
-    c[5] = _mm_add_epi32(_mm_mullo_epi32(b[10], txmat_1_11),
-                         _mm_mullo_epi32(b[11], txmat_1_6));
-    c[6] = _mm_add_epi32(_mm_mullo_epi32(b[12], txmat_1_1),
-                         _mm_mullo_epi32(b[13], txmat_1_3));
-    c[7] = _mm_add_epi32(_mm_mullo_epi32(b[14], txmat_1_8),
-                         _mm_mullo_epi32(b[15], txmat_1_13));
-    c[8] = _mm_add_epi32(_mm_mullo_epi32(b[16], txmat_1_18),
-                         _mm_mullo_epi32(b[17], txmat_1_23));
-    c[9] = _mm_sub_epi32(_mm_mullo_epi32(b[18], txmat_1_28),
-                         _mm_mullo_epi32(b[19], txmat_1_30));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_25),
-                          _mm_mullo_epi32(b[21], txmat_1_20));
-    c[11] = _mm_add_epi32(_mm_mullo_epi32(b[22], txmat_1_15),
-                          _mm_mullo_epi32(b[23], txmat_1_10));
-    c[12] = _mm_add_epi32(_mm_mullo_epi32(b[24], txmat_1_5),
-                          _mm_mullo_epi32(b[25], txmat_1_0));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_4),
-                          _mm_mullo_epi32(b[27], txmat_1_9));
-    c[14] = _mm_add_epi32(_mm_mullo_epi32(b[28], txmat_1_14),
-                          _mm_mullo_epi32(b[29], txmat_1_19));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_24),
-                          _mm_mullo_epi32(b[31], txmat_1_29));
-    c[0] = _mm_add_epi32(_mm_add_epi32(c[0], c[1]), _mm_sub_epi32(c[2], c[3]));
-    c[4] = _mm_add_epi32(_mm_add_epi32(c[4], c[5]), _mm_add_epi32(c[6], c[7]));
-    c[8] =
-        _mm_sub_epi32(_mm_add_epi32(c[8], c[9]), _mm_add_epi32(c[10], c[11]));
-    c[12] =
-        _mm_add_epi32(_mm_add_epi32(c[12], c[13]), _mm_add_epi32(c[14], c[15]));
-    a[5] = _mm_sub_epi32(_mm_sub_epi32(c[0], c[4]), _mm_sub_epi32(c[8], c[12]));
-
-    // 357, 315, 236, 130,        9,-114,-223,-306,     -353,-359,-323,-250,
-    // -147, -27,  97, 208,      296, 349, 361, 331,      262, 163,  44, -79,
-    // -194,-285,-344,-362,     -338,-274,-178, -62
-    c[0] = _mm_add_epi32(_mm_mullo_epi32(b[0], txmat_1_3),
-                         _mm_mullo_epi32(b[1], txmat_1_10));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_17),
-                         _mm_mullo_epi32(b[3], txmat_1_24));
-    c[2] = _mm_sub_epi32(_mm_mullo_epi32(b[4], txmat_1_31),
-                         _mm_mullo_epi32(b[5], txmat_1_25));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_18),
-                         _mm_mullo_epi32(b[7], txmat_1_11));
-    c[4] = _mm_add_epi32(_mm_mullo_epi32(b[8], txmat_1_4),
-                         _mm_mullo_epi32(b[9], txmat_1_2));
-    c[5] = _mm_add_epi32(_mm_mullo_epi32(b[10], txmat_1_9),
-                         _mm_mullo_epi32(b[11], txmat_1_16));
-    c[6] = _mm_add_epi32(_mm_mullo_epi32(b[12], txmat_1_23),
-                         _mm_mullo_epi32(b[13], txmat_1_30));
-    c[7] = _mm_add_epi32(_mm_mullo_epi32(b[14], txmat_1_26),
-                         _mm_mullo_epi32(b[15], txmat_1_19));
-    c[8] = _mm_add_epi32(_mm_mullo_epi32(b[16], txmat_1_12),
-                         _mm_mullo_epi32(b[17], txmat_1_5));
-    c[9] = _mm_add_epi32(_mm_mullo_epi32(b[18], txmat_1_1),
-                         _mm_mullo_epi32(b[19], txmat_1_8));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_15),
-                          _mm_mullo_epi32(b[21], txmat_1_22));
-    c[11] = _mm_sub_epi32(_mm_mullo_epi32(b[22], txmat_1_29),
-                          _mm_mullo_epi32(b[23], txmat_1_27));
-    c[12] = _mm_add_epi32(_mm_mullo_epi32(b[24], txmat_1_20),
-                          _mm_mullo_epi32(b[25], txmat_1_13));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_6),
-                          _mm_mullo_epi32(b[27], txmat_1_0));
-    c[14] = _mm_add_epi32(_mm_mullo_epi32(b[28], txmat_1_7),
-                          _mm_mullo_epi32(b[29], txmat_1_14));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_21),
-                          _mm_mullo_epi32(b[31], txmat_1_28));
-    c[0] = _mm_add_epi32(_mm_add_epi32(c[0], c[1]), _mm_sub_epi32(c[2], c[3]));
-    c[4] = _mm_add_epi32(_mm_add_epi32(c[4], c[5]), _mm_sub_epi32(c[6], c[7]));
-    c[8] =
-        _mm_add_epi32(_mm_add_epi32(c[8], c[9]), _mm_add_epi32(c[10], c[11]));
-    c[12] =
-        _mm_add_epi32(_mm_add_epi32(c[12], c[13]), _mm_add_epi32(c[14], c[15]));
-    a[7] = _mm_add_epi32(_mm_sub_epi32(c[0], c[4]), _mm_sub_epi32(c[8], c[12]));
-
-    // 353, 285, 163,   9,     -147,-274,-349,-357,     -296,-178, -27, 130,
-    // 262, 344, 359, 306,      194,  44,-114,-250,     -338,-361,-315,-208,
-    // -62,  97, 236, 331,      362, 323, 223,  79
-    c[0] = _mm_add_epi32(_mm_mullo_epi32(b[0], txmat_1_4),
-                         _mm_mullo_epi32(b[1], txmat_1_13));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_22),
-                         _mm_mullo_epi32(b[3], txmat_1_31));
-    c[2] = _mm_add_epi32(_mm_mullo_epi32(b[4], txmat_1_23),
-                         _mm_mullo_epi32(b[5], txmat_1_14));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_5),
-                         _mm_mullo_epi32(b[7], txmat_1_3));
-    c[4] = _mm_add_epi32(_mm_mullo_epi32(b[8], txmat_1_12),
-                         _mm_mullo_epi32(b[9], txmat_1_21));
-    c[5] = _mm_sub_epi32(_mm_mullo_epi32(b[10], txmat_1_30),
-                         _mm_mullo_epi32(b[11], txmat_1_24));
-    c[6] = _mm_add_epi32(_mm_mullo_epi32(b[12], txmat_1_15),
-                         _mm_mullo_epi32(b[13], txmat_1_6));
-    c[7] = _mm_add_epi32(_mm_mullo_epi32(b[14], txmat_1_2),
-                         _mm_mullo_epi32(b[15], txmat_1_11));
-    c[8] = _mm_add_epi32(_mm_mullo_epi32(b[16], txmat_1_20),
-                         _mm_mullo_epi32(b[17], txmat_1_29));
-    c[9] = _mm_add_epi32(_mm_mullo_epi32(b[18], txmat_1_25),
-                         _mm_mullo_epi32(b[19], txmat_1_16));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_7),
-                          _mm_mullo_epi32(b[21], txmat_1_1));
-    c[11] = _mm_add_epi32(_mm_mullo_epi32(b[22], txmat_1_10),
-                          _mm_mullo_epi32(b[23], txmat_1_19));
-    c[12] = _mm_sub_epi32(_mm_mullo_epi32(b[24], txmat_1_28),
-                          _mm_mullo_epi32(b[25], txmat_1_26));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_17),
-                          _mm_mullo_epi32(b[27], txmat_1_8));
-    c[14] = _mm_add_epi32(_mm_mullo_epi32(b[28], txmat_1_0),
-                          _mm_mullo_epi32(b[29], txmat_1_9));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_18),
-                          _mm_mullo_epi32(b[31], txmat_1_27));
-    c[0] = _mm_sub_epi32(_mm_add_epi32(c[0], c[1]), _mm_add_epi32(c[2], c[3]));
-    c[4] = _mm_sub_epi32(_mm_add_epi32(c[4], c[5]), _mm_add_epi32(c[6], c[7]));
-    c[8] =
-        _mm_sub_epi32(_mm_sub_epi32(c[8], c[9]), _mm_add_epi32(c[10], c[11]));
-    c[12] =
-        _mm_sub_epi32(_mm_sub_epi32(c[12], c[13]), _mm_add_epi32(c[14], c[15]));
-    a[9] = _mm_add_epi32(_mm_sub_epi32(c[0], c[4]), _mm_sub_epi32(c[8], c[12]));
-
-    // 349, 250,  79,-114,     -274,-357,-338,-223,      -44, 147, 296, 361,
-    // 323, 194,   9,-178,     -315,-362,-306,-163,       27, 208, 331, 359,
-    // 285, 130, -62,-236,     -344,-353,-262, -97
-    c[0] = _mm_add_epi32(_mm_mullo_epi32(b[0], txmat_1_5),
-                         _mm_mullo_epi32(b[1], txmat_1_16));
-    c[1] = _mm_sub_epi32(_mm_mullo_epi32(b[2], txmat_1_27),
-                         _mm_mullo_epi32(b[3], txmat_1_25));
-    c[2] = _mm_add_epi32(_mm_mullo_epi32(b[4], txmat_1_14),
-                         _mm_mullo_epi32(b[5], txmat_1_3));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_7),
-                         _mm_mullo_epi32(b[7], txmat_1_18));
-    c[4] = _mm_sub_epi32(_mm_mullo_epi32(b[8], txmat_1_29),
-                         _mm_mullo_epi32(b[9], txmat_1_23));
-    c[5] = _mm_add_epi32(_mm_mullo_epi32(b[10], txmat_1_12),
-                         _mm_mullo_epi32(b[11], txmat_1_1));
-    c[6] = _mm_add_epi32(_mm_mullo_epi32(b[12], txmat_1_9),
-                         _mm_mullo_epi32(b[13], txmat_1_20));
-    c[7] = _mm_sub_epi32(_mm_mullo_epi32(b[14], txmat_1_31),
-                         _mm_mullo_epi32(b[15], txmat_1_21));
-    c[8] = _mm_add_epi32(_mm_mullo_epi32(b[16], txmat_1_10),
-                         _mm_mullo_epi32(b[17], txmat_1_0));
-    c[9] = _mm_add_epi32(_mm_mullo_epi32(b[18], txmat_1_11),
-                         _mm_mullo_epi32(b[19], txmat_1_22));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_30),
-                          _mm_mullo_epi32(b[21], txmat_1_19));
-    c[11] = _mm_add_epi32(_mm_mullo_epi32(b[22], txmat_1_8),
-                          _mm_mullo_epi32(b[23], txmat_1_2));
-    c[12] = _mm_add_epi32(_mm_mullo_epi32(b[24], txmat_1_13),
-                          _mm_mullo_epi32(b[25], txmat_1_24));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_28),
-                          _mm_mullo_epi32(b[27], txmat_1_17));
-    c[14] = _mm_add_epi32(_mm_mullo_epi32(b[28], txmat_1_6),
-                          _mm_mullo_epi32(b[29], txmat_1_4));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_15),
-                          _mm_mullo_epi32(b[31], txmat_1_26));
-    c[0] = _mm_sub_epi32(_mm_add_epi32(c[0], c[1]), _mm_add_epi32(c[2], c[3]));
-    c[4] = _mm_sub_epi32(_mm_sub_epi32(c[4], c[5]), _mm_add_epi32(c[6], c[7]));
-    c[8] =
-        _mm_sub_epi32(_mm_add_epi32(c[8], c[9]), _mm_add_epi32(c[10], c[11]));
-    c[12] =
-        _mm_sub_epi32(_mm_sub_epi32(c[12], c[13]), _mm_add_epi32(c[14], c[15]));
-    a[11] =
-        _mm_sub_epi32(_mm_sub_epi32(c[0], c[4]), _mm_sub_epi32(c[8], c[12]));
-
-    // 344, 208,  -9,-223,     -349,-338,-194,  27,      236, 353, 331, 178,
-    // -44,-250,-357,-323,     -163,  62, 262, 359,      315, 147, -79,-274,
-    // -361,-306,-130,  97,      285, 362, 296, 114
-    c[0] = _mm_add_epi32(_mm_mullo_epi32(b[0], txmat_1_6),
-                         _mm_mullo_epi32(b[1], txmat_1_19));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_31),
-                         _mm_mullo_epi32(b[3], txmat_1_18));
-    c[2] = _mm_add_epi32(_mm_mullo_epi32(b[4], txmat_1_5),
-                         _mm_mullo_epi32(b[5], txmat_1_7));
-    c[3] = _mm_sub_epi32(_mm_mullo_epi32(b[6], txmat_1_20),
-                         _mm_mullo_epi32(b[7], txmat_1_30));
-    c[4] = _mm_add_epi32(_mm_mullo_epi32(b[8], txmat_1_17),
-                         _mm_mullo_epi32(b[9], txmat_1_4));
-    c[5] = _mm_add_epi32(_mm_mullo_epi32(b[10], txmat_1_8),
-                         _mm_mullo_epi32(b[11], txmat_1_21));
-    c[6] = _mm_add_epi32(_mm_mullo_epi32(b[12], txmat_1_29),
-                         _mm_mullo_epi32(b[13], txmat_1_16));
-    c[7] = _mm_add_epi32(_mm_mullo_epi32(b[14], txmat_1_3),
-                         _mm_mullo_epi32(b[15], txmat_1_9));
-    c[8] = _mm_sub_epi32(_mm_mullo_epi32(b[16], txmat_1_22),
-                         _mm_mullo_epi32(b[17], txmat_1_28));
-    c[9] = _mm_add_epi32(_mm_mullo_epi32(b[18], txmat_1_15),
-                         _mm_mullo_epi32(b[19], txmat_1_2));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_10),
-                          _mm_mullo_epi32(b[21], txmat_1_23));
-    c[11] = _mm_add_epi32(_mm_mullo_epi32(b[22], txmat_1_27),
-                          _mm_mullo_epi32(b[23], txmat_1_14));
-    c[12] = _mm_add_epi32(_mm_mullo_epi32(b[24], txmat_1_1),
-                          _mm_mullo_epi32(b[25], txmat_1_11));
-    c[13] = _mm_sub_epi32(_mm_mullo_epi32(b[26], txmat_1_24),
-                          _mm_mullo_epi32(b[27], txmat_1_26));
-    c[14] = _mm_add_epi32(_mm_mullo_epi32(b[28], txmat_1_13),
-                          _mm_mullo_epi32(b[29], txmat_1_0));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_12),
-                          _mm_mullo_epi32(b[31], txmat_1_25));
-    c[0] = _mm_sub_epi32(_mm_sub_epi32(c[0], c[1]), _mm_add_epi32(c[2], c[3]));
-    c[4] = _mm_sub_epi32(_mm_add_epi32(c[4], c[5]), _mm_add_epi32(c[6], c[7]));
-    c[8] =
-        _mm_sub_epi32(_mm_sub_epi32(c[8], c[9]), _mm_sub_epi32(c[10], c[11]));
-    c[12] =
-        _mm_sub_epi32(_mm_add_epi32(c[12], c[13]), _mm_add_epi32(c[14], c[15]));
-    a[13] =
-        _mm_sub_epi32(_mm_add_epi32(c[0], c[4]), _mm_add_epi32(c[8], c[12]));
-
-    // 338, 163, -97,-306,     -357,-223,  27, 262,      362, 274,  44,-208,
-    // -353,-315,-114, 147,      331, 344, 178, -79,     -296,-359,-236,   9,
-    // 250, 361, 285,  62,     -194,-349,-323,-130
-    c[0] = _mm_add_epi32(_mm_mullo_epi32(b[0], txmat_1_7),
-                         _mm_mullo_epi32(b[1], txmat_1_22));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_26),
-                         _mm_mullo_epi32(b[3], txmat_1_11));
-    c[2] = _mm_add_epi32(_mm_mullo_epi32(b[4], txmat_1_3),
-                         _mm_mullo_epi32(b[5], txmat_1_18));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_30),
-                         _mm_mullo_epi32(b[7], txmat_1_15));
-    c[4] = _mm_add_epi32(_mm_mullo_epi32(b[8], txmat_1_0),
-                         _mm_mullo_epi32(b[9], txmat_1_14));
-    c[5] = _mm_sub_epi32(_mm_mullo_epi32(b[10], txmat_1_29),
-                         _mm_mullo_epi32(b[11], txmat_1_19));
-    c[6] = _mm_add_epi32(_mm_mullo_epi32(b[12], txmat_1_4),
-                         _mm_mullo_epi32(b[13], txmat_1_10));
-    c[7] = _mm_sub_epi32(_mm_mullo_epi32(b[14], txmat_1_25),
-                         _mm_mullo_epi32(b[15], txmat_1_23));
-    c[8] = _mm_add_epi32(_mm_mullo_epi32(b[16], txmat_1_8),
-                         _mm_mullo_epi32(b[17], txmat_1_6));
-    c[9] = _mm_sub_epi32(_mm_mullo_epi32(b[18], txmat_1_21),
-                         _mm_mullo_epi32(b[19], txmat_1_27));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_12),
-                          _mm_mullo_epi32(b[21], txmat_1_2));
-    c[11] = _mm_sub_epi32(_mm_mullo_epi32(b[22], txmat_1_17),
-                          _mm_mullo_epi32(b[23], txmat_1_31));
-    c[12] = _mm_add_epi32(_mm_mullo_epi32(b[24], txmat_1_16),
-                          _mm_mullo_epi32(b[25], txmat_1_1));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_13),
-                          _mm_mullo_epi32(b[27], txmat_1_28));
-    c[14] = _mm_add_epi32(_mm_mullo_epi32(b[28], txmat_1_20),
-                          _mm_mullo_epi32(b[29], txmat_1_5));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_9),
-                          _mm_mullo_epi32(b[31], txmat_1_24));
-    c[0] = _mm_sub_epi32(_mm_sub_epi32(c[0], c[1]), _mm_sub_epi32(c[2], c[3]));
-    c[4] = _mm_sub_epi32(_mm_add_epi32(c[4], c[5]), _mm_add_epi32(c[6], c[7]));
-    c[8] =
-        _mm_sub_epi32(_mm_add_epi32(c[8], c[9]), _mm_add_epi32(c[10], c[11]));
-    c[12] =
-        _mm_sub_epi32(_mm_add_epi32(c[12], c[13]), _mm_add_epi32(c[14], c[15]));
-    a[15] =
-        _mm_add_epi32(_mm_add_epi32(c[0], c[4]), _mm_add_epi32(c[8], c[12]));
-
-    // 331, 114,-178,-353,     -296, -44, 236, 362,      250, -27,-285,-357,
-    // -194,  97, 323, 338,      130,-163,-349,-306,      -62, 223, 361, 262,
-    // -9,-274,-359,-208,       79, 315, 344, 147
-    c[0] = _mm_add_epi32(_mm_mullo_epi32(b[0], txmat_1_8),
-                         _mm_mullo_epi32(b[1], txmat_1_25));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_21),
-                         _mm_mullo_epi32(b[3], txmat_1_4));
-    c[2] = _mm_add_epi32(_mm_mullo_epi32(b[4], txmat_1_12),
-                         _mm_mullo_epi32(b[5], txmat_1_29));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_17),
-                         _mm_mullo_epi32(b[7], txmat_1_0));
-    c[4] = _mm_sub_epi32(_mm_mullo_epi32(b[8], txmat_1_16),
-                         _mm_mullo_epi32(b[9], txmat_1_30));
-    c[5] = _mm_add_epi32(_mm_mullo_epi32(b[10], txmat_1_13),
-                         _mm_mullo_epi32(b[11], txmat_1_3));
-    c[6] = _mm_sub_epi32(_mm_mullo_epi32(b[12], txmat_1_20),
-                         _mm_mullo_epi32(b[13], txmat_1_26));
-    c[7] = _mm_add_epi32(_mm_mullo_epi32(b[14], txmat_1_9),
-                         _mm_mullo_epi32(b[15], txmat_1_7));
-    c[8] = _mm_sub_epi32(_mm_mullo_epi32(b[16], txmat_1_24),
-                         _mm_mullo_epi32(b[17], txmat_1_22));
-    c[9] = _mm_add_epi32(_mm_mullo_epi32(b[18], txmat_1_5),
-                         _mm_mullo_epi32(b[19], txmat_1_11));
-    c[10] = _mm_sub_epi32(_mm_mullo_epi32(b[20], txmat_1_28),
-                          _mm_mullo_epi32(b[21], txmat_1_18));
-    c[11] = _mm_add_epi32(_mm_mullo_epi32(b[22], txmat_1_1),
-                          _mm_mullo_epi32(b[23], txmat_1_15));
-    c[12] = _mm_add_epi32(_mm_mullo_epi32(b[24], txmat_1_31),
-                          _mm_mullo_epi32(b[25], txmat_1_14));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_2),
-                          _mm_mullo_epi32(b[27], txmat_1_19));
-    c[14] = _mm_add_epi32(_mm_mullo_epi32(b[28], txmat_1_27),
-                          _mm_mullo_epi32(b[29], txmat_1_10));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_6),
-                          _mm_mullo_epi32(b[31], txmat_1_23));
-    c[0] = _mm_sub_epi32(_mm_sub_epi32(c[0], c[1]), _mm_sub_epi32(c[2], c[3]));
-    c[4] = _mm_sub_epi32(_mm_sub_epi32(c[4], c[5]), _mm_sub_epi32(c[6], c[7]));
-    c[8] =
-        _mm_sub_epi32(_mm_sub_epi32(c[8], c[9]), _mm_sub_epi32(c[10], c[11]));
-    c[12] =
-        _mm_sub_epi32(_mm_add_epi32(c[12], c[13]), _mm_add_epi32(c[14], c[15]));
-    a[17] =
-        _mm_add_epi32(_mm_add_epi32(c[0], c[4]), _mm_sub_epi32(c[8], c[12]));
-
-    // 323,  62,-250,-359,     -178, 147, 353, 274,      -27,-306,-338, -97,
-    // 223, 362, 208,-114,     -344,-296,  -9, 285,      349, 130,-194,-361,
-    // -236,  79, 331, 315,       44,-262,-357,-163
-    c[0] = _mm_add_epi32(_mm_mullo_epi32(b[0], txmat_1_9),
-                         _mm_mullo_epi32(b[1], txmat_1_28));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_16),
-                         _mm_mullo_epi32(b[3], txmat_1_2));
-    c[2] = _mm_sub_epi32(_mm_mullo_epi32(b[4], txmat_1_21),
-                         _mm_mullo_epi32(b[5], txmat_1_23));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_4),
-                         _mm_mullo_epi32(b[7], txmat_1_14));
-    c[4] = _mm_add_epi32(_mm_mullo_epi32(b[8], txmat_1_30),
-                         _mm_mullo_epi32(b[9], txmat_1_11));
-    c[5] = _mm_add_epi32(_mm_mullo_epi32(b[10], txmat_1_7),
-                         _mm_mullo_epi32(b[11], txmat_1_26));
-    c[6] = _mm_add_epi32(_mm_mullo_epi32(b[12], txmat_1_18),
-                         _mm_mullo_epi32(b[13], txmat_1_0));
-    c[7] = _mm_sub_epi32(_mm_mullo_epi32(b[14], txmat_1_19),
-                         _mm_mullo_epi32(b[15], txmat_1_25));
-    c[8] = _mm_add_epi32(_mm_mullo_epi32(b[16], txmat_1_6),
-                         _mm_mullo_epi32(b[17], txmat_1_12));
-    c[9] = _mm_sub_epi32(_mm_mullo_epi32(b[18], txmat_1_31),
-                         _mm_mullo_epi32(b[19], txmat_1_13));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_5),
-                          _mm_mullo_epi32(b[21], txmat_1_24));
-    c[11] = _mm_add_epi32(_mm_mullo_epi32(b[22], txmat_1_20),
-                          _mm_mullo_epi32(b[23], txmat_1_1));
-    c[12] = _mm_sub_epi32(_mm_mullo_epi32(b[24], txmat_1_17),
-                          _mm_mullo_epi32(b[25], txmat_1_27));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_8),
-                          _mm_mullo_epi32(b[27], txmat_1_10));
-    c[14] = _mm_sub_epi32(_mm_mullo_epi32(b[28], txmat_1_29),
-                          _mm_mullo_epi32(b[29], txmat_1_15));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_3),
-                          _mm_mullo_epi32(b[31], txmat_1_22));
-    c[0] = _mm_sub_epi32(_mm_sub_epi32(c[0], c[1]), _mm_sub_epi32(c[2], c[3]));
-    c[4] = _mm_sub_epi32(_mm_add_epi32(c[4], c[5]), _mm_add_epi32(c[6], c[7]));
-    c[8] =
-        _mm_sub_epi32(_mm_add_epi32(c[8], c[9]), _mm_sub_epi32(c[10], c[11]));
-    c[12] =
-        _mm_sub_epi32(_mm_sub_epi32(c[12], c[13]), _mm_sub_epi32(c[14], c[15]));
-    a[19] =
-        _mm_sub_epi32(_mm_sub_epi32(c[0], c[4]), _mm_add_epi32(c[8], c[12]));
-
-    // 315,   9,-306,-323,      -27, 296, 331,  44,     -285,-338, -62, 274,
-    // 344,  79,-262,-349,      -97, 250, 353, 114,     -236,-357,-130, 223,
-    // 359, 147,-208,-361,     -163, 194, 362, 178
-    c[0] = _mm_add_epi32(_mm_mullo_epi32(b[0], txmat_1_10),
-                         _mm_mullo_epi32(b[1], txmat_1_31));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_11),
-                         _mm_mullo_epi32(b[3], txmat_1_9));
-    c[2] = _mm_sub_epi32(_mm_mullo_epi32(b[4], txmat_1_30),
-                         _mm_mullo_epi32(b[5], txmat_1_12));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_8),
-                         _mm_mullo_epi32(b[7], txmat_1_29));
-    c[4] = _mm_add_epi32(_mm_mullo_epi32(b[8], txmat_1_13),
-                         _mm_mullo_epi32(b[9], txmat_1_7));
-    c[5] = _mm_sub_epi32(_mm_mullo_epi32(b[10], txmat_1_28),
-                         _mm_mullo_epi32(b[11], txmat_1_14));
-    c[6] = _mm_add_epi32(_mm_mullo_epi32(b[12], txmat_1_6),
-                         _mm_mullo_epi32(b[13], txmat_1_27));
-    c[7] = _mm_add_epi32(_mm_mullo_epi32(b[14], txmat_1_15),
-                         _mm_mullo_epi32(b[15], txmat_1_5));
-    c[8] = _mm_sub_epi32(_mm_mullo_epi32(b[16], txmat_1_26),
-                         _mm_mullo_epi32(b[17], txmat_1_16));
-    c[9] = _mm_add_epi32(_mm_mullo_epi32(b[18], txmat_1_4),
-                         _mm_mullo_epi32(b[19], txmat_1_25));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_17),
-                          _mm_mullo_epi32(b[21], txmat_1_3));
-    c[11] = _mm_sub_epi32(_mm_mullo_epi32(b[22], txmat_1_24),
-                          _mm_mullo_epi32(b[23], txmat_1_18));
-    c[12] = _mm_add_epi32(_mm_mullo_epi32(b[24], txmat_1_2),
-                          _mm_mullo_epi32(b[25], txmat_1_23));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_19),
-                          _mm_mullo_epi32(b[27], txmat_1_1));
-    c[14] = _mm_sub_epi32(_mm_mullo_epi32(b[28], txmat_1_22),
-                          _mm_mullo_epi32(b[29], txmat_1_20));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_0),
-                          _mm_mullo_epi32(b[31], txmat_1_21));
-    c[0] = _mm_sub_epi32(_mm_sub_epi32(c[0], c[1]), _mm_sub_epi32(c[2], c[3]));
-    c[4] = _mm_sub_epi32(_mm_add_epi32(c[4], c[5]), _mm_sub_epi32(c[6], c[7]));
-    c[8] =
-        _mm_add_epi32(_mm_sub_epi32(c[8], c[9]), _mm_add_epi32(c[10], c[11]));
-    c[12] =
-        _mm_sub_epi32(_mm_sub_epi32(c[12], c[13]), _mm_sub_epi32(c[14], c[15]));
-    a[21] =
-        _mm_sub_epi32(_mm_sub_epi32(c[0], c[4]), _mm_sub_epi32(c[8], c[12]));
-
-    // 306, -44,-344,-250,      130, 361, 178,-208,     -357, -97, 274, 331,
-    // 9,-323,-285,  79,      353, 223,-163,-362,     -147, 236, 349,  62,
-    // -296,-315,  27, 338,      262,-114,-359,-194
-    c[0] = _mm_sub_epi32(_mm_mullo_epi32(b[0], txmat_1_11),
-                         _mm_mullo_epi32(b[1], txmat_1_29));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_6),
-                         _mm_mullo_epi32(b[3], txmat_1_16));
-    c[2] = _mm_add_epi32(_mm_mullo_epi32(b[4], txmat_1_24),
-                         _mm_mullo_epi32(b[5], txmat_1_1));
-    c[3] = _mm_sub_epi32(_mm_mullo_epi32(b[6], txmat_1_21),
-                         _mm_mullo_epi32(b[7], txmat_1_19));
-    c[4] = _mm_add_epi32(_mm_mullo_epi32(b[8], txmat_1_3),
-                         _mm_mullo_epi32(b[9], txmat_1_26));
-    c[5] = _mm_add_epi32(_mm_mullo_epi32(b[10], txmat_1_14),
-                         _mm_mullo_epi32(b[11], txmat_1_8));
-    c[6] = _mm_sub_epi32(_mm_mullo_epi32(b[12], txmat_1_31),
-                         _mm_mullo_epi32(b[13], txmat_1_9));
-    c[7] = _mm_sub_epi32(_mm_mullo_epi32(b[14], txmat_1_13),
-                         _mm_mullo_epi32(b[15], txmat_1_27));
-    c[8] = _mm_add_epi32(_mm_mullo_epi32(b[16], txmat_1_4),
-                         _mm_mullo_epi32(b[17], txmat_1_18));
-    c[9] = _mm_add_epi32(_mm_mullo_epi32(b[18], txmat_1_22),
-                         _mm_mullo_epi32(b[19], txmat_1_0));
-    c[10] = _mm_sub_epi32(_mm_mullo_epi32(b[20], txmat_1_23),
-                          _mm_mullo_epi32(b[21], txmat_1_17));
-    c[11] = _mm_add_epi32(_mm_mullo_epi32(b[22], txmat_1_5),
-                          _mm_mullo_epi32(b[23], txmat_1_28));
-    c[12] = _mm_add_epi32(_mm_mullo_epi32(b[24], txmat_1_12),
-                          _mm_mullo_epi32(b[25], txmat_1_10));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_30),
-                          _mm_mullo_epi32(b[27], txmat_1_7));
-    c[14] = _mm_sub_epi32(_mm_mullo_epi32(b[28], txmat_1_15),
-                          _mm_mullo_epi32(b[29], txmat_1_25));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_2),
-                          _mm_mullo_epi32(b[31], txmat_1_20));
-    c[0] = _mm_add_epi32(_mm_sub_epi32(c[0], c[1]), _mm_add_epi32(c[2], c[3]));
-    c[4] = _mm_sub_epi32(_mm_sub_epi32(c[4], c[5]), _mm_sub_epi32(c[6], c[7]));
-    c[8] =
-        _mm_sub_epi32(_mm_sub_epi32(c[8], c[9]), _mm_sub_epi32(c[10], c[11]));
-    c[12] =
-        _mm_sub_epi32(_mm_sub_epi32(c[12], c[13]), _mm_sub_epi32(c[14], c[15]));
-    a[23] =
-        _mm_add_epi32(_mm_sub_epi32(c[0], c[4]), _mm_sub_epi32(c[8], c[12]));
-
-    // 296, -97,-361,-147,      262, 323, -44,-353,     -194, 223, 344,   9,
-    // -338,-236, 178, 357,       62,-315,-274, 130,      362, 114,-285,-306,
-    // 79, 359, 163,-250,     -331,  27, 349, 208
-    c[0] = _mm_sub_epi32(_mm_mullo_epi32(b[0], txmat_1_12),
-                         _mm_mullo_epi32(b[1], txmat_1_26));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_1),
-                         _mm_mullo_epi32(b[3], txmat_1_23));
-    c[2] = _mm_add_epi32(_mm_mullo_epi32(b[4], txmat_1_15),
-                         _mm_mullo_epi32(b[5], txmat_1_9));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_29),
-                         _mm_mullo_epi32(b[7], txmat_1_4));
-    c[4] = _mm_sub_epi32(_mm_mullo_epi32(b[8], txmat_1_20),
-                         _mm_mullo_epi32(b[9], txmat_1_18));
-    c[5] = _mm_add_epi32(_mm_mullo_epi32(b[10], txmat_1_6),
-                         _mm_mullo_epi32(b[11], txmat_1_31));
-    c[6] = _mm_add_epi32(_mm_mullo_epi32(b[12], txmat_1_7),
-                         _mm_mullo_epi32(b[13], txmat_1_17));
-    c[7] = _mm_add_epi32(_mm_mullo_epi32(b[14], txmat_1_21),
-                         _mm_mullo_epi32(b[15], txmat_1_3));
-    c[8] = _mm_sub_epi32(_mm_mullo_epi32(b[16], txmat_1_28),
-                         _mm_mullo_epi32(b[17], txmat_1_10));
-    c[9] = _mm_sub_epi32(_mm_mullo_epi32(b[18], txmat_1_14),
-                         _mm_mullo_epi32(b[19], txmat_1_24));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_0),
-                          _mm_mullo_epi32(b[21], txmat_1_25));
-    c[11] = _mm_add_epi32(_mm_mullo_epi32(b[22], txmat_1_13),
-                          _mm_mullo_epi32(b[23], txmat_1_11));
-    c[12] = _mm_add_epi32(_mm_mullo_epi32(b[24], txmat_1_27),
-                          _mm_mullo_epi32(b[25], txmat_1_2));
-    c[13] = _mm_sub_epi32(_mm_mullo_epi32(b[26], txmat_1_22),
-                          _mm_mullo_epi32(b[27], txmat_1_16));
-    c[14] = _mm_sub_epi32(_mm_mullo_epi32(b[28], txmat_1_8),
-                          _mm_mullo_epi32(b[29], txmat_1_30));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_5),
-                          _mm_mullo_epi32(b[31], txmat_1_19));
-    c[0] = _mm_add_epi32(_mm_sub_epi32(c[0], c[1]), _mm_sub_epi32(c[2], c[3]));
-    c[4] = _mm_add_epi32(_mm_sub_epi32(c[4], c[5]), _mm_sub_epi32(c[6], c[7]));
-    c[8] =
-        _mm_add_epi32(_mm_sub_epi32(c[8], c[9]), _mm_sub_epi32(c[10], c[11]));
-    c[12] =
-        _mm_sub_epi32(_mm_add_epi32(c[12], c[13]), _mm_sub_epi32(c[14], c[15]));
-    a[25] =
-        _mm_add_epi32(_mm_sub_epi32(c[0], c[4]), _mm_add_epi32(c[8], c[12]));
-
-    // 285,-147,-357, -27,      344, 194,-250,-315,       97, 362,  79,-323,
-    // -236, 208, 338, -44,     -359,-130, 296, 274,     -163,-353,  -9, 349,
-    // 178,-262,-306, 114,      361,  62,-331,-223
-    c[0] = _mm_sub_epi32(_mm_mullo_epi32(b[0], txmat_1_13),
-                         _mm_mullo_epi32(b[1], txmat_1_23));
-    c[1] = _mm_add_epi32(_mm_mullo_epi32(b[2], txmat_1_3),
-                         _mm_mullo_epi32(b[3], txmat_1_30));
-    c[2] = _mm_add_epi32(_mm_mullo_epi32(b[4], txmat_1_6),
-                         _mm_mullo_epi32(b[5], txmat_1_20));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_16),
-                         _mm_mullo_epi32(b[7], txmat_1_10));
-    c[4] = _mm_add_epi32(_mm_mullo_epi32(b[8], txmat_1_26),
-                         _mm_mullo_epi32(b[9], txmat_1_0));
-    c[5] = _mm_sub_epi32(_mm_mullo_epi32(b[10], txmat_1_27),
-                         _mm_mullo_epi32(b[11], txmat_1_9));
-    c[6] = _mm_sub_epi32(_mm_mullo_epi32(b[12], txmat_1_17),
-                         _mm_mullo_epi32(b[13], txmat_1_19));
-    c[7] = _mm_sub_epi32(_mm_mullo_epi32(b[14], txmat_1_7),
-                         _mm_mullo_epi32(b[15], txmat_1_29));
-    c[8] = _mm_add_epi32(_mm_mullo_epi32(b[16], txmat_1_2),
-                         _mm_mullo_epi32(b[17], txmat_1_24));
-    c[9] = _mm_add_epi32(_mm_mullo_epi32(b[18], txmat_1_12),
-                         _mm_mullo_epi32(b[19], txmat_1_14));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_22),
-                          _mm_mullo_epi32(b[21], txmat_1_4));
-    c[11] = _mm_sub_epi32(_mm_mullo_epi32(b[22], txmat_1_31),
-                          _mm_mullo_epi32(b[23], txmat_1_5));
-    c[12] = _mm_sub_epi32(_mm_mullo_epi32(b[24], txmat_1_21),
-                          _mm_mullo_epi32(b[25], txmat_1_15));
-    c[13] = _mm_sub_epi32(_mm_mullo_epi32(b[26], txmat_1_11),
-                          _mm_mullo_epi32(b[27], txmat_1_25));
-    c[14] = _mm_add_epi32(_mm_mullo_epi32(b[28], txmat_1_1),
-                          _mm_mullo_epi32(b[29], txmat_1_28));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_8),
-                          _mm_mullo_epi32(b[31], txmat_1_18));
-    c[0] = _mm_add_epi32(_mm_sub_epi32(c[0], c[1]), _mm_sub_epi32(c[2], c[3]));
-    c[4] = _mm_sub_epi32(_mm_add_epi32(c[4], c[5]), _mm_sub_epi32(c[6], c[7]));
-    c[8] =
-        _mm_add_epi32(_mm_sub_epi32(c[8], c[9]), _mm_add_epi32(c[10], c[11]));
-    c[12] =
-        _mm_add_epi32(_mm_sub_epi32(c[12], c[13]), _mm_sub_epi32(c[14], c[15]));
-    a[27] =
-        _mm_sub_epi32(_mm_add_epi32(c[0], c[4]), _mm_sub_epi32(c[8], c[12]));
-
-    // 274,-194,-331,  97,      359,   9,-357,-114,      323, 208,-262,-285,
-    // 178, 338, -79,-361,      -27, 353, 130,-315,     -223, 250, 296,-163,
-    // -344,  62, 362,  44,     -349,-147, 306, 236
-    c[0] = _mm_sub_epi32(_mm_mullo_epi32(b[0], txmat_1_14),
-                         _mm_mullo_epi32(b[1], txmat_1_20));
-    c[1] = _mm_sub_epi32(_mm_mullo_epi32(b[2], txmat_1_8),
-                         _mm_mullo_epi32(b[3], txmat_1_26));
-    c[2] = _mm_add_epi32(_mm_mullo_epi32(b[4], txmat_1_2),
-                         _mm_mullo_epi32(b[5], txmat_1_31));
-    c[3] = _mm_add_epi32(_mm_mullo_epi32(b[6], txmat_1_3),
-                         _mm_mullo_epi32(b[7], txmat_1_25));
-    c[4] = _mm_add_epi32(_mm_mullo_epi32(b[8], txmat_1_9),
-                         _mm_mullo_epi32(b[9], txmat_1_19));
-    c[5] = _mm_add_epi32(_mm_mullo_epi32(b[10], txmat_1_15),
-                         _mm_mullo_epi32(b[11], txmat_1_13));
-    c[6] = _mm_add_epi32(_mm_mullo_epi32(b[12], txmat_1_21),
-                         _mm_mullo_epi32(b[13], txmat_1_7));
-    c[7] = _mm_add_epi32(_mm_mullo_epi32(b[14], txmat_1_27),
-                         _mm_mullo_epi32(b[15], txmat_1_1));
-    c[8] = _mm_sub_epi32(_mm_mullo_epi32(b[16], txmat_1_30),
-                         _mm_mullo_epi32(b[17], txmat_1_4));
-    c[9] = _mm_sub_epi32(_mm_mullo_epi32(b[18], txmat_1_24),
-                         _mm_mullo_epi32(b[19], txmat_1_10));
-    c[10] = _mm_sub_epi32(_mm_mullo_epi32(b[20], txmat_1_18),
-                          _mm_mullo_epi32(b[21], txmat_1_16));
-    c[11] = _mm_sub_epi32(_mm_mullo_epi32(b[22], txmat_1_12),
-                          _mm_mullo_epi32(b[23], txmat_1_22));
-    c[12] = _mm_sub_epi32(_mm_mullo_epi32(b[24], txmat_1_6),
-                          _mm_mullo_epi32(b[25], txmat_1_28));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_0),
-                          _mm_mullo_epi32(b[27], txmat_1_29));
-    c[14] = _mm_add_epi32(_mm_mullo_epi32(b[28], txmat_1_5),
-                          _mm_mullo_epi32(b[29], txmat_1_23));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_11),
-                          _mm_mullo_epi32(b[31], txmat_1_17));
-    c[0] = _mm_add_epi32(_mm_sub_epi32(c[0], c[1]), _mm_sub_epi32(c[2], c[3]));
-    c[4] = _mm_add_epi32(_mm_sub_epi32(c[4], c[5]), _mm_sub_epi32(c[6], c[7]));
-    c[8] =
-        _mm_add_epi32(_mm_sub_epi32(c[8], c[9]), _mm_sub_epi32(c[10], c[11]));
-    c[12] =
-        _mm_add_epi32(_mm_sub_epi32(c[12], c[13]), _mm_sub_epi32(c[14], c[15]));
-    a[29] =
-        _mm_sub_epi32(_mm_add_epi32(c[0], c[4]), _mm_add_epi32(c[8], c[12]));
-
-    // 262,-236,-285, 208,      306,-178,-323, 147,      338,-114,-349,  79,
-    // 357, -44,-361,   9,      362,  27,-359, -62,      353,  97,-344,-130,
-    // 331, 163,-315,-194,      296, 223,-274,-250
-    c[0] = _mm_sub_epi32(_mm_mullo_epi32(b[0], txmat_1_15),
-                         _mm_mullo_epi32(b[1], txmat_1_17));
-    c[1] = _mm_sub_epi32(_mm_mullo_epi32(b[2], txmat_1_13),
-                         _mm_mullo_epi32(b[3], txmat_1_19));
-    c[2] = _mm_sub_epi32(_mm_mullo_epi32(b[4], txmat_1_11),
-                         _mm_mullo_epi32(b[5], txmat_1_21));
-    c[3] = _mm_sub_epi32(_mm_mullo_epi32(b[6], txmat_1_9),
-                         _mm_mullo_epi32(b[7], txmat_1_23));
-    c[4] = _mm_sub_epi32(_mm_mullo_epi32(b[8], txmat_1_7),
-                         _mm_mullo_epi32(b[9], txmat_1_25));
-    c[5] = _mm_sub_epi32(_mm_mullo_epi32(b[10], txmat_1_5),
-                         _mm_mullo_epi32(b[11], txmat_1_27));
-    c[6] = _mm_sub_epi32(_mm_mullo_epi32(b[12], txmat_1_3),
-                         _mm_mullo_epi32(b[13], txmat_1_29));
-    c[7] = _mm_sub_epi32(_mm_mullo_epi32(b[14], txmat_1_1),
-                         _mm_mullo_epi32(b[15], txmat_1_31));
-    c[8] = _mm_add_epi32(_mm_mullo_epi32(b[16], txmat_1_0),
-                         _mm_mullo_epi32(b[17], txmat_1_30));
-    c[9] = _mm_add_epi32(_mm_mullo_epi32(b[18], txmat_1_2),
-                         _mm_mullo_epi32(b[19], txmat_1_28));
-    c[10] = _mm_add_epi32(_mm_mullo_epi32(b[20], txmat_1_4),
-                          _mm_mullo_epi32(b[21], txmat_1_26));
-    c[11] = _mm_add_epi32(_mm_mullo_epi32(b[22], txmat_1_6),
-                          _mm_mullo_epi32(b[23], txmat_1_24));
-    c[12] = _mm_add_epi32(_mm_mullo_epi32(b[24], txmat_1_8),
-                          _mm_mullo_epi32(b[25], txmat_1_22));
-    c[13] = _mm_add_epi32(_mm_mullo_epi32(b[26], txmat_1_10),
-                          _mm_mullo_epi32(b[27], txmat_1_20));
-    c[14] = _mm_add_epi32(_mm_mullo_epi32(b[28], txmat_1_12),
-                          _mm_mullo_epi32(b[29], txmat_1_18));
-    c[15] = _mm_add_epi32(_mm_mullo_epi32(b[30], txmat_1_14),
-                          _mm_mullo_epi32(b[31], txmat_1_16));
-    c[0] = _mm_add_epi32(_mm_sub_epi32(c[0], c[1]), _mm_sub_epi32(c[2], c[3]));
-    c[4] = _mm_add_epi32(_mm_sub_epi32(c[4], c[5]), _mm_sub_epi32(c[6], c[7]));
-    c[8] =
-        _mm_add_epi32(_mm_sub_epi32(c[8], c[9]), _mm_sub_epi32(c[10], c[11]));
-    c[12] =
-        _mm_add_epi32(_mm_sub_epi32(c[12], c[13]), _mm_sub_epi32(c[14], c[15]));
-    a[31] =
-        _mm_add_epi32(_mm_add_epi32(c[0], c[4]), _mm_add_epi32(c[8], c[12]));
-
-    for (n = 0; n < 32; n++) {
-      a[n] = _mm_add_epi32(a[n], v_offset);
-      a[n] = _mm_srai_epi32(a[n], shift);
-    }
-
-    transpose_store_8x4_sse4(a, dst + 0, tx1d_size);
-    transpose_store_8x4_sse4(a + 8, dst + 8, tx1d_size);
-    transpose_store_8x4_sse4(a + 16, dst + 16, tx1d_size);
-    transpose_store_8x4_sse4(a + 24, dst + 24, tx1d_size);
-  }
-}
-
 // ********************************** DST-VII **********************************
 void fwd_txfm_idtx_size4_avx2(const int *src, int *dst, int shift, int line,
                               int skip_line, int zero_line) {
@@ -4407,8 +2208,21 @@ void fwd_txfm_idtx_size4_avx2(const int *src, int *dst, int shift, int line,
   const int nz_line = line - skip_line;
   const int tx1d_size = 4;
 
-  __m128i v_offset = _mm_set1_epi32(offset);
-  for (int i = 0; i < nz_line; i += 2, src += 2) {
+  __m256i v_offset = _mm256_set1_epi32(offset);
+  int i = 0;
+  const int *const src0 = src;
+  for (; i + 8 <= nz_line; i += 8) {
+    __m256i a[4];
+    for (int t = 0; t < tx1d_size; t++) {
+      __m256i v = _mm256_loadu_si256((const __m256i *)(src0 + t * line + i));
+      v = _mm256_slli_epi32(v, 7);
+      a[t] = _mm256_srai_epi32(_mm256_add_epi32(v, v_offset), shift);
+    }
+    transpose_store_8x4_avx2(a, dst + i * tx1d_size, tx1d_size);
+  }
+  src = src0 + i;
+  const __m128i v_offset_lo = _mm256_castsi256_si128(v_offset);
+  for (; i < nz_line; i += 2, src += 2) {
     __m128i v_src0 =
         _mm_set_epi32(src[3 * line], src[2 * line], src[line], src[0]);
     __m128i v_src1 = _mm_set_epi32(src[3 * line + 1], src[2 * line + 1],
@@ -4416,10 +2230,10 @@ void fwd_txfm_idtx_size4_avx2(const int *src, int *dst, int shift, int line,
 
     // Multiply by scale and add offset
     __m128i v_scaled0 = _mm_slli_epi32(v_src0, 7);
-    __m128i v_offsetted0 = _mm_add_epi32(v_scaled0, v_offset);
+    __m128i v_offsetted0 = _mm_add_epi32(v_scaled0, v_offset_lo);
     __m128i v_shifted0 = _mm_srai_epi32(v_offsetted0, shift);
     __m128i v_scaled1 = _mm_slli_epi32(v_src1, 7);
-    __m128i v_offsetted1 = _mm_add_epi32(v_scaled1, v_offset);
+    __m128i v_offsetted1 = _mm_add_epi32(v_scaled1, v_offset_lo);
     __m128i v_shifted1 = _mm_srai_epi32(v_offsetted1, shift);
 
     // Right shift by shift
@@ -4438,7 +2252,19 @@ void fwd_txfm_idtx_size8_avx2(const int *src, int *dst, int shift, int line,
 
   __m256i v_offset = _mm256_set1_epi32(offset);
   __m256i v_scale = _mm256_set1_epi32(scale);
-  for (int i = 0; i < nz_line; i++, src++) {
+  int i = 0;
+  const int *const src0 = src;
+  for (; i + 8 <= nz_line; i += 8) {
+    __m256i a[8];
+    for (int t = 0; t < 8; t++) {
+      __m256i v = _mm256_loadu_si256((const __m256i *)(src0 + t * line + i));
+      v = _mm256_mullo_epi32(v, v_scale);
+      a[t] = _mm256_srai_epi32(_mm256_add_epi32(v, v_offset), shift);
+    }
+    transpose_store_8x8_avx2(a, dst + i * tx1d_size, tx1d_size);
+  }
+  src = src0 + i;
+  for (; i < nz_line; i++, src++) {
     __m256i v_src = _mm256_set_epi32(
         src[7 * line], src[6 * line], src[5 * line], src[4 * line],
         src[3 * line], src[2 * line], src[line], src[0]);
@@ -4461,7 +2287,22 @@ void fwd_txfm_idtx_size16_avx2(const int *src, int *dst, int shift, int line,
   const int tx1d_size = 16;
 
   __m256i v_offset = _mm256_set1_epi32(offset);
-  for (int i = 0; i < nz_line; i++, src++) {
+  int i = 0;
+  const int *const src0 = src;
+  for (; i + 8 <= nz_line; i += 8) {
+    for (int j = 0; j < tx1d_size; j += 8) {
+      __m256i a[8];
+      for (int t = 0; t < 8; t++) {
+        __m256i v =
+            _mm256_loadu_si256((const __m256i *)(src0 + (j + t) * line + i));
+        v = _mm256_slli_epi32(v, 8);
+        a[t] = _mm256_srai_epi32(_mm256_add_epi32(v, v_offset), shift);
+      }
+      transpose_store_8x8_avx2(a, dst + i * tx1d_size + j, tx1d_size);
+    }
+  }
+  src = src0 + i;
+  for (; i < nz_line; i++, src++) {
     for (int j = 0; j < tx1d_size; j += 8) {
       __m256i v_src = _mm256_set_epi32(
           src[(7 + j) * line], src[(6 + j) * line], src[(5 + j) * line],
@@ -4489,7 +2330,22 @@ void fwd_txfm_idtx_size32_avx2(const int *src, int *dst, int shift, int line,
 
   __m256i v_offset = _mm256_set1_epi32(offset);
   __m256i v_scale = _mm256_set1_epi32(scale);
-  for (int i = 0; i < nz_line; i++, src++) {
+  int i = 0;
+  const int *const src0 = src;
+  for (; i + 8 <= nz_line; i += 8) {
+    for (int j = 0; j < tx1d_size; j += 8) {
+      __m256i a[8];
+      for (int t = 0; t < 8; t++) {
+        __m256i v =
+            _mm256_loadu_si256((const __m256i *)(src0 + (j + t) * line + i));
+        v = _mm256_mullo_epi32(v, v_scale);
+        a[t] = _mm256_srai_epi32(_mm256_add_epi32(v, v_offset), shift);
+      }
+      transpose_store_8x8_avx2(a, dst + i * tx1d_size + j, tx1d_size);
+    }
+  }
+  src = src0 + i;
+  for (; i < nz_line; i++, src++) {
     for (int j = 0; j < tx1d_size; j += 8) {
       __m256i v_src = _mm256_set_epi32(
           src[(7 + j) * line], src[(6 + j) * line], src[(5 + j) * line],
@@ -4503,6 +2359,51 @@ void fwd_txfm_idtx_size32_avx2(const int *src, int *dst, int shift, int line,
 
       // Right shift by shift
       _mm256_storeu_si256((__m256i *)(dst + (i * tx1d_size) + j), v_shifted);
+    }
+  }
+}
+
+static const int idtx_scale[4] = { 128, 181, 256, 362 };
+
+// Forward 2D identity transform.
+static void fwd_txfm_idtx_2d_avx2(const int16_t *resi, int diff_stride,
+                                  tran_low_t *coeff, int width, int height,
+                                  int scale_col, int scale_row, int shift_col,
+                                  int shift_row) {
+  const __m256i v_scale_col = _mm256_set1_epi32(scale_col);
+  const __m256i v_scale_row = _mm256_set1_epi32(scale_row);
+  const __m256i v_offset_col =
+      _mm256_set1_epi32(shift_col > 0 ? 1 << (shift_col - 1) : 0);
+  const __m256i v_offset_row =
+      _mm256_set1_epi32(shift_row > 0 ? 1 << (shift_row - 1) : 0);
+
+  if (width >= 8) {
+    for (int y = 0; y < height; y++) {
+      const int16_t *src_row = resi + y * diff_stride;
+      tran_low_t *dst_row = coeff + y * width;
+      for (int x = 0; x < width; x += 8) {
+        __m256i data = _mm256_cvtepi16_epi32(
+            _mm_loadu_si128((const __m128i *)(src_row + x)));
+        data = _mm256_mullo_epi32(data, v_scale_col);
+        data =
+            _mm256_srai_epi32(_mm256_add_epi32(data, v_offset_col), shift_col);
+        data = _mm256_mullo_epi32(data, v_scale_row);
+        data =
+            _mm256_srai_epi32(_mm256_add_epi32(data, v_offset_row), shift_row);
+        _mm256_storeu_si256((__m256i *)(dst_row + x), data);
+      }
+    }
+  } else {
+    assert(width == 4 && (height & 1) == 0);
+    for (int y = 0; y < height; y += 2) {
+      __m256i data = _mm256_cvtepi16_epi32(_mm_unpacklo_epi64(
+          _mm_loadl_epi64((const __m128i *)(resi + y * diff_stride)),
+          _mm_loadl_epi64((const __m128i *)(resi + (y + 1) * diff_stride))));
+      data = _mm256_mullo_epi32(data, v_scale_col);
+      data = _mm256_srai_epi32(_mm256_add_epi32(data, v_offset_col), shift_col);
+      data = _mm256_mullo_epi32(data, v_scale_row);
+      data = _mm256_srai_epi32(_mm256_add_epi32(data, v_offset_row), shift_row);
+      _mm256_storeu_si256((__m256i *)(coeff + y * 4), data);
     }
   }
 }
@@ -4521,12 +2422,15 @@ void fwd_txfm_adst_size4_avx2(const int *src, int *dst, int shift, int line,
     { 89, -75, 50, -18, 89, -75, 50, -18 },
   };
   __m256i v_offset = _mm256_set1_epi32(offset);
+  const __m256i permute_idx = _mm256_set_epi32(1, 1, 1, 1, 0, 0, 0, 0);
   for (int j = 0; j < nz_line; j += 2) {
     __m256i sum = _mm256_set1_epi32(0);
     for (int k = 0; k < tx1d_size; k++) {
-      __m128i tmp_src0 = _mm_set1_epi32(src[k * line + j + 0]);
-      __m128i tmp_src1 = _mm_set1_epi32(src[k * line + j + 1]);
-      __m256i tmp_src = _mm256_set_m128i(tmp_src1, tmp_src0);
+      // s0 s0 s0 s0 s1 s1 s1 s1
+      __m256i tmp_src = _mm256_permutevar8x32_epi32(
+          _mm256_castsi128_si256(
+              _mm_loadl_epi64((const __m128i *)&src[k * line + j])),
+          permute_idx);
 
       __m256i tmp_val =
           _mm256_load_si256((__m256i *)tx_kernel_adst_size4_avx2[k]);
@@ -4667,12 +2571,15 @@ void fwd_txfm_fdst_size4_avx2(const int *src, int *dst, int shift, int line,
     { 18, -50, 75, -89, 18, -50, 75, -89 },
   };
   __m256i v_offset = _mm256_set1_epi32(offset);
+  const __m256i permute_idx = _mm256_set_epi32(1, 1, 1, 1, 0, 0, 0, 0);
   for (int j = 0; j < nz_line; j += 2) {
     __m256i sum = _mm256_set1_epi32(0);
     for (int k = 0; k < tx1d_size; k++) {
-      __m128i tmp_src0 = _mm_set1_epi32(src[k * line + j + 0]);
-      __m128i tmp_src1 = _mm_set1_epi32(src[k * line + j + 1]);
-      __m256i tmp_src = _mm256_set_m128i(tmp_src1, tmp_src0);
+      // s0 s0 s0 s0 s1 s1 s1 s1
+      __m256i tmp_src = _mm256_permutevar8x32_epi32(
+          _mm256_castsi128_si256(
+              _mm_loadl_epi64((const __m128i *)&src[k * line + j])),
+          permute_idx);
 
       __m256i tmp_val =
           _mm256_load_si256((__m256i *)tx_kernel_fdst_size4_avx2[k]);
@@ -5177,15 +3084,6 @@ void fwd_transform_1d_avx2(const int *src, int *dst, int shift, int line,
         default: assert(0); break;
       }
       break;
-    case 4:
-      switch (tx_type_index) {
-        case 0:
-          fwd_txfm_dct2_size64_avx2(src, dst, shift, line, skip_line,
-                                    zero_line);
-          break;
-        default: assert(0); break;
-      }
-      break;
     default: assert(0); break;
   }
 }
@@ -5197,19 +3095,16 @@ void fwd_txfm_avx2(const int16_t *resi, tran_low_t *coeff, int diff_stride,
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
 
-  const uint32_t tx_wide_index = tx_size_wide_log2[tx_size] - 2;
-  const uint32_t tx_high_index = tx_size_high_log2[tx_size] - 2;
-
-  TX_TYPE tx_type = txfm_param->tx_type;
+  PRIMARY_TX_TYPE primary_tx_type = txfm_param->primary_tx_type;
 
   if (txfm_param->lossless) {
-    assert(tx_type == DCT_DCT);
+    assert(primary_tx_type == DCT_DCT);
     av2_highbd_fwht4x4(resi, coeff, diff_stride);
     return;
   }
 
-  int tx_type_row = g_hor_tx_type[tx_type];
-  int tx_type_col = g_ver_tx_type[tx_type];
+  int tx_type_row = g_hor_tx_type[primary_tx_type];
+  int tx_type_col = g_ver_tx_type[primary_tx_type];
 
   if (txfm_param->use_ddt) {
     const int use_ddt_row = (width == 4 && REPLACE_ADST4) ||
@@ -5226,38 +3121,55 @@ void fwd_txfm_avx2(const int16_t *resi, tran_low_t *coeff, int diff_stride,
     }
   }
 
-  int skipWidth = width > 32 ? width - 32 : 0;
-  int skipHeight = height > 32 ? height - 32 : 0;
+  int buf[MAX_TX_SQUARE];
+  assert(width >= 4 && height >= 4);
 
-  int buf[MAX_TX_SQUARE] = { 0 };
+  const uint32_t tx_wide_index =
+      AVMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_wide_log2[tx_size]) - 2;
+  const uint32_t tx_high_index =
+      AVMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_high_log2[tx_size]) - 2;
 
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      coeff[(y * width) + x] = resi[(y * diff_stride) + x];
-    }
-  }
-
+  // Note: Shifts are still based on the original tx_size (see comment in
+  // av2_fwd_txfm_downsample_input()).
   const int shift_1st = fwd_tx_shift[tx_size][0];
   const int shift_2nd = fwd_tx_shift[tx_size][1];
 
-  fwd_transform_1d_avx2(coeff, buf, shift_1st, width, 0, skipHeight,
-                        tx_type_col, tx_high_index);
-
-  fwd_transform_1d_avx2(buf, coeff, shift_2nd, height, skipHeight, skipWidth,
-                        tx_type_row, tx_wide_index);
-
-  // Re-pack non-zero coeffs in the first 32x32 indices.
-  if (skipWidth) {
-    for (int row = 1; row < height; ++row) {
-      __m256i data0 = _mm256_loadu_si256((__m256i *)(coeff + row * width));
-      __m256i data1 = _mm256_loadu_si256((__m256i *)(coeff + row * width + 8));
-      __m256i data2 = _mm256_loadu_si256((__m256i *)(coeff + row * width + 16));
-      __m256i data3 = _mm256_loadu_si256((__m256i *)(coeff + row * width + 24));
-      _mm256_storeu_si256((__m256i *)(coeff + row * 32), data0);
-      _mm256_storeu_si256((__m256i *)(coeff + row * 32 + 8), data1);
-      _mm256_storeu_si256((__m256i *)(coeff + row * 32 + 16), data2);
-      _mm256_storeu_si256((__m256i *)(coeff + row * 32 + 24), data3);
+  int w = width, h = height;
+  if (primary_tx_type == IDTX) {
+    // IDTX is not allowed when transform width or height is greater than 32.
+    // Thus, no downsampling is needed.
+    assert(width <= 32 && height <= 32);
+    fwd_txfm_idtx_2d_avx2(resi, diff_stride, coeff, width, height,
+                          idtx_scale[tx_high_index], idtx_scale[tx_wide_index],
+                          shift_1st, shift_2nd);
+  } else {
+    if (width > 32 || height > 32) {
+      // For 64-length dimensions, downsample the residual by 2 along such
+      // dimensions, then apply 32-point kernels.
+      av2_fwd_txfm_downsample_input(resi, diff_stride, tx_size, coeff, &w, &h);
+    } else {
+      for (int y = 0; y < height; y++) {
+        const int16_t *r = resi + y * diff_stride;
+        int32_t *c = coeff + y * width;
+        if (width == 4) {
+          _mm_storeu_si128(
+              (__m128i *)c,
+              _mm_cvtepi16_epi32(_mm_loadl_epi64((const __m128i *)r)));
+        } else {
+          for (int x = 0; x < width; x += 8) {
+            _mm256_storeu_si256((__m256i *)(c + x),
+                                _mm256_cvtepi16_epi32(
+                                    _mm_loadu_si128((const __m128i *)(r + x))));
+          }
+        }
+      }
     }
+
+    fwd_transform_1d_avx2(coeff, buf, shift_1st, w, 0, 0, tx_type_col,
+                          tx_high_index);
+
+    fwd_transform_1d_avx2(buf, coeff, shift_2nd, h, 0, 0, tx_type_row,
+                          tx_wide_index);
   }
 
   const int log2width = tx_size_wide_log2[tx_size];
@@ -5265,25 +3177,18 @@ void fwd_txfm_avx2(const int16_t *resi, tran_low_t *coeff, int diff_stride,
   const int sqrt2 = ((log2width + log2height) & 1) ? 1 : 0;
   if (sqrt2) {
     __m256i scale_vector = _mm256_set1_epi64x((int64_t)NewSqrt2);
-    __m128i shift_bits = _mm_set1_epi64x(NewSqrt2Bits);
     __m256i round_offset = _mm256_set1_epi64x(1LL << (NewSqrt2Bits - 1));
-    __m256i idx = _mm256_set_epi32(6, 4, 2, 0, 6, 4, 2, 0);
-    for (int i = 0; i < AVMMIN(1024, width * height); i += 8) {
+    assert((w * h) % 8 == 0);
+    for (int i = 0; i < w * h; i += 8) {
       __m256i data = _mm256_loadu_si256((__m256i *)(coeff + i));
+      __m256i even = _mm256_mul_epi32(data, scale_vector);
+      __m256i odd = _mm256_mul_epi32(_mm256_srli_epi64(data, 32), scale_vector);
+      even =
+          _mm256_srli_epi64(_mm256_add_epi64(even, round_offset), NewSqrt2Bits);
+      odd =
+          _mm256_srli_epi64(_mm256_add_epi64(odd, round_offset), NewSqrt2Bits);
 
-      __m256i data0 = _mm256_cvtepi32_epi64(_mm256_extracti128_si256(data, 0));
-      data0 = _mm256_mul_epi32(data0, scale_vector);
-      data0 = _mm256_add_epi64(data0, round_offset);
-      data0 = _mm256_srl_epi64(data0, shift_bits);
-      data0 = _mm256_permutevar8x32_epi32(data0, idx);
-
-      __m256i data1 = _mm256_cvtepi32_epi64(_mm256_extracti128_si256(data, 1));
-      data1 = _mm256_mul_epi32(data1, scale_vector);
-      data1 = _mm256_add_epi64(data1, round_offset);
-      data1 = _mm256_srl_epi64(data1, shift_bits);
-      data1 = _mm256_permutevar8x32_epi32(data1, idx);
-
-      data = _mm256_blend_epi32(data0, data1, 0xf0);
+      data = _mm256_blend_epi32(even, _mm256_slli_epi64(odd, 32), 0xAA);
 
       _mm256_storeu_si256((__m256i *)(coeff + i), data);
     }

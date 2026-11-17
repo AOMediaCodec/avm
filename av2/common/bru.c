@@ -389,8 +389,7 @@ RefCntBuffer *bru_swap_common(AV2_COMMON *cm) {
           plane > 0 ? cm->seq_params.subsampling_y : 0;
       ref_buf->ccso_info.reuse_root_ref[plane] =
           tmp_buf->ccso_info.reuse_root_ref[plane];
-      const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
-          cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+      const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(cm);
       const int log2_filter_unit_size_y =
           plane == 0 ? ccso_blk_size
                      : ccso_blk_size - cm->seq_params.subsampling_y;

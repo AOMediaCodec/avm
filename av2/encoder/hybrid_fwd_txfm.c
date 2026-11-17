@@ -10,15 +10,17 @@
  * aomedia.org/license/patent-license/.
  */
 
-#include "config/avm_config.h"
+#include <assert.h>
+
 #include "config/av2_rtcd.h"
+#include "config/avm_config.h"
 #include "config/avm_dsp_rtcd.h"
 
 #include "av2/common/idct.h"
-#include "av2/encoder/hybrid_fwd_txfm.h"
 #include "av2/common/scan.h"
 #include "av2/common/secondary_tx.h"
 #include "av2/common/txb_common.h"
+#include "av2/encoder/hybrid_fwd_txfm.h"
 
 void av2_lossless_fwd_idtx_c(const int16_t *src_diff, tran_low_t *coeff,
                              int diff_stride, TxfmParam *txfm_param) {
@@ -235,127 +237,6 @@ void fwd_txfm_dct2_size32_c(const int *src, int *dst, int shift, int line,
 
   if (skip_line) {
     memset(dst, 0, sizeof(int) * 32 * skip_line);
-  }
-}
-
-void fwd_txfm_dct2_size64_c(const int *src, int *dst, int shift, int line,
-                            int skip_line, int zero_line) {
-  int offset = shift > 0 ? 1 << (shift - 1) : 0;
-
-  const int tx1d_size = 64;
-  const int *tx_mat = tx_kernel_dct2_size64[FWD_TXFM][0];
-
-  int j, k;
-  int a[32], b[32];
-  int c[16], d[16];
-  int e[8], f[8];
-  int g[4], h[4];
-  int i[2], u[2];
-  int *tmp = dst;
-
-  bool zo = zero_line != 0;
-
-  for (j = 0; j < line - skip_line; j++) {
-    for (k = 0; k < 32; k++) {
-      a[k] = src[k * line] + src[(63 - k) * line];
-      b[k] = src[k * line] - src[(63 - k) * line];
-    }
-
-    for (k = 0; k < 16; k++) {
-      c[k] = a[k] + a[31 - k];
-      d[k] = a[k] - a[31 - k];
-    }
-
-    for (k = 0; k < 8; k++) {
-      e[k] = c[k] + c[15 - k];
-      f[k] = c[k] - c[15 - k];
-    }
-
-    for (k = 0; k < 4; k++) {
-      g[k] = e[k] + e[7 - k];
-      h[k] = e[k] - e[7 - k];
-    }
-
-    i[0] = g[0] + g[3];
-    u[0] = g[0] - g[3];
-    i[1] = g[1] + g[2];
-    u[1] = g[1] - g[2];
-
-    dst[0] = (tx_mat[0 * 64 + 0] * i[0] + tx_mat[0 * 64 + 1] * i[1] + offset) >>
-             shift;
-    dst[16] =
-        (tx_mat[16 * 64 + 0] * u[0] + tx_mat[16 * 64 + 1] * u[1] + offset) >>
-        shift;
-
-    if (!zo) {
-      dst[32] =
-          (tx_mat[32 * 64 + 0] * i[0] + tx_mat[32 * 64 + 1] * i[1] + offset) >>
-          shift;
-      dst[48] =
-          (tx_mat[48 * 64 + 0] * u[0] + tx_mat[48 * 64 + 1] * u[1] + offset) >>
-          shift;
-    }
-    for (k = 8; k < (zo ? 32 : 64); k += 16) {
-      dst[k] =
-          (tx_mat[k * 64 + 0] * h[0] + tx_mat[k * 64 + 1] * h[1] +
-           tx_mat[k * 64 + 2] * h[2] + tx_mat[k * 64 + 3] * h[3] + offset) >>
-          shift;
-    }
-    for (k = 4; k < (zo ? 32 : 64); k += 8) {
-      dst[k] =
-          (tx_mat[k * 64 + 0] * f[0] + tx_mat[k * 64 + 1] * f[1] +
-           tx_mat[k * 64 + 2] * f[2] + tx_mat[k * 64 + 3] * f[3] +
-           tx_mat[k * 64 + 4] * f[4] + tx_mat[k * 64 + 5] * f[5] +
-           tx_mat[k * 64 + 6] * f[6] + tx_mat[k * 64 + 7] * f[7] + offset) >>
-          shift;
-    }
-    for (k = 2; k < (zo ? 32 : 64); k += 4) {
-      dst[k] = (tx_mat[k * 64 + 0] * d[0] + tx_mat[k * 64 + 1] * d[1] +
-                tx_mat[k * 64 + 2] * d[2] + tx_mat[k * 64 + 3] * d[3] +
-                tx_mat[k * 64 + 4] * d[4] + tx_mat[k * 64 + 5] * d[5] +
-                tx_mat[k * 64 + 6] * d[6] + tx_mat[k * 64 + 7] * d[7] +
-                tx_mat[k * 64 + 8] * d[8] + tx_mat[k * 64 + 9] * d[9] +
-                tx_mat[k * 64 + 10] * d[10] + tx_mat[k * 64 + 11] * d[11] +
-                tx_mat[k * 64 + 12] * d[12] + tx_mat[k * 64 + 13] * d[13] +
-                tx_mat[k * 64 + 14] * d[14] + tx_mat[k * 64 + 15] * d[15] +
-                offset) >>
-               shift;
-    }
-    for (k = 1; k < (zo ? 32 : 64); k += 2) {
-      dst[k] = (tx_mat[k * 64 + 0] * b[0] + tx_mat[k * 64 + 1] * b[1] +
-                tx_mat[k * 64 + 2] * b[2] + tx_mat[k * 64 + 3] * b[3] +
-                tx_mat[k * 64 + 4] * b[4] + tx_mat[k * 64 + 5] * b[5] +
-                tx_mat[k * 64 + 6] * b[6] + tx_mat[k * 64 + 7] * b[7] +
-                tx_mat[k * 64 + 8] * b[8] + tx_mat[k * 64 + 9] * b[9] +
-                tx_mat[k * 64 + 10] * b[10] + tx_mat[k * 64 + 11] * b[11] +
-                tx_mat[k * 64 + 12] * b[12] + tx_mat[k * 64 + 13] * b[13] +
-                tx_mat[k * 64 + 14] * b[14] + tx_mat[k * 64 + 15] * b[15] +
-                tx_mat[k * 64 + 16] * b[16] + tx_mat[k * 64 + 17] * b[17] +
-                tx_mat[k * 64 + 18] * b[18] + tx_mat[k * 64 + 19] * b[19] +
-                tx_mat[k * 64 + 20] * b[20] + tx_mat[k * 64 + 21] * b[21] +
-                tx_mat[k * 64 + 22] * b[22] + tx_mat[k * 64 + 23] * b[23] +
-                tx_mat[k * 64 + 24] * b[24] + tx_mat[k * 64 + 25] * b[25] +
-                tx_mat[k * 64 + 26] * b[26] + tx_mat[k * 64 + 27] * b[27] +
-                tx_mat[k * 64 + 28] * b[28] + tx_mat[k * 64 + 29] * b[29] +
-                tx_mat[k * 64 + 30] * b[30] + tx_mat[k * 64 + 31] * b[31] +
-                offset) >>
-               shift;
-    }
-    src++;
-    dst += tx1d_size;
-  }
-
-  const int nz_line = line - skip_line;
-  const int cutoff = tx1d_size - zero_line;
-  if (skip_line) {
-    memset(dst, 0, sizeof(int) * 64 * skip_line);
-  }
-  if (zero_line) {
-    dst = tmp + cutoff;
-    for (j = 0; j < nz_line; j++) {
-      memset(dst, 0, sizeof(int) * zero_line);
-      dst += tx1d_size;
-    }
   }
 }
 
@@ -933,14 +814,6 @@ void fwd_transform_1d_c(const int *src, int *dst, int shift, int line,
         default: assert(0); break;
       }
       break;
-    case 4:
-      switch (tx_type_index) {
-        case 0:
-          fwd_txfm_dct2_size64_c(src, dst, shift, line, skip_line, zero_line);
-          break;
-        default: assert(0); break;
-      }
-      break;
     default: assert(0); break;
   }
 }
@@ -952,19 +825,16 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
 
-  const uint32_t tx_wide_index = tx_size_wide_log2[tx_size] - 2;
-  const uint32_t tx_high_index = tx_size_high_log2[tx_size] - 2;
-
-  TX_TYPE tx_type = txfm_param->tx_type;
+  PRIMARY_TX_TYPE primary_tx_type = txfm_param->primary_tx_type;
 
   if (txfm_param->lossless) {
-    assert(tx_type == DCT_DCT);
+    assert(primary_tx_type == DCT_DCT);
     av2_highbd_fwht4x4(resi, coeff, diff_stride);
     return;
   }
 
-  int tx_type_row = g_hor_tx_type[tx_type];
-  int tx_type_col = g_ver_tx_type[tx_type];
+  int tx_type_row = g_hor_tx_type[primary_tx_type];
+  int tx_type_col = g_ver_tx_type[primary_tx_type];
 
   if (txfm_param->use_ddt) {
     const int use_ddt_row = (width == 4 && REPLACE_ADST4) ||
@@ -981,37 +851,33 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
     }
   }
 
-  int skipWidth = width > 32 ? width - 32 : 0;
-  int skipHeight = height > 32 ? height - 32 : 0;
+  int buf[MAX_TX_SQUARE];
+  assert(width >= 4 && height >= 4);
 
-  int buf[MAX_TX_SQUARE] = { 0 };
+  // For 64-length dimensions, downsample the residual by 2 along such
+  // dimensions, then apply 32-point kernels.
+  int w, h;
+  av2_fwd_txfm_downsample_input(resi, diff_stride, tx_size, coeff, &w, &h);
+  const uint32_t tx_wide_index =
+      AVMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_wide_log2[tx_size]) - 2;
+  const uint32_t tx_high_index =
+      AVMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_high_log2[tx_size]) - 2;
 
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      coeff[(y * width) + x] = resi[(y * diff_stride) + x];
-    }
-  }
-
+  // Note: Shifts are still based on the original tx_size (see comment in
+  // av2_fwd_txfm_downsample_input()).
   const int shift_1st = fwd_tx_shift[tx_size][0];
   const int shift_2nd = fwd_tx_shift[tx_size][1];
 
-  fwd_transform_1d_c(coeff, buf, shift_1st, width, 0, skipHeight, tx_type_col,
+  fwd_transform_1d_c(coeff, buf, shift_1st, w, 0, 0, tx_type_col,
                      tx_high_index);
-  fwd_transform_1d_c(buf, coeff, shift_2nd, height, skipHeight, skipWidth,
-                     tx_type_row, tx_wide_index);
-
-  // Re-pack non-zero coeffs in the first 32x32 indices.
-  if (skipWidth) {
-    for (int row = 1; row < height; ++row) {
-      memcpy(coeff + row * 32, coeff + row * width, 32 * sizeof(*coeff));
-    }
-  }
+  fwd_transform_1d_c(buf, coeff, shift_2nd, h, 0, 0, tx_type_row,
+                     tx_wide_index);
 
   const int log2width = tx_size_wide_log2[tx_size];
   const int log2height = tx_size_high_log2[tx_size];
   const int sqrt2 = ((log2width + log2height) & 1) ? 1 : 0;
   if (sqrt2) {
-    for (int i = 0; i < AVMMIN(1024, width * height); i++) {
+    for (int i = 0; i < w * h; i++) {
       coeff[i] = round_shift((int64_t)coeff[i] * NewSqrt2, NewSqrt2Bits);
     }
   }
@@ -1020,7 +886,7 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
 void av2_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
                   TxfmParam *txfm_param) {
   if (txfm_param->lossless) {
-    if (txfm_param->tx_type == IDTX) {
+    if (txfm_param->primary_tx_type == IDTX) {
       av2_lossless_fwd_idtx(src_diff, coeff, diff_stride, txfm_param);
       return;
     }
@@ -1053,7 +919,7 @@ void av2_fwd_cross_chroma_tx_block_c(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
 
 void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
                    int64_t *sec_tx_sse) {
-  const TX_TYPE stx_type = txfm_param->sec_tx_type;
+  const SEC_TX_TYPE stx_type = txfm_param->sec_tx_type;
 
   const int width = tx_size_wide[txfm_param->tx_size] <= 32
                         ? tx_size_wide[txfm_param->tx_size]
@@ -1071,7 +937,7 @@ void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
     const int16_t *scan_order_in;
     // Align scan order of IST with primary transform scan order
     const SCAN_ORDER *scan_order_out =
-        get_scan(txfm_param->tx_size, txfm_param->tx_type);
+        get_scan(txfm_param->tx_size, txfm_param->primary_tx_type);
     const int16_t *const scan = scan_order_out->scan;
     tran_low_t buf0[64] = { 0 }, buf1[64] = { 0 };
     tran_low_t *tmp = buf0;
@@ -1082,16 +948,15 @@ void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
         (mode == SMOOTH_H_PRED))
       transpose = 1;
     mode_t = txfm_param->sec_tx_set;
-    if (sb_size == 8)
-      assert(mode_t < IST_8x8_SET_SIZE);
-    else
-      assert(mode_t < IST_4x4_SET_SIZE);
+    assert(av2_tx_type_in_range(txfm_param->primary_tx_type,
+                                txfm_param->sec_tx_type, txfm_param->sec_tx_set,
+                                width, height));
 #if STX_COEFF_DEBUG
     fprintf(stderr,
             "[fwd stx] inter %d ptx %d txs %dx%d tp %d stx_set %d stx_type %d\n"
             "(ptx coeff)\n",
-            txfm_param->is_inter, get_primary_tx_type(txfm_param->tx_type),
-            width, height, transpose, txfm_param->sec_tx_set, stx_type);
+            txfm_param->is_inter, txfm_param->primary_tx_type, width, height,
+            transpose, txfm_param->sec_tx_set, stx_type);
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < width; j++) {
         fprintf(stderr, "%d,", coeff[i * width + j]);
@@ -1118,9 +983,11 @@ void av2_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
       tmp++;
     }
     const int st_size_class =
-        (width == 8 && height == 8 && txfm_param->tx_type == DCT_DCT) ? 1
-        : (width >= 8 && height >= 8) ? (txfm_param->tx_type == DCT_DCT ? 2 : 3)
-                                      : 0;
+        (width == 8 && height == 8 && txfm_param->primary_tx_type == DCT_DCT)
+            ? 1
+        : (width >= 8 && height >= 8)
+            ? (txfm_param->primary_tx_type == DCT_DCT ? 2 : 3)
+            : 0;
     fwd_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class, txfm_param->bd);
     if (sec_tx_sse != NULL) {
       const int reduced_height =

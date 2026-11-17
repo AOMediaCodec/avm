@@ -64,37 +64,6 @@ typedef enum {
                              // QM, MFH, BRT
 } temporal_unit_state_t;
 
-// Multi-layer frame validation state
-typedef struct {
-  int mlayer_id;
-  int hidden_picture_count;
-  int showable_picture_count;
-  int has_clk;
-  int has_olk;
-  int display_order_hint;
-  int first_picture_unit_processed;
-} mlayer_frame_state_t;
-
-typedef struct {
-  mlayer_frame_state_t layers[8];  // MAX_NUM_MLAYERS
-  int num_active_layers;
-  int lowest_mlayer_id;
-  int global_display_order_hint;
-  int has_any_showable_unit;
-  int clk_olk_exclusion_violated;
-} mlayer_validation_state_t;
-
-// OBU info structure for validation
-typedef struct {
-  int obu_type;
-  int mlayer_id;
-  int tlayer_id;
-  int xlayer_id;
-  int order_hint;
-  int is_showable;
-  int is_hidden;
-} test_obu_info_t;
-
 int check_temporal_unit_structure(temporal_unit_state_t *state, int obu_type,
                                   int xlayer_id, int metadata_is_suffix,
                                   int prev_obu_type, int prev_xlayer_id);

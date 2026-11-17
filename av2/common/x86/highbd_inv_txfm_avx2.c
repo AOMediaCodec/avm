@@ -20,7 +20,7 @@
 
 void av2_highbd_inv_txfm_add_avx2(const tran_low_t *input, uint16_t *dest,
                                   int stride, const TxfmParam *txfm_param) {
-  assert(av2_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
+  assert(av2_ext_tx_used[txfm_param->tx_set_type][txfm_param->primary_tx_type]);
   inv_txfm(input, dest, stride, txfm_param);
 }
 
@@ -38,7 +38,7 @@ static INLINE __m256i round_power_of_two_signed_avx2(__m256i v_val_d,
 void inv_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
                     const PREDICTION_MODE mode, const uint8_t stx_idx,
                     const int size, const int bd) {
-  assert(stx_idx < 4);
+  assert(stx_idx < STX_TYPES - 1);
   const int32_t *kernel = (size == 0) ? ist_4x4_kernel_int32[mode][stx_idx][0]
                                       : ist_8x8_kernel_int32[mode][stx_idx][0];
 
@@ -2853,7 +2853,7 @@ void inv_transform_1d_avx2(const int *src, int *dst, int shift, int line,
 void inv_txfm_avx2(const tran_low_t *input, uint16_t *dest, int stride,
                    const TxfmParam *txfm_param) {
   const TX_SIZE tx_size = txfm_param->tx_size;
-  TX_TYPE tx_type = txfm_param->tx_type;
+  PRIMARY_TX_TYPE primary_tx_type = txfm_param->primary_tx_type;
 
   int width = AVMMIN(MAX_TX_SIZE >> 1, tx_size_wide[tx_size]);
   int height = AVMMIN(MAX_TX_SIZE >> 1, tx_size_high[tx_size]);
@@ -2874,14 +2874,14 @@ void inv_txfm_avx2(const tran_low_t *input, uint16_t *dest, int stride,
   const int col_rng_max = (1 << txfm_param->bd) - 1;
 
   if (txfm_param->lossless) {
-    assert(tx_type == DCT_DCT);
+    assert(primary_tx_type == DCT_DCT);
     av2_highbd_iwht4x4_add(input, dest, stride, txfm_param->eob,
                            txfm_param->bd);
     return;
   }
 
-  int tx_type_row = g_hor_tx_type[tx_type];
-  int tx_type_col = g_ver_tx_type[tx_type];
+  int tx_type_row = g_hor_tx_type[primary_tx_type];
+  int tx_type_col = g_ver_tx_type[primary_tx_type];
 
   if (txfm_param->use_ddt) {
     const int use_ddt_row = (width == 4 && REPLACE_ADST4) ||

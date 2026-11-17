@@ -682,9 +682,10 @@ typedef struct cfg_options {
   int operating_points_count;
 
   /*!\brief enable the low complexity decode mode
-   * If 0, disables the low complexity decode mode (default).
-   * If 1 and the usage is good-quality, enables the low complexity decode
-   * mode.
+   * If value = 0, disables the low complexity decode mode (default).
+   * If value > 0 and the usage is good-quality, enables the low complexity
+   * decode mode (value 1: standard low-complexity level, value 2: aggressive
+   * low-complexity level).
    */
   unsigned int enable_low_complexity_decode;
 } cfg_options_t;
@@ -1070,6 +1071,23 @@ typedef struct avm_codec_enc_cfg {
    * This value indicates switch frame type: 0 - Regular S-Frame, 1: RAS Frame.
    */
   unsigned int sframe_type;
+
+  /*!\brief sframe_conformance_option
+   *
+   * Selects how the encoder satisfies the AV2 bitstream-conformance
+   * requirement constraining BAWP/IBC/OPFL/RefineMV around OBU_SWITCH
+   * frames. Only has an effect when enable_sframe is on and sframe_mode is 0.
+   * Values:
+   *   - 0 (default): force enable_refmvbank = 0 sequence-wide, and disable
+   *     BAWP for the switch frame and every dependent frame that follows
+   *     it.
+   *   - 1: force enable_refmvbank = 1 sequence-wide, and disable BAWP and
+   *     IntraBC (for inter frames) for the switch frame and every
+   *     dependent frame that follows it.
+   *   - 2: force enable_opfl_refine = REFINE_NONE and enable_refinemv = 0
+   *     sequence-wide.
+   */
+  unsigned int sframe_conformance_option;
 
   /*!\brief Monochrome mode
    *
