@@ -85,6 +85,22 @@
 #define RESIZE_DYNAMIC_SUBGOP_D9_MAX_Q_RATIO 0.028
 #define RESIZE_DYNAMIC_KF_COSCALE_MIN_DENOM (SCALE_NUMERATOR + 2)
 #define RESIZE_DYNAMIC_KF_COSCALE_MAX_Q_NORM 0.56
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_DENOM (SCALE_NUMERATOR + 4)
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_MIN_QRAT_SQ 4.0
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_HIGH_QRAT_SQ 15.0
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID 0.132
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_LOW_ACR_MAX_NZ 76.0
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_ACR_MID 0.145
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MIN 0.018
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_MID_UNI 0.30
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_MID_LOW_UNI 0.16
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_HIGH_UNI 0.16
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_HIGH_LOW_UNI 0.05
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QREF_MID 1.05
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QREF_HIGH 0.25
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_MID 12.5
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_HIGH 3.2
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QNORM_FLOOR 0.02
 #define RESIZE_DYNAMIC_CHROMA_WEIGHT 4.0
 #define RESIZE_DYNAMIC_MIN_BLOCK_VAR 64.0
 #define RESIZE_DYNAMIC_BLOCK_PERCENTILE 0.75
@@ -588,6 +604,24 @@ static double compute_mc_bg_energy(double mc_p50, double mc_nz, double mc_acr) {
   const double mc_bg =
       mc_p50 + RESIZE_DYNAMIC_MC_GRAIN_WEIGHT * mc_nz * mc_acr * mc_acr;
   return AVMMAX(mc_bg, 1e-6);
+}
+
+// Relaxes the subgop MC content threshold at moderate scales (d <= 12) on
+// coarse-QP Full-HD scenes when sharpness-weighted resampling distortion is a
+// small fraction of Qstep^2(d) (qn_base = avg_ratio / base_subgop_thresh <
+// q_cap), so motion-blurred scenes with moderate temporal residual energy are
+// not blocked by an independent hard MC ratio cutoff. Since the multiplier is
+// monotonically non-increasing in avg_ratio, evaluating it at a running partial
+// average provides a valid upper bound for early-exit pruning.
+static double compute_subgop_synergy_content_thresh(
+    double base_content_thresh, double avg_ratio, double base_subgop_thresh,
+    double q_cap, double q_ref_num, double max_syn) {
+  const double qn_base = avg_ratio / AVMMAX(base_subgop_thresh, 1e-12);
+  if (qn_base >= q_cap) return base_content_thresh;
+  const double ratio =
+      q_ref_num / AVMMAX(qn_base, RESIZE_DYNAMIC_SUBGOP_SYNERGY_QNORM_FLOOR);
+  const double syn_mult = AVMMIN(ratio * ratio, max_syn);
+  return base_content_thresh * syn_mult;
 }
 
 // Dynamic resize scale decision for RESIZE_DYNAMIC (and keyframes in
@@ -1180,9 +1214,35 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
   }
   const double content_thresh =
       have_mc ? subgop_mc_thresh : subgop_ac_thresh_fallback;
+  const int allow_synergy =
+      have_mc && (double)pel_count >= RESIZE_DYNAMIC_REF_PELS &&
+      pel_ratio <= 1.0 && !is_uniform_noise &&
+      qstep_ratio_sq > RESIZE_DYNAMIC_SUBGOP_SYNERGY_MIN_QRAT_SQ &&
+      ((mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID &&
+        mc_acr > RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MAX &&
+        mc_nz < RESIZE_DYNAMIC_SUBGOP_SYNERGY_LOW_ACR_MAX_NZ * bds2) ||
+       (mc_acr > RESIZE_DYNAMIC_SUBGOP_SYNERGY_ACR_MID &&
+        mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MIN));
+  const int is_very_coarse_qp =
+      (qstep_ratio_sq > RESIZE_DYNAMIC_SUBGOP_SYNERGY_HIGH_QRAT_SQ);
+  const double syn_q_cap =
+      is_very_coarse_qp
+          ? ((mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID)
+                 ? RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_HIGH_UNI
+                 : RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_HIGH_LOW_UNI)
+          : ((mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID)
+                 ? RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_MID_UNI
+                 : RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_MID_LOW_UNI);
+  const double syn_q_ref = is_very_coarse_qp
+                               ? RESIZE_DYNAMIC_SUBGOP_SYNERGY_QREF_HIGH
+                               : RESIZE_DYNAMIC_SUBGOP_SYNERGY_QREF_MID;
+  const double syn_max = is_very_coarse_qp
+                             ? RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_HIGH
+                             : RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_MID;
   double avg_ratio_arr[SCALE_NUMERATOR * 2 + 1] = { 0.0 };
   double content_ratio_arr[SCALE_NUMERATOR * 2 + 1] = { 0.0 };
   double bg_ratio_arr[SCALE_NUMERATOR * 2 + 1] = { 0.0 };
+  double eff_content_thresh_arr[SCALE_NUMERATOR * 2 + 1] = { 0.0 };
   int max_eval_d = SCALE_NUMERATOR;
   int still_contiguous = 1;
   uint8_t raw_best = SCALE_NUMERATOR;
@@ -1205,6 +1265,8 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
       break;
     }
 
+    const int use_syn_d =
+        allow_synergy && d <= RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_DENOM;
     const double dec_frac =
         1.0 - (double)(SCALE_NUMERATOR * SCALE_NUMERATOR) / (double)(d * d);
     // All terms accumulated across the subgop are non-negative, so dividing
@@ -1252,8 +1314,13 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
       const double luma_bg_ratio = (have_mc && pel_ratio > 1.0)
                                        ? (luma_avg_dist / (dec_frac * mc_bg))
                                        : 0.0;
+      const double luma_content_thresh_ub =
+          use_syn_d ? compute_subgop_synergy_content_thresh(
+                          content_thresh, luma_avg_ratio, base_subgop_thresh,
+                          syn_q_cap, syn_q_ref, syn_max)
+                    : content_thresh;
       if (luma_avg_ratio >= max_mult * subgop_thresh ||
-          luma_content_ratio >= max_mult * content_thresh ||
+          luma_content_ratio >= max_mult * luma_content_thresh_ub ||
           luma_bg_ratio >= max_mult) {
         sum_ratio += luma_mse / qstep_sq;
         sum_dist += luma_mse;
@@ -1277,8 +1344,13 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
         const double cur_bg_ratio = (have_mc && pel_ratio > 1.0)
                                         ? (cur_avg_dist / (dec_frac * mc_bg))
                                         : 0.0;
+        const double cur_content_thresh_ub =
+            use_syn_d ? compute_subgop_synergy_content_thresh(
+                            content_thresh, cur_avg_ratio, base_subgop_thresh,
+                            syn_q_cap, syn_q_ref, syn_max)
+                      : content_thresh;
         if (cur_avg_ratio >= max_mult * subgop_thresh ||
-            cur_content_ratio >= max_mult * content_thresh ||
+            cur_content_ratio >= max_mult * cur_content_thresh_ub ||
             cur_bg_ratio >= max_mult) {
           break;
         }
@@ -1291,13 +1363,19 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
     const double content_ratio = have_mc ? (avg_dist / mc_eff) : avg_ac_ratio;
     const double bg_ratio =
         (have_mc && pel_ratio > 1.0) ? (avg_dist / (dec_frac * mc_bg)) : 0.0;
+    const double eff_content_thresh =
+        use_syn_d ? compute_subgop_synergy_content_thresh(
+                        content_thresh, avg_ratio, base_subgop_thresh,
+                        syn_q_cap, syn_q_ref, syn_max)
+                  : content_thresh;
     avg_ratio_arr[d] = avg_ratio;
     content_ratio_arr[d] = content_ratio;
     bg_ratio_arr[d] = bg_ratio;
+    eff_content_thresh_arr[d] = eff_content_thresh;
     max_eval_d = d;
 
     if (still_contiguous && avg_ratio < subgop_thresh &&
-        content_ratio < content_thresh && bg_ratio < 1.0) {
+        content_ratio < eff_content_thresh && bg_ratio < 1.0) {
       raw_best = (uint8_t)d;
     } else {
       still_contiguous = 0;
@@ -1305,7 +1383,7 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
       // hyst_keep remains possible.
       if (prev_denom <= SCALE_NUMERATOR || d >= prev_denom ||
           avg_ratio >= hyst_keep * subgop_thresh ||
-          content_ratio >= hyst_keep * content_thresh ||
+          content_ratio >= hyst_keep * eff_content_thresh ||
           bg_ratio >= hyst_keep) {
         break;
       }
@@ -1328,7 +1406,8 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
       const int d_next = (int)prev_denom + 1;
       if (d_next <= max_eval_d &&
           avg_ratio_arr[d_next] < hyst_step * subgop_thresh &&
-          content_ratio_arr[d_next] < hyst_step * content_thresh &&
+          content_ratio_arr[d_next] <
+              hyst_step * eff_content_thresh_arr[d_next] &&
           bg_ratio_arr[d_next] < hyst_step) {
         best_denom = raw_best;
       } else {
@@ -1339,7 +1418,7 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
       const int start_d = AVMMAX(SCALE_NUMERATOR + 1, (int)raw_best + 1);
       for (int d = start_d; d <= (int)prev_denom; ++d) {
         if (avg_ratio_arr[d] >= hyst_keep * subgop_thresh ||
-            content_ratio_arr[d] >= hyst_keep * content_thresh ||
+            content_ratio_arr[d] >= hyst_keep * eff_content_thresh_arr[d] ||
             bg_ratio_arr[d] >= hyst_keep) {
           can_hold = 0;
           break;
