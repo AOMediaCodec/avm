@@ -10,6 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <limits.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -77,6 +78,8 @@
 #define RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_MAX_HIGH 1.46
 #define RESIZE_DYNAMIC_SUBGOP_D9_MAX_CONTENT_RATIO 0.080
 #define RESIZE_DYNAMIC_SUBGOP_D9_MAX_Q_RATIO 0.028
+#define RESIZE_DYNAMIC_KF_COSCALE_MIN_DENOM (SCALE_NUMERATOR + 2)
+#define RESIZE_DYNAMIC_KF_COSCALE_MAX_Q_NORM 0.56
 #define RESIZE_DYNAMIC_CHROMA_WEIGHT 4.0
 #define RESIZE_DYNAMIC_MIN_BLOCK_VAR 64.0
 #define RESIZE_DYNAMIC_BLOCK_PERCENTILE 0.75
@@ -766,7 +769,16 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
 // the Qstep^2-scaled RESIZE_DYNAMIC_SUBGOP_MC_THRESH, and applies discrete
 // Schmitt-trigger hysteresis against cpi->resize_prev_subgop_denom within the
 // closed GOP.
-static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
+// When from_keyframe is non-zero (called on a closed-GOP KEY_FRAME), evaluates
+// the upcoming first inter subgop in gf_group (gf_idx >= 1), sets
+// *out_has_subgop = 1 when valid inter subgop frames exist, and sets
+// *out_coscale_kf = 1 when co-scaling the keyframe to the same denominator
+// avoids cross-scale reference resampling across the GOP without excessive
+// intra resampling loss.
+static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
+                                                     int from_keyframe,
+                                                     int *out_has_subgop,
+                                                     int *out_coscale_kf) {
   AV2_COMMON *const cm = &cpi->common;
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
@@ -774,19 +786,28 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   const YV12_BUFFER_CONFIG *const unscaled = cpi->unscaled_source;
   GF_GROUP *const gf_group = &cpi->gf_group;
 
+  if (out_has_subgop != NULL) *out_has_subgop = 0;
+  if (out_coscale_kf != NULL) *out_coscale_kf = 0;
+
   // Never downscale if the unscaled source is unavailable or lossless coding
   // is requested.
   if (unscaled == NULL || is_lossless_requested(rc_cfg)) {
     return SCALE_NUMERATOR;
   }
 
+  const int cur_gf_index = gf_group->index;
+  if (from_keyframe &&
+      (cur_gf_index != 0 || cpi->no_show_fwd_kf || gf_group->size <= 1)) {
+    return SCALE_NUMERATOR;
+  }
+  const int start_gf_idx = from_keyframe ? (cur_gf_index + 1) : cur_gf_index;
+
   const YV12_BUFFER_CONFIG *subgop_srcs[MAX_STATIC_GF_GROUP_LENGTH];
   int subgop_qindex[MAX_STATIC_GF_GROUP_LENGTH];
   int num_subgop_frames = 0;
 
   // Save encoder and rate-control state before querying baseline full-res
-  // qindex values across the frames in the current subgop.
-  const int cur_gf_index = gf_group->index;
+  // qindex values across the frames in the target subgop.
   const int base_disp_idx = gf_group->cur_frame_idx[cur_gf_index] +
                             (cm->immediate_output_picture != 0);
   const int saved_cm_width = cm->width;
@@ -798,6 +819,11 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   const int saved_level1_qp = cpi->rc.level1_qp;
   const int saved_unresized_base_qindex = cpi->rc.unresized_base_qindex;
   const int saved_is_src_frame_alt_ref = cpi->rc.is_src_frame_alt_ref;
+  const int saved_frames_since_key = cpi->rc.frames_since_key;
+  const int saved_last_q_kf = cpi->rc.last_q[KEY_FRAME];
+  const int saved_avg_kf_qindex = cpi->rc.avg_frame_qindex[KEY_FRAME];
+  const int saved_last_kf_qindex = cpi->rc.last_kf_qindex;
+  const int saved_last_boosted_qindex = cpi->rc.last_boosted_qindex;
   int saved_active_best_quality[MAX_ARF_LAYERS + 1];
   memcpy(saved_active_best_quality, cpi->rc.active_best_quality,
          sizeof(saved_active_best_quality));
@@ -808,11 +834,41 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   const int max_qp = MAXQ_FOR_GIVEN_BIT_DEPTH(bit_depth);
   int has_lossless_frame = 0;
   int max_subgop_qindex = 0;
+  int min_la_idx = INT_MAX;
   int max_la_idx = -1;
 
-  // Collect each coded frame in the current subgop along with its intended
+  if (from_keyframe) {
+    if (is_stat_consumption_stage(cpi) &&
+        (rc_cfg->mode == AVM_VBR || rc_cfg->mode == AVM_CQ)) {
+      av2_set_target_rate(cpi, frm_dim_cfg->width, frm_dim_cfg->height);
+    }
+    int kf_bottom = 0, kf_top = 0;
+    const int kf_qindex =
+        cm->bridge_frame_info.is_bridge_frame
+            ? cm->quant_params.base_qindex
+            : av2_rc_pick_q_and_bounds(cpi, &cpi->rc, frm_dim_cfg->width,
+                                       frm_dim_cfg->height, cur_gf_index,
+                                       &kf_bottom, &kf_top);
+    if (kf_qindex == 0) {
+      has_lossless_frame = 1;
+    } else {
+      cpi->rc.frames_since_key = 1;
+      cpi->rc.level1_qp = -1;
+      cpi->rc.last_q[KEY_FRAME] = kf_qindex;
+      cpi->rc.avg_frame_qindex[KEY_FRAME] = ROUND_POWER_OF_TWO(
+          3 * cpi->rc.avg_frame_qindex[KEY_FRAME] + kf_qindex, 2);
+      cpi->rc.last_kf_qindex = kf_qindex;
+      cpi->rc.last_boosted_qindex = kf_qindex;
+      for (int i = 0; i <= MAX_ARF_LAYERS; ++i) {
+        cpi->rc.active_best_quality[i] = kf_qindex;
+      }
+    }
+  }
+
+  // Collect each coded frame in the target subgop along with its intended
   // full-resolution pyramid-level base_qindex.
-  for (int gf_idx = cur_gf_index; gf_idx < gf_group->size; ++gf_idx) {
+  for (int gf_idx = start_gf_idx;
+       !has_lossless_frame && gf_idx < gf_group->size; ++gf_idx) {
     // Skip pure overlay updates since they do not code a new source picture.
     const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_idx];
     if (update_type == OVERLAY_UPDATE || update_type == INTNL_OVERLAY_UPDATE ||
@@ -823,6 +879,9 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
     const int frame_display_index =
         gf_group->cur_frame_idx[gf_idx] + gf_group->arf_src_offset[gf_idx];
     const int lookahead_idx = frame_display_index - base_disp_idx;
+    if (lookahead_idx >= 0 && lookahead_idx < min_la_idx) {
+      min_la_idx = lookahead_idx;
+    }
     if (lookahead_idx > max_la_idx) {
       max_la_idx = lookahead_idx;
     }
@@ -893,6 +952,11 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   cpi->rc.level1_qp = saved_level1_qp;
   cpi->rc.unresized_base_qindex = saved_unresized_base_qindex;
   cpi->rc.is_src_frame_alt_ref = saved_is_src_frame_alt_ref;
+  cpi->rc.frames_since_key = saved_frames_since_key;
+  cpi->rc.last_q[KEY_FRAME] = saved_last_q_kf;
+  cpi->rc.avg_frame_qindex[KEY_FRAME] = saved_avg_kf_qindex;
+  cpi->rc.last_kf_qindex = saved_last_kf_qindex;
+  cpi->rc.last_boosted_qindex = saved_last_boosted_qindex;
   memcpy(cpi->rc.active_best_quality, saved_active_best_quality,
          sizeof(saved_active_best_quality));
 
@@ -901,8 +965,10 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
     return SCALE_NUMERATOR;
   }
   if (num_subgop_frames == 0) {
-    return calculate_dynamic_resize_scale(cpi);
+    return from_keyframe ? SCALE_NUMERATOR
+                         : calculate_dynamic_resize_scale(cpi);
   }
+  if (out_has_subgop != NULL) *out_has_subgop = 1;
   // Keep full resolution if the subgop's baseline (unboosted leaf) qindex is
   // below the bit-depth-adjusted RESIZE_DYNAMIC_SUBGOP_MINQP threshold.
   const int min_qp =
@@ -944,18 +1010,22 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   // consecutive raw frame pairs across the subgop's display span.
   double sum_mc_p50 = 0.0, sum_mc_nz = 0.0, sum_mc_acr = 0.0;
   int num_mc_pairs = 0;
-  if (max_la_idx >= 1) {
-    const int target_pairs = AVMMIN(4, max_la_idx);
+  const int la_base = (from_keyframe && min_la_idx < INT_MAX && min_la_idx > 0)
+                          ? min_la_idx
+                          : 0;
+  const int la_span = max_la_idx - la_base;
+  if (la_span >= 1) {
+    const int target_pairs = AVMMIN(4, la_span);
     int prev_idx = -1;
     for (int p = 0; p < target_pairs; ++p) {
       const int idx =
-          (target_pairs == 1) ? 0 : (p * (max_la_idx - 1)) / (target_pairs - 1);
+          (target_pairs == 1) ? 0 : (p * (la_span - 1)) / (target_pairs - 1);
       if (idx == prev_idx) continue;
       prev_idx = idx;
-      const struct lookahead_entry *const e0 =
-          av2_lookahead_peek(cpi->lookahead, idx, cpi->compressor_stage);
-      const struct lookahead_entry *const e1 =
-          av2_lookahead_peek(cpi->lookahead, idx + 1, cpi->compressor_stage);
+      const struct lookahead_entry *const e0 = av2_lookahead_peek(
+          cpi->lookahead, la_base + idx, cpi->compressor_stage);
+      const struct lookahead_entry *const e1 = av2_lookahead_peek(
+          cpi->lookahead, la_base + idx + 1, cpi->compressor_stage);
       double p50 = 0.0, nz = 0.0, acr = 0.0;
       if (e0 != NULL && e1 != NULL &&
           compute_pair_mc_stats(&e1->img, &e0->img, orig_w, orig_h, bit_depth,
@@ -970,7 +1040,7 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   if (num_mc_pairs == 0 && cm->immediate_output_picture != 0 &&
       max_la_idx >= 0) {
     const struct lookahead_entry *const e0 =
-        av2_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage);
+        av2_lookahead_peek(cpi->lookahead, la_base, cpi->compressor_stage);
     double p50 = 0.0, nz = 0.0, acr = 0.0;
     if (e0 != NULL && compute_pair_mc_stats(&e0->img, unscaled, orig_w, orig_h,
                                             bit_depth, &p50, &nz, &acr)) {
@@ -980,7 +1050,7 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
       ++num_mc_pairs;
     }
   }
-  if (num_mc_pairs == 0) {
+  if (num_mc_pairs == 0 && !from_keyframe) {
     double p50 = 0.0, nz = 0.0, acr = 0.0;
     if (compute_pair_mc_stats(unscaled, cpi->unscaled_last_source, orig_w,
                               orig_h, bit_depth, &p50, &nz, &acr)) {
@@ -997,7 +1067,7 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   const double mc_uni =
       have_mc ? AVMMIN(mc_p50 / AVMMAX(mc_nz, bds2), 1.0) : 0.0;
 
-  const uint8_t prev_denom = cpi->resize_prev_subgop_denom;
+  const uint8_t prev_denom = from_keyframe ? 0 : cpi->resize_prev_subgop_denom;
   const int is_highres_pan =
       have_mc && pel_ratio > 1.0 &&
       mc_p50 > RESIZE_DYNAMIC_HIGHRES_PAN_P50_MIN * bds2 &&
@@ -1279,6 +1349,14 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
     best_denom = SCALE_NUMERATOR;
   }
 
+  if (out_coscale_kf != NULL) {
+    *out_coscale_kf =
+        (best_denom >= RESIZE_DYNAMIC_KF_COSCALE_MIN_DENOM &&
+         (pel_ratio <= 1.0 || is_highres_pan) &&
+         avg_ratio_arr[best_denom] <
+             RESIZE_DYNAMIC_KF_COSCALE_MAX_Q_NORM * base_subgop_thresh);
+  }
+
   avm_free(downscaled_buf);
   avm_free(upscaled_y);
   avm_free(upscaled_uv);
@@ -1320,17 +1398,40 @@ static uint8_t calculate_next_resize_scale(AV2_COMP *cpi) {
       break;
     case RESIZE_DYNAMIC: new_denom = calculate_dynamic_resize_scale(cpi); break;
     case RESIZE_DYNAMIC_SUBGOP:
-      // Keyframes pick a dynamic scale using calculate_dynamic_resize_scale()
-      // and reset subgop scale hysteresis; for each subgop, compute the subgop
-      // dynamic scale once on its first non-keyframe and reuse it across all
-      // frames in that subgop.
+      // On a closed-GOP keyframe, evaluate the upcoming first subgop's dynamic
+      // scale and co-scale the keyframe to that exact denominator when the
+      // subgop downscales to at least d >= 10 with low resampling distortion
+      // (preserving same-resolution TIP_FRAME_DIRECT, MFMV, and GLOBALMV across
+      // the GOP and avoiding cross-scale reference resampling); otherwise fall
+      // back to calculate_dynamic_resize_scale(). In AVM_Q mode without a
+      // separate keyframe overlay, lock cpi->resize_subgop_denom to sg0_denom
+      // when co-scaling holds so the first inter subgop matches the keyframe
+      // without duplicate resampling; otherwise leave resize_subgop_denom = 0
+      // so ARF_UPDATE evaluates using its temporally filtered altref buffer.
       if (cpi->common.current_frame.frame_type == KEY_FRAME) {
-        new_denom = calculate_dynamic_resize_scale(cpi);
-        cpi->resize_subgop_denom = 0;
-        cpi->resize_prev_subgop_denom = 0;
+        int has_subgop = 0;
+        int coscale_kf = 0;
+        const uint8_t sg0_denom = calculate_dynamic_subgop_resize_scale(
+            cpi, /*from_keyframe=*/1, &has_subgop, &coscale_kf);
+        if (has_subgop && coscale_kf) {
+          new_denom = sg0_denom;
+          if (cpi->oxcf.rc_cfg.mode == AVM_Q &&
+              !cpi->gf_group.has_overlay_for_key_frame) {
+            cpi->resize_subgop_denom = sg0_denom;
+            cpi->resize_prev_subgop_denom = sg0_denom;
+          } else {
+            cpi->resize_subgop_denom = 0;
+            cpi->resize_prev_subgop_denom = 0;
+          }
+        } else {
+          new_denom = calculate_dynamic_resize_scale(cpi);
+          cpi->resize_subgop_denom = 0;
+          cpi->resize_prev_subgop_denom = 0;
+        }
       } else {
         if (cpi->resize_subgop_denom == 0) {
-          cpi->resize_subgop_denom = calculate_dynamic_subgop_resize_scale(cpi);
+          cpi->resize_subgop_denom = calculate_dynamic_subgop_resize_scale(
+              cpi, /*from_keyframe=*/0, NULL, NULL);
           cpi->resize_prev_subgop_denom = cpi->resize_subgop_denom;
         }
         new_denom = cpi->resize_subgop_denom;
