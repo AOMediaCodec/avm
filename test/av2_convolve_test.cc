@@ -758,6 +758,23 @@ struct GaussTable {
   }
 };
 
+// The regular table with taps 3 and 4 moved by +1 / -1 (odd, same sum): not
+// an encoder table, it sends bd 8 off the 16-bit horizontal path
+// (highbd_2d_h16_fits() fails on an odd tap).
+struct OddTapTable {
+  int16_t rows[SUBPEL_SHIFTS * SUBPEL_TAPS];
+  InterpFilterParams params;
+  OddTapTable() {
+    const int16_t *reg =
+        av2_interp_filter_params_list[EIGHTTAP_REGULAR].filter_ptr;
+    for (int i = 0; i < SUBPEL_SHIFTS * SUBPEL_TAPS; ++i) {
+      const int k = i % SUBPEL_TAPS;
+      rows[i] = static_cast<int16_t>(reg[i] + (k == 3) - (k == 4));
+    }
+    params = { rows, SUBPEL_TAPS, EIGHTTAP_REGULAR };
+  }
+};
+
 // The interpolation tables the encoder hands to av2_highbd_convolve_2d_sr:
 // the 8-tap list (regular, smooth, sharp, bilinear) and the 4-tap tables
 // chosen for w <= 4 / h <= 4 (regular, smooth; av2_interp_4tap's sharp entry
@@ -765,8 +782,11 @@ struct GaussTable {
 // plus the tune_vmaf Gaussian above. Every row is 8 entries; the 12-tap
 // MULTITAP_SHARP2 table never reaches this kernel
 // (highbd_convolve_2d_facade_single calls the C function for taps > 8).
+// Tables past kConv2DSrTables are only for the fallback test: the odd-tap
+// table and MULTITAP_SHARP2.
 const InterpFilterParams *Conv2DSrTable(int i) {
   static const GaussTable gauss;
+  static const OddTapTable odd;
   switch (i) {
     case 0: return &av2_interp_filter_params_list[EIGHTTAP_REGULAR];
     case 1: return &av2_interp_filter_params_list[EIGHTTAP_SMOOTH];
@@ -774,10 +794,14 @@ const InterpFilterParams *Conv2DSrTable(int i) {
     case 3: return &av2_interp_filter_params_list[BILINEAR];
     case 4: return &av2_interp_4tap[EIGHTTAP_REGULAR];
     case 5: return &av2_interp_4tap[EIGHTTAP_SMOOTH];
-    default: return &gauss.params;
+    case 6: return &gauss.params;
+    case 7: return &odd.params;
+    default: return &av2_interp_filter_params_list[MULTITAP_SHARP2];
   }
 }
 const int kConv2DSrTables = 7;
+const int kConv2DSrOddTapTable = 7;
+const int kConv2DSrSharp2Table = 8;
 
 std::vector<Conv2DSrSize> GetConv2DSrSizes() {
   std::set<Conv2DSrSize> sizes;
@@ -1141,12 +1165,13 @@ TEST_P(AV2Convolve2DSrHighbdTest, DISABLED_Speed) {
       width_, height_, bd_, t_ref / 1000.0, t_tst / 1000.0, t_ref / t_tst);
 }
 
-// Harness baseline: C vs C (not SIMD coverage).
+// Harness baseline: C vs C (not SIMD coverage), on two shapes only.
+const Conv2DSrSize kConv2DSrCSizes[] = { { 8, 8 }, { 12, 5 } };
 INSTANTIATE_TEST_SUITE_P(
     C, AV2Convolve2DSrHighbdTest,
     ::testing::Combine(::testing::Values(av2_highbd_convolve_2d_sr_c),
                        ::testing::Values(av2_highbd_convolve_2d_sr_c),
-                       ::testing::ValuesIn(GetConv2DSrSizes()),
+                       ::testing::ValuesIn(kConv2DSrCSizes),
                        ::testing::Values(8, 10, 12)));
 
 #if HAVE_NEON
@@ -1204,6 +1229,55 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(av2_highbd_convolve_2d_sr_neon),
                        ::testing::ValuesIn(kBd8SweepSizes),
                        ::testing::Values(8)));
+#endif
+
+// -- Dispatch fallbacks --
+// The inputs av2_highbd_convolve_2d_sr_neon sends elsewhere: w % 4 != 0 with
+// w >= 4 (6xN, the chroma of 12xN) and a 12-tap x or y table go to C; an odd
+// tap at bd 8 fails highbd_2d_h16_fits() and takes the 32-bit two-pass path.
+// Each against C at every subpel pair of a fixed stride (the w = 6 shapes
+// also through RunAllFilters).
+class AV2Convolve2DSrHighbdFallbackTest : public AV2Convolve2DSrHighbdTest {};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    AV2Convolve2DSrHighbdFallbackTest);
+
+TEST_P(AV2Convolve2DSrHighbdFallbackTest, FallbackPaths) {
+  const int stride = width_ + kStridePad;
+  FillRandom(stride, 0);
+  if (width_ % 4 != 0) {
+    ASSERT_NO_FATAL_FAILURE(RunAllFilters(stride, stride, 0, 0));
+  }
+  static const int kPairs[][2] = {
+    { kConv2DSrOddTapTable, 0 },
+    { kConv2DSrOddTapTable, kConv2DSrOddTapTable },
+    { kConv2DSrSharp2Table, 0 },
+    { 0, kConv2DSrSharp2Table },
+    { kConv2DSrSharp2Table, kConv2DSrSharp2Table },
+  };
+  int n = 0;
+  for (const auto &p : kPairs) {
+    for (int sub_x = 0; sub_x < SUBPEL_SHIFTS; ++sub_x) {
+      for (int sub_y = 0; sub_y < SUBPEL_SHIFTS; ++sub_y, ++n) {
+        ASSERT_NO_FATAL_FAILURE(
+            RunComparison(p[0], p[1], sub_x, sub_y, stride, stride, 0, 0, n));
+      }
+    }
+  }
+}
+
+// 6xN (C fallback), the fused shape (8x8), w % 8 == 4 (12x8) and h % 4 != 0
+// (16x7).
+const Conv2DSrSize kFallbackSizes[] = {
+  { 6, 6 }, { 6, 12 }, { 8, 8 }, { 12, 8 }, { 16, 7 }
+};
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV2Convolve2DSrHighbdFallbackTest,
+    ::testing::Combine(::testing::Values(av2_highbd_convolve_2d_sr_c),
+                       ::testing::Values(av2_highbd_convolve_2d_sr_neon),
+                       ::testing::ValuesIn(kFallbackSizes),
+                       ::testing::Values(8, 10, 12)));
 #endif
 
 //////////////////////////

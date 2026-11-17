@@ -478,8 +478,9 @@ highbd_convolve_4_2d_h(const int16_t *s, const int16x8_t f, const int taps,
 // is even (highbd_2d_h16_fits()), S / 2 = sum(fh[k] * px[k]) exactly, and
 // highbd_2d_h16_fits() also guarantees it lies in [-32768, 32767], so the
 // wrapping 16-bit sum is exact as a signed value and the im value
-// ROUND_POWER_OF_TWO_SIGNED(S, ROUND0_BITS) is a signed rounding shift of
-// S / 2 by ROUND0_BITS - 1: no offset to add or subtract.
+// (S + (1 << (ROUND0_BITS - 1))) >> ROUND0_BITS (the C reference once its
+// offset cancels: round half up) is vrshrq_n_s16 of S / 2 by
+// ROUND0_BITS - 1: no offset to add or subtract.
 static AVM_FORCE_INLINE int16x8_t highbd_convolve_8_2d_h16(const int16_t *s,
                                                            const int16x8_t fh,
                                                            const int taps) {
@@ -523,55 +524,43 @@ static inline int highbd_2d_h16_fits(const int16_t *f, int bd) {
          max_px * pos <= 2 * 32767;
 }
 
-// Horizontal pass over w8 = w & ~7 columns, one 8-wide column strip at a
-// time (rows inside), then the last 4 columns when w % 8 == 4. h16
-// (compile-time) selects the halved 16-bit 8-wide filter; the 4-wide tail
-// always accumulates in 32 bits (4 lanes either way).
+// Horizontal pass of one column strip, h rows into im (stride = the strip
+// width). width (compile-time) is 8 or 4. h16 (compile-time) selects the
+// halved 16-bit 8-wide filter; the 4-wide strip always accumulates in 32 bits
+// (4 lanes either way), so it takes h16 = 0.
 static AVM_FORCE_INLINE void highbd_convolve_2d_sr_horiz_neon(
-    const uint16_t *src, int src_stride, int16_t *im, int im_stride, int w,
-    int h, const int16x8_t f, const int taps, const int round_0,
-    const int32x4_t round_shift, const int h16) {
-  const int w8 = w & ~7;
-  const int16x8_t fh = vshrq_n_s16(f, 1);
-  if (w8 > 0) {
-    // Column strips outside, rows inside (as in the vertical pass): the row
-    // loop is the only per-row control, which matters most at w8 == 8.
-    const uint16_t *src_col = src;
-    int16_t *im_col = im;
-    int width = w8;
+    const uint16_t *src, int src_stride, int16_t *im, int h, const int16x8_t f,
+    const int taps, const int round_0, const int32x4_t round_shift,
+    const int h16, const int width) {
+  const int16_t *s = (const int16_t *)src;
+  if (width == 8) {
+    const int16x8_t fh = vshrq_n_s16(f, 1);
     do {
-      const int16_t *s = (const int16_t *)src_col;
-      int16_t *d = im_col;
-      int height = h;
-      do {
-        if (h16) {
-          vst1q_s16(d, highbd_convolve_8_2d_h16(s, fh, taps));
-        } else {
-          vst1q_s16(d,
-                    highbd_convolve_8_2d_h(s, f, taps, round_0, round_shift));
-        }
-        s += src_stride;
-        d += im_stride;
-      } while (--height > 0);
-      src_col += 8;
-      im_col += 8;
-      width -= 8;
-    } while (width > 0);
-  }
-  if (w != w8) {
-    const int16_t *s = (const int16_t *)(src + w8);
-    int16_t *d = im + w8;
-    int height = h;
-    do {
-      vst1_s16(d, highbd_convolve_4_2d_h(s, f, taps, round_0, round_shift));
+      if (h16) {
+        vst1q_s16(im, highbd_convolve_8_2d_h16(s, fh, taps));
+      } else {
+        vst1q_s16(im, highbd_convolve_8_2d_h(s, f, taps, round_0, round_shift));
+      }
       s += src_stride;
-      d += im_stride;
-    } while (--height > 0);
+      im += 8;
+    } while (--h > 0);
+  } else {
+    do {
+      vst1_s16(im, highbd_convolve_4_2d_h(s, f, taps, round_0, round_shift));
+      s += src_stride;
+      im += 4;
+    } while (--h > 0);
   }
 }
 
 // The vertical rounding shift of every bd 8/10 call (round_0 == ROUND0_BITS).
 #define HBD_2D_ROUND1_BITS (2 * FILTER_BITS - ROUND0_BITS)
+
+#if defined(_MSC_VER)
+#define HBD_2D_NOINLINE __declspec(noinline)
+#else
+#define HBD_2D_NOINLINE __attribute__((noinline))
+#endif
 
 // Sum of the taps-wide vertical window r[0..taps) for one 4-lane half.
 static AVM_FORCE_INLINE int32x4_t highbd_convolve_4_2d_v_sum(
@@ -648,70 +637,56 @@ highbd_convolve_4_2d_v(const int16x4_t *r, const int16x4_t f_lo,
   return vmin_u16(vqmovun_s32(sum), max_val);
 }
 
-// Vertical pass over im (h + taps - 1 rows): w8 = w & ~7 columns 8 at a
-// time, then the last 4 columns when w % 8 == 4. Each block of 4 output rows
+// Vertical pass of one column strip: im (h + taps - 1 rows, stride = the strip
+// width, 8 or 4, compile-time) into h dst rows. Each block of 4 output rows
 // loads its taps + 3 im rows straight from im (hot in L1) instead of carrying
 // a sliding window across iterations, which clang kept in a stack array; the
 // last h % 4 rows load taps rows each.
 static AVM_FORCE_INLINE void highbd_convolve_2d_sr_vert_neon(
-    const int16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
-    int h, const int16x8_t f, const int taps, const int round_1,
-    const int32x4_t round_shift, int bd) {
+    const int16_t *im, uint16_t *dst, int dst_stride, int h, const int16x8_t f,
+    const int taps, const int round_1, const int32x4_t round_shift, int bd,
+    const int width) {
   const int16x4_t f_lo = vget_low_s16(f);
   const int16x4_t f_hi = vget_high_s16(f);
-  const int w8 = w & ~7;
+  const int16_t *s = im;
+  uint16_t *d = dst;
+  int height = h;
 
-  if (w8 > 0) {
-    const uint16x8_t max_val = vdupq_n_u16((1 << bd) - 1);
-    const int16_t *src_col = src;
-    uint16_t *dst_col = dst;
-    int width = w8;
-    do {
-      const int16_t *s = src_col;
-      uint16_t *d = dst_col;
-      int height = h;
-      while (height >= 4) {
-        int16x8_t r[11];
-        for (int i = 0; i < taps + 3; ++i) r[i] = vld1q_s16(s + i * src_stride);
-        vst1q_u16(d + 0 * dst_stride,
-                  highbd_convolve_8_2d_v(r + 0, f_lo, f_hi, taps, round_1,
-                                         round_shift, max_val));
-        vst1q_u16(d + 1 * dst_stride,
-                  highbd_convolve_8_2d_v(r + 1, f_lo, f_hi, taps, round_1,
-                                         round_shift, max_val));
-        vst1q_u16(d + 2 * dst_stride,
-                  highbd_convolve_8_2d_v(r + 2, f_lo, f_hi, taps, round_1,
-                                         round_shift, max_val));
-        vst1q_u16(d + 3 * dst_stride,
-                  highbd_convolve_8_2d_v(r + 3, f_lo, f_hi, taps, round_1,
-                                         round_shift, max_val));
-        s += 4 * src_stride;
-        d += 4 * dst_stride;
-        height -= 4;
-      }
-      while (height > 0) {
-        int16x8_t r[8];
-        for (int i = 0; i < taps; ++i) r[i] = vld1q_s16(s + i * src_stride);
-        vst1q_u16(d, highbd_convolve_8_2d_v(r, f_lo, f_hi, taps, round_1,
-                                            round_shift, max_val));
-        s += src_stride;
-        d += dst_stride;
-        height--;
-      }
-      src_col += 8;
-      dst_col += 8;
-      width -= 8;
-    } while (width > 0);
-  }
-
-  if (w != w8) {
-    const uint16x4_t max_val = vdup_n_u16((1 << bd) - 1);
-    const int16_t *s = src + w8;
-    uint16_t *d = dst + w8;
-    int height = h;
+  if (width == 8) {
+    const uint16x8_t max_val = vdupq_n_u16((uint16_t)((1 << bd) - 1));
+    while (height >= 4) {
+      int16x8_t r[11];
+      for (int i = 0; i < taps + 3; ++i) r[i] = vld1q_s16(s + i * 8);
+      vst1q_u16(d + 0 * dst_stride,
+                highbd_convolve_8_2d_v(r + 0, f_lo, f_hi, taps, round_1,
+                                       round_shift, max_val));
+      vst1q_u16(d + 1 * dst_stride,
+                highbd_convolve_8_2d_v(r + 1, f_lo, f_hi, taps, round_1,
+                                       round_shift, max_val));
+      vst1q_u16(d + 2 * dst_stride,
+                highbd_convolve_8_2d_v(r + 2, f_lo, f_hi, taps, round_1,
+                                       round_shift, max_val));
+      vst1q_u16(d + 3 * dst_stride,
+                highbd_convolve_8_2d_v(r + 3, f_lo, f_hi, taps, round_1,
+                                       round_shift, max_val));
+      s += 4 * 8;
+      d += 4 * dst_stride;
+      height -= 4;
+    }
+    while (height > 0) {
+      int16x8_t r[8];
+      for (int i = 0; i < taps; ++i) r[i] = vld1q_s16(s + i * 8);
+      vst1q_u16(d, highbd_convolve_8_2d_v(r, f_lo, f_hi, taps, round_1,
+                                          round_shift, max_val));
+      s += 8;
+      d += dst_stride;
+      height--;
+    }
+  } else {
+    const uint16x4_t max_val = vdup_n_u16((uint16_t)((1 << bd) - 1));
     while (height >= 4) {
       int16x4_t r[11];
-      for (int i = 0; i < taps + 3; ++i) r[i] = vld1_s16(s + i * src_stride);
+      for (int i = 0; i < taps + 3; ++i) r[i] = vld1_s16(s + i * 4);
       vst1_u16(d + 0 * dst_stride,
                highbd_convolve_4_2d_v(r + 0, f_lo, f_hi, taps, round_1,
                                       round_shift, max_val));
@@ -724,16 +699,16 @@ static AVM_FORCE_INLINE void highbd_convolve_2d_sr_vert_neon(
       vst1_u16(d + 3 * dst_stride,
                highbd_convolve_4_2d_v(r + 3, f_lo, f_hi, taps, round_1,
                                       round_shift, max_val));
-      s += 4 * src_stride;
+      s += 4 * 4;
       d += 4 * dst_stride;
       height -= 4;
     }
     while (height > 0) {
       int16x4_t r[8];
-      for (int i = 0; i < taps; ++i) r[i] = vld1_s16(s + i * src_stride);
+      for (int i = 0; i < taps; ++i) r[i] = vld1_s16(s + i * 4);
       vst1_u16(d, highbd_convolve_4_2d_v(r, f_lo, f_hi, taps, round_1,
                                          round_shift, max_val));
-      s += src_stride;
+      s += 4;
       d += dst_stride;
       height--;
     }
@@ -759,8 +734,10 @@ static AVM_FORCE_INLINE void highbd_2d_sr_fused_h16_neon(
     const int taps_y, int bd) {
   const int16x4_t fy_lo = vget_low_s16(fy);
   const int16x4_t fy_hi = vget_high_s16(fy);
-  const int32x4_t round_shift = vdupq_n_s32(-HBD_2D_ROUND1_BITS);
-  const uint16x8_t max_val = vdupq_n_u16((1 << bd) - 1);
+  // round_1 is HBD_2D_ROUND1_BITS, so highbd_convolve_8_2d_v never reads its
+  // runtime shift vector.
+  const int32x4_t unused_shift = vdupq_n_s32(0);
+  const uint16x8_t max_val = vdupq_n_u16((uint16_t)((1 << bd) - 1));
   const int16x8_t z = vdupq_n_s16(0);
   const ptrdiff_t ss = src_stride;
   int width = w;
@@ -789,22 +766,22 @@ static AVM_FORCE_INLINE void highbd_2d_sr_fused_h16_neon(
       vst1q_u16(
           d + 0 * dst_stride,
           highbd_convolve_8_2d_v(win + 0, fy_lo, fy_hi, taps_y,
-                                 HBD_2D_ROUND1_BITS, round_shift, max_val));
+                                 HBD_2D_ROUND1_BITS, unused_shift, max_val));
       win[taps_y + 0] = highbd_convolve_8_2d_h16(s + 1 * ss, fh, taps_x);
       vst1q_u16(
           d + 1 * dst_stride,
           highbd_convolve_8_2d_v(win + 1, fy_lo, fy_hi, taps_y,
-                                 HBD_2D_ROUND1_BITS, round_shift, max_val));
+                                 HBD_2D_ROUND1_BITS, unused_shift, max_val));
       win[taps_y + 1] = highbd_convolve_8_2d_h16(s + 2 * ss, fh, taps_x);
       vst1q_u16(
           d + 2 * dst_stride,
           highbd_convolve_8_2d_v(win + 2, fy_lo, fy_hi, taps_y,
-                                 HBD_2D_ROUND1_BITS, round_shift, max_val));
+                                 HBD_2D_ROUND1_BITS, unused_shift, max_val));
       win[taps_y + 2] = highbd_convolve_8_2d_h16(s + 3 * ss, fh, taps_x);
       vst1q_u16(
           d + 3 * dst_stride,
           highbd_convolve_8_2d_v(win + 3, fy_lo, fy_hi, taps_y,
-                                 HBD_2D_ROUND1_BITS, round_shift, max_val));
+                                 HBD_2D_ROUND1_BITS, unused_shift, max_val));
       r0 = win[4];
       r1 = win[5];
       r2 = win[6];
@@ -821,7 +798,7 @@ static AVM_FORCE_INLINE void highbd_2d_sr_fused_h16_neon(
       win[taps_y - 1] = highbd_convolve_8_2d_h16(s, fh, taps_x);
       vst1q_u16(
           d, highbd_convolve_8_2d_v(win, fy_lo, fy_hi, taps_y,
-                                    HBD_2D_ROUND1_BITS, round_shift, max_val));
+                                    HBD_2D_ROUND1_BITS, unused_shift, max_val));
       r0 = win[1];
       r1 = win[2];
       r2 = win[3];
@@ -853,64 +830,122 @@ static AVM_FORCE_INLINE int16x8_t highbd_2d_shift_filter(const int16x8_t f,
   }
 }
 
-// Dispatches the horizontal pass on the effective x tap count, passing it as
-// a constant so each tap count gets its own inlined loop.
+// Dispatches the horizontal pass of one strip on the effective x tap count,
+// passing it as a constant so each tap count gets its own inlined loop.
 static AVM_FORCE_INLINE void highbd_2d_sr_horiz_dispatch(
-    const uint16_t *src, int src_stride, int16_t *im, int im_stride, int w,
-    int h, const int16x8_t x_filter, const int taps_x, const int round_0,
-    const int32x4_t round_shift, const int h16) {
+    const uint16_t *src, int src_stride, int16_t *im, int h,
+    const int16x8_t x_filter, const int taps_x, const int round_0,
+    const int32x4_t round_shift, const int h16, const int width) {
   switch (taps_x) {
     case 2:
-      highbd_convolve_2d_sr_horiz_neon(src, src_stride, im, im_stride, w, h,
+      highbd_convolve_2d_sr_horiz_neon(src, src_stride, im, h,
                                        highbd_2d_shift_filter(x_filter, 2), 2,
-                                       round_0, round_shift, h16);
+                                       round_0, round_shift, h16, width);
       break;
     case 4:
-      highbd_convolve_2d_sr_horiz_neon(src, src_stride, im, im_stride, w, h,
+      highbd_convolve_2d_sr_horiz_neon(src, src_stride, im, h,
                                        highbd_2d_shift_filter(x_filter, 4), 4,
-                                       round_0, round_shift, h16);
+                                       round_0, round_shift, h16, width);
       break;
     case 6:
-      highbd_convolve_2d_sr_horiz_neon(src, src_stride, im, im_stride, w, h,
+      highbd_convolve_2d_sr_horiz_neon(src, src_stride, im, h,
                                        highbd_2d_shift_filter(x_filter, 6), 6,
-                                       round_0, round_shift, h16);
+                                       round_0, round_shift, h16, width);
       break;
     default:
-      highbd_convolve_2d_sr_horiz_neon(src, src_stride, im, im_stride, w, h,
+      highbd_convolve_2d_sr_horiz_neon(src, src_stride, im, h,
                                        highbd_2d_shift_filter(x_filter, 8), 8,
-                                       round_0, round_shift, h16);
+                                       round_0, round_shift, h16, width);
       break;
   }
 }
 
-// Dispatches the vertical pass on the effective y tap count, passing it as a
-// constant so each tap count gets its own inlined loop.
+// Dispatches the vertical pass of one strip on the effective y tap count,
+// passing it as a constant so each tap count gets its own inlined loop.
 static AVM_FORCE_INLINE void highbd_2d_sr_vert_dispatch(
-    const int16_t *im, int im_stride, uint16_t *dst, int dst_stride, int w,
-    int h, const int16x8_t y_filter, const int taps_y, const int round_1,
-    const int32x4_t round_shift, int bd) {
+    const int16_t *im, uint16_t *dst, int dst_stride, int h,
+    const int16x8_t y_filter, const int taps_y, const int round_1,
+    const int32x4_t round_shift, int bd, const int width) {
   switch (taps_y) {
     case 2:
-      highbd_convolve_2d_sr_vert_neon(im, im_stride, dst, dst_stride, w, h,
+      highbd_convolve_2d_sr_vert_neon(im, dst, dst_stride, h,
                                       highbd_2d_shift_filter(y_filter, 2), 2,
-                                      round_1, round_shift, bd);
+                                      round_1, round_shift, bd, width);
       break;
     case 4:
-      highbd_convolve_2d_sr_vert_neon(im, im_stride, dst, dst_stride, w, h,
+      highbd_convolve_2d_sr_vert_neon(im, dst, dst_stride, h,
                                       highbd_2d_shift_filter(y_filter, 4), 4,
-                                      round_1, round_shift, bd);
+                                      round_1, round_shift, bd, width);
       break;
     case 6:
-      highbd_convolve_2d_sr_vert_neon(im, im_stride, dst, dst_stride, w, h,
+      highbd_convolve_2d_sr_vert_neon(im, dst, dst_stride, h,
                                       highbd_2d_shift_filter(y_filter, 6), 6,
-                                      round_1, round_shift, bd);
+                                      round_1, round_shift, bd, width);
       break;
     default:
-      highbd_convolve_2d_sr_vert_neon(im, im_stride, dst, dst_stride, w, h,
+      highbd_convolve_2d_sr_vert_neon(im, dst, dst_stride, h,
                                       highbd_2d_shift_filter(y_filter, 8), 8,
-                                      round_1, round_shift, bd);
+                                      round_1, round_shift, bd, width);
       break;
   }
+}
+
+// The two-pass path, one column strip at a time (8 wide, then the last 4
+// columns when w % 8 == 4): the horizontal pass writes the strip's
+// h + taps_y - 1 im rows and the vertical pass reads them back, so im holds
+// one strip (4 KiB) instead of the whole block. round_0 and round_1 are
+// compile-time: ROUND0_BITS and HBD_2D_ROUND1_BITS (bd 8/10) select the
+// immediate rounding narrows, 0 the runtime shift vectors (bd 12). h16 only
+// picks the 8-wide horizontal instantiation.
+static AVM_FORCE_INLINE void highbd_2d_sr_two_pass(
+    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
+    int h, const int16x8_t x_filter, const int taps_x, const int16x8_t y_filter,
+    const int taps_y, const int round_0, const int32x4_t horiz_round_shift,
+    const int round_1, const int32x4_t round_shift, const int h16, int bd) {
+  int16_t im[(MAX_SB_SIZE + MAX_FILTER_TAP) * 8];
+  const int im_h = h + taps_y - 1;
+  const int w8 = w & ~7;
+  for (int x = 0; x < w8; x += 8) {
+    if (h16) {
+      highbd_2d_sr_horiz_dispatch(src + x, src_stride, im, im_h, x_filter,
+                                  taps_x, round_0, horiz_round_shift, 1, 8);
+    } else {
+      highbd_2d_sr_horiz_dispatch(src + x, src_stride, im, im_h, x_filter,
+                                  taps_x, round_0, horiz_round_shift, 0, 8);
+    }
+    highbd_2d_sr_vert_dispatch(im, dst + x, dst_stride, h, y_filter, taps_y,
+                               round_1, round_shift, bd, 8);
+  }
+  if (w != w8) {
+    highbd_2d_sr_horiz_dispatch(src + w8, src_stride, im, im_h, x_filter,
+                                taps_x, round_0, horiz_round_shift, 0, 4);
+    highbd_2d_sr_vert_dispatch(im, dst + w8, dst_stride, h, y_filter, taps_y,
+                               round_1, round_shift, bd, 4);
+  }
+}
+
+// bd 8/10 (round_0 == ROUND0_BITS): out of line, so the fused path's caller
+// neither inlines these loops nor reserves im.
+static HBD_2D_NOINLINE void highbd_2d_sr_two_pass_neon(
+    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
+    int h, const int16x8_t x_filter, const int taps_x, const int16x8_t y_filter,
+    const int taps_y, const int h16, int bd) {
+  // The immediate rounding narrows never read the shift vectors.
+  const int32x4_t unused_shift = vdupq_n_s32(0);
+  highbd_2d_sr_two_pass(src, src_stride, dst, dst_stride, w, h, x_filter,
+                        taps_x, y_filter, taps_y, ROUND0_BITS, unused_shift,
+                        HBD_2D_ROUND1_BITS, unused_shift, h16, bd);
+}
+
+// bd 12 (convolve.h raises round_0 and lowers round_1 by as much): runtime
+// shifts, out of line and cold.
+static HBD_2D_NOINLINE void highbd_2d_sr_two_pass_bd12_neon(
+    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
+    int h, const int16x8_t x_filter, const int taps_x, const int16x8_t y_filter,
+    const int taps_y, const int round_0, const int round_1, int bd) {
+  highbd_2d_sr_two_pass(src, src_stride, dst, dst_stride, w, h, x_filter,
+                        taps_x, y_filter, taps_y, 0, vdupq_n_s32(-round_0), 0,
+                        vdupq_n_s32(-round_1), 0, bd);
 }
 
 void av2_highbd_convolve_2d_sr_neon(const uint16_t *src, int src_stride,
@@ -928,8 +963,6 @@ void av2_highbd_convolve_2d_sr_neon(const uint16_t *src, int src_stride,
     return;
   }
 
-  int16_t im_block[(MAX_SB_SIZE + MAX_FILTER_TAP) * MAX_SB_SIZE];
-  const int im_stride = w;
   assert(w <= MAX_SB_SIZE && h <= MAX_SB_SIZE);
   assert(bd + FILTER_BITS + 2 - conv_params->round_0 <= 16);
 
@@ -947,7 +980,6 @@ void av2_highbd_convolve_2d_sr_neon(const uint16_t *src, int src_stride,
   const int taps_y = get_filter_tap(filter_params_y, subpel_y_qn);
   const int k0_x = (SUBPEL_TAPS - taps_x) / 2;
   const int k0_y = (SUBPEL_TAPS - taps_y) / 2;
-  const int im_h = h + taps_y - 1;
 
   // The C reference adds 1 << (bd + FILTER_BITS - 1) before the round_0
   // shift and 1 << offset_bits before the round_1 shift, then subtracts
@@ -958,8 +990,6 @@ void av2_highbd_convolve_2d_sr_neon(const uint16_t *src, int src_stride,
   // the signed im values fit in int16, and the vertical result is a rounding
   // shift saturated to [0, (1 << bd) - 1].
   assert(conv_params->round_0 + conv_params->round_1 == 2 * FILTER_BITS);
-  const int32x4_t horiz_round_shift = vdupq_n_s32(-conv_params->round_0);
-  const int32x4_t round_shift = vdupq_n_s32(-conv_params->round_1);
 
   const int fo = SUBPEL_TAPS / 2 - 1;
   const uint16_t *src_horiz = src - (fo - k0_y) * src_stride - (fo - k0_x);
@@ -967,13 +997,19 @@ void av2_highbd_convolve_2d_sr_neon(const uint16_t *src, int src_stride,
   const int16x8_t x_filter = vld1q_s16(x_filter_ptr);
   const int16x8_t y_filter = vld1q_s16(y_filter_ptr);
 
-  // round_0 is ROUND0_BITS for bd 8/10 (immediate rounding narrow); bd 12
-  // raises it (convolve.h), which takes the runtime-shift instantiation.
+  // round_0 is ROUND0_BITS for bd 8/10 (immediate rounding narrows); bd 12
+  // raises it (convolve.h).
+  if (conv_params->round_0 != ROUND0_BITS) {
+    highbd_2d_sr_two_pass_bd12_neon(
+        src_horiz, src_stride, dst, dst_stride, w, h, x_filter, taps_x,
+        y_filter, taps_y, conv_params->round_0, conv_params->round_1, bd);
+    return;
+  }
+
   // At bd 8 the 8-wide horizontal filter accumulates the halved filter in
   // 16-bit lanes when its taps are even and the half sums fit
-  // (highbd_2d_h16_fits).
-  const int h16 = conv_params->round_0 == ROUND0_BITS &&
-                  highbd_2d_h16_fits(x_filter_ptr, bd);
+  // (highbd_2d_h16_fits, which never holds at bd 10).
+  const int h16 = bd == 8 && highbd_2d_h16_fits(x_filter_ptr, bd);
   // The hot tap pairs at bd 8 with w % 8 == 0 run both passes in one loop
   // (highbd_2d_sr_fused_h16_neon): 6/6 (about 42% of calls), 8/8, 4/4, 4/6
   // and 6/4 (about 32% together); round_1 is then HBD_2D_ROUND1_BITS
@@ -1008,29 +1044,6 @@ void av2_highbd_convolve_2d_sr_neon(const uint16_t *src, int src_stride,
       default: break;
     }
   }
-  if (h16) {
-    highbd_2d_sr_horiz_dispatch(src_horiz, src_stride, im_block, im_stride, w,
-                                im_h, x_filter, taps_x, ROUND0_BITS,
-                                horiz_round_shift, 1);
-  } else if (conv_params->round_0 == ROUND0_BITS) {
-    highbd_2d_sr_horiz_dispatch(src_horiz, src_stride, im_block, im_stride, w,
-                                im_h, x_filter, taps_x, ROUND0_BITS,
-                                horiz_round_shift, 0);
-  } else {
-    highbd_2d_sr_horiz_dispatch(src_horiz, src_stride, im_block, im_stride, w,
-                                im_h, x_filter, taps_x, 0, horiz_round_shift,
-                                0);
-  }
-
-  // round_1 is 2 * FILTER_BITS - ROUND0_BITS for bd 8/10 (immediate
-  // rounding narrow); bd 12 lowers it, which takes the runtime-shift
-  // instantiation.
-  if (conv_params->round_1 == HBD_2D_ROUND1_BITS) {
-    highbd_2d_sr_vert_dispatch(im_block, im_stride, dst, dst_stride, w, h,
-                               y_filter, taps_y, HBD_2D_ROUND1_BITS,
-                               round_shift, bd);
-  } else {
-    highbd_2d_sr_vert_dispatch(im_block, im_stride, dst, dst_stride, w, h,
-                               y_filter, taps_y, 0, round_shift, bd);
-  }
+  highbd_2d_sr_two_pass_neon(src_horiz, src_stride, dst, dst_stride, w, h,
+                             x_filter, taps_x, y_filter, taps_y, h16, bd);
 }
