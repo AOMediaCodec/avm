@@ -1084,8 +1084,10 @@ static int64_t masked_compound_type_rd(
       rd = RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv + rd_stats.rate,
                   rd_stats.dist);
       // Backup rate and distortion for future reuse.
-      backup_stats(compound_type, comp_stats, rate_sum, dist_sum, &rd_stats,
-                   *comp_type_rate);
+      if (cpi->sf.inter_sf.reuse_compound_type_data) {
+        backup_stats(compound_type, comp_stats, rate_sum, dist_sum, &rd_stats,
+                     *comp_type_rate);
+      }
     }
   } else {
     // Reuse data as matching record is found.
@@ -1251,8 +1253,10 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
           }
 
           // Backup rate and distortion for future reuse.
-          backup_stats(cur_type, comp_stats, rate_sum, dist_sum, &est_rd_stats,
-                       comp_type_rate);
+          if (reuse_compound_type_data) {
+            backup_stats(cur_type, comp_stats, rate_sum, dist_sum,
+                         &est_rd_stats, comp_type_rate);
+          }
         }
       } else {
         // Calculate RD cost based on stored stats.

@@ -139,9 +139,9 @@ static AVM_INLINE void alloc_compound_type_rd_buffers(
   CHECK_MEM_ERROR(
       cm, bufs->diff10,
       (int16_t *)avm_memalign(32, MAX_SB_SQUARE * sizeof(*bufs->diff10)));
-  CHECK_MEM_ERROR(cm, bufs->tmp_best_mask_buf,
-                  (uint8_t *)avm_malloc(2 * MAX_SB_SQUARE *
-                                        sizeof(*bufs->tmp_best_mask_buf)));
+  CHECK_MEM_ERROR(
+      cm, bufs->tmp_best_mask_buf,
+      (uint8_t *)avm_malloc(MAX_SB_SQUARE * sizeof(*bufs->tmp_best_mask_buf)));
 }
 
 static AVM_INLINE void release_compound_type_rd_buffers(

@@ -126,9 +126,8 @@ typedef struct InterModeSearchState {
   int best_rate_uv;
   int best_mode_skippable;
   int best_skip2;
-  int64_t dist_refs[REF_FRAMES];
-  int dist_order_refs[REF_FRAMES];
-  int64_t mode_threshold[MB_MODE_COUNT];
+  // RD thresholds for inter modes, indexed by (mode - INTER_MODE_START).
+  int64_t mode_threshold[INTER_MODE_END - INTER_MODE_START];
   int64_t best_intra_rd;
   int64_t best_pred_diff[REFERENCE_MODES];
 
@@ -1714,11 +1713,12 @@ static INLINE int get_warp_ref_idx_cost(const MB_MODE_INFO *mbmi,
 
 #define NUMBER_OF_ITER_PER_COMP 4
 // Get the other non-signaled MVD for joint MVD mode
-static int get_othermv_for_jointmv_mode(
-    const AV2_COMP *const cpi, BLOCK_SIZE bsize, MACROBLOCK *x,
-    MB_MODE_INFO *mbmi, MV this_mv, MV *other_mv, MvSubpelPrecision precision,
-    int is_adaptive_mvd, int jmvd_base_ref_list) {
-  (void)bsize;
+static int get_othermv_for_jointmv_mode(const AV2_COMP *const cpi,
+                                        MACROBLOCK *x, MB_MODE_INFO *mbmi,
+                                        MV this_mv, MV *other_mv,
+                                        MvSubpelPrecision precision,
+                                        int is_adaptive_mvd,
+                                        int jmvd_base_ref_list) {
   const AV2_COMMON *cm = &cpi->common;
   const int same_side = is_ref_frame_same_side(cm, mbmi);
   assert(jmvd_base_ref_list == get_joint_mvd_base_ref_list(cm, mbmi));
@@ -1936,7 +1936,7 @@ static int av2_adjust_mvs_for_derive_sign_single_mvd(
           if (joint_mvd_mode) {
             MV other_mv;
             int valid = get_othermv_for_jointmv_mode(
-                cpi, bsize, x, mbmi, this_mvs[signaled_mv_ref_idx], &other_mv,
+                cpi, x, mbmi, this_mvs[signaled_mv_ref_idx], &other_mv,
                 mbmi->pb_mv_precision, is_adaptive_mvd, signaled_mv_ref_idx);
             if (!valid) continue;
             mbmi->mv[!signaled_mv_ref_idx].as_mv = other_mv;
@@ -2119,7 +2119,7 @@ static int av2_adjust_mvs_for_derive_sign(const AV2_COMP *const cpi,
               if (joint_mvd_mode) {
                 MV other_mv;
                 int valid = get_othermv_for_jointmv_mode(
-                    cpi, bsize, x, mbmi, this_mvs[ref_idx], &other_mv,
+                    cpi, x, mbmi, this_mvs[ref_idx], &other_mv,
                     mbmi->pb_mv_precision, is_adaptive_mvd,
                     start_signaled_mv_ref_idx);
                 if (!valid) continue;
@@ -8376,8 +8376,8 @@ static AVM_INLINE void init_inter_mode_search_state(
       comp_ref_allowed ? COMP_INTER_MODE_END : SINGLE_INTER_MODE_END;
 
   const int *const rd_threshes = cpi->rd.threshes[segment_id][bsize];
-  for (int i = SINGLE_INTER_MODE_START; i < end_mode; ++i)
-    search_state->mode_threshold[i] =
+  for (int i = INTER_MODE_START; i < INTER_MODE_END; ++i)
+    search_state->mode_threshold[i - INTER_MODE_START] =
         ((int64_t)rd_threshes[i] * x->thresh_freq_fact[bsize][i]) >>
         RD_THRESH_FAC_FRAC_BITS;
 
@@ -9196,8 +9196,10 @@ static int skip_inter_mode(AV2_COMP *cpi, MACROBLOCK *x,
   int mul_fact = args->search_state->best_mode_skippable
                      ? args->mode_thresh_mul_fact
                      : (1 << MODE_THRESH_QBITS);
+  assert(this_mode >= INTER_MODE_START && this_mode < INTER_MODE_END);
   int64_t mode_threshold =
-      (args->search_state->mode_threshold[this_mode] * mul_fact) >>
+      (args->search_state->mode_threshold[this_mode - INTER_MODE_START] *
+       mul_fact) >>
       MODE_THRESH_QBITS;
 
   if (args->search_state->best_rd < mode_threshold) return 1;
