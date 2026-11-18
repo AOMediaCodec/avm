@@ -23,10 +23,6 @@
 #include "av2/common/tile_common.h"
 #include "av2/common/timing.h"
 
-_Static_assert(sizeof(uint32_t) * CHAR_BIT == 32, "uint32_t must be 32 bits");
-_Static_assert(sizeof(uint64_t) * CHAR_BIT == 64, "uint64_t must be 64 bits");
-_Static_assert(sizeof(Av2DmUnsignedWide) * CHAR_BIT == 256,
-               "Av2DmUnsignedWide must be 256 bits");
 _Static_assert(AV2_DM_MAX_REF_FRAMES == REF_FRAMES,
                "decoder-model VBI capacity must match REF_FRAMES");
 _Static_assert(AV2_DM_MAX_BUFFER_POOL_SIZE >= REF_FRAMES + 2,
@@ -70,6 +66,10 @@ AV2_DM_NO_UNSIGNED_OVERFLOW_CHECK static void multiply_64(
   *product_low = (middle_2 << 32) | (low & mask);
 }
 
+// Scratch unsigned integer, with least-significant limb first. count excludes
+// high zero limbs (zero has count 0); capacity is allocated storage. limbs
+// either points to inline_limbs or owns a heap allocation. Inline capacity is
+// an optimization, not a limit on exact arithmetic.
 typedef struct Av2DmBigUInt {
   uint64_t *limbs;
   uint32_t count;
@@ -77,12 +77,16 @@ typedef struct Av2DmBigUInt {
   uint64_t inline_limbs[AV2_DM_BIG_UINT_INLINE_LIMBS];
 } Av2DmBigUInt;
 
+// Failure injection and last-operation flags are local to the calling thread.
+// The allocation counter includes live rational allocations across threads.
 static _Thread_local int64_t rational_allocations_before_failure = -1;
 static _Thread_local bool rational_allocation_failed;
 static _Thread_local int64_t internal_allocations_before_failure = -1;
 static _Thread_local bool internal_allocation_failed;
 static atomic_uint_fast64_t rational_active_allocations = ATOMIC_VAR_INIT(0);
 
+// Allocation helpers distinguish unavailable memory from invalid arithmetic
+// so the model can report why a conformance decision could not be completed.
 static void *internal_allocate(size_t count, size_t size, bool clear) {
   internal_allocation_failed = false;
   if (size != 0 && count > SIZE_MAX / size) return NULL;
@@ -156,6 +160,8 @@ static void rational_begin_operation(void) {
   internal_allocation_failed = false;
 }
 
+// Scratch integer operations below own their results. Moves transfer heap
+// storage, but copy inline storage because it belongs to the source object.
 static void big_uint_destroy(Av2DmBigUInt *value) {
   if (value->limbs != value->inline_limbs) {
     rational_deallocate(value->limbs);
@@ -429,6 +435,8 @@ static bool big_uint_gcd(const Av2DmBigUInt *left, const Av2DmBigUInt *right,
   return ok;
 }
 
+// Borrow either an inline component or its slice of dynamic_limbs. Dynamic
+// storage contains the complete magnitude followed by the complete denominator.
 static bool rational_component_view(const Av2DmRational *value,
                                     bool denominator, const uint64_t **limbs,
                                     uint32_t *count) {
@@ -480,6 +488,8 @@ void av2_dm_rational_destroy(Av2DmRational *value) {
   av2_dm_rational_init(value);
 }
 
+// Prepare a replacement before releasing the destination. Values that exceed
+// either inline component use one allocation for both complete components.
 static bool rational_store(Av2DmRational *result, const Av2DmBigUInt *magnitude,
                            const Av2DmBigUInt *denominator, bool negative) {
   if (big_uint_is_zero(denominator)) return false;
@@ -573,6 +583,8 @@ bool av2_dm_rational_copy(Av2DmRational *destination,
   return copied;
 }
 
+// Reduce by the exact GCD and give zero the unique representation 0/1.
+// Failure leaves the original value available to the caller.
 static bool rational_normalize(Av2DmRational *value) {
   Av2DmBigUInt magnitude = { 0 };
   Av2DmBigUInt denominator = { 0 };
@@ -878,6 +890,8 @@ bool av2_dm_rational_is_zero(const Av2DmRational *value) {
          denominator_count != 0 && magnitude_count == 0;
 }
 
+// Buffer-pool helpers track ownership and timing only; no decoded pixels are
+// stored here. A slot is reusable only after both reference counts reach zero.
 static void buffer_reset(Av2DmBuffer *buffer) {
   av2_dm_rational_destroy(&buffer->presentation_time);
   av2_dm_rational_destroy(&buffer->decode_completion_time);
@@ -1065,6 +1079,9 @@ uint32_t av2_dm_buffer_pool_frames_in_use(const Av2DmBufferPool *pool) {
   return frames_in_use;
 }
 
+// One decodable frame group (DFG), with the limits active when it was decoded.
+// Keep arrival/removal breakpoints until smoothing-buffer checks no longer need
+// them. The adjacent DFG needed for parsing-time checks is retained separately.
 typedef struct Av2DmDfgRecord {
   uint64_t event_index;
   uint64_t temporal_unit_index;
@@ -1100,6 +1117,8 @@ typedef struct Av2DmDfgRecord {
   uint64_t frame_symbol_count;
 } Av2DmDfgRecord;
 
+// Temporal-unit totals and timing retained for display/header-rate windows.
+// Output order can differ from decode order, so a TU can outlive its DFG.
 typedef struct Av2DmTuRecord {
   uint64_t temporal_unit_index;
   uint64_t event_index;
@@ -1126,6 +1145,9 @@ typedef struct Av2DmTuRecord {
   uint32_t max_frame_height;
 } Av2DmTuRecord;
 
+// A decoder timeline and its frame pool. The primary lane follows the selected
+// mode; the resource lane supplies the independent Annex E resource-removal
+// bound used to check a decoding schedule. Both lanes share a time origin.
 typedef struct Av2DmLane {
   Av2DmBufferPool pool;
   Av2DmRational time;
@@ -1134,6 +1156,9 @@ typedef struct Av2DmLane {
   int32_t current_buffer_index;
 } Av2DmLane;
 
+// An output awaiting the initial presentation delay. Keeping the greatest
+// observed-minus-offset threshold suffices to prove whether any pending output
+// violates this constraint when the common delay becomes known.
 typedef struct Av2DmPendingOutputWitness {
   bool valid;
   uint64_t event_index;
@@ -1142,12 +1167,16 @@ typedef struct Av2DmPendingOutputWitness {
   Av2DmRational presentation_offset;
 } Av2DmPendingOutputWitness;
 
+// Presentation offset at a random-access point (RAP), retained while a live
+// decoded generation can still refer to that RAP epoch.
 typedef struct Av2DmRapPresentationAnchor {
   bool valid;
   uint64_t rap_epoch;
   Av2DmRational presentation_offset;
 } Av2DmRapPresentationAnchor;
 
+// Owned exact limits, clock ticks, and delays selected from one configuration.
+// Resolve into this temporary before replacing the model parameters.
 typedef struct Av2DmResolvedParameters {
   Av2DmLevelLimits limits;
   Av2DmRational decoder_buffer_delay;
@@ -1158,6 +1187,8 @@ typedef struct Av2DmResolvedParameters {
   Av2DmRational disp_ct;
 } Av2DmResolvedParameters;
 
+// Prospective smoothing-buffer capacity change. Equal-time changes also carry
+// DFG order and the before/after-removal phase required by Annex E.
 typedef struct Av2DmBufferSizeTransition {
   Av2DmRational time;
   Av2DmRational size;
@@ -1180,6 +1211,8 @@ static void buffer_size_transition_move(Av2DmBufferSizeTransition *destination,
   memset(source, 0, sizeof(*source));
 }
 
+// One scope and RAP-start verification run. The model owns all rational values
+// and history arrays; it borrows only the report callback and its opaque data.
 struct Av2DecoderModel {
   Av2DmConfig config;
   Av2DmLevelLimits limits;
@@ -1323,6 +1356,8 @@ bool av2_dm_config_copy(Av2DmConfig *destination, const Av2DmConfig *source) {
   return true;
 }
 
+// Owning record helpers deep-copy rational members and transfer them on moves.
+// They support both normal retirement and rollback of a complete model event.
 static void dfg_record_destroy(Av2DmDfgRecord *dfg) {
   av2_dm_level_limits_destroy(&dfg->limits);
   av2_dm_rational_destroy(&dfg->buffer_size_at_last_arrival);
@@ -1669,6 +1704,8 @@ bool av2_dm_get_level_limits(uint32_t level_idx, uint32_t tier,
   return true;
 }
 
+// Apply a multistream allocation divisor exactly. Reject a fractional result
+// for limits whose representation requires an integer.
 static bool scaled_integer(uint64_t value, uint32_t scale_numerator,
                            uint32_t scale_denominator, uint64_t *scaled) {
   Av2DmRational rational = { 0 };
@@ -1783,6 +1820,9 @@ bool av2_dm_apply_multistream_limits(uint32_t level_idx, uint32_t tier,
   return true;
 }
 
+// A proven violation remains non-conformant even if a later check cannot
+// complete. Without a proven violation, missing inputs or computation failures
+// make an applicable run indeterminate.
 static void update_result_status(Av2DecoderModel *model) {
   if (model->result.applicability == AV2_DM_NOT_APPLICABLE) {
     model->result.status = AV2_DM_RESULT_NOT_APPLICABLE;
@@ -1966,6 +2006,9 @@ bool av2_dm_violation_copy(Av2DmViolation *destination,
   return true;
 }
 
+// Record both the event proving a violation and the earlier item it affects.
+// The callback borrows this report; an event transaction can defer its
+// delivery.
 static void report_violation_for_affected(
     Av2DecoderModel *model, Av2DmViolationCode code, uint64_t event_index,
     Av2DmViolationAffectedKind affected_kind, uint64_t affected_index,
@@ -2075,6 +2118,9 @@ static bool rational_representation_valid(const Av2DmRational *value) {
          denominator_count != 0 && denominator[denominator_count - 1] != 0;
 }
 
+// Validate the inputs needed to resolve limits and timing. Explicit limits
+// bypass the profile table, allowing callers to provide a complete
+// configuration.
 static bool parameter_inputs_valid(const Av2DmConfig *config) {
   if (config->num_ref_frames == 0 ||
       config->num_ref_frames > AV2_DM_MAX_REF_FRAMES ||
@@ -2119,6 +2165,8 @@ static bool parameter_inputs_valid(const Av2DmConfig *config) {
          av2_get_profile_level_factors((int)config->profile, &factors);
 }
 
+// Derive exact clock periods and select sequence/operating-point delays.
+// The caller owns and destroys all initialized members, including on failure.
 static bool resolve_parameters(const Av2DmConfig *config,
                                Av2DmResolvedParameters *parameters) {
   memset(parameters, 0, sizeof(*parameters));
@@ -2372,6 +2420,8 @@ void av2_decoder_model_destroy(Av2DecoderModel *model) {
   avm_free(model);
 }
 
+// Deep snapshot for event rollback; all owned members must be independent of
+// the source even when cloning fails partway through.
 static Av2DecoderModel *decoder_model_clone(const Av2DecoderModel *source,
                                             bool *allocation_failed) {
   *allocation_failed = false;
@@ -2517,6 +2567,9 @@ failure:
   return NULL;
 }
 
+// Snapshot plus unpublished reports for one event. Allocation/arithmetic
+// failure restores the snapshot and discards these reports; success publishes
+// them in order. Bitstream violations alone do not trigger rollback.
 typedef struct Av2DmModelTransaction {
   Av2DecoderModel *snapshot;
   Av2DmReportFn report;
@@ -2635,6 +2688,8 @@ static void end_model_transaction(Av2DecoderModel *model,
 static bool rational_ceil_to_integer(const Av2DmRational *value,
                                      Av2DmRational *result);
 
+// Round upward only where the specification requires it. Other timeline
+// operations retain exact fractions; these helpers do not impose a global grid.
 static bool rational_ceil_ratio_to_tick(const Av2DmRational *time,
                                         const Av2DmRational *tick,
                                         Av2DmRational *result) {
@@ -2766,6 +2821,8 @@ static Av2DmViolationDetail buffer_pool_violation_detail(
   return detail;
 }
 
+// TU lookup/creation preserves decode-order storage while output callbacks
+// attach timing to the originating temporal unit.
 static Av2DmTuRecord *find_tu(Av2DecoderModel *model,
                               uint64_t temporal_unit_index) {
   for (uint32_t i = model->tu_count; i > 0; --i) {
@@ -2889,6 +2946,8 @@ static void check_static_level_limits(Av2DecoderModel *model,
   av2_dm_rational_destroy(&limit);
 }
 
+// An unknown presentation time is a pending hold, not time zero. Release
+// player references only after a valid presentation deadline has been reached.
 static bool release_presented_buffers(Av2DmLane *lane,
                                       const Av2DmRational *removal) {
   for (uint32_t i = 0; i < lane->pool.pool_size; ++i) {
@@ -2909,6 +2968,8 @@ static bool release_presented_buffers(Av2DmLane *lane,
   return true;
 }
 
+// Find the earliest removal allowed by decode completion and frame-pool
+// availability; only player-held buffers can become free by advancing time.
 static bool next_resource_removal(Av2DecoderModel *model, Av2DmLane *lane,
                                   uint64_t dfg_index, Av2DmRational *removal) {
   if (dfg_index == 0) {
@@ -2977,6 +3038,9 @@ static bool lane_start_decode(Av2DmLane *lane, const Av2DmRational *removal,
   return true;
 }
 
+// Annex E decode work is measured in luma samples. Show-existing frames bypass
+// this function; global IBC with filtering can require two reconstruction
+// passes.
 static bool calculate_decode_time(Av2DecoderModel *model,
                                   const Av2DmFrameEvent *event,
                                   uint64_t *luma_samples,
@@ -3010,6 +3074,8 @@ static bool calculate_decode_time(Av2DecoderModel *model,
                               decode_time);
 }
 
+// Check Annex A limits once the removal interval determines frame parsing time.
+// The record supplies its original limits even after a configuration change.
 static void check_frame_parsing_constraints(Av2DecoderModel *model,
                                             Av2DmDfgRecord *dfg,
                                             const Av2DmRational *interval,
@@ -3211,6 +3277,8 @@ static void check_previous_dfg_interval(Av2DecoderModel *model,
   av2_dm_rational_destroy(&interval);
 }
 
+// Capacity increases apply at first-bit arrival; decreases apply after the
+// associated removal. Resolve ties by DFG/signaling order, not timestamp alone.
 static bool buffer_size_transition_applies(
     const Av2DmBufferSizeTransition *transition, const Av2DmRational *time,
     uint64_t dfg_number, bool after_own_removal, bool at_last_arrival,
@@ -3516,6 +3584,9 @@ static void check_delay_consistency(Av2DecoderModel *model,
   av2_dm_rational_destroy(&threshold);
 }
 
+// Replacement absolute times for an atomic rebase. Durations and relative
+// presentation offsets are unchanged; both lanes must prepare successfully
+// before either lane adopts the common new origin.
 typedef struct Av2DmPreparedRebase {
   Av2DmRational **targets;
   Av2DmRational *values;
@@ -3775,6 +3846,9 @@ static bool set_decoded_buffer_metadata(const Av2DecoderModel *model,
   return av2_dm_rational_copy(&buffer->disp_ct, &model->disp_ct);
 }
 
+// Process one decoded-frame event: derive timing, check the prior interval,
+// reserve a buffer, and retain the current DFG for later checks. The public
+// entry point wraps these changes and their reports in a transaction.
 static void decoder_model_start_frame_internal(Av2DecoderModel *model,
                                                const Av2DmFrameEvent *event) {
   if (event == NULL || !model_accepts_events(model)) return;
@@ -4179,6 +4253,8 @@ static void complete_output_checks(Av2DecoderModel *model,
   }
 }
 
+// Keep the strictest pending threshold; equal thresholds retain the earlier
+// witness so deferred diagnostic attribution remains stable.
 static bool update_pending_output_witness(
     Av2DmPendingOutputWitness *pending, uint64_t event_index,
     const Av2DmRational *observed, const Av2DmRational *presentation_offset) {
@@ -4295,6 +4371,8 @@ static bool set_lane_initial_presentation_delay(Av2DecoderModel *model,
   return true;
 }
 
+// Resolve pending presentation holds in both lanes once the initial delay is
+// known. Complete deferred output checks in the primary lane.
 static void decoder_model_set_initial_presentation_delay_internal(
     Av2DecoderModel *model, bool end_of_bitstream, uint64_t event_index) {
   if (!model_accepts_events(model)) return;
@@ -4537,6 +4615,8 @@ static void store_rap_presentation_anchor(Av2DecoderModel *model,
   free_anchor->rap_epoch = rap_epoch;
 }
 
+// Resolve output timing using the decoded generation and its RAP anchor.
+// The initial presentation delay is added separately when it becomes known.
 static bool calculate_presentation_offset(Av2DecoderModel *model,
                                           const Av2DmOutputEvent *event,
                                           const Av2DmBuffer *buffer,
@@ -4888,6 +4968,8 @@ cleanup:
   av2_dm_rational_destroy(&fullness);
 }
 
+// Discard only DFGs whose arrival/removal breakpoints have all been checked.
+// Parsing and presentation state have separate owners and remain available.
 static void retire_closed_smoothing_records(Av2DecoderModel *model,
                                             const Av2DmRational *frontier) {
   uint32_t write_index = 0;
@@ -4973,6 +5055,8 @@ static bool same_dpb_configuration(const Av2DmConfig *a, const Av2DmConfig *b) {
          a->bit_depth == b->bit_depth;
 }
 
+// Scope must remain the same. A closed-loop-key transition permits a new
+// DPB configuration or mode; other updates must preserve both.
 static Av2DmParameterUpdateDisposition parameter_update_preconditions(
     const Av2DecoderModel *model, const Av2DmConfig *config,
     bool closed_loop_key_transition) {
@@ -5009,6 +5093,9 @@ Av2DmParameterUpdateDisposition av2_decoder_model_classify_parameter_update(
   return AV2_DM_PARAMETER_UPDATE_ALLOWED;
 }
 
+// Finish evaluable old-parameter checks before installing prospective limits.
+// Preserve live timing history, and resolve pending old output before replacing
+// an incompatible DPB. The public wrapper rolls back computation failures.
 static bool decoder_model_update_parameters_internal(
     Av2DecoderModel *model, const Av2DmConfig *config, uint64_t event_index,
     bool closed_loop_key_transition) {
@@ -5449,6 +5536,8 @@ static bool tu_has_live_generation(const Av2DecoderModel *model,
          lane_has_live_coded_tu(&model->resource_lane, temporal_unit_index);
 }
 
+// Retain only evidence still needed after a TU leaves the live window:
+// unresolved timing and the strongest header-count summary for the CVS.
 static void remember_retired_tu(Av2DecoderModel *model,
                                 const Av2DmTuRecord *tu) {
   if (!tu->output_time_valid &&
@@ -5605,6 +5694,8 @@ static void check_header_rate_windows(Av2DecoderModel *model,
   av2_dm_rational_destroy(&one_second);
 }
 
+// Complete the terminal Annex A intervals without inventing another frame.
+// Preserve any proven failure when remaining timing is unavailable.
 static void decoder_model_finish_internal(Av2DecoderModel *model) {
   if (model == NULL || model->result.finished) return;
   if (model->result.applicability != AV2_DM_NOT_APPLICABLE &&
