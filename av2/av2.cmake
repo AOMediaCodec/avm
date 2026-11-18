@@ -236,6 +236,8 @@ list(
   "${AVM_ROOT}/av2/encoder/hybrid_fwd_txfm.h"
   "${AVM_ROOT}/av2/encoder/interp_search.c"
   "${AVM_ROOT}/av2/encoder/interp_search.h"
+  "${AVM_ROOT}/av2/encoder/level.c"
+  "${AVM_ROOT}/av2/encoder/level.h"
   "${AVM_ROOT}/av2/encoder/lookahead.c"
   "${AVM_ROOT}/av2/encoder/lookahead.h"
   "${AVM_ROOT}/av2/encoder/mcomp.c"

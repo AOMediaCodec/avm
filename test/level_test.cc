@@ -21,7 +21,7 @@
 #include "av2/common/enums.h"
 extern "C" {
 #include "av2/common/annexA.h"
-#include "av2/common/level.h"
+#include "av2/encoder/level.h"
 #include "av2/common/timing.h"
 #include "av2/encoder/bitstream.h"
 #include "av2/encoder/encoder.h"

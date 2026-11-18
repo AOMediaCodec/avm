@@ -23,7 +23,7 @@
 
 #include "av2/common/decoder_model.h"
 extern "C" {
-#include "av2/common/level.h"
+#include "av2/encoder/level.h"
 #include "av2/encoder/encoder.h"
 }
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
