@@ -554,6 +554,8 @@ static int firstpass_inter_prediction(
   // Assume 0,0 motion with no mv overhead.
   FULLPEL_MV mv = kZeroFullMv;
   FULLPEL_MV tmp_mv = kZeroFullMv;
+
+  assert(last_frame != NULL);
   xd->plane[0].pre[0].buf = last_frame->y_buffer + recon_yoffset;
   // Set up limit values for motion vectors to prevent them extending
   // outside the UMV borders.
@@ -950,10 +952,10 @@ void av2_first_pass_row(AV2_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   AV2EncRowMultiThreadSync *const row_mt_sync = &tile_data->row_mt_sync;
 
   xd->tile = *tile;
-  const YV12_BUFFER_CONFIG *const last_frame =
-      get_ref_frame_yv12_buf(cm, LAST_FRAME_PROXY);
-  const YV12_BUFFER_CONFIG *golden_frame =
-      get_ref_frame_yv12_buf(cm, GOLDEN_FRAME_PROXY);
+  const RefCntBuffer *const last_buf = cm->ref_frame_map[LAST_FRAME_PROXY];
+  const RefCntBuffer *const golden_buf = cm->ref_frame_map[GOLDEN_FRAME_PROXY];
+  const YV12_BUFFER_CONFIG *const last_frame = last_buf ? &last_buf->buf : NULL;
+  const YV12_BUFFER_CONFIG *golden_frame = golden_buf ? &golden_buf->buf : NULL;
   const YV12_BUFFER_CONFIG *alt_ref_frame = NULL;
   const int alt_ref_offset =
       FIRST_PASS_ALT_REF_DISTANCE -
@@ -1110,9 +1112,8 @@ void av2_first_pass(AV2_COMP *cpi, const int64_t ts_duration) {
   av2_init_tile_data(cpi);
 
   const YV12_BUFFER_CONFIG *const last_frame =
-      get_ref_frame_yv12_buf(cm, LAST_FRAME_PROXY);
-  const YV12_BUFFER_CONFIG *golden_frame =
-      get_ref_frame_yv12_buf(cm, GOLDEN_FRAME_PROXY);
+      !frame_is_intra_only(cm) ? &cm->ref_frame_map[LAST_FRAME_PROXY]->buf
+                               : NULL;
   YV12_BUFFER_CONFIG *const this_frame = &cm->cur_frame->buf;
   // First pass code requires valid last and new frame buffers.
   assert(this_frame != NULL);
@@ -1204,12 +1205,8 @@ void av2_first_pass(AV2_COMP *cpi, const int64_t ts_duration) {
        (this_frame_stats->pcnt_inter > 0.20) &&
        ((this_frame_stats->intra_error /
          DOUBLE_DIVIDE_CHECK(this_frame_stats->coded_error)) > 2.0))) {
-    if (golden_frame != NULL) {
-      int golden_frame_idx = get_ref_frame_map_idx(cm, GOLDEN_FRAME_PROXY);
-      assign_frame_buffer_p(
-          &cm->ref_frame_map[golden_frame_idx],
-          cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME_PROXY)]);
-    }
+    assign_frame_buffer_p(&cm->ref_frame_map[GOLDEN_FRAME_PROXY],
+                          cm->ref_frame_map[LAST_FRAME_PROXY]);
     twopass->sr_update_lag = 1;
   } else {
     ++twopass->sr_update_lag;
@@ -1218,17 +1215,13 @@ void av2_first_pass(AV2_COMP *cpi, const int64_t ts_duration) {
   avm_extend_frame_borders(this_frame, num_planes, 0);
 
   // The frame we just compressed now becomes the last frame.
-  assign_frame_buffer_p(
-      &cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME_PROXY)],
-      cm->cur_frame);
+  assign_frame_buffer_p(&cm->ref_frame_map[LAST_FRAME_PROXY], cm->cur_frame);
 
   // Special case for the first frame. Copy into the GF buffer as a second
   // reference.
-  if (current_frame->frame_number == 0 &&
-      get_ref_frame_map_idx(cm, GOLDEN_FRAME_PROXY) != INVALID_IDX) {
-    assign_frame_buffer_p(
-        &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME_PROXY)],
-        cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME_PROXY)]);
+  if (current_frame->frame_number == 0) {
+    assign_frame_buffer_p(&cm->ref_frame_map[GOLDEN_FRAME_PROXY],
+                          cm->ref_frame_map[LAST_FRAME_PROXY]);
   }
 
   print_reconstruction_frame(last_frame, current_frame->frame_number,
