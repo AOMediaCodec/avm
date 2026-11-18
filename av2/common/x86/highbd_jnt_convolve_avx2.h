@@ -13,52 +13,21 @@
 #ifndef AVM_AV2_COMMON_X86_HIGHBD_JNT_CONVOLVE_AVX2_H_
 #define AVM_AV2_COMMON_X86_HIGHBD_JNT_CONVOLVE_AVX2_H_
 
-#include <assert.h>
 #include <immintrin.h>
 
-#include "config/avm_config.h"
-
 #include "av2/common/convolve.h"
-#include "avm_dsp/avm_filter.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct {
-  int bits;
-  int offset;
-  int32_t weight_pair;
-  int fused_c3;
-  int fused_shift;
-} HighbdCwpCopyScale;
-
-static INLINE HighbdCwpCopyScale
-highbd_cwp_copy_scale(const ConvolveParams *conv_params, int bd) {
-  HighbdCwpCopyScale s;
-  const int w0 = conv_params->fwd_offset;
-  const int w1 = conv_params->bck_offset;
-  s.bits = FILTER_BITS * 2 - conv_params->round_1 - conv_params->round_0;
-  s.offset = 3 * (1 << (bd + s.bits - 1));
-  const int src_weight = w1 * (1 << s.bits);
-  s.fused_shift = s.bits + 4;
-  s.weight_pair =
-      (int32_t)(((uint32_t)(uint16_t)src_weight << 16) | (uint16_t)w0);
-  s.fused_c3 = w0 * 32768 + (w1 - 16) * s.offset + (((1 << s.bits) >> 1) << 4);
-  assert(s.bits <= 4);
-  if (conv_params->do_average) {
-    assert(w0 >= -32768 && w0 <= 32767);
-    assert(src_weight >= -32768 && src_weight <= 32767);
-  }
-  return s;
-}
-
-// Fused compound averaging:
-// clip((w0*(D-32768) + (w1*2^b)*s + C) >> (b+4)); D-32768 maps D into the
-// signed lane.
 static INLINE void highbd_cwp_convolve_2d_copy_do_average(
     __m256i data, __m256i src, const __m256i *weights, const __m256i *c3,
     int fused_shift, __m256i clip_pixel_to_bd, __m256i *res_clip) {
+  // madd_epi16 requires signed 16-bit lanes. D - 32768 maps unsigned D to a
+  // signed lane. Hence the fused equation becomes
+  // clip((w0*(D-32768) + (w1*2^b)*s + fused_c3) >> (b+4)).
+  // See highbd_cwp_copy_scale() for fused_c3.
   const __m256i bias = _mm256_set1_epi16((short)0x8000);
   const __m256i d_signed = _mm256_xor_si256(data, bias);
   const __m256i lo_pairs = _mm256_unpacklo_epi16(d_signed, src);

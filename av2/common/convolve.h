@@ -130,6 +130,39 @@ static INLINE int is_uneven_wtd_comp_avg(const ConvolveParams *params) {
           params->bck_offset != (1 << (DIST_PRECISION_BITS - 1)));
 }
 
+typedef struct {
+  int bits;
+  int offset;
+  int32_t weight_pair;
+  // scalar constants for the reference implementation.
+  int32_t c3;
+  // adds w0 * 32768 to c3 to correct the signed-lane bias used by madd_epi16.
+  int32_t fused_c3;
+  int fused_shift;
+} HighbdCwpCopyScale;
+
+static INLINE HighbdCwpCopyScale
+highbd_cwp_copy_scale(const ConvolveParams *conv_params, int bd) {
+  HighbdCwpCopyScale s;
+  const int w0 = conv_params->fwd_offset;
+  const int w1 = conv_params->bck_offset;
+  s.bits = FILTER_BITS * 2 - conv_params->round_1 - conv_params->round_0;
+  assert(s.bits >= 0);
+  assert(s.bits <= 4);
+  s.offset = 3 * (1 << (bd + s.bits - 1));
+  const int src_weight = w1 * (1 << s.bits);
+  s.fused_shift = s.bits + 4;
+  s.weight_pair =
+      (int32_t)(((uint32_t)(uint16_t)src_weight << 16) | (uint16_t)w0);
+  s.c3 = (w1 - 16) * s.offset + (((1 << s.bits) >> 1) << 4);
+  s.fused_c3 = w0 * 32768 + s.c3;
+  if (conv_params->do_average) {
+    assert(w0 >= -32768 && w0 <= 32767);
+    assert(src_weight >= -32768 && src_weight <= 32767);
+  }
+  return s;
+}
+
 static INLINE void init_conv_params(ConvolveParams *params) {
   memset(params, 0, sizeof(*params));
   params->fwd_offset = 1 << (DIST_PRECISION_BITS - 1);

@@ -32,6 +32,10 @@ static INLINE int highbd_cwp_copy_clip_max(int bd) {
 static INLINE __m512i highbd_cwp_convolve_2d_copy_do_average_avx512(
     const __m512i data, const __m512i src, const __m512i weights,
     const __m512i c3, const __m128i fused_shift, const __m512i clip_pixel) {
+  // madd_epi16 requires signed 16-bit lanes. D - 32768 maps unsigned D to a
+  // signed lane. Hence the fused equation becomes
+  // clip((w0*(D-32768) + (w1*2^b)*s + fused_c3) >> (b+4)).
+  // See highbd_cwp_copy_scale() for fused_c3.
   const __m512i bias = _mm512_set1_epi16((short)0x8000);
   const __m512i d_signed = _mm512_xor_si512(data, bias);
   const __m512i lo_pairs = _mm512_unpacklo_epi16(d_signed, src);

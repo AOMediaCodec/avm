@@ -1534,20 +1534,54 @@ typedef void (*highbd_compound_conv_2d_copy_func)(const uint16_t *src,
                                                   ConvolveParams *conv_params,
                                                   int bd);
 
+// Previous two-step compound copy. The shipped function uses the fused average.
+void old_av2_highbd_cwp_convolve_2d_copy_c(const uint16_t *src, int src_stride,
+                                           uint16_t *dst, int dst_stride, int w,
+                                           int h, ConvolveParams *conv_params,
+                                           int bd) {
+  CONV_BUF_TYPE *dst16 = conv_params->dst;
+  const int dst16_stride = conv_params->dst_stride;
+  const int bits =
+      FILTER_BITS * 2 - conv_params->round_1 - conv_params->round_0;
+  const int offset_bits = bd + 2 * FILTER_BITS - conv_params->round_0;
+  const int round_offset = (1 << (offset_bits - conv_params->round_1)) +
+                           (1 << (offset_bits - conv_params->round_1 - 1));
+  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
+  assert(bits >= 0);
+
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      CONV_BUF_TYPE res = src[y * src_stride + x] << bits;
+      res += round_offset;
+      if (conv_params->do_average) {
+        int32_t tmp = dst16[y * dst16_stride + x];
+        if (use_wtd_comp_avg) {
+          tmp = tmp * conv_params->fwd_offset + res * conv_params->bck_offset;
+          tmp = tmp >> DIST_PRECISION_BITS;
+        } else {
+          tmp += res;
+          tmp = tmp >> 1;
+        }
+        tmp -= round_offset;
+        dst[y * dst_stride + x] =
+            clip_pixel_highbd(ROUND_POWER_OF_TWO(tmp, bits), bd);
+      } else {
+        dst16[y * dst16_stride + x] = res;
+      }
+    }
+  }
+}
+
 class AV2Convolve2DCopyHighbdCompoundTest
     : public AV2ConvolveTest<highbd_compound_conv_2d_copy_func> {
  public:
   void RunTest() {
+    const BlockSize &block = GetParam().Block();
     auto compound_params = GetCompoundParams();
     for (const auto &compound : compound_params) {
       TestConvolve(compound);
-    }
-  }
-
-  void RunTestEdges() {
-    auto compound_params = GetCompoundParams();
-    for (const auto &compound : compound_params) {
       TestConvolveEdges(compound);
+      TestFilteredPredictor(compound, block.Width(), block.Height());
     }
   }
 
@@ -1560,6 +1594,14 @@ class AV2Convolve2DCopyHighbdCompoundTest
   }
 
  private:
+  // C instantiation compares the previous copy with the fused one.
+  highbd_compound_conv_2d_copy_func ReferenceFunc() const {
+    if (GetParam().TestFunction() == av2_highbd_cwp_convolve_2d_copy_c) {
+      return old_av2_highbd_cwp_convolve_2d_copy_c;
+    }
+    return av2_highbd_cwp_convolve_2d_copy_c;
+  }
+
   void SpeedTestConvolve(const CompoundParam &compound) {
     const BlockSize &block = GetParam().Block();
     const int width = block.Width();
@@ -1657,8 +1699,8 @@ class AV2Convolve2DCopyHighbdCompoundTest
 
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
-    Convolve(av2_highbd_cwp_convolve_2d_copy_c, input1, input2, reference,
-             reference_conv_buf, compound);
+    Convolve(ReferenceFunc(), input1, input2, reference, reference_conv_buf,
+             compound);
 
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, CONV_BUF_TYPE, test_conv_buf[MAX_SB_SQUARE]);
@@ -1725,18 +1767,6 @@ class AV2Convolve2DCopyHighbdCompoundTest
   }
 
  public:
-  void RunTestWithFilteredPredictor() {
-    const int width = GetParam().Block().Width();
-    const int height = GetParam().Block().Height();
-    auto compound_params = GetCompoundParams();
-    for (const auto &compound : compound_params) {
-      TestFilteredPredictor(compound, width, height);
-      if (width % 16 == 0 && height > 1) {
-        TestFilteredPredictor(compound, width, 1);
-      }
-    }
-  }
-
   void TestFilteredPredictor(const CompoundParam &compound, int width,
                              int height) {
     for (int pattern = 0; pattern < 2; ++pattern) {
@@ -1767,9 +1797,8 @@ class AV2Convolve2DCopyHighbdCompoundTest
           1, reference_conv_buf, kOutputStride, bit_depth, compound);
       ConvolveParams test_params = GetConvolveParams(
           1, test_conv_buf, kOutputStride, bit_depth, compound);
-      av2_highbd_cwp_convolve_2d_copy_c(reference_src, kOutputStride, reference,
-                                        kOutputStride, width, height,
-                                        &reference_params, bit_depth);
+      ReferenceFunc()(reference_src, kOutputStride, reference, kOutputStride,
+                      width, height, &reference_params, bit_depth);
       GetParam().TestFunction()(test_src, kOutputStride, test, kOutputStride,
                                 width, height, &test_params, bit_depth);
       AssertOutputBufferEq(reference, test, width, height);
@@ -1803,10 +1832,6 @@ class AV2Convolve2DCopyHighbdCompoundTest
 };
 
 TEST_P(AV2Convolve2DCopyHighbdCompoundTest, RunTest) { RunTest(); }
-TEST_P(AV2Convolve2DCopyHighbdCompoundTest, RunTestEdges) { RunTestEdges(); }
-TEST_P(AV2Convolve2DCopyHighbdCompoundTest, RunTestWithFilteredPredictor) {
-  RunTestWithFilteredPredictor();
-}
 TEST_P(AV2Convolve2DCopyHighbdCompoundTest, DISABLED_SpeedTest) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(
