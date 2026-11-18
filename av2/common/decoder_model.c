@@ -1610,7 +1610,8 @@ static bool grow_array(void **array, uint32_t *capacity, uint32_t count,
 
 bool av2_dm_get_level_limits(uint32_t level_idx, uint32_t tier,
                              uint32_t profile, Av2DmLevelLimits *limits) {
-  if (limits == NULL || level_idx >= 22 || tier > 1 || profile > 5) {
+  if (limits == NULL || level_idx >= 22 || tier > 1 ||
+      profile >= RESERVED_PROFILES_START) {
     return false;
   }
   const AV2LevelSpec *const row = &av2_level_defs[level_idx];

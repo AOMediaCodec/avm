@@ -1233,6 +1233,20 @@ TEST_F(DecoderModelResultTest, Profile5HighTierConfigurationIsConformant) {
   pbi_->common.seq_params = *sequence;
   av2_decoder_model_verifier_on_active_configuration(pbi_, 0, 0);
 
+  OperatingPointSet *const ops = &pbi_->ops_list[0][1];
+  memset(ops, 0, sizeof(*ops));
+  ops->valid = 1;
+  ops->obu_xlayer_id = 0;
+  ops->ops_id = 1;
+  ops->ops_cnt = 1;
+  ops->ops_ptl_present_flag = 1;
+  ops->op[0].ops_seq_profile_idc[0] = MAIN_444C_12_IP2;
+  ops->op[0].ops_level_idx[0] = SEQ_LEVEL_4_0;
+  ops->op[0].ops_mlayer_count[0] = 1;
+  ops->op[0].mlayer_info.ops_mlayer_map[0] = 1;
+  ops->op[0].mlayer_info.ops_tlayer_map[0][0] = 1;
+  av2_decoder_model_verifier_on_operating_point_set(pbi_, 0, 1);
+
   testing::internal::CaptureStderr();
   StartFrame(OBU_CLOSED_LOOP_KEY);
   UpdateAndOutput();
@@ -1241,12 +1255,17 @@ TEST_F(DecoderModelResultTest, Profile5HighTierConfigurationIsConformant) {
 
   Av2DmVerifierStats stats = {};
   ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
-  EXPECT_EQ(stats.result_count, 1u);
-  EXPECT_EQ(stats.conformant_results, 1u);
+  EXPECT_EQ(stats.result_count, 2u);
+  EXPECT_EQ(stats.conformant_results, 2u);
   EXPECT_EQ(stats.non_conformant_results, 0u);
   EXPECT_EQ(CountOccurrences(diagnostics, "AV2_DECODER_MODEL_WARNING "), 0u);
   EXPECT_NE(diagnostics.find("status=CONFORMANT"), std::string::npos);
   EXPECT_NE(diagnostics.find("level=4 level_name=4.0 tier=high"),
+            std::string::npos);
+  EXPECT_NE(diagnostics.find("status=CONFORMANT xlayer=0 ops=1 op=0"),
+            std::string::npos);
+  EXPECT_NE(diagnostics.find("level=4 level_name=4.0 tier=main "
+                             "scope=operating_point"),
             std::string::npos);
 }
 #endif  // CONFIG_12BIT_PROFILE
@@ -3390,6 +3409,47 @@ class DecoderModelEncodedStreamTest : public ::testing::Test,
     packets_.push_back(encoded);
   }
 
+#if CONFIG_12BIT_PROFILE
+  void CheckProfile5_12Bit(const char *filename, int monochrome,
+                           unsigned int subsampling_x,
+                           unsigned int subsampling_y) {
+    cfg_.monochrome = monochrome;
+    cfg_.g_profile = MAIN_444C_12_IP2;
+    cfg_.g_input_bit_depth = 12;
+    cfg_.g_bit_depth = AVM_BITS_12;
+    target_level_ = SEQ_LEVEL_2_0;
+    cpu_used_ = 8;
+
+    libavm_test::Y4mVideoSource video(filename, 0, 10);
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    ASSERT_FALSE(packets_.empty());
+
+    const DecoderModelDecodeOutput output = DecodePackets(packets_);
+    for (const avm_codec_err_t status : output.statuses) {
+      ASSERT_EQ(status, AVM_CODEC_OK);
+    }
+    ASSERT_EQ(output.frames.size(), 10u);
+    for (const DecoderModelDecodedFrame &frame : output.frames) {
+      EXPECT_EQ(frame.bit_depth, 12u);
+      EXPECT_EQ(frame.monochrome, monochrome);
+      EXPECT_EQ(frame.x_chroma_shift, subsampling_x);
+      EXPECT_EQ(frame.y_chroma_shift, subsampling_y);
+      EXPECT_NE(frame.format & AVM_IMG_FMT_HIGHBITDEPTH, 0);
+    }
+    EXPECT_EQ(CountOccurrences(output.diagnostics, "AV2_DECODER_MODEL_RESULT "),
+              1u);
+    EXPECT_EQ(
+        CountOccurrences(output.diagnostics, "AV2_DECODER_MODEL_WARNING "), 0u);
+    EXPECT_NE(output.diagnostics.find("status=CONFORMANT"), std::string::npos);
+    EXPECT_NE(output.diagnostics.find("level=0 level_name=2.0 tier=main"),
+              std::string::npos);
+    const DecoderModelDecodeOutput disabled =
+        DecodePackets(packets_, AVM_DECODER_MODEL_CHECK_OFF);
+    EXPECT_EQ(output.statuses, disabled.statuses);
+    EXPECT_EQ(output.frames, disabled.frames);
+  }
+#endif  // CONFIG_12BIT_PROFILE
+
   bool controls_set_;
   AV2_LEVEL target_level_;
   int cpu_used_;
@@ -3507,32 +3567,19 @@ TEST_F(DecoderModelEncodedStreamTest, Level30AndIncorrectLevel21) {
 
 #if CONFIG_12BIT_PROFILE
 TEST_F(DecoderModelEncodedStreamTest, Profile5TwelveBit444IsConformant) {
-  cfg_.g_profile = MAIN_444C_12_IP2;
-  cfg_.g_input_bit_depth = 12;
-  cfg_.g_bit_depth = AVM_BITS_12;
-  target_level_ = SEQ_LEVEL_2_0;
-  cpu_used_ = 8;
+  CheckProfile5_12Bit("park_joy_90p_12_444.y4m", 0, 0, 0);
+}
 
-  libavm_test::Y4mVideoSource video("park_joy_90p_12_444.y4m", 0, 10);
-  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-  ASSERT_FALSE(packets_.empty());
+TEST_F(DecoderModelEncodedStreamTest, Profile5TwelveBit420IsConformant) {
+  CheckProfile5_12Bit("park_joy_90p_12_420.y4m", 0, 1, 1);
+}
 
-  const DecoderModelDecodeOutput output = DecodePackets(packets_);
-  for (const avm_codec_err_t status : output.statuses) {
-    ASSERT_EQ(status, AVM_CODEC_OK);
-  }
-  ASSERT_EQ(output.frames.size(), 10u);
-  for (const DecoderModelDecodedFrame &frame : output.frames) {
-    EXPECT_EQ(frame.bit_depth, 12u);
-    EXPECT_NE(frame.format & AVM_IMG_FMT_HIGHBITDEPTH, 0);
-  }
-  EXPECT_EQ(CountOccurrences(output.diagnostics, "AV2_DECODER_MODEL_RESULT "),
-            1u);
-  EXPECT_EQ(CountOccurrences(output.diagnostics, "AV2_DECODER_MODEL_WARNING "),
-            0u);
-  EXPECT_NE(output.diagnostics.find("status=CONFORMANT"), std::string::npos);
-  EXPECT_NE(output.diagnostics.find("level=0 level_name=2.0 tier=main"),
-            std::string::npos);
+TEST_F(DecoderModelEncodedStreamTest, Profile5TwelveBit422IsConformant) {
+  CheckProfile5_12Bit("park_joy_90p_12_422.y4m", 0, 1, 0);
+}
+
+TEST_F(DecoderModelEncodedStreamTest, Profile5TwelveBitMonochromeIsConformant) {
+  CheckProfile5_12Bit("park_joy_90p_12_420.y4m", 1, 1, 1);
 }
 
 TEST_F(DecoderModelEncodedStreamTest, Profile5IncorrectLevel20PreservesPixels) {

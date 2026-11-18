@@ -375,6 +375,72 @@ TEST(LevelDecoderModelTest, Profile5SupportFollowsBuildConfiguration) {
 #endif  // CONFIG_12BIT_PROFILE
 }
 
+#if CONFIG_12BIT_PROFILE
+TEST(LevelDecoderModelTest, Profile5AcceptsAllSpecifiedDepthsAndChromaFormats) {
+  struct ChromaFormat {
+    uint8_t monochrome;
+    uint8_t subsampling_x;
+    uint8_t subsampling_y;
+  };
+  const ChromaFormat chroma_formats[] = {
+    { 1, 1, 1 },
+    { 0, 1, 1 },
+    { 0, 1, 0 },
+    { 0, 0, 0 },
+  };
+  for (const avm_bit_depth_t bit_depth :
+       { AVM_BITS_8, AVM_BITS_10, AVM_BITS_12 }) {
+    for (const ChromaFormat &chroma : chroma_formats) {
+      SCOPED_TRACE(::testing::Message()
+                   << "bit_depth=" << bit_depth
+                   << " monochrome=" << +chroma.monochrome << " subsampling="
+                   << +chroma.subsampling_x << "," << +chroma.subsampling_y);
+      std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
+      SequenceHeader &sequence = cpi->common.seq_params;
+      sequence.seq_profile_idc = MAIN_444C_12_IP2;
+      sequence.bit_depth = bit_depth;
+      sequence.monochrome = chroma.monochrome;
+      sequence.subsampling_x = chroma.subsampling_x;
+      sequence.subsampling_y = chroma.subsampling_y;
+      sequence.seq_max_mlayer_cnt = 3;
+      sequence.ref_frames = REF_FRAMES;
+      avm_internal_error_info error = {};
+      ASSERT_TRUE(av2_check_profile_interop_conformance(&sequence, &error, 0));
+      EXPECT_EQ(error.error_code, AVM_CODEC_OK);
+      EXPECT_EQ(av2_get_interop_from_profile(sequence.seq_profile_idc),
+                INTEROP_2);
+      DECODER_MODEL model = {};
+      av2_decoder_model_init(cpi.get(), SEQ_LEVEL_4_0, 0, &model);
+      EXPECT_EQ(model.status, DECODER_MODEL_OK);
+      // Annex A selects factors by profile, including for 8-bit and monochrome.
+      EXPECT_EQ(model.level_limits.picture_size_profile_factor, 36u);
+      Av2DmRational expected_rate = {};
+      ASSERT_TRUE(av2_dm_rational_make(36000000, 1, &expected_rate));
+      int comparison = 1;
+      ASSERT_TRUE(av2_dm_rational_compare(&model.bit_rate, &expected_rate,
+                                          &comparison));
+      EXPECT_EQ(comparison, 0);
+      av2_dm_rational_destroy(&expected_rate);
+      av2_encoder_decoder_model_destroy(&model);
+    }
+  }
+}
+TEST(LevelDecoderModelTest, Profile5RejectsMoreThanThreeEmbeddedLayers) {
+  for (const int layer_count : { 3, 4 }) {
+    SequenceHeader sequence = {};
+    sequence.seq_profile_idc = MAIN_444C_12_IP2;
+    sequence.bit_depth = AVM_BITS_12;
+    sequence.seq_max_mlayer_cnt = layer_count;
+    avm_internal_error_info error = {};
+    // With longjmp disabled, the conformance checker records syntax errors
+    // in error_info. Profile 5 permits at most three embedded layers (IP2).
+    av2_check_profile_interop_conformance(&sequence, &error, 0);
+    EXPECT_EQ(error.error_code,
+              layer_count == 3 ? AVM_CODEC_OK : AVM_CODEC_INVALID_PARAM);
+  }
+}
+#endif  // CONFIG_12BIT_PROFILE
+
 TEST(LevelDecoderModelTest, CompressionRatioUsesWideIntermediate) {
   AV2_COMMON cm = {};
   cm.width = 38400;
@@ -480,19 +546,13 @@ TEST(LevelDecoderModelTest, ParametersMatchAnnexATableForSupportedScope) {
   const ScalingCase scalings[] = {
     { 0.0, 1, 1 }, { 1.0, 1, 1 }, { 1.5, 3, 2 }, { 4.0, 4, 1 }, { 9.0, 9, 1 },
   };
-  const int profile_count =
-#if CONFIG_12BIT_PROFILE
-      6;
-#else
-      5;
-#endif  // CONFIG_12BIT_PROFILE
 
   std::unique_ptr<AV2_COMP> cpi(new AV2_COMP());
   cpi->common.seq_params.ref_frames = REF_FRAMES;
   for (int level = SEQ_LEVEL_2_0; level <= SEQ_LEVEL_8_3; ++level) {
     for (int tier = 0; tier <= 1; ++tier) {
       cpi->tier[0] = tier;
-      for (int profile = 0; profile < profile_count; ++profile) {
+      for (int profile = 0; profile < RESERVED_PROFILES_START; ++profile) {
         cpi->common.seq_params.seq_profile_idc =
             static_cast<BITSTREAM_PROFILE>(profile);
         Av2DmLevelLimits base_limits{};

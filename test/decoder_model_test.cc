@@ -1811,7 +1811,12 @@ TEST(DecoderModelConformanceTest, AnnexAProfileLevelFactorsAreExact) {
   const uint32_t picture_factor[] = { 15, 15, 15, 20, 30, 36 };
   const uint32_t bitrate_numerator[] = { 1, 1, 1, 1667, 5, 3 };
   const uint32_t bitrate_denominator[] = { 1, 1, 1, 1000, 2, 1 };
-  for (uint32_t profile = 0; profile < 6; ++profile) {
+  static_assert(sizeof(picture_factor) / sizeof(picture_factor[0]) >=
+                        RESERVED_PROFILES_START &&
+                    sizeof(bitrate_numerator) == sizeof(picture_factor) &&
+                    sizeof(bitrate_denominator) == sizeof(picture_factor),
+                "Expected factors must cover every supported profile");
+  for (uint32_t profile = 0; profile < RESERVED_PROFILES_START; ++profile) {
     AV2ProfileLevelFactors factors;
     ASSERT_TRUE(av2_get_profile_level_factors(profile, &factors));
     EXPECT_EQ(factors.picture_size_profile_factor, picture_factor[profile]);
@@ -1821,7 +1826,8 @@ TEST(DecoderModelConformanceTest, AnnexAProfileLevelFactorsAreExact) {
 
   AV2ProfileLevelFactors factors;
   EXPECT_FALSE(av2_get_profile_level_factors(-1, &factors));
-  EXPECT_FALSE(av2_get_profile_level_factors(6, &factors));
+  EXPECT_FALSE(
+      av2_get_profile_level_factors(RESERVED_PROFILES_START, &factors));
   EXPECT_FALSE(av2_get_profile_level_factors(CONFIGURABLE, &factors));
   EXPECT_FALSE(av2_get_profile_level_factors(0, nullptr));
 }
@@ -1853,29 +1859,160 @@ TEST(DecoderModelConformanceTest, AnnexACompressedSizeObuMembershipIsExact) {
   }
 }
 
-TEST(DecoderModelConformanceTest, AnnexAProfile5FactorsAreExact) {
+TEST(DecoderModelConformanceTest, Profile5FactorsFollowBuildConfiguration) {
   Av2DmLevelLimits limits{};
-  ASSERT_TRUE(av2_dm_get_level_limits(4, 0, 5, &limits));
+#if CONFIG_12BIT_PROFILE
+  ASSERT_TRUE(
+      av2_dm_get_level_limits(SEQ_LEVEL_4_0, 0, MAIN_444C_12_IP2, &limits));
   ExpectEqualRational(limits.bit_rate, 36000000, 1);
   ExpectEqualRational(limits.buffer_size, 36000000, 1);
   EXPECT_EQ(limits.picture_size_profile_factor, 36u);
 
-  ASSERT_TRUE(av2_dm_get_level_limits(4, 1, 5, &limits));
+  ASSERT_TRUE(
+      av2_dm_get_level_limits(SEQ_LEVEL_4_0, 1, MAIN_444C_12_IP2, &limits));
   ExpectEqualRational(limits.bit_rate, 90000000, 1);
   ExpectEqualRational(limits.buffer_size, 90000000, 1);
   EXPECT_EQ(limits.picture_size_profile_factor, 36u);
-
-  EXPECT_FALSE(av2_dm_get_level_limits(4, 0, 6, &limits));
+#else
+  EXPECT_FALSE(av2_dm_get_level_limits(SEQ_LEVEL_4_0, 0, 5, &limits));
+  EXPECT_FALSE(av2_dm_get_level_limits(SEQ_LEVEL_4_0, 1, 5, &limits));
+#endif
+  EXPECT_FALSE(av2_dm_get_level_limits(SEQ_LEVEL_4_0, 0,
+                                       RESERVED_PROFILES_START, &limits));
 
   Av2DmConfig config = MakeModelConfig(AV2_DM_RESOURCE_AVAILABILITY_MODE);
   config.level_limits_present = false;
-  config.level_idx = 4;
+  config.level_idx = SEQ_LEVEL_4_0;
   config.profile = 5;
   Av2DecoderModel *const model =
       av2_decoder_model_create(&config, nullptr, nullptr);
   ASSERT_NE(model, nullptr);
+  Av2DmResult result;
+  ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
+#if CONFIG_12BIT_PROFILE
+  EXPECT_EQ(result.status, AV2_DM_RESULT_CONFORMANT);
+  EXPECT_FALSE(result.missing_required_input);
+#else
+  EXPECT_EQ(result.status, AV2_DM_RESULT_INDETERMINATE);
+  EXPECT_TRUE(result.missing_required_input);
+#endif
   av2_decoder_model_destroy(model);
+  av2_dm_config_destroy(&config);
 }
+
+#if CONFIG_12BIT_PROFILE
+TEST(DecoderModelConformanceTest, Profile5FrameParsingBoundariesAreExact) {
+  struct Boundary {
+    Av2DmViolationCode code;
+    uint64_t limit;
+    bool resource_mode;
+  };
+  // Annex A, Level 4.0: two 64x64 frames in resource mode have removal
+  // interval 4096/77856768 s. Factor 36 and MinCompBasis 4 give 4608 bytes
+  // and 35840 symbols. A longer interval instead reaches the 23040-byte
+  // picture-size cap. CompressedSize excludes the 128-byte allowance.
+  const Boundary boundaries[] = {
+    { AV2_DM_VIOLATION_MAX_COMPRESSED_SIZE, 4608, true },
+    { AV2_DM_VIOLATION_MAX_FRAME_SYMBOLS, 35840, true },
+    { AV2_DM_VIOLATION_MAX_COMPRESSED_SIZE, 23040, false },
+  };
+  for (const Boundary &boundary : boundaries) {
+    for (const uint64_t observed :
+         { boundary.limit - 1, boundary.limit, boundary.limit + 1 }) {
+      SCOPED_TRACE(::testing::Message()
+                   << "code=" << boundary.code << " limit=" << boundary.limit
+                   << " observed=" << observed);
+      Av2DmConfig config = MakeModelConfig(
+          boundary.resource_mode ? AV2_DM_RESOURCE_AVAILABILITY_MODE
+                                 : AV2_DM_DECODING_SCHEDULE_MODE);
+      config.level_limits_present = false;
+      config.profile = MAIN_444C_12_IP2;
+      config.level_idx = SEQ_LEVEL_4_0;
+      config.bit_depth = 12;
+      config.chroma_format_idc = 3;
+      config.initial_display_delay = 1;
+      config.num_ref_frames = 1;
+      ViolationCollector collector;
+      Av2DecoderModel *const model =
+          av2_decoder_model_create(&config, CollectViolation, &collector);
+      ASSERT_NE(model, nullptr);
+      Av2DmFrameEvent first = MakeFrame(0, 1);
+      if (boundary.code == AV2_DM_VIOLATION_MAX_COMPRESSED_SIZE) {
+        first.compressed_size_bytes = 128 + observed;
+        first.coded_bits = first.compressed_size_bytes * 8;
+      } else {
+        first.frame_symbol_count = observed;
+      }
+      av2_decoder_model_start_frame(model, &first);
+      const Av2DmReferenceUpdateEvent refresh = Refresh(1, 1);
+      av2_decoder_model_update_reference_buffers(model, &refresh);
+      av2_decoder_model_set_initial_presentation_delay(model, false, 0);
+      Av2DmOutputEvent output = Output(1, 1, -1);
+      output.temporal_unit_index = 0;
+      av2_decoder_model_output_frame(model, &output);
+      Av2DmFrameEvent second = MakeFrame(2, 2, 900);
+      second.temporal_unit_index = 0;
+      av2_decoder_model_start_frame(model, &second);
+      av2_decoder_model_finish(model);
+      const bool fails = observed > boundary.limit;
+      EXPECT_EQ(CountViolations(collector, boundary.code), fails ? 1u : 0u);
+      EXPECT_EQ(collector.violations.size(), fails ? 1u : 0u);
+      if (fails) {
+        const Av2DmViolation *const violation =
+            FindViolation(collector, boundary.code);
+        ASSERT_NE(violation, nullptr);
+        ExpectEqualRational(violation->observed, observed, 1);
+        ExpectEqualRational(violation->limit, boundary.limit, 1);
+      }
+      Av2DmResult result;
+      ASSERT_TRUE(av2_decoder_model_get_result(model, &result));
+      EXPECT_EQ(result.status, fails ? AV2_DM_RESULT_NON_CONFORMANT
+                                     : AV2_DM_RESULT_CONFORMANT);
+      av2_decoder_model_destroy(model);
+      av2_dm_config_destroy(&config);
+    }
+  }
+}
+
+TEST(DecoderModelConformanceTest, Profile5SmoothingBufferBoundaryIsExact) {
+  for (const uint32_t tier : { 0u, 1u }) {
+    const uint64_t capacity = tier == 0 ? 36000000 : 90000000;
+    for (const uint64_t coded_bits : { capacity - 1, capacity, capacity + 1 }) {
+      SCOPED_TRACE(::testing::Message()
+                   << "tier=" << tier << " coded_bits=" << coded_bits);
+      Av2DmConfig config = MakeModelConfig(AV2_DM_DECODING_SCHEDULE_MODE);
+      config.level_limits_present = false;
+      config.profile = MAIN_444C_12_IP2;
+      config.level_idx = SEQ_LEVEL_4_0;
+      config.tier = tier;
+      config.sequence_low_delay_mode = true;
+      config.sequence_decoder_buffer_delay = 90000;
+      config.initial_display_delay = 1;
+      ViolationCollector collector;
+      Av2DecoderModel *const model =
+          av2_decoder_model_create(&config, CollectViolation, &collector);
+      ASSERT_NE(model, nullptr);
+      Av2DmFrameEvent frame = MakeFrame(0, 1);
+      // DFG bits include bytes outside the frame's CompressedSize accounting.
+      frame.coded_bits = coded_bits;
+      av2_decoder_model_start_frame(model, &frame);
+      Av2DmState state{};
+      ASSERT_TRUE(av2_decoder_model_get_state(model, &state));
+      ExpectEqualRational(state.last_bit_arrival, coded_bits, capacity);
+      ExpectEqualRational(state.time_to_decode, 4096, 77856768);
+      EXPECT_EQ(state.buffer_pool.pool_size, config.num_ref_frames + 2);
+      av2_decoder_model_finish(model);
+      EXPECT_EQ(CountViolations(collector,
+                                AV2_DM_VIOLATION_SMOOTHING_BUFFER_OVERFLOW),
+                coded_bits > capacity ? 1u : 0u);
+      EXPECT_FALSE(
+          HasViolation(collector, AV2_DM_VIOLATION_SMOOTHING_BUFFER_UNDERFLOW));
+      av2_decoder_model_destroy(model);
+      av2_dm_config_destroy(&config);
+    }
+  }
+}
+#endif  // CONFIG_12BIT_PROFILE
 
 TEST(DecoderModelConformanceTest, AnnexATablesMatchSpecification) {
   struct LevelRow {
@@ -1941,6 +2078,12 @@ TEST(DecoderModelConformanceTest, AnnexATablesMatchSpecification) {
   const uint32_t profile_factor_numerator[] = { 1, 1, 1, 1667, 5, 3 };
   const uint32_t profile_factor_denominator[] = { 1, 1, 1, 1000, 2, 1 };
   const uint32_t picture_factor[] = { 15, 15, 15, 20, 30, 36 };
+  static_assert(
+      sizeof(picture_factor) / sizeof(picture_factor[0]) >=
+              RESERVED_PROFILES_START &&
+          sizeof(profile_factor_numerator) == sizeof(picture_factor) &&
+          sizeof(profile_factor_denominator) == sizeof(picture_factor),
+      "Expected factors must cover every supported profile");
 
   static_assert(sizeof(rows) / sizeof(rows[0]) == 22, "Annex A level rows");
   for (uint32_t level = 0; level < 22; ++level) {
@@ -1984,7 +2127,7 @@ TEST(DecoderModelConformanceTest, AnnexATablesMatchSpecification) {
                 static_cast<int>(tile_width_scale[tier][level]));
       EXPECT_EQ(av2_tile_area_scaling_factor[tier][level],
                 static_cast<int>(tile_area_scale[tier][level]));
-      for (uint32_t profile = 0; profile <= 5; ++profile) {
+      for (uint32_t profile = 0; profile < RESERVED_PROFILES_START; ++profile) {
         Av2DmLevelLimits limits{};
         if (kbps == 0 || cr == 0) {
           EXPECT_FALSE(av2_dm_get_level_limits(level, tier, profile, &limits));
@@ -2023,7 +2166,7 @@ TEST(DecoderModelConformanceTest, AnnexATablesMatchSpecification) {
     EXPECT_FALSE(av2_dm_get_level_limits(level, 0, 0, &limits));
   }
   EXPECT_FALSE(av2_dm_get_level_limits(0, 2, 0, &limits));
-  EXPECT_FALSE(av2_dm_get_level_limits(0, 0, 6, &limits));
+  EXPECT_FALSE(av2_dm_get_level_limits(0, 0, RESERVED_PROFILES_START, &limits));
   EXPECT_FALSE(av2_dm_get_level_limits(0, 0, 0, nullptr));
   uint32_t value;
   EXPECT_FALSE(av2_get_level_base_bitrate_kbps(-1, 0, &value));
@@ -2131,6 +2274,16 @@ TEST(DecoderModelConformanceTest, MultistreamFactorsAreAppliedExactly) {
   EXPECT_EQ(limits.max_tile_columns, 7u);
   ExpectEqualRational(limits.bit_rate, 8000000, 1);
   EXPECT_FALSE(av2_dm_apply_multistream_limits(4, 0, 0, 2, 1, &limits));
+#if CONFIG_12BIT_PROFILE
+  ASSERT_TRUE(av2_dm_get_level_limits(21, 0, MAIN_444C_12_IP2, &limits));
+  ASSERT_TRUE(
+      av2_dm_apply_multistream_limits(4, 0, MAIN_444C_12_IP2, 3, 2, &limits));
+  ExpectEqualRational(limits.bit_rate, 24000000, 1);
+  ExpectEqualRational(limits.buffer_size, 24000000, 1);
+  EXPECT_EQ(limits.picture_size_profile_factor, 36u);
+  EXPECT_EQ(limits.max_display_rate, 47185920u);
+  EXPECT_EQ(limits.max_decode_rate, 51904512u);
+#endif  // CONFIG_12BIT_PROFILE
 }
 
 TEST(DecoderModelConformanceTest, StaticLevelBoundariesAreInclusive) {

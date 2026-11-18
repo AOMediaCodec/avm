@@ -76,21 +76,14 @@ typedef struct AV2ProfileLevelFactors {
 } AV2ProfileLevelFactors;
 
 // Returns the exact PicSizeProfileFactor and BitrateProfileFactor values for
-// profiles 0 through 5, independent of CONFIG_12BIT_PROFILE. Callers that
-// select a bitstream profile enforce its build-time support separately.
-// Returns false for values without a table row, including Configurable.
+// profiles supported by this build. The 12-bit profile is available only with
+// CONFIG_12BIT_PROFILE. Returns false for unsupported profiles, Configurable,
+// or a null output pointer.
 bool av2_get_profile_level_factors(int seq_profile_idc,
                                    AV2ProfileLevelFactors *factors);
 
 // Returns whether an OBU contributes to CompressedSize in Annex A.
 bool av2_obu_counts_toward_compressed_size(OBU_TYPE obu_type);
-
-int get_profile_factor_table_row_index(int seq_profile_idc);
-
-// Floating-point accessors retained for existing internal callers. Decoder
-// model calculations use av2_get_profile_level_factors() for exact factors.
-double get_bitrate_profile_factor(int profile_factor_row);
-double get_picture_size_profile_factor(int profile_factor_row);
 
 #ifdef __cplusplus
 }  // extern "C"
