@@ -645,4 +645,30 @@ TEST_F(CiTest, ScanTypeChromaInteraction) {
   }
 }
 
+// A CI OBU sent ahead of its frame (e.g. grouped per-extended-layer high level
+// syntax: SH0 CI0 SH1 CI1 CLK0 CLK1) must be remembered for its own extended
+// layer, even though it is not part of that layer's frame unit.
+TEST_F(CiTest, CiObuReceivedIsTrackedPerExtendedLayer) {
+  ContentInterpretation src;
+  av2_initialize_ci_params(&src);
+  uint32_t written = write_ci_obu(&src, buf_);
+  ASSERT_GT(written, 0u);
+
+  pbi_->common.xlayer_id = 1;
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
+  struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
+                                    rb_error_handler };
+  ASSERT_EQ(av2_read_content_interpretation_obu(pbi_, &rb), written);
+
+  EXPECT_TRUE(pbi_->ci_obu_received[1][0][0]);
+  EXPECT_FALSE(pbi_->ci_obu_received[0][0][0]);
+
+  // The tracking must survive the per-frame-unit reset of
+  // obus_in_frame_unit_data done when the next frame unit is scanned.
+  memset(pbi_->obus_in_frame_unit_data, 0,
+         sizeof(pbi_->obus_in_frame_unit_data));
+  EXPECT_TRUE(pbi_->ci_obu_received[1][0][0]);
+}
+
 }  // namespace

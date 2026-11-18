@@ -246,6 +246,7 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
     for (int i = 0; i < MAX_NUM_MLAYERS; i++)
       memset(pbi->obus_in_frame_unit_data[j][i], 0,
              sizeof(pbi->obus_in_frame_unit_data[j][i]));
+  memset(pbi->ci_obu_received, 0, sizeof(pbi->ci_obu_received));
 
   for (int xlayer = 0; xlayer < MAX_NUM_XLAYERS; xlayer++)
     for (int i = 0; i < MAX_SEQ_NUM; i++)
