@@ -649,7 +649,9 @@ void av2_prune_partitions_by_max_min_bsize(
         }
       }
     }
-  } else if (is_le_min_sq_part) {  // current block size is less or equal to min
+  } else if (is_le_min_sq_part &&
+             partition_search_state->partition_allowed[PARTITION_NONE]) {
+    // Current block size is less than or equal to min.
     // Disallow all 2-way partitions.
     partition_search_state->prune_partition[PARTITION_HORZ] = true;
     partition_search_state->prune_partition[PARTITION_VERT] = true;

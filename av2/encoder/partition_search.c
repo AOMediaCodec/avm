@@ -3209,9 +3209,8 @@ static AVM_INLINE void init_allowed_partitions(
       !(blk_params->has_rows && blk_params->has_cols) ||
       !partition_allowed[PARTITION_NONE];
   const bool allow_rect = part_cfg->enable_rect_partitions || force_rect_split;
-  const int min_partition_size = (blk_params->has_rows && blk_params->has_cols)
-                                     ? blk_params->min_partition_size
-                                     : BLOCK_4X4;
+  const int min_partition_size =
+      force_rect_split ? BLOCK_4X4 : blk_params->min_partition_size;
 
   // Initialize allowed partition types for the partition block.
   part_search_state->is_block_splittable = is_partition_point(bsize);
