@@ -8933,8 +8933,10 @@ static void av2_evaluate_intra_modes_in_inter_frame(
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 
   // Gate intra mode evaluation if best of inter is skip except when source
-  // variance is extremely low
+  // variance is extremely low, provided a valid inter mode was found.
   if (sf->intra_sf.skip_intra_in_interframe &&
+      search_state->best_mbmode.mode != MODE_INVALID &&
+      !x->must_find_valid_partition &&
       (x->source_variance > sf->intra_sf.src_var_thresh_intra_skip)) {
     if (inter_cost >= 0 && intra_cost >= 0) {
       avm_clear_system_state();
