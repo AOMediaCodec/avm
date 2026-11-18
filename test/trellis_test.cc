@@ -1985,8 +1985,8 @@ class FindBestPathTest : public ::testing::TestWithParam<FindBestPathParam> {
     kPathOneState,  // row 0 INT64_MAX but for one random state
   };
   enum CostMode {
-    kCostRandom,  // random row 0 costs, a few repeated
-    kCostTied,    // row 0 costs all equal (the first state wins)
+    kCostRandom,  // random row 0 costs, some negative, a few repeated
+    kCostTied,    // states w..7 tied below states 0..w-1, w in 0..6 (w wins)
   };
 
   struct Config {
@@ -2051,6 +2051,19 @@ class FindBestPathTest : public ::testing::TestWithParam<FindBestPathParam> {
     ASSERT_NE(dq_tst_, nullptr);
     ASSERT_NE(dequant_, nullptr);
     n_early_ = n_full_ = n_none_ = n_wide_ = 0;
+
+    // Random backgrounds, made once and copied in by RunOne(), so a read or
+    // write outside the scanned positions shows.
+    scan_bg_.resize(kScanBuf);
+    for (int16_t &v : scan_bg_) v = (int16_t)rng_.Rand16();
+    tcoeff_bg_.resize(kRasterBuf);
+    for (tran_low_t &v : tcoeff_bg_) v = (tran_low_t)rng_.Rand31() - (1 << 30);
+    iqm_bg_.resize(kRasterBuf);
+    for (qm_val_t &v : iqm_bg_) v = rng_.Rand8();
+    qc_bg_.resize(kRasterBuf);
+    for (tran_low_t &v : qc_bg_) v = (tran_low_t)rng_.Rand31();
+    dq_bg_.resize(kRasterBuf);
+    for (tran_low_t &v : dq_bg_) v = (tran_low_t)rng_.Rand31();
   }
 
   void TearDown() override {
@@ -2170,6 +2183,10 @@ class FindBestPathTest : public ::testing::TestWithParam<FindBestPathParam> {
           continue;
         }
         n.rdCost = ((int64_t)rng_.Rand31() << rng_(24)) + rng_.Rand16();
+        // av2_trellis_quant() gives negative costs when deltaDist < 0.
+        const int sign = rng_(16);
+        if (sign < 4) n.rdCost = -n.rdCost;
+        if (sign == 4) n.rdCost = INT64_MIN;
         n.rate = (int32_t)rng_.Rand31() - (rng_(8) == 0 ? (1 << 30) : 0);
         n.absLevel = Level(cfg.level, pos);
         const int r = rng_(64);
@@ -2182,7 +2199,10 @@ class FindBestPathTest : public ::testing::TestWithParam<FindBestPathParam> {
     tcq_node_t *row0 = trellis_;
     if (cfg.cost == kCostTied) {
       const int64_t c = ((int64_t)rng_.Rand31() << 8) + 1;
-      for (int st = 0; st < TCQ_N_STATES; st++) row0[st].rdCost = c;
+      const int w = rng_(TCQ_N_STATES - 1);
+      for (int st = 0; st < TCQ_N_STATES; st++) {
+        row0[st].rdCost = st < w ? c + 1 + rng_(16) : c;
+      }
     } else if (rng_(4) == 0) {
       // A repeated cost: the lower state must win the tie.
       const int a = rng_(TCQ_N_STATES), b = rng_(TCQ_N_STATES);
@@ -2262,14 +2282,12 @@ class FindBestPathTest : public ::testing::TestWithParam<FindBestPathParam> {
     memcpy(trellis.data() + cfg.in_off, trellis_, sizeof(tcq_node_t) * nodes);
     const tcq_node_t *tr = trellis.data() + cfg.in_off;
 
-    for (int i = 0; i < kScanBuf; i++) scan_buf_[i] = (int16_t)rng_.Rand16();
+    memcpy(scan_buf_, scan_bg_.data(), sizeof(int16_t) * kScanBuf);
     memcpy(scan_buf_ + cfg.in_off, scan_tbl_, sizeof(int16_t) * num_coeffs_);
     const int16_t *scan = scan_buf_ + cfg.in_off;
 
-    for (int i = 0; i < kRasterBuf; i++) {
-      tcoeff_buf_[i] = (tran_low_t)rng_.Rand31() - (1 << 30);
-      iqm_buf_[i] = rng_.Rand8();
-    }
+    memcpy(tcoeff_buf_, tcoeff_bg_.data(), sizeof(tran_low_t) * kRasterBuf);
+    memcpy(iqm_buf_, iqm_bg_.data(), sizeof(qm_val_t) * kRasterBuf);
     tran_low_t *tcoeff =
         tcoeff_buf_ + cfg.in_off + BLOCK_OFFSET(cfg.tcoeff_block);
     qm_val_t *iqm = iqm_buf_ + cfg.in_off;
@@ -2279,10 +2297,8 @@ class FindBestPathTest : public ::testing::TestWithParam<FindBestPathParam> {
     }
     const qm_val_t *iqmatrix = use_qm_ ? iqm : NULL;
 
-    for (int i = 0; i < kRasterBuf; i++) {
-      qc_ref_[i] = (tran_low_t)rng_.Rand31();
-      dq_ref_[i] = (tran_low_t)rng_.Rand31();
-    }
+    memcpy(qc_ref_, qc_bg_.data(), sizeof(tran_low_t) * kRasterBuf);
+    memcpy(dq_ref_, dq_bg_.data(), sizeof(tran_low_t) * kRasterBuf);
     memcpy(qc_tst_, qc_ref_, sizeof(tran_low_t) * kRasterBuf);
     memcpy(dq_tst_, dq_ref_, sizeof(tran_low_t) * kRasterBuf);
     const int out = cfg.out_off + BLOCK_OFFSET(cfg.out_block);
@@ -2387,6 +2403,11 @@ class FindBestPathTest : public ::testing::TestWithParam<FindBestPathParam> {
   tran_low_t *qc_tst_ = nullptr;
   tran_low_t *dq_ref_ = nullptr;
   tran_low_t *dq_tst_ = nullptr;
+  std::vector<int16_t> scan_bg_;
+  std::vector<tran_low_t> tcoeff_bg_;
+  std::vector<qm_val_t> iqm_bg_;
+  std::vector<tran_low_t> qc_bg_;
+  std::vector<tran_low_t> dq_bg_;
   int32_t *dequant_ = nullptr;
 
   int64_t n_early_, n_full_, n_none_, n_wide_;
@@ -2449,12 +2470,15 @@ TEST_P(FindBestPathTest, FirstScanPosBoundary) {
 }
 
 // -- The path ends before first_scan_pos (prevId < 0 at end_pos): at the
-// first positions, around 48, and next to the last row --
+// first positions, around the walk switch at 32, around fsp / 2 (where the
+// top-down clearing meets the walk) and next to the last row --
 TEST_P(FindBestPathTest, PathEndsEarly) {
   const int fsp = num_coeffs_ - 1;
-  const std::vector<int> ends = { 0,  1,  2,       3,       4,       5,
-                                  6,  7,  44,      45,      46,      47,
-                                  48, 49, fsp - 4, fsp - 3, fsp - 2, fsp - 1 };
+  const std::vector<int> ends = { 0,           1,       2,           3,
+                                  4,           5,       6,           7,
+                                  30,          31,      32,          33,
+                                  fsp / 2 - 1, fsp / 2, fsp / 2 + 1, fsp - 4,
+                                  fsp - 3,     fsp - 2, fsp - 1 };
   int iter = 0;
   for (const int e : ends) {
     if (e < 0 || e >= fsp) continue;
@@ -2490,7 +2514,7 @@ TEST_P(FindBestPathTest, NoValidState) {
   EXPECT_GT(n_none_, 0) << "the no-valid-state case never ran";
 }
 
-// -- Row 0 costs all equal: the lowest state wins --
+// -- Row 0 costs tied from a random state up: the lowest tied state wins --
 TEST_P(FindBestPathTest, TiedCosts) {
   for (int iter = 0; iter < kBoundaryIters; ++iter) {
     Config cfg = Default();
@@ -2642,6 +2666,7 @@ TEST_P(FindBestPathTest, BlockOffsets) {
 
 TEST_P(FindBestPathTest, DISABLED_Speed) { RunSpeedTest(); }
 
+#if HAVE_NEON
 // Every TX size: the production caller (av2_trellis_quant, 2D luma) runs on
 // all of them.
 static const TX_SIZE kFindBestPathTxSizes[] = {
@@ -2654,14 +2679,6 @@ static_assert(sizeof(kFindBestPathTxSizes) / sizeof(kFindBestPathTxSizes[0]) ==
                   TX_SIZES_ALL,
               "every TX size");
 
-INSTANTIATE_TEST_SUITE_P(
-    C, FindBestPathTest,
-    ::testing::Combine(::testing::Values(av2_find_best_path_c),
-                       ::testing::Values(av2_find_best_path_c),
-                       ::testing::ValuesIn(kFindBestPathTxSizes),
-                       ::testing::Values(8, 10, 12), ::testing::Bool()));
-
-#if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, FindBestPathTest,
     ::testing::Combine(::testing::Values(av2_find_best_path_c),

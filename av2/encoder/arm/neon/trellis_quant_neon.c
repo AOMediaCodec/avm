@@ -1600,6 +1600,7 @@ static AVM_FORCE_INLINE void write_path_pos_neon(
   dqcoeff[blk_pos] = neg ? -dqc : dqc;
 }
 
+#if AVM_ARCH_AARCH64
 // Paths from first_scan_pos >= this many positions take the row-shift walk.
 #define FBP_ROW_WALK_MIN_FSP 32
 
@@ -1628,23 +1629,25 @@ static AVM_FORCE_INLINE uint64_t row_prev_shifts_neon(const uint8_t *row) {
   const uint8x8_t shifts = vshl_n_u8(vget_low_u8(d), 3);
   return vget_lane_u64(vreinterpret_u64_u8(shifts), 0);
 }
+#endif  // AVM_ARCH_AARCH64
 
 // Backtracks the trellis from the lowest-cost state of position 0 and writes
 // qcoeff / dqcoeff along the path, then clears positions eob..first_scan_pos.
 // use_qm is a constant at each call site, so the iqmatrix and flat paths
 // compile separately.
 //
-// Short paths (first_scan_pos < FBP_ROW_WALK_MIN_FSP) use a scalar walk whose
-// loop-carried chain is one signed byte load of the next prevId plus one
-// address add: the node of position pos + 1 is the next row base plus prevId.
+// Short paths (first_scan_pos < FBP_ROW_WALK_MIN_FSP), and every path on
+// 32-bit Arm, use a scalar walk whose loop-carried chain is one signed byte
+// load of the next prevId plus one address add: the node of position pos + 1
+// is the next row base plus prevId.
 //
-// Long paths use the row-shift walk, whose chain is one variable shift. Each
-// step packs the prevIds of its row into a word R (row_prev_shifts_neon),
-// which depends only on pos, so the out-of-order core gathers rows ahead.
-// The chain value s keeps 8 * state in bits 0..5; the next state's byte is
-// R >> s (the shift reads only bits 0..5 of s), with 8 * prevId in bits 0..5
-// and the end-of-path flag in bit 7. absLevel is read from the node at
-// row + 2 * (s & 63), off the chain (bits 0..2 of s are zero).
+// Long paths on AArch64 use the row-shift walk, whose chain is one variable
+// shift. Each step packs the prevIds of its row into a word R
+// (row_prev_shifts_neon), which depends only on pos, so the out-of-order core
+// gathers rows ahead. The chain value s keeps 8 * state in bits 0..5; the next
+// state's byte is R >> s (the shift reads only bits 0..5 of s), with 8 * prevId
+// in bits 0..5 and the end-of-path flag in bit 7. absLevel is read from the
+// node at row + 2 * (s & 63), off the chain (bits 0..2 of s are zero).
 //
 // The clearing runs inside both walks, top-down, off the chain: walk step i
 // first zeroes position max(first_scan_pos - i, i), then writes position i.
@@ -1667,6 +1670,7 @@ static AVM_FORCE_INLINE int find_best_path_walk_neon(
     // Without a quant matrix position 0 uses the DC step, all others AC.
     const int dqv_ac = dequant[1];
     int dqv = dequant[0];
+#if AVM_ARCH_AARCH64
     if (first_scan_pos >= FBP_ROW_WALK_MIN_FSP) {
       const uint8_t *row = (const uint8_t *)trellis;
       uint64_t s = (uint64_t)state << 3;
@@ -1675,7 +1679,8 @@ static AVM_FORCE_INLINE int find_best_path_walk_neon(
         // Bits 0..23 of the word at byte 12 of the node are absLevel.
         int32_t word;
         memcpy(&word, row + 2 * (s & 63) + 12, sizeof(word));
-        const int abs_level = (int32_t)((uint32_t)word << 8) >> 8;
+        const int abs_level =
+            (int32_t)(((uint32_t)word & 0x00FFFFFFu) << 8) >> 8;
         s = shifts >> (s & 63);
         // tcq_quant(prevId) is bit 1 of prevId, bit 4 of s; 0 at the end.
         const int q_i = (s & 0x80) ? 0 : (int)((s >> 4) & 1);
@@ -1687,12 +1692,15 @@ static AVM_FORCE_INLINE int find_best_path_walk_neon(
         clear_pos--;
         pos++;
       } while (!(s & 0x80));
-    } else {
-      // next_row is the address of row pos + 1, kept as an integer so that
-      // stepping it past the last row forms no out-of-range pointer. The node
-      // of position pos + 1 is next_row plus prevId; the last node's prevId is
-      // negative, so that address stays inside row pos and is never read.
-      uintptr_t next_row = (uintptr_t)(trellis + TCQ_N_STATES);
+    } else
+#endif  // AVM_ARCH_AARCH64
+    {
+      // next_row is the address of row pos + 1, kept as a signed integer so
+      // that stepping it past the last row forms no out-of-range pointer and
+      // adding a negative prevId does not wrap. The node of position pos + 1
+      // is next_row plus prevId; the last node's prevId is negative, so that
+      // address stays inside row pos and is never read.
+      intptr_t next_row = (intptr_t)(trellis + TCQ_N_STATES);
       const uint8_t *node = (const uint8_t *)(trellis + state);
       int prev_id;
       do {
@@ -1700,10 +1708,11 @@ static AVM_FORCE_INLINE int find_best_path_walk_neon(
         prev_id = (int8_t)node[15];
         int32_t word;
         memcpy(&word, node + 12, sizeof(word));
-        const int abs_level = (int32_t)((uint32_t)word << 8) >> 8;
-        node = (const uint8_t *)(next_row +
-                                 (intptr_t)prev_id * sizeof(tcq_node_t));
-        next_row += TCQ_N_STATES * sizeof(tcq_node_t);
+        const int abs_level =
+            (int32_t)(((uint32_t)word & 0x00FFFFFFu) << 8) >> 8;
+        node = (const uint8_t *)(next_row + (intptr_t)prev_id *
+                                                (intptr_t)sizeof(tcq_node_t));
+        next_row += TCQ_N_STATES * (intptr_t)sizeof(tcq_node_t);
         const int blk_pos = scan[pos];
         const int neg = tcoeff[blk_pos] < 0;
         if (use_qm) dqv = get_dqv(dequant, blk_pos, iqmatrix);
