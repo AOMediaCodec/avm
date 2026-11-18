@@ -5884,7 +5884,7 @@ bool av2_rd_pick_partition(
         *rd_cost = pc_tree->rd_cost;
         assert(bsize != cm->sb_size);
         if (bsize == cm->sb_size) {
-          avm_internal_error(&cpi->common.error, AVM_CODEC_ERROR,
+          avm_internal_error(xd->error_info, AVM_CODEC_ERROR,
                              "Superblock is already coded?");
         }
 
@@ -6183,7 +6183,7 @@ BEGIN_PARTITION_SEARCH:
        ((frame_is_intra_only(cm) && pc_tree->region_type == INTRA_REGION)))) {
     if (x->must_find_valid_partition) {
       avm_internal_error(
-          &cpi->common.error, AVM_CODEC_ERROR,
+          xd->error_info, AVM_CODEC_ERROR,
           "The same superblock is recoded twice. Infinite loop detected?");
     }
     // Did not find a valid partition, go back and search again, with less
