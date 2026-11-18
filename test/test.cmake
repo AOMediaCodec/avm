@@ -30,6 +30,7 @@ list(
   AVM_UNIT_TEST_COMMON_SOURCES
   "${AVM_ROOT}/test/acm_random.h"
   "${AVM_ROOT}/test/avm_integer_test.cc"
+  "${AVM_ROOT}/test/av2_conformance_window_test.cc"
   "${AVM_ROOT}/test/av2_config_test.cc"
   "${AVM_ROOT}/test/av2_key_value_api_test.cc"
   "${AVM_ROOT}/test/clear_system_state.h"
