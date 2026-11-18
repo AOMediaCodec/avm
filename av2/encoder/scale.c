@@ -10,6 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <limits.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -49,33 +50,65 @@
 #define RESIZE_DYNAMIC_MC_RATIO_MAX 1.35
 #define RESIZE_DYNAMIC_MC_DEADZONE 7.0e-6
 #define RESIZE_DYNAMIC_MC_GRAIN_WEIGHT 2.0
+#define RESIZE_DYNAMIC_MC_PAN_GRAIN_WEIGHT 8.0
+#define RESIZE_DYNAMIC_MC_UNIFORM_NOISE_GRAIN_WEIGHT 14.0
 #define RESIZE_DYNAMIC_MC_FLAT_NOISE_UNI0 0.60
 #define RESIZE_DYNAMIC_MC_FLAT_NOISE_SPAN 0.15
 #define RESIZE_DYNAMIC_MC_FLAT_NOISE_ACR_MAX 0.30
 #define RESIZE_DYNAMIC_MC_FLAT_NOISE_ACR_SPAN 0.15
+#define RESIZE_DYNAMIC_MC_UNIFORM_NOISE_UNI_MIN 0.65
+#define RESIZE_DYNAMIC_MC_UNIFORM_NOISE_P50_MIN 15.0
+#define RESIZE_DYNAMIC_MC_UNIFORM_NOISE_MIN_QRAT_SQ 4.0
+#define RESIZE_DYNAMIC_SUBGOP_UNIFORM_NOISE_THRESH_BOOST 1.68
 #define RESIZE_DYNAMIC_REF_PELS (1920.0 * 1080.0)
 #define RESIZE_DYNAMIC_MAX_PEL_RATIO 4.0
 #define RESIZE_DYNAMIC_HIGHRES_PEL_RATIO 2.0
+#define RESIZE_DYNAMIC_HIGHRES_PAN_P50_MIN 7.0
+#define RESIZE_DYNAMIC_HIGHRES_PAN_P50_STRONG 10.0
+#define RESIZE_DYNAMIC_HIGHRES_PAN_MOTION_MIN 0.45
 #define RESIZE_DYNAMIC_SUBGOP_HYST_STEP 0.78
 #define RESIZE_DYNAMIC_SUBGOP_HYST_KEEP 1.12
+#define RESIZE_DYNAMIC_SUBGOP_HYST_KEEP_COARSE_ADD 0.14
 #define RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MAX 0.088
 #define RESIZE_DYNAMIC_SUBGOP_LOW_ACR_REF 0.125
 #define RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MIN_UNI 0.021
+#define RESIZE_DYNAMIC_SUBGOP_STATIC_BG_ACR_MAX 0.140
+#define RESIZE_DYNAMIC_SUBGOP_STATIC_BG_ACR_REF 0.250
 #define RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_MIN 0.40
 #define RESIZE_DYNAMIC_SUBGOP_EXTREME_ACR_HYST_STEP 0.50
 #define RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_HYST_STEP 0.62
 #define RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_HYST_KEEP 1.43
-#define RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_SLOPE 0.008
+#define RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_SLOPE 0.045
 #define RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_MAX_MOD 1.24
 #define RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_MAX_HIGH 1.46
 #define RESIZE_DYNAMIC_SUBGOP_D9_MAX_CONTENT_RATIO 0.080
 #define RESIZE_DYNAMIC_SUBGOP_D9_MAX_Q_RATIO 0.028
+#define RESIZE_DYNAMIC_KF_COSCALE_MIN_DENOM (SCALE_NUMERATOR + 2)
+#define RESIZE_DYNAMIC_KF_COSCALE_MAX_Q_NORM 0.56
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_DENOM (SCALE_NUMERATOR + 4)
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_MIN_QRAT_SQ 4.0
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_HIGH_QRAT_SQ 15.0
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID 0.132
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_LOW_ACR_MAX_NZ 76.0
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_ACR_MID 0.145
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MIN 0.018
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_MID_UNI 0.30
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_MID_LOW_UNI 0.16
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_HIGH_UNI 0.16
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_HIGH_LOW_UNI 0.05
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QREF_MID 1.05
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QREF_HIGH 0.25
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_MID 12.5
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_HIGH 3.2
+#define RESIZE_DYNAMIC_SUBGOP_SYNERGY_QNORM_FLOOR 0.02
 #define RESIZE_DYNAMIC_CHROMA_WEIGHT 4.0
 #define RESIZE_DYNAMIC_MIN_BLOCK_VAR 64.0
 #define RESIZE_DYNAMIC_BLOCK_PERCENTILE 0.75
 #define RESIZE_DYNAMIC_MINQP_KF 205
-#define RESIZE_DYNAMIC_MINQP 180
-#define RESIZE_DYNAMIC_SUBGOP_MINQP 180
+#define RESIZE_DYNAMIC_MINQP 155
+#define RESIZE_DYNAMIC_SUBGOP_MINQP 155
+#define RESIZE_DYNAMIC_QREF 180
+#define RESIZE_DYNAMIC_HIGHRES_PAN_QREF 148
 
 // This function is used to compute the resolution for low delay mode
 static uint8_t get_resolution_ratio_pattern1(const int display_order_hint) {
@@ -525,13 +558,16 @@ static double get_resize_pel_ratio(int orig_w, int orig_h) {
 // incompressible temporal coding energy.
 static double compute_mc_effective_energy(double mc_p50, double mc_nz,
                                           double mc_acr, double qstep_ref_sq,
-                                          double pel_ratio,
+                                          double pel_ratio, double grain_weight,
+                                          int linear_uni,
+                                          int bypass_flat_noise_damper,
                                           avm_bit_depth_t bit_depth) {
   const double bds2 = (double)(1 << (2 * ((int)bit_depth - AVM_BITS_8)));
   const double uni = mc_p50 / AVMMAX(mc_nz, bds2);
   const double uni_clamped = AVMMIN(uni, 1.0);
   double grain_scale = 1.0;
-  if (uni_clamped > RESIZE_DYNAMIC_MC_FLAT_NOISE_UNI0 &&
+  if (!bypass_flat_noise_damper &&
+      uni_clamped > RESIZE_DYNAMIC_MC_FLAT_NOISE_UNI0 &&
       mc_acr < RESIZE_DYNAMIC_MC_FLAT_NOISE_ACR_MAX) {
     const double w_uni =
         AVMMIN((uni_clamped - RESIZE_DYNAMIC_MC_FLAT_NOISE_UNI0) /
@@ -543,9 +579,9 @@ static double compute_mc_effective_energy(double mc_p50, double mc_nz,
                1.0);
     grain_scale = 1.0 - (w_uni * w_acr) * (1.0 - mc_acr);
   }
-  const double grain_term = RESIZE_DYNAMIC_MC_GRAIN_WEIGHT * mc_p50 *
-                            uni_clamped * uni_clamped * uni_clamped *
-                            grain_scale;
+  const double uni_pow =
+      linear_uni ? uni_clamped : (uni_clamped * uni_clamped * uni_clamped);
+  const double grain_term = grain_weight * mc_p50 * uni_pow * grain_scale;
   const double dz_weight =
       (pel_ratio > 1.0) ? (RESIZE_DYNAMIC_MC_DEADZONE / (pel_ratio * pel_ratio))
                         : RESIZE_DYNAMIC_MC_DEADZONE;
@@ -568,6 +604,24 @@ static double compute_mc_bg_energy(double mc_p50, double mc_nz, double mc_acr) {
   const double mc_bg =
       mc_p50 + RESIZE_DYNAMIC_MC_GRAIN_WEIGHT * mc_nz * mc_acr * mc_acr;
   return AVMMAX(mc_bg, 1e-6);
+}
+
+// Relaxes the subgop MC content threshold at moderate scales (d <= 12) on
+// coarse-QP Full-HD scenes when sharpness-weighted resampling distortion is a
+// small fraction of Qstep^2(d) (qn_base = avg_ratio / base_subgop_thresh <
+// q_cap), so motion-blurred scenes with moderate temporal residual energy are
+// not blocked by an independent hard MC ratio cutoff. Since the multiplier is
+// monotonically non-increasing in avg_ratio, evaluating it at a running partial
+// average provides a valid upper bound for early-exit pruning.
+static double compute_subgop_synergy_content_thresh(
+    double base_content_thresh, double avg_ratio, double base_subgop_thresh,
+    double q_cap, double q_ref_num, double max_syn) {
+  const double qn_base = avg_ratio / AVMMAX(base_subgop_thresh, 1e-12);
+  if (qn_base >= q_cap) return base_content_thresh;
+  const double ratio =
+      q_ref_num / AVMMAX(qn_base, RESIZE_DYNAMIC_SUBGOP_SYNERGY_QNORM_FLOOR);
+  const double syn_mult = AVMMIN(ratio * ratio, max_syn);
+  return base_content_thresh * syn_mult;
 }
 
 // Dynamic resize scale decision for RESIZE_DYNAMIC (and keyframes in
@@ -653,8 +707,11 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
   avm_clear_system_state();
   const double bds = (double)(1 << ((int)bit_depth - AVM_BITS_8));
   const double qstep_base = av2_convert_qindex_to_q(qindex, bit_depth) * bds;
+  const int qref_qp =
+      (is_intra ? RESIZE_DYNAMIC_MINQP_KF : RESIZE_DYNAMIC_QREF) +
+      ((int)bit_depth - AVM_BITS_8) * MAXQ_OFFSET;
   const double qstep_min =
-      AVMMAX(av2_convert_qindex_to_q(min_qp, bit_depth) * bds, 1e-6);
+      AVMMAX(av2_convert_qindex_to_q(qref_qp, bit_depth) * bds, 1e-6);
   const double pel_ratio =
       is_intra ? 1.0 : get_resize_pel_ratio(orig_w, orig_h);
   const double lin_scale = (pel_ratio > 1.0) ? sqrt(pel_ratio) : 1.0;
@@ -677,7 +734,9 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
     if (compute_pair_mc_stats(unscaled, cpi->unscaled_last_source, orig_w,
                               orig_h, bit_depth, &mc_p50, &mc_nz, &mc_acr)) {
       mc_eff = compute_mc_effective_energy(
-          mc_p50, mc_nz, mc_acr, qstep_base * qstep_base, pel_ratio, bit_depth);
+          mc_p50, mc_nz, mc_acr, qstep_base * qstep_base, pel_ratio,
+          RESIZE_DYNAMIC_MC_GRAIN_WEIGHT, /*linear_uni=*/0,
+          /*bypass_flat_noise_damper=*/0, bit_depth);
       mc_bg = compute_mc_bg_energy(mc_p50, mc_nz, mc_acr);
       have_mc = 1;
     }
@@ -752,7 +811,16 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
 // the Qstep^2-scaled RESIZE_DYNAMIC_SUBGOP_MC_THRESH, and applies discrete
 // Schmitt-trigger hysteresis against cpi->resize_prev_subgop_denom within the
 // closed GOP.
-static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
+// When from_keyframe is non-zero (called on a closed-GOP KEY_FRAME), evaluates
+// the upcoming first inter subgop in gf_group (gf_idx >= 1), sets
+// *out_has_subgop = 1 when valid inter subgop frames exist, and sets
+// *out_coscale_kf = 1 when co-scaling the keyframe to the same denominator
+// avoids cross-scale reference resampling across the GOP without excessive
+// intra resampling loss.
+static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
+                                                     int from_keyframe,
+                                                     int *out_has_subgop,
+                                                     int *out_coscale_kf) {
   AV2_COMMON *const cm = &cpi->common;
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
@@ -760,19 +828,28 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   const YV12_BUFFER_CONFIG *const unscaled = cpi->unscaled_source;
   GF_GROUP *const gf_group = &cpi->gf_group;
 
+  if (out_has_subgop != NULL) *out_has_subgop = 0;
+  if (out_coscale_kf != NULL) *out_coscale_kf = 0;
+
   // Never downscale if the unscaled source is unavailable or lossless coding
   // is requested.
   if (unscaled == NULL || is_lossless_requested(rc_cfg)) {
     return SCALE_NUMERATOR;
   }
 
+  const int cur_gf_index = gf_group->index;
+  if (from_keyframe &&
+      (cur_gf_index != 0 || cpi->no_show_fwd_kf || gf_group->size <= 1)) {
+    return SCALE_NUMERATOR;
+  }
+  const int start_gf_idx = from_keyframe ? (cur_gf_index + 1) : cur_gf_index;
+
   const YV12_BUFFER_CONFIG *subgop_srcs[MAX_STATIC_GF_GROUP_LENGTH];
   int subgop_qindex[MAX_STATIC_GF_GROUP_LENGTH];
   int num_subgop_frames = 0;
 
   // Save encoder and rate-control state before querying baseline full-res
-  // qindex values across the frames in the current subgop.
-  const int cur_gf_index = gf_group->index;
+  // qindex values across the frames in the target subgop.
   const int base_disp_idx = gf_group->cur_frame_idx[cur_gf_index] +
                             (cm->immediate_output_picture != 0);
   const int saved_cm_width = cm->width;
@@ -784,6 +861,11 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   const int saved_level1_qp = cpi->rc.level1_qp;
   const int saved_unresized_base_qindex = cpi->rc.unresized_base_qindex;
   const int saved_is_src_frame_alt_ref = cpi->rc.is_src_frame_alt_ref;
+  const int saved_frames_since_key = cpi->rc.frames_since_key;
+  const int saved_last_q_kf = cpi->rc.last_q[KEY_FRAME];
+  const int saved_avg_kf_qindex = cpi->rc.avg_frame_qindex[KEY_FRAME];
+  const int saved_last_kf_qindex = cpi->rc.last_kf_qindex;
+  const int saved_last_boosted_qindex = cpi->rc.last_boosted_qindex;
   int saved_active_best_quality[MAX_ARF_LAYERS + 1];
   memcpy(saved_active_best_quality, cpi->rc.active_best_quality,
          sizeof(saved_active_best_quality));
@@ -794,11 +876,41 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   const int max_qp = MAXQ_FOR_GIVEN_BIT_DEPTH(bit_depth);
   int has_lossless_frame = 0;
   int max_subgop_qindex = 0;
+  int min_la_idx = INT_MAX;
   int max_la_idx = -1;
 
-  // Collect each coded frame in the current subgop along with its intended
+  if (from_keyframe) {
+    if (is_stat_consumption_stage(cpi) &&
+        (rc_cfg->mode == AVM_VBR || rc_cfg->mode == AVM_CQ)) {
+      av2_set_target_rate(cpi, frm_dim_cfg->width, frm_dim_cfg->height);
+    }
+    int kf_bottom = 0, kf_top = 0;
+    const int kf_qindex =
+        cm->bridge_frame_info.is_bridge_frame
+            ? cm->quant_params.base_qindex
+            : av2_rc_pick_q_and_bounds(cpi, &cpi->rc, frm_dim_cfg->width,
+                                       frm_dim_cfg->height, cur_gf_index,
+                                       &kf_bottom, &kf_top);
+    if (kf_qindex == 0) {
+      has_lossless_frame = 1;
+    } else {
+      cpi->rc.frames_since_key = 1;
+      cpi->rc.level1_qp = -1;
+      cpi->rc.last_q[KEY_FRAME] = kf_qindex;
+      cpi->rc.avg_frame_qindex[KEY_FRAME] = ROUND_POWER_OF_TWO(
+          3 * cpi->rc.avg_frame_qindex[KEY_FRAME] + kf_qindex, 2);
+      cpi->rc.last_kf_qindex = kf_qindex;
+      cpi->rc.last_boosted_qindex = kf_qindex;
+      for (int i = 0; i <= MAX_ARF_LAYERS; ++i) {
+        cpi->rc.active_best_quality[i] = kf_qindex;
+      }
+    }
+  }
+
+  // Collect each coded frame in the target subgop along with its intended
   // full-resolution pyramid-level base_qindex.
-  for (int gf_idx = cur_gf_index; gf_idx < gf_group->size; ++gf_idx) {
+  for (int gf_idx = start_gf_idx;
+       !has_lossless_frame && gf_idx < gf_group->size; ++gf_idx) {
     // Skip pure overlay updates since they do not code a new source picture.
     const FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_idx];
     if (update_type == OVERLAY_UPDATE || update_type == INTNL_OVERLAY_UPDATE ||
@@ -809,6 +921,9 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
     const int frame_display_index =
         gf_group->cur_frame_idx[gf_idx] + gf_group->arf_src_offset[gf_idx];
     const int lookahead_idx = frame_display_index - base_disp_idx;
+    if (lookahead_idx >= 0 && lookahead_idx < min_la_idx) {
+      min_la_idx = lookahead_idx;
+    }
     if (lookahead_idx > max_la_idx) {
       max_la_idx = lookahead_idx;
     }
@@ -879,6 +994,11 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   cpi->rc.level1_qp = saved_level1_qp;
   cpi->rc.unresized_base_qindex = saved_unresized_base_qindex;
   cpi->rc.is_src_frame_alt_ref = saved_is_src_frame_alt_ref;
+  cpi->rc.frames_since_key = saved_frames_since_key;
+  cpi->rc.last_q[KEY_FRAME] = saved_last_q_kf;
+  cpi->rc.avg_frame_qindex[KEY_FRAME] = saved_avg_kf_qindex;
+  cpi->rc.last_kf_qindex = saved_last_kf_qindex;
+  cpi->rc.last_boosted_qindex = saved_last_boosted_qindex;
   memcpy(cpi->rc.active_best_quality, saved_active_best_quality,
          sizeof(saved_active_best_quality));
 
@@ -887,8 +1007,10 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
     return SCALE_NUMERATOR;
   }
   if (num_subgop_frames == 0) {
-    return calculate_dynamic_resize_scale(cpi);
+    return from_keyframe ? SCALE_NUMERATOR
+                         : calculate_dynamic_resize_scale(cpi);
   }
+  if (out_has_subgop != NULL) *out_has_subgop = 1;
   // Keep full resolution if the subgop's baseline (unboosted leaf) qindex is
   // below the bit-depth-adjusted RESIZE_DYNAMIC_SUBGOP_MINQP threshold.
   const int min_qp =
@@ -919,37 +1041,33 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   const double lin_scale = (pel_ratio > 1.0) ? sqrt(pel_ratio) : 1.0;
   const double base_subgop_thresh = RESIZE_DYNAMIC_SUBGOP_THRESH * pel_ratio;
   double subgop_thresh = base_subgop_thresh;
+  const int qp_offset = ((int)bit_depth - AVM_BITS_8) * MAXQ_OFFSET;
+  const int base_qref_qp = RESIZE_DYNAMIC_QREF + qp_offset;
   const double bds = (double)(1 << ((int)bit_depth - AVM_BITS_8));
+  const double bds2 = bds * bds;
   const double qstep_subgop =
       av2_convert_qindex_to_q(max_subgop_qindex, bit_depth) * bds;
-  const double qstep_min =
-      AVMMAX(av2_convert_qindex_to_q(min_qp, bit_depth) * bds, 1e-6);
-  const double qstep_ratio = qstep_subgop / qstep_min;
-  const double qstep_ratio_sq = qstep_ratio * qstep_ratio;
-  const double mc_q_scale =
-      (pel_ratio > 1.0) ? (lin_scale * pow(qstep_ratio, 2.0 * lin_scale))
-                        : qstep_ratio_sq;
-  double subgop_mc_thresh = AVMMIN(RESIZE_DYNAMIC_SUBGOP_MC_THRESH * mc_q_scale,
-                                   RESIZE_DYNAMIC_MC_RATIO_MAX);
-  const double subgop_ac_thresh_fallback =
-      RESIZE_DYNAMIC_AC_THRESH_KF * qstep_ratio_sq;
 
   // Estimate subgop temporal MC coding energy from up to 4 evenly-spaced
   // consecutive raw frame pairs across the subgop's display span.
   double sum_mc_p50 = 0.0, sum_mc_nz = 0.0, sum_mc_acr = 0.0;
   int num_mc_pairs = 0;
-  if (max_la_idx >= 1) {
-    const int target_pairs = AVMMIN(4, max_la_idx);
+  const int la_base = (from_keyframe && min_la_idx < INT_MAX && min_la_idx > 0)
+                          ? min_la_idx
+                          : 0;
+  const int la_span = max_la_idx - la_base;
+  if (la_span >= 1) {
+    const int target_pairs = AVMMIN(4, la_span);
     int prev_idx = -1;
     for (int p = 0; p < target_pairs; ++p) {
       const int idx =
-          (target_pairs == 1) ? 0 : (p * (max_la_idx - 1)) / (target_pairs - 1);
+          (target_pairs == 1) ? 0 : (p * (la_span - 1)) / (target_pairs - 1);
       if (idx == prev_idx) continue;
       prev_idx = idx;
-      const struct lookahead_entry *const e0 =
-          av2_lookahead_peek(cpi->lookahead, idx, cpi->compressor_stage);
-      const struct lookahead_entry *const e1 =
-          av2_lookahead_peek(cpi->lookahead, idx + 1, cpi->compressor_stage);
+      const struct lookahead_entry *const e0 = av2_lookahead_peek(
+          cpi->lookahead, la_base + idx, cpi->compressor_stage);
+      const struct lookahead_entry *const e1 = av2_lookahead_peek(
+          cpi->lookahead, la_base + idx + 1, cpi->compressor_stage);
       double p50 = 0.0, nz = 0.0, acr = 0.0;
       if (e0 != NULL && e1 != NULL &&
           compute_pair_mc_stats(&e1->img, &e0->img, orig_w, orig_h, bit_depth,
@@ -964,7 +1082,7 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   if (num_mc_pairs == 0 && cm->immediate_output_picture != 0 &&
       max_la_idx >= 0) {
     const struct lookahead_entry *const e0 =
-        av2_lookahead_peek(cpi->lookahead, 0, cpi->compressor_stage);
+        av2_lookahead_peek(cpi->lookahead, la_base, cpi->compressor_stage);
     double p50 = 0.0, nz = 0.0, acr = 0.0;
     if (e0 != NULL && compute_pair_mc_stats(&e0->img, unscaled, orig_w, orig_h,
                                             bit_depth, &p50, &nz, &acr)) {
@@ -974,7 +1092,7 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
       ++num_mc_pairs;
     }
   }
-  if (num_mc_pairs == 0) {
+  if (num_mc_pairs == 0 && !from_keyframe) {
     double p50 = 0.0, nz = 0.0, acr = 0.0;
     if (compute_pair_mc_stats(unscaled, cpi->unscaled_last_source, orig_w,
                               orig_h, bit_depth, &p50, &nz, &acr)) {
@@ -989,23 +1107,68 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   const double mc_nz = have_mc ? (sum_mc_nz / num_mc_pairs) : 0.0;
   const double mc_acr = have_mc ? (sum_mc_acr / num_mc_pairs) : 0.0;
   const double mc_uni =
-      have_mc ? AVMMIN(mc_p50 / AVMMAX(mc_nz, bds * bds), 1.0) : 0.0;
+      have_mc ? AVMMIN(mc_p50 / AVMMAX(mc_nz, bds2), 1.0) : 0.0;
+
+  const uint8_t prev_denom = from_keyframe ? 0 : cpi->resize_prev_subgop_denom;
+  const int is_highres_pan =
+      have_mc && pel_ratio > 1.0 &&
+      mc_p50 > RESIZE_DYNAMIC_HIGHRES_PAN_P50_MIN * bds2 &&
+      (mc_uni + 2.0 * mc_acr > RESIZE_DYNAMIC_HIGHRES_PAN_MOTION_MIN ||
+       mc_p50 > RESIZE_DYNAMIC_HIGHRES_PAN_P50_STRONG * bds2);
+  const int qref_qp = is_highres_pan
+                          ? (RESIZE_DYNAMIC_HIGHRES_PAN_QREF + qp_offset)
+                          : base_qref_qp;
+  const double qstep_min =
+      AVMMAX(av2_convert_qindex_to_q(qref_qp, bit_depth) * bds, 1e-6);
+  const double qstep_ratio = qstep_subgop / qstep_min;
+  const double qstep_ratio_sq = qstep_ratio * qstep_ratio;
+  const double mc_q_scale =
+      (pel_ratio > 1.0) ? (lin_scale * pow(qstep_ratio, 2.0 * lin_scale))
+                        : qstep_ratio_sq;
+  double subgop_mc_thresh = AVMMIN(RESIZE_DYNAMIC_SUBGOP_MC_THRESH * mc_q_scale,
+                                   RESIZE_DYNAMIC_MC_RATIO_MAX);
+  const double subgop_ac_thresh_fallback =
+      RESIZE_DYNAMIC_AC_THRESH_KF * qstep_ratio_sq;
+  // At coarse QPs (qstep_ratio_sq > 4.0) on <= 1080p scenes whose temporal MC
+  // residual is spatially pervasive (mc_uni > 0.65) and substantial (mc_p50 >
+  // 15 * bds^2) despite low structured motion (mc_acr < 0.30), round-trip
+  // resampling MSE is dominated by attenuated uncorrelated sensor/shadow noise
+  // rather than lost scene structure. Now that closed-GOP keyframes co-scale
+  // with the subgop, treat the pervasive noise floor as incompressible temporal
+  // coding energy and relax subgop_thresh accordingly.
+  const int is_uniform_noise =
+      have_mc && pel_ratio <= 1.0 &&
+      mc_uni > RESIZE_DYNAMIC_MC_UNIFORM_NOISE_UNI_MIN &&
+      mc_acr < RESIZE_DYNAMIC_MC_FLAT_NOISE_ACR_MAX &&
+      mc_p50 > RESIZE_DYNAMIC_MC_UNIFORM_NOISE_P50_MIN * bds2 &&
+      qstep_ratio_sq > RESIZE_DYNAMIC_MC_UNIFORM_NOISE_MIN_QRAT_SQ;
+  const double grain_weight =
+      is_highres_pan
+          ? RESIZE_DYNAMIC_MC_PAN_GRAIN_WEIGHT
+          : (is_uniform_noise ? RESIZE_DYNAMIC_MC_UNIFORM_NOISE_GRAIN_WEIGHT
+                              : RESIZE_DYNAMIC_MC_GRAIN_WEIGHT);
   const double mc_eff =
-      have_mc ? compute_mc_effective_energy(mc_p50, mc_nz, mc_acr,
-                                            qstep_subgop * qstep_subgop,
-                                            pel_ratio, bit_depth)
+      have_mc ? compute_mc_effective_energy(
+                    mc_p50, mc_nz, mc_acr, qstep_subgop * qstep_subgop,
+                    pel_ratio, grain_weight, is_highres_pan || is_uniform_noise,
+                    is_uniform_noise, bit_depth)
               : 1.0;
   const double mc_bg =
       have_mc ? compute_mc_bg_energy(mc_p50, mc_nz, mc_acr) : 1.0;
 
-  const uint8_t prev_denom = cpi->resize_prev_subgop_denom;
-  double hyst_step = (pel_ratio > 1.0)
+  double hyst_step = (pel_ratio > 1.0 && !is_highres_pan)
                          ? pow(RESIZE_DYNAMIC_SUBGOP_HYST_STEP, pel_ratio)
                          : RESIZE_DYNAMIC_SUBGOP_HYST_STEP;
-  double hyst_keep = (pel_ratio > 1.0)
-                         ? pow(RESIZE_DYNAMIC_SUBGOP_HYST_KEEP, pel_ratio)
-                         : RESIZE_DYNAMIC_SUBGOP_HYST_KEEP;
-  if (have_mc && pel_ratio <= 1.0) {
+  const double coarse_keep_ramp =
+      AVMMIN(AVMMAX(qstep_ratio_sq - 6.0, 0.0) / 10.0, 1.0);
+  double hyst_keep =
+      (pel_ratio > 1.0)
+          ? pow(RESIZE_DYNAMIC_SUBGOP_HYST_KEEP, pel_ratio)
+          : (RESIZE_DYNAMIC_SUBGOP_HYST_KEEP +
+             RESIZE_DYNAMIC_SUBGOP_HYST_KEEP_COARSE_ADD * coarse_keep_ramp);
+  if (is_uniform_noise) {
+    subgop_thresh *= RESIZE_DYNAMIC_SUBGOP_UNIFORM_NOISE_THRESH_BOOST;
+  } else if (have_mc && pel_ratio <= 1.0) {
     if (mc_acr < RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MAX &&
         mc_uni > RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MIN_UNI) {
       // When temporal motion compensation removes > 91% of block AC variance
@@ -1013,6 +1176,14 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
       // so coarse-QP qstep_ratio_sq scaling does not trigger lossy downscaling
       // on temporally predictable panning scenes.
       const double acr_scale = mc_acr / RESIZE_DYNAMIC_SUBGOP_LOW_ACR_REF;
+      subgop_mc_thresh *= acr_scale * acr_scale * acr_scale;
+    } else if (mc_acr < RESIZE_DYNAMIC_SUBGOP_STATIC_BG_ACR_MAX &&
+               mc_uni <= RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MIN_UNI) {
+      // On stationary backgrounds (very low median-to-active MC ratio) with
+      // predictable localized motion (low mc_acr), attenuate subgop_mc_thresh
+      // cubically so localized foreground motion does not downscale crisp
+      // static scene detail at coarse QPs.
+      const double acr_scale = mc_acr / RESIZE_DYNAMIC_SUBGOP_STATIC_BG_ACR_REF;
       subgop_mc_thresh *= acr_scale * acr_scale * acr_scale;
     } else if (mc_acr > RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_MIN) {
       if (mc_acr > 1.0 && mc_uni > 0.35) {
@@ -1043,9 +1214,35 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   }
   const double content_thresh =
       have_mc ? subgop_mc_thresh : subgop_ac_thresh_fallback;
+  const int allow_synergy =
+      have_mc && (double)pel_count >= RESIZE_DYNAMIC_REF_PELS &&
+      pel_ratio <= 1.0 && !is_uniform_noise &&
+      qstep_ratio_sq > RESIZE_DYNAMIC_SUBGOP_SYNERGY_MIN_QRAT_SQ &&
+      ((mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID &&
+        mc_acr > RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MAX &&
+        mc_nz < RESIZE_DYNAMIC_SUBGOP_SYNERGY_LOW_ACR_MAX_NZ * bds2) ||
+       (mc_acr > RESIZE_DYNAMIC_SUBGOP_SYNERGY_ACR_MID &&
+        mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MIN));
+  const int is_very_coarse_qp =
+      (qstep_ratio_sq > RESIZE_DYNAMIC_SUBGOP_SYNERGY_HIGH_QRAT_SQ);
+  const double syn_q_cap =
+      is_very_coarse_qp
+          ? ((mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID)
+                 ? RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_HIGH_UNI
+                 : RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_HIGH_LOW_UNI)
+          : ((mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID)
+                 ? RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_MID_UNI
+                 : RESIZE_DYNAMIC_SUBGOP_SYNERGY_QCAP_MID_LOW_UNI);
+  const double syn_q_ref = is_very_coarse_qp
+                               ? RESIZE_DYNAMIC_SUBGOP_SYNERGY_QREF_HIGH
+                               : RESIZE_DYNAMIC_SUBGOP_SYNERGY_QREF_MID;
+  const double syn_max = is_very_coarse_qp
+                             ? RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_HIGH
+                             : RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_MID;
   double avg_ratio_arr[SCALE_NUMERATOR * 2 + 1] = { 0.0 };
   double content_ratio_arr[SCALE_NUMERATOR * 2 + 1] = { 0.0 };
   double bg_ratio_arr[SCALE_NUMERATOR * 2 + 1] = { 0.0 };
+  double eff_content_thresh_arr[SCALE_NUMERATOR * 2 + 1] = { 0.0 };
   int max_eval_d = SCALE_NUMERATOR;
   int still_contiguous = 1;
   uint8_t raw_best = SCALE_NUMERATOR;
@@ -1068,6 +1265,8 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
       break;
     }
 
+    const int use_syn_d =
+        allow_synergy && d <= RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_DENOM;
     const double dec_frac =
         1.0 - (double)(SCALE_NUMERATOR * SCALE_NUMERATOR) / (double)(d * d);
     // All terms accumulated across the subgop are non-negative, so dividing
@@ -1115,8 +1314,13 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
       const double luma_bg_ratio = (have_mc && pel_ratio > 1.0)
                                        ? (luma_avg_dist / (dec_frac * mc_bg))
                                        : 0.0;
+      const double luma_content_thresh_ub =
+          use_syn_d ? compute_subgop_synergy_content_thresh(
+                          content_thresh, luma_avg_ratio, base_subgop_thresh,
+                          syn_q_cap, syn_q_ref, syn_max)
+                    : content_thresh;
       if (luma_avg_ratio >= max_mult * subgop_thresh ||
-          luma_content_ratio >= max_mult * content_thresh ||
+          luma_content_ratio >= max_mult * luma_content_thresh_ub ||
           luma_bg_ratio >= max_mult) {
         sum_ratio += luma_mse / qstep_sq;
         sum_dist += luma_mse;
@@ -1140,8 +1344,13 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
         const double cur_bg_ratio = (have_mc && pel_ratio > 1.0)
                                         ? (cur_avg_dist / (dec_frac * mc_bg))
                                         : 0.0;
+        const double cur_content_thresh_ub =
+            use_syn_d ? compute_subgop_synergy_content_thresh(
+                            content_thresh, cur_avg_ratio, base_subgop_thresh,
+                            syn_q_cap, syn_q_ref, syn_max)
+                      : content_thresh;
         if (cur_avg_ratio >= max_mult * subgop_thresh ||
-            cur_content_ratio >= max_mult * content_thresh ||
+            cur_content_ratio >= max_mult * cur_content_thresh_ub ||
             cur_bg_ratio >= max_mult) {
           break;
         }
@@ -1154,13 +1363,19 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
     const double content_ratio = have_mc ? (avg_dist / mc_eff) : avg_ac_ratio;
     const double bg_ratio =
         (have_mc && pel_ratio > 1.0) ? (avg_dist / (dec_frac * mc_bg)) : 0.0;
+    const double eff_content_thresh =
+        use_syn_d ? compute_subgop_synergy_content_thresh(
+                        content_thresh, avg_ratio, base_subgop_thresh,
+                        syn_q_cap, syn_q_ref, syn_max)
+                  : content_thresh;
     avg_ratio_arr[d] = avg_ratio;
     content_ratio_arr[d] = content_ratio;
     bg_ratio_arr[d] = bg_ratio;
+    eff_content_thresh_arr[d] = eff_content_thresh;
     max_eval_d = d;
 
     if (still_contiguous && avg_ratio < subgop_thresh &&
-        content_ratio < content_thresh && bg_ratio < 1.0) {
+        content_ratio < eff_content_thresh && bg_ratio < 1.0) {
       raw_best = (uint8_t)d;
     } else {
       still_contiguous = 0;
@@ -1168,7 +1383,7 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
       // hyst_keep remains possible.
       if (prev_denom <= SCALE_NUMERATOR || d >= prev_denom ||
           avg_ratio >= hyst_keep * subgop_thresh ||
-          content_ratio >= hyst_keep * content_thresh ||
+          content_ratio >= hyst_keep * eff_content_thresh ||
           bg_ratio >= hyst_keep) {
         break;
       }
@@ -1191,7 +1406,8 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
       const int d_next = (int)prev_denom + 1;
       if (d_next <= max_eval_d &&
           avg_ratio_arr[d_next] < hyst_step * subgop_thresh &&
-          content_ratio_arr[d_next] < hyst_step * content_thresh &&
+          content_ratio_arr[d_next] <
+              hyst_step * eff_content_thresh_arr[d_next] &&
           bg_ratio_arr[d_next] < hyst_step) {
         best_denom = raw_best;
       } else {
@@ -1202,7 +1418,7 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
       const int start_d = AVMMAX(SCALE_NUMERATOR + 1, (int)raw_best + 1);
       for (int d = start_d; d <= (int)prev_denom; ++d) {
         if (avg_ratio_arr[d] >= hyst_keep * subgop_thresh ||
-            content_ratio_arr[d] >= hyst_keep * content_thresh ||
+            content_ratio_arr[d] >= hyst_keep * eff_content_thresh_arr[d] ||
             bg_ratio_arr[d] >= hyst_keep) {
           can_hold = 0;
           break;
@@ -1215,9 +1431,12 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   }
 
   // Skip isolated d = 9 (8/9 scale, 79% pixels) back to full resolution when:
-  // - on high-resolution sources (>= 2x 1080p pixel count), or
-  // - d = 9 already consumes a non-trivial share of both temporal MC coding
-  //   energy (>= RESIZE_DYNAMIC_SUBGOP_D9_MAX_CONTENT_RATIO) and quantization
+  // - on high-resolution sources (>= 2x 1080p pixel count),
+  // - below the baseline reference qindex base_qref_qp (requiring at least
+  //   d >= 10 when downscaling at finer QPs), or
+  // - entering d = 9 from a different denominator (prev_denom != 9) when d = 9
+  //   already consumes a non-trivial share of both temporal MC coding energy
+  //   (>= RESIZE_DYNAMIC_SUBGOP_D9_MAX_CONTENT_RATIO) and quantization
   //   distortion budget (>= RESIZE_DYNAMIC_SUBGOP_D9_MAX_Q_RATIO *
   //   base_subgop_thresh), where cross-scale Lanczos-5 reference resampling
   //   overhead and disabling same-resolution TIP_FRAME_DIRECT / MFMV outweigh
@@ -1225,12 +1444,23 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi) {
   //   selected.
   if (best_denom == SCALE_NUMERATOR + 1 &&
       (pel_ratio >= RESIZE_DYNAMIC_HIGHRES_PEL_RATIO ||
-       (mc_uni > RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MIN_UNI &&
+       max_subgop_qindex < base_qref_qp ||
+       (prev_denom != SCALE_NUMERATOR + 1 &&
+        mc_uni > RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MIN_UNI &&
         content_ratio_arr[SCALE_NUMERATOR + 1] >=
             RESIZE_DYNAMIC_SUBGOP_D9_MAX_CONTENT_RATIO &&
         avg_ratio_arr[SCALE_NUMERATOR + 1] >=
             RESIZE_DYNAMIC_SUBGOP_D9_MAX_Q_RATIO * base_subgop_thresh))) {
     best_denom = SCALE_NUMERATOR;
+  }
+
+  if (out_coscale_kf != NULL) {
+    *out_coscale_kf =
+        (best_denom >= RESIZE_DYNAMIC_KF_COSCALE_MIN_DENOM &&
+         (pel_ratio <= 1.0 || is_highres_pan) &&
+         (is_uniform_noise ||
+          avg_ratio_arr[best_denom] <
+              RESIZE_DYNAMIC_KF_COSCALE_MAX_Q_NORM * base_subgop_thresh));
   }
 
   avm_free(downscaled_buf);
@@ -1274,17 +1504,40 @@ static uint8_t calculate_next_resize_scale(AV2_COMP *cpi) {
       break;
     case RESIZE_DYNAMIC: new_denom = calculate_dynamic_resize_scale(cpi); break;
     case RESIZE_DYNAMIC_SUBGOP:
-      // Keyframes pick a dynamic scale using calculate_dynamic_resize_scale()
-      // and reset subgop scale hysteresis; for each subgop, compute the subgop
-      // dynamic scale once on its first non-keyframe and reuse it across all
-      // frames in that subgop.
+      // On a closed-GOP keyframe, evaluate the upcoming first subgop's dynamic
+      // scale and co-scale the keyframe to that exact denominator when the
+      // subgop downscales to at least d >= 10 with low resampling distortion
+      // (preserving same-resolution TIP_FRAME_DIRECT, MFMV, and GLOBALMV across
+      // the GOP and avoiding cross-scale reference resampling); otherwise fall
+      // back to calculate_dynamic_resize_scale(). In AVM_Q mode without a
+      // separate keyframe overlay, lock cpi->resize_subgop_denom to sg0_denom
+      // when co-scaling holds so the first inter subgop matches the keyframe
+      // without duplicate resampling; otherwise leave resize_subgop_denom = 0
+      // so ARF_UPDATE evaluates using its temporally filtered altref buffer.
       if (cpi->common.current_frame.frame_type == KEY_FRAME) {
-        new_denom = calculate_dynamic_resize_scale(cpi);
-        cpi->resize_subgop_denom = 0;
-        cpi->resize_prev_subgop_denom = 0;
+        int has_subgop = 0;
+        int coscale_kf = 0;
+        const uint8_t sg0_denom = calculate_dynamic_subgop_resize_scale(
+            cpi, /*from_keyframe=*/1, &has_subgop, &coscale_kf);
+        if (has_subgop && coscale_kf) {
+          new_denom = sg0_denom;
+          if (cpi->oxcf.rc_cfg.mode == AVM_Q &&
+              !cpi->gf_group.has_overlay_for_key_frame) {
+            cpi->resize_subgop_denom = sg0_denom;
+            cpi->resize_prev_subgop_denom = sg0_denom;
+          } else {
+            cpi->resize_subgop_denom = 0;
+            cpi->resize_prev_subgop_denom = 0;
+          }
+        } else {
+          new_denom = calculate_dynamic_resize_scale(cpi);
+          cpi->resize_subgop_denom = 0;
+          cpi->resize_prev_subgop_denom = 0;
+        }
       } else {
         if (cpi->resize_subgop_denom == 0) {
-          cpi->resize_subgop_denom = calculate_dynamic_subgop_resize_scale(cpi);
+          cpi->resize_subgop_denom = calculate_dynamic_subgop_resize_scale(
+              cpi, /*from_keyframe=*/0, NULL, NULL);
           cpi->resize_prev_subgop_denom = cpi->resize_subgop_denom;
         }
         new_denom = cpi->resize_subgop_denom;
