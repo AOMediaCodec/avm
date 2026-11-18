@@ -435,7 +435,18 @@ void av2_gop_setup_structure(AV2_COMP *cpi) {
       first_frame_update_type);
   cpi->rc.level1_qp = -1;        // Set to uninitialized.
   cpi->resize_subgop_denom = 0;  // Reset subgop resize scale for new GF group.
-  if (key_frame) cpi->resize_prev_subgop_denom = 0;
+  cpi->resize_dyn_gf_ready = 0;  // Reset lookahead GF scales for new GF group.
+  if (key_frame) {
+    cpi->resize_prev_subgop_denom = 0;
+    cpi->resize_dyn_prev_denom = 0;
+    cpi->resize_dyn_have_ema_mc = 0;
+    cpi->resize_dyn_have_ema_dist = 0;
+    cpi->resize_dyn_causal_hold = 0;
+    cpi->resize_dyn_gop_coscaled = 0;
+    cpi->resize_dyn_base_qindex = 0;
+    cpi->resize_dyn_causal_boost_qindex = 0;
+    cpi->resize_dyn_causal_leaf_qindex = 0;
+  }
 
 #if CHECK_GF_PARAMETER
   check_frame_params(gf_group, rc->baseline_gf_interval);

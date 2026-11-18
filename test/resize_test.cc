@@ -537,7 +537,7 @@ TEST_P(ResizeDynamicAndSubgopTest, SubgopFramesShareScale) {
       }
     }
   }
-  if (resize_mode_ == RESIZE_DYNAMIC_SUBGOP) {
+  if (resize_mode_ == RESIZE_DYNAMIC || resize_mode_ == RESIZE_DYNAMIC_SUBGOP) {
     // Smooth first subgop (frames 1..4) should be downscaled relative to the
     // high-frequency third subgop (frames 9..12).
     EXPECT_LT(frame_info_list_[1].w, SyntheticSubgopVideoSource::kWidth);
@@ -550,6 +550,59 @@ AV2_INSTANTIATE_TEST_SUITE(
     ::testing::Values(static_cast<int>(RESIZE_DYNAMIC),
                       static_cast<int>(RESIZE_RANDOM_SUBGOP),
                       static_cast<int>(RESIZE_DYNAMIC_SUBGOP)));
+
+class ResizeDynamicZeroLagTest
+    : public ::libavm_test::CodecTestWithParam<libavm_test::TestMode>,
+      public ::libavm_test::EncoderTest {
+ protected:
+  ResizeDynamicZeroLagTest() : EncoderTest(GET_PARAM(0)) {}
+  ~ResizeDynamicZeroLagTest() override {}
+
+  void SetUp() override {
+    InitializeConfig();
+    SetMode(GET_PARAM(1));
+    const avm_rational timebase = { 1, 30 };
+    cfg_.g_timebase = timebase;
+    cfg_.rc_end_usage = AVM_Q;
+    cfg_.g_threads = 1;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.rc_resize_mode = RESIZE_DYNAMIC;
+  }
+
+  void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                          ::libavm_test::Encoder *encoder) override {
+    if (video->frame() == 0) {
+      encoder->Control(AVME_SET_CPUUSED, 6);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 0);
+      encoder->Control(AV2E_SET_MIN_GF_INTERVAL, 4);
+      encoder->Control(AV2E_SET_MAX_GF_INTERVAL, 4);
+      encoder->Control(AVME_SET_QP, 210);
+    }
+  }
+
+  void DecompressedFrameHook(const avm_image_t &img,
+                             avm_codec_pts_t pts) override {
+    frame_info_list_.push_back(FrameInfo(pts, img.d_w, img.d_h));
+  }
+
+  std::vector<FrameInfo> frame_info_list_;
+};
+
+TEST_P(ResizeDynamicZeroLagTest, AdaptsScaleAcrossCutInLowDelay) {
+  SyntheticSubgopVideoSource video;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  ASSERT_EQ(frame_info_list_.size(),
+            static_cast<size_t>(SyntheticSubgopVideoSource::kFrames));
+
+  // Smooth inter frames (frames 2..8) in zero-lag low-delay mode should
+  // downscale, and high-frequency frames after the cut at frame 9 should
+  // recover to larger coded width.
+  EXPECT_LT(frame_info_list_[2].w, SyntheticSubgopVideoSource::kWidth);
+  EXPECT_GT(frame_info_list_[9].w, frame_info_list_[2].w);
+}
+
+AV2_INSTANTIATE_TEST_SUITE(ResizeDynamicZeroLagTest,
+                           ::testing::Values(::libavm_test::kOnePassGood));
 
 #if !CONFIG_SHARED
 TEST(LanczosResampleSimdTest, Resample1DBitExact) {

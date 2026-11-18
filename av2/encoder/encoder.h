@@ -2915,6 +2915,98 @@ typedef struct AV2_COMP {
   uint8_t resize_prev_subgop_denom;
 
   /*!
+   * Non-zero if per-frame dynamic resize denominators in resize_dyn_gf_denom
+   * have been computed for the current lookahead GF group in RESIZE_DYNAMIC
+   * mode (reset to 0 at each new GF group and keyframe).
+   */
+  uint8_t resize_dyn_gf_ready;
+
+  /*!
+   * Resize scale denominator chosen for the preceding frame or segment in the
+   * current closed GOP in RESIZE_DYNAMIC mode (0 if none or reset at keyframe),
+   * used for Schmitt-trigger temporal scale hysteresis.
+   */
+  uint8_t resize_dyn_prev_denom;
+
+  /*!
+   * Non-zero if causal temporal MC EMA statistics are valid for the current
+   * shot in RESIZE_DYNAMIC mode (reset at keyframes and hard scene cuts).
+   */
+  uint8_t resize_dyn_have_ema_mc;
+
+  /*!
+   * Non-zero if causal spatial resampling distortion EMA arrays are valid for
+   * the current shot in RESIZE_DYNAMIC mode.
+   */
+  uint8_t resize_dyn_have_ema_dist;
+
+  /*!
+   * Remaining causal frames to hold resize_dyn_prev_denom within a Low-Delay
+   * mini-GOP unless a cut or large blur transition occurs.
+   */
+  uint8_t resize_dyn_causal_hold;
+
+  /*!
+   * Non-zero if the current closed GOP's keyframe was co-scaled with its first
+   * inter subgop in RESIZE_DYNAMIC mode.
+   */
+  uint8_t resize_dyn_gop_coscaled;
+
+  /*!
+   * Unboosted full-resolution leaf baseline qindex for the current GF group in
+   * RESIZE_DYNAMIC mode.
+   */
+  int resize_dyn_base_qindex;
+
+  /*!
+   * Tracked full-resolution boosted-frame qindex across causal Low-Delay
+   * mini-GOPs in RESIZE_DYNAMIC mode.
+   */
+  int resize_dyn_causal_boost_qindex;
+
+  /*!
+   * Tracked full-resolution unboosted leaf qindex across causal Low-Delay
+   * mini-GOPs in RESIZE_DYNAMIC mode.
+   */
+  int resize_dyn_causal_leaf_qindex;
+
+  /*!
+   * Per-frame dynamic resize denominators indexed by GF group index for the
+   * current lookahead GF group in RESIZE_DYNAMIC mode.
+   */
+  uint8_t resize_dyn_gf_denom[MAX_STATIC_GF_GROUP_LENGTH];
+
+  /*!
+   * Exponentially smoothed causal median 16x16 motion-compensated block MSE for
+   * zero-lag / single-frame RESIZE_DYNAMIC evaluation.
+   */
+  double resize_dyn_ema_p50;
+
+  /*!
+   * Exponentially smoothed causal active-block 16x16 motion-compensated MSE for
+   * zero-lag / single-frame RESIZE_DYNAMIC evaluation.
+   */
+  double resize_dyn_ema_nz;
+
+  /*!
+   * Exponentially smoothed causal motion-compensated residual-to-AC-variance
+   * ratio for zero-lag / single-frame RESIZE_DYNAMIC evaluation.
+   */
+  double resize_dyn_ema_acr;
+
+  /*!
+   * Exponentially smoothed causal spatial round-trip distortion per candidate
+   * scale denominator for zero-lag / single-frame RESIZE_DYNAMIC evaluation.
+   */
+  double resize_dyn_ema_dist[SCALE_NUMERATOR * 2 + 1];
+
+  /*!
+   * Exponentially smoothed causal sharpness-weighted AC-normalized distortion
+   * ratio per candidate scale denominator in RESIZE_DYNAMIC mode.
+   */
+  double resize_dyn_ema_ac[SCALE_NUMERATOR * 2 + 1];
+
+  /*!
    * Pointer to struct holding adaptive data/contexts/models for the tile during
    * encoding.
    */

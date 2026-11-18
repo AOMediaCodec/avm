@@ -1360,7 +1360,20 @@ static int apply_resize_qp_offset(const AV2_COMP *cpi, int q, int *bottom_index,
                                   int *top_index) {
   if (q == 0 || is_lossless_requested(&cpi->oxcf.rc_cfg)) return q;
   if (cpi->resize_scale_denom <= SCALE_NUMERATOR) return q;
-  const int offset = av2_get_resize_qp_offset(cpi->resize_scale_denom);
+  int offset = av2_get_resize_qp_offset(cpi->resize_scale_denom);
+  if (cpi->oxcf.resize_cfg.resize_mode == RESIZE_DYNAMIC &&
+      cpi->resize_scale_denom >= SCALE_NUMERATOR + 3 &&
+      cpi->resize_dyn_base_qindex > 0) {
+    const int q8_base =
+        cpi->resize_dyn_base_qindex -
+        ((int)cpi->common.seq_params.bit_depth - AVM_BITS_8) * MAXQ_OFFSET;
+    if (q8_base > 210) {
+      const double ramp = AVMMIN((double)(q8_base - 210) / 25.0, 1.0);
+      const double mod_weight =
+          (cpi->oxcf.gf_cfg.lag_in_frames == 0) ? 0.18 : 0.30;
+      offset = (int)rint((double)offset * (1.0 - mod_weight * ramp));
+    }
+  }
   const int max_qp = MAXQ_FOR_GIVEN_BIT_DEPTH(cpi->common.seq_params.bit_depth);
   q = clamp(q + offset, 1, max_qp);
   if (bottom_index != NULL && *bottom_index > q) *bottom_index = q;
