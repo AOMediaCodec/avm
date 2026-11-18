@@ -411,6 +411,19 @@ static inline void tune_thresh_based_on_resolution(AV2_COMP *cpi,
           interpolate_threshold(threshold_base << 3, threshold_base << 4,
                                 current_qindex, q_low, q_high);
     }
+    if (!is_screen && !cpi->is_screen_content_type) {
+      thresholds[2] = threshold_base;
+      if (current_qindex > 135) {
+        const int q_diff = current_qindex - 135;
+        thresholds[2] = thresholds[2] + ((q_diff * thresholds[2]) >> 5);
+        if (num_pixels <= RESOLUTION_240P) {
+          thresholds[3] = thresholds[3] + ((q_diff * thresholds[3]) >> 4);
+        }
+      }
+      if (current_qindex > 175) {
+        thresholds[4] = INT64_MAX;
+      }
+    }
   } else if (num_pixels <= RESOLUTION_360P) {
     thresholds[2] = threshold_base;
     thresholds[3] = (3 * threshold_base) >> 1;
@@ -524,8 +537,10 @@ static inline void set_vbp_thresholds(AV2_COMP *cpi, int64_t thresholds[],
   const int64_t poly_base =
       (qindex <= 65) ? 12 : (12 + ((q_offset * (qindex + 15)) / 40));
 
+  const bool is_screen = (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
   int64_t quant_base;
-  if (num_pixels <= RESOLUTION_240P) {
+  if (num_pixels <= RESOLUTION_240P &&
+      (is_screen || cpi->is_screen_content_type)) {
     if (source_sad_level == kZeroSad) {
       quant_base = ac_q >> 2;
     } else {
@@ -536,6 +551,8 @@ static inline void set_vbp_thresholds(AV2_COMP *cpi, int64_t thresholds[],
       quant_base = ac_q >> 2;
     } else if (source_sad_level <= kLowSad) {
       quant_base = (3 * ac_q) >> 4;
+    } else if (!is_screen && !cpi->is_screen_content_type) {
+      quant_base = AVMMAX(poly_base, ac_q >> 2);
     } else {
       quant_base = poly_base;
     }
@@ -572,7 +589,6 @@ static inline void set_vbp_thresholds(AV2_COMP *cpi, int64_t thresholds[],
   tune_thresh_based_on_resolution(cpi, thresholds, threshold_base, qindex,
                                   num_pixels);
 
-  const bool is_screen = (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
   if (is_screen) {
     if (source_sad_level == kZeroSad) {
       thresholds[4] = INT64_MAX;
@@ -1385,19 +1401,22 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
              var_32x32 > (avg_16x16[blk64_idx][lvl1_idx] >> 1))) {
           force_split_ancestors(force_split, offset_64x64, offset_32x32,
                                 blk64_idx, lvl1_idx);
-        } else if (!is_key_frame && !is_screen &&
-                   ((is_360p_or_smaller &&
-                     ((max_min_var_16X16_diff > (thresholds[3] >> 1) &&
-                       maxvar_16x16[blk64_idx][lvl1_idx] > thresholds[3]) ||
-                      (maxvar_16x16[blk64_idx][lvl1_idx] >
-                           (thresholds[3] >> 4) &&
-                       maxvar_16x16[blk64_idx][lvl1_idx] >
-                           (minvar_16x16[blk64_idx][lvl1_idx] << 2)))) ||
-                    (!is_360p_or_smaller &&
-                     (max_min_var_16X16_diff > (thresholds[3] >> 1) &&
-                      maxvar_16x16[blk64_idx][lvl1_idx] > thresholds[3])))) {
-          force_split_ancestors(force_split, offset_64x64, offset_32x32,
-                                blk64_idx, lvl1_idx);
+        } else if (!is_key_frame && !is_screen) {
+          const bool lowres_nonscreen =
+              is_lowres && !cpi->is_screen_content_type;
+          const int maxvar_thresh_shift = lowres_nonscreen ? 2 : 4;
+          const int minvar_scale_shift = lowres_nonscreen ? 3 : 2;
+          if ((max_min_var_16X16_diff > (thresholds[3] >> 1) &&
+               maxvar_16x16[blk64_idx][lvl1_idx] > thresholds[3]) ||
+              (is_360p_or_smaller &&
+               maxvar_16x16[blk64_idx][lvl1_idx] >
+                   (thresholds[3] >> maxvar_thresh_shift) &&
+               maxvar_16x16[blk64_idx][lvl1_idx] >
+                   ((int64_t)minvar_16x16[blk64_idx][lvl1_idx]
+                    << minvar_scale_shift))) {
+            force_split_ancestors(force_split, offset_64x64, offset_32x32,
+                                  blk64_idx, lvl1_idx);
+          }
         }
       }
     }
