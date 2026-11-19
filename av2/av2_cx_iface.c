@@ -3808,7 +3808,7 @@ static avm_codec_err_t encoder_encode(avm_codec_alg_priv_t *ctx,
       if (!is_frame_visible_null && frame_size == 0) is_frame_visible = 0;
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
-        if (ready_for_next_tu && mlayer_id == 0) {
+        if (cpi->dm_starts_temporal_unit) {
           const uint32_t obu_payload_size = 0;
           const size_t length_field_size =
               avm_uleb_size_in_bytes(obu_payload_size);

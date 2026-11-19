@@ -91,6 +91,7 @@ static INLINE void avm_write(avm_writer *w, int bit, int probability) {
 }
 
 static INLINE void avm_write_bit(avm_writer *w, int bit) {
+  ++w->frame_symbol_count;
 #if CONFIG_BITSTREAM_DEBUG
   bitstream_queue_push_literal(bit, 1);
 #endif  // CONFIG_BITSTREAM_DEBUG

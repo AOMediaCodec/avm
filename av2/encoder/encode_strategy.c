@@ -1113,6 +1113,8 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   if (cm->next_mlayer_id >= 0) {
     cm->mlayer_id = cm->next_mlayer_id;
   }
+  // Only the base layer can carry the temporal delimiter for this frame unit.
+  cpi->dm_starts_temporal_unit &= cm->mlayer_id == 0;
 
   // Check if we need to stuff more src frames
   if (flush == 0) {

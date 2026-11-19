@@ -4741,7 +4741,7 @@ static void update_level_info_for_frame_unit(AV2_COMP *cpi, const uint8_t *data,
                                              size_t size, int64_t time_stamp,
                                              int64_t time_end) {
   uint64_t dfg_prefix_bits = 0;
-  if (size > 0 && cpi->dm_starts_temporal_unit && cpi->common.mlayer_id == 0) {
+  if (size > 0 && cpi->dm_starts_temporal_unit) {
     uint8_t obu_header[2];
     const uint32_t obu_header_size = av2_write_obu_header(
         OBU_TEMPORAL_DELIMITER, 0, GLOBAL_XLAYER_ID, obu_header);
@@ -4975,8 +4975,8 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
     if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
       update_level_info_for_frame_unit(cpi, dest, *size, *time_stamp,
                                        *time_end);
-      av2_decoder_model_observe_output_frame_buffers_for_operating_points(
-          cpi, cpi->fb_idx_for_overlay);
+      av2_decoder_model_observe_output_frame_buffers_for_operating_points(cpi,
+                                                                          -1);
     }
 
     if (!av2_check_keyframe_overlay(cpi->gf_group.index, &cpi->gf_group,
@@ -5211,12 +5211,9 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
 
   if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
     // Reset per-CVS level statistics at the beginning of each sequence.
-    if (av2_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
-      if (cm->current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY &&
-          cpi->dm_starts_temporal_unit) {
-        av2_decoder_model_flush_implicit_output_for_operating_points(cpi,
-                                                                     false);
-      }
+    if (cm->current_frame.cm_obu_type == OBU_CLOSED_LOOP_KEY &&
+        cpi->dm_starts_temporal_unit) {
+      av2_decoder_model_flush_implicit_output_for_operating_points(cpi, false);
       av2_encoder_check_target_level(cpi, true);
       av2_prepare_level_info_for_new_cvs(cpi);
     }

@@ -1112,6 +1112,7 @@ class ResourceAvailabilityDifferentialAdapter {
   DECODER_MODEL *legacy() { return legacy_; }
   const DECODER_MODEL *legacy() const { return legacy_; }
   AV2LevelInfo *level_info() { return &level_info_; }
+  AV2_COMP *encoder() { return cpi_.get(); }
   int SelectedLevel() const {
     int levels[MAX_NUM_OPERATING_POINTS] = {};
     if (av2_get_seq_level_idx(cpi_.get(), &cpi_->common.seq_params,
@@ -1496,6 +1497,120 @@ TEST(EncoderDecoderModelRationalReuseTest,
   EXPECT_EQ(7u, result.output_frames);
 }
 
+TEST(EncoderDecoderModelRationalReuseTest, OlkHintBelongsToFirstRegularOutput) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly);
+  ASSERT_TRUE(adapter.valid());
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, false);
+  AV2_COMP *const cpi = adapter.encoder();
+  AV2_COMMON *const cm = &cpi->common;
+  cpi->olk_encountered = true;
+  const auto observe = [&](OBU_TYPE type, bool starts_tu, bool output,
+                           int order_hint) {
+    cpi->dm_starts_temporal_unit = starts_tu;
+    cm->current_frame.cm_obu_type = type;
+    cm->current_frame.frame_type =
+        type == OBU_OPEN_LOOP_KEY ? KEY_FRAME : INTER_FRAME;
+    cm->current_frame.refresh_frame_flags = 0;
+    cm->current_frame.display_order_hint = order_hint;
+    cm->is_leading_picture = type == OBU_LEADING_TILE_GROUP;
+    cm->immediate_output_picture = output;
+    const uint8_t obu[] = { static_cast<uint8_t>(type << 2), 1, 0 };
+    av2_update_level_info(cpi, obu, sizeof(obu), 0, 3000, true, 0);
+  };
+  observe(OBU_OPEN_LOOP_KEY, true, false, 4);
+  observe(OBU_LEADING_TILE_GROUP, false, true, 2);
+  EXPECT_FALSE(adapter.legacy()->olk_tu_order_hint_valid);
+  observe(OBU_REGULAR_TILE_GROUP, false, true, 4);
+  observe(OBU_REGULAR_TILE_GROUP, true, true, 5);
+  ASSERT_EQ(DECODER_MODEL_OK, adapter.legacy()->status);
+  ASSERT_TRUE(adapter.legacy()->olk_tu_order_hint_valid);
+  EXPECT_EQ(4u, adapter.legacy()->olk_tu_order_hint);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 6, false, true);
+  EXPECT_FALSE(adapter.legacy()->olk_tu_order_hint_valid);
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
+     DisplacedOutputSeesEarlierSlotRefreshInExactModel) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly, true, false, SEQ_LEVEL_4_0, false, 1.0,
+      64, 64, 0, true);
+  ASSERT_TRUE(adapter.valid());
+  adapter.DecodeRefreshAndMaybeOutput(1024, 2, 2, false, false, true);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 0, 1, false, false, true);
+
+  AV2_COMP *const cpi = adapter.encoder();
+  AV2_COMMON *const cm = &cpi->common;
+  cm->current_frame.refresh_frame_flags = 3;
+  cm->ref_frame_map[0] = cm->cur_frame;
+  av2_decoder_model_mirror_ref_buffer_for_operating_points(cpi, 0);
+  Av2DmState state{};
+  ASSERT_TRUE(
+      av2_decoder_model_get_state(adapter.legacy()->exact_model, &state));
+  EXPECT_EQ(state.current_buffer_index, state.buffer_pool.vbi[0]);
+  EXPECT_NE(state.current_buffer_index, state.buffer_pool.vbi[1]);
+  av2_decoder_model_observe_displaced_output_for_operating_points(cpi, 1);
+  Av2DmResult result;
+  ASSERT_TRUE(
+      av2_decoder_model_get_result(adapter.legacy()->exact_model, &result));
+  EXPECT_EQ(2u, result.output_frames);
+  EXPECT_EQ(0u, result.violations);
+  EXPECT_EQ(DECODER_MODEL_OK, adapter.legacy()->status);
+  av2_dm_state_destroy(&state);
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
+     ShowExistingUsesCurrentTemporalUnitAndStoredSampleCount) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly);
+  ASSERT_TRUE(adapter.valid());
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, false);
+
+  AV2_COMP *const cpi = adapter.encoder();
+  AV2_COMMON *const cm = &cpi->common;
+  cm->current_frame.cm_obu_type = OBU_REGULAR_SEF;
+  cm->current_frame.refresh_frame_flags = 0;
+  cm->show_existing_frame = 1;
+  cm->sef_ref_fb_idx = 0;
+  cm->width = cm->height = 32;
+  cpi->level_params.frame_header_count = 0;
+  const uint8_t obu[] = { static_cast<uint8_t>(OBU_REGULAR_SEF << 2), 1, 0 };
+  av2_update_level_info(cpi, obu, sizeof(obu), 3000, 6000, true, 0);
+  av2_decoder_model_observe_output_frame_buffers_for_operating_points(cpi, -1);
+  EXPECT_EQ(1u, adapter.legacy()->last_output_temporal_unit);
+  EXPECT_EQ(64u * 64, adapter.legacy()->display_samples);
+  Av2DmState state{};
+  ASSERT_TRUE(
+      av2_decoder_model_get_state(adapter.legacy()->exact_model, &state));
+  EXPECT_EQ(1u, state.last_output_temporal_unit);
+  EXPECT_EQ(64u * 64, state.last_temporal_unit_output_luma_samples);
+  av2_dm_state_destroy(&state);
+}
+
+TEST(EncoderDecoderModelRationalReuseTest,
+     ShortStreamSetsExactDelayBeforeFlushingImplicitOutputs) {
+  ResourceAvailabilityDifferentialAdapter adapter(
+      ResourceAdapterMode::kLegacyOnly, true, false, SEQ_LEVEL_4_0, false, 1.0,
+      64, 64, 0, true);
+  ASSERT_TRUE(adapter.valid());
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, false, false, true);
+  Av2DmState state{};
+  ASSERT_TRUE(
+      av2_decoder_model_get_state(adapter.legacy()->exact_model, &state));
+  EXPECT_FALSE(state.initial_presentation_delay_known);
+  EXPECT_EQ(0u, state.shown_frame_number);
+  adapter.Finish();
+  ASSERT_TRUE(
+      av2_decoder_model_get_state(adapter.legacy()->exact_model, &state));
+  EXPECT_TRUE(state.initial_presentation_delay_known);
+  EXPECT_EQ(1u, state.shown_frame_number);
+  av2_dm_state_destroy(&state);
+  Av2DmResult result;
+  ASSERT_TRUE(
+      av2_decoder_model_get_result(adapter.legacy()->exact_model, &result));
+  EXPECT_EQ(AV2_DM_RESULT_CONFORMANT, result.status);
+}
+
 TEST(EncoderDecoderModelRationalReuseTest,
      ProductionScheduleObserverWithoutRemovalTimingIsUnavailable) {
   ResourceAvailabilityDifferentialAdapter adapter(
@@ -1546,17 +1661,31 @@ TEST(EncoderDecoderModelRationalReuseTest,
 }
 
 TEST(EncoderDecoderModelRationalReuseTest,
-     ProductionObserverRejectsNonintegralMultistreamLimits) {
+     ProductionObserverUsesIntegerMultistreamDecodeRate) {
   ResourceAvailabilityDifferentialAdapter adapter(
       ResourceAdapterMode::kLegacyOnly, true, false, SEQ_LEVEL_8_0, false, 9.0);
   ASSERT_TRUE(adapter.valid());
-  ASSERT_NE(adapter.legacy()->exact_model, nullptr);
+  adapter.DecodeRefreshAndMaybeOutput(1024, 1, 0, true);
+  Av2DmState state{};
+  ASSERT_TRUE(
+      av2_decoder_model_get_state(adapter.legacy()->exact_model, &state));
+  // Annex A sets MaxDecodeRateX to MaxDecodeRate / ScaleFactorX using
+  // integer division; this level's rate is not divisible by nine.
+  Av2DmRational expected{};
+  ASSERT_TRUE(
+      av2_dm_rational_make(64 * 64, UINT64_C(18824036352) / 9, &expected));
+  int comparison;
+  ASSERT_TRUE(
+      av2_dm_rational_compare(&state.time_to_decode, &expected, &comparison));
+  EXPECT_EQ(0, comparison);
+  av2_dm_rational_destroy(&expected);
+  av2_dm_state_destroy(&state);
+  adapter.Finish();
   Av2DmResult result;
   ASSERT_TRUE(
       av2_decoder_model_get_result(adapter.legacy()->exact_model, &result));
-  EXPECT_EQ(AV2_DM_RESULT_INDETERMINATE, result.status);
-  EXPECT_TRUE(result.missing_required_input);
-  EXPECT_FALSE(result.violations);
+  EXPECT_EQ(AV2_DM_RESULT_CONFORMANT, result.status);
+  EXPECT_EQ(1u, result.decoded_frames);
 }
 
 TEST(EncoderDecoderModelRationalReuseTest,
@@ -1750,6 +1879,14 @@ TEST(EncoderDecoderModelRationalReuseTest,
             ENCODER_DM_RESULT_PASS);
   EXPECT_EQ(common_result.status, AV2_DM_RESULT_INDETERMINATE);
   EXPECT_TRUE(common_result.missing_required_input);
+
+  AV2LevelStats &stats = adapter.level_info()->level_stats;
+  stats.min_frame_width = stats.min_frame_height = 64;
+  stats.tile_width_is_valid = 1;
+  stats.total_time_encoded = 1.0 / 30;
+  EXPECT_EQ(SEQ_LEVEL_4_0, adapter.SelectedLevel());
+  adapter.legacy()->status = SMOOTHING_BUFFER_UNDERFLOW;
+  EXPECT_EQ(SEQ_LEVEL_MAX, adapter.SelectedLevel());
 }
 
 }  // namespace

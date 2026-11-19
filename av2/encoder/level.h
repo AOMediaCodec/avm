@@ -156,6 +156,7 @@ typedef struct {
   int configured_operating_point_count;
   int configured_operating_point_idc;
   bool configuration_snapshot_valid;
+  bool uses_encoder_framerate;
   BITSTREAM_PROFILE configured_profile;
   int configured_max_frame_width;
   int configured_max_frame_height;

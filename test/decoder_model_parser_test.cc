@@ -730,11 +730,12 @@ TEST(DecoderModelSymbolCountTest, MirrorsEncoderLiteralAndSymbolCount) {
   EXPECT_TRUE(DecodeCountedSymbols());
 }
 
-TEST(DecoderModelSymbolCountTest, DirectCdfAndBitAreNotFrameSymbols) {
+TEST(DecoderModelSymbolCountTest, OneBitLiteralCountsOnceAndDirectCdfDoesNot) {
   uint8_t buffer[64] = { 0 };
   avm_cdf_prob cdf[CDF_SIZE(2)] = { AVM_CDF2(16384) };
   avm_writer writer;
   memset(&writer, 0, sizeof(writer));
+  writer.frame_symbol_count = 7;  // Reusing a writer starts a new tile.
   avm_start_encode(&writer, buffer);
   avm_write_bit(&writer, 1);
   avm_write_cdf(&writer, 0, cdf, 2);
@@ -744,7 +745,25 @@ TEST(DecoderModelSymbolCountTest, DirectCdfAndBitAreNotFrameSymbols) {
   ASSERT_EQ(avm_reader_init(&reader, buffer, writer.pos), 0);
   EXPECT_EQ(avm_read_bit(&reader, {}), 1);
   EXPECT_EQ(avm_read_cdf(&reader, cdf, 2, {}), 0);
-  EXPECT_EQ(reader.frame_symbol_count, 0u);
+  EXPECT_EQ(reader.frame_symbol_count, 1u);
+  EXPECT_EQ(writer.frame_symbol_count, reader.frame_symbol_count);
+}
+
+TEST(DecoderModelSymbolCountTest, TruncatedUnaryCountsEachLiteralBit) {
+  for (int value = 0; value <= 4; ++value) {
+    const int bits = value == 4 ? 4 : value + 1;
+    uint8_t buffer[64] = {};
+    avm_writer writer = {};
+    avm_start_encode(&writer, buffer);
+    avm_write_literal(&writer, value == 4 ? 0 : 1, bits);
+    avm_stop_encode(&writer);
+
+    avm_reader reader;
+    ASSERT_EQ(avm_reader_init(&reader, buffer, writer.pos), 0);
+    EXPECT_EQ(avm_read_unary(&reader, 4, {}), value);
+    EXPECT_EQ(reader.frame_symbol_count, static_cast<uint64_t>(bits));
+    EXPECT_EQ(reader.frame_symbol_count, writer.frame_symbol_count);
+  }
 }
 
 TEST(DecoderModelSymbolCountTest, IndependentReadersAreThreadLocal) {

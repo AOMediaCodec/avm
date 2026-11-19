@@ -1595,7 +1595,7 @@ TEST(LevelDecoderModelTest, SmoothingBufferUsesBufferSizeInBits) {
 TEST(LevelDecoderModelTest, DecoderModelStatusClassificationIsExplicit) {
   EXPECT_EQ(ENCODER_DM_RESULT_PASS,
             av2_encoder_decoder_model_classify_status(DECODER_MODEL_OK));
-  EXPECT_EQ(ENCODER_DM_RESULT_PASS,
+  EXPECT_EQ(ENCODER_DM_RESULT_VIOLATION,
             av2_encoder_decoder_model_classify_status(DECODER_MODEL_DISABLED));
   EXPECT_EQ(
       ENCODER_DM_RESULT_VIOLATION,
@@ -1634,6 +1634,16 @@ TEST(LevelDecoderModelTest, AutomaticLevelIsThirtyOneWhenModelUnavailable) {
             av2_get_seq_level_idx(cpi.get(), &cpi->common.seq_params,
                                   &cpi->level_params, seq_level_idx));
   EXPECT_EQ(SEQ_LEVEL_MAX, seq_level_idx[0]);
+
+  // A lower candidate can lack timing or exceed a previous CVS's size limit.
+  // Neither prevents evaluation of a higher candidate.
+  cpi->common.seq_params.still_picture = true;
+  level_info.decoder_models[SEQ_LEVEL_2_1].status = DECODER_MODEL_DISABLED;
+  level_info.decoder_models[SEQ_LEVEL_3_0].initialized = true;
+  ASSERT_EQ(AVM_CODEC_OK,
+            av2_get_seq_level_idx(cpi.get(), &cpi->common.seq_params,
+                                  &cpi->level_params, seq_level_idx));
+  EXPECT_EQ(SEQ_LEVEL_3_0, seq_level_idx[0]);
 }
 
 TEST(LevelDecoderModelTest, AutomaticHighTierStartsAtLevelFour) {
@@ -2340,7 +2350,45 @@ TEST_P(LevelTestLarge, TestTargetLevel6_3) {
   video.reset(new libavm_test::Y4mVideoSource("park_joy_90p_8_420.y4m", 0, 10));
   ASSERT_TRUE(video.get() != NULL);
   target_level_ = SEQ_LEVEL_6_3;
+  // Keep the first frame within the Level 6.3 main-tier compression limit.
+  cfg_.rc_target_bitrate = 64;
   ASSERT_NO_FATAL_FAILURE(RunLoop(video.get()));
+}
+
+TEST(LevelDecoderModelTest, TargetLevelRejectsOversizedFirstFrame) {
+  libavm_test::Y4mVideoSource video("park_joy_90p_8_420.y4m", 0, 10);
+  ASSERT_NO_FATAL_FAILURE(video.Begin());
+  avm_codec_enc_cfg_t cfg;
+  avm_codec_iface_t *const iface = &avm_codec_av2_cx_algo;
+  ASSERT_EQ(AVM_CODEC_OK, avm_codec_enc_config_default(iface, &cfg, 0));
+  cfg.g_w = video.img()->d_w;
+  cfg.g_h = video.img()->d_h;
+  cfg.g_timebase = video.timebase();
+  cfg.g_lag_in_frames = 5;
+  cfg.rc_end_usage = AVM_VBR;
+  cfg.rc_target_bitrate = 256;
+  avm_codec_ctx_t enc{};
+  ASSERT_EQ(AVM_CODEC_OK, avm_codec_enc_init(&enc, iface, &cfg, 0));
+  ASSERT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AVME_SET_CPUUSED, 5));
+  ASSERT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AV2E_SET_TARGET_SEQ_LEVEL_IDX,
+                                            static_cast<int>(SEQ_LEVEL_6_3)));
+  ASSERT_EQ(AVM_CODEC_OK,
+            avm_codec_control(&enc, AVME_SET_ENABLEAUTOALTREF, 1));
+  ASSERT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AVME_SET_ARNR_MAXFRAMES, 7));
+  ASSERT_EQ(AVM_CODEC_OK, avm_codec_control(&enc, AVME_SET_ARNR_STRENGTH, 5));
+  avm_codec_err_t status = AVM_CODEC_OK;
+  while (video.img() != nullptr && status == AVM_CODEC_OK) {
+    status =
+        avm_codec_encode(&enc, video.img(), video.pts(), video.duration(), 0);
+    video.Next();
+  }
+  if (status == AVM_CODEC_OK) status = avm_codec_encode(&enc, nullptr, 0, 0, 0);
+  EXPECT_EQ(AVM_CODEC_ERROR, status);
+  EXPECT_STREQ(
+      "Failed to encode to the target level 6.3. The compression size is too "
+      "high.",
+      avm_codec_error_detail(&enc));
+  EXPECT_EQ(AVM_CODEC_OK, avm_codec_destroy(&enc));
 }
 
 TEST_P(LevelTestLarge, TestLevelMonitoringLowBitrate) {

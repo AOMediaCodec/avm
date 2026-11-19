@@ -3209,6 +3209,15 @@ static INLINE int frame_is_sframe(const AV2_COMMON *cm) {
   return cm->current_frame.frame_type == S_FRAME;
 }
 
+// CountFrameHeaderForLevelConstraint for the first frame header. Frame
+// header copies never contribute to NumFrameHeadersPerSec.
+static INLINE bool av2_count_frame_header_for_level(const AV2_COMMON *cm) {
+  return cm->bridge_frame_info.is_bridge_frame ||
+         (!cm->show_existing_frame &&
+          cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT &&
+          !cm->bru.frame_inactive_flag);
+}
+
 static INLINE int get_ref_frame_map_idx(const AV2_COMMON *const cm,
                                         const int ref_frame) {
   return (ref_frame >= 0 && ref_frame < INTER_REFS_PER_FRAME)
