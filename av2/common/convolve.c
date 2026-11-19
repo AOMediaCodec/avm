@@ -324,34 +324,30 @@ void av2_highbd_cwp_convolve_2d_copy_c(const uint16_t *src, int src_stride,
                                        int h, ConvolveParams *conv_params,
                                        int bd) {
   CONV_BUF_TYPE *dst16 = conv_params->dst;
-  int dst16_stride = conv_params->dst_stride;
-  const int bits =
-      FILTER_BITS * 2 - conv_params->round_1 - conv_params->round_0;
-  const int offset_bits = bd + 2 * FILTER_BITS - conv_params->round_0;
-  const int round_offset = (1 << (offset_bits - conv_params->round_1)) +
-                           (1 << (offset_bits - conv_params->round_1 - 1));
-  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
-  assert(bits >= 0);
+  const int dst16_stride = conv_params->dst_stride;
+  const HighbdCwpCopyScale sc = highbd_cwp_copy_scale(conv_params, bd);
 
-  for (int y = 0; y < h; ++y) {
-    for (int x = 0; x < w; ++x) {
-      CONV_BUF_TYPE res = src[y * src_stride + x] << bits;
-      res += round_offset;
-      if (conv_params->do_average) {
-        int32_t tmp = dst16[y * dst16_stride + x];
-        if (use_wtd_comp_avg) {
-          tmp = tmp * conv_params->fwd_offset + res * conv_params->bck_offset;
-          tmp = tmp >> DIST_PRECISION_BITS;
-        } else {
-          tmp += res;
-          tmp = tmp >> 1;
-        }
-        tmp -= round_offset;
-        dst[y * dst_stride + x] =
-            clip_pixel_highbd(ROUND_POWER_OF_TWO(tmp, bits), bd);
-      } else {
+  if (!conv_params->do_average) {
+    for (int y = 0; y < h; ++y) {
+      for (int x = 0; x < w; ++x) {
+        CONV_BUF_TYPE res = src[y * src_stride + x] << sc.bits;
+        res += sc.offset;
         dst16[y * dst16_stride + x] = res;
       }
+    }
+    return;
+  }
+
+  // Fused compound averaging:
+  // clip((w0*D + (w1*2^b)*s + c3) >> (b+4)).
+  const int w0 = conv_params->fwd_offset;
+  const int src_weight = conv_params->bck_offset * (1 << sc.bits);
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      const int d = dst16[y * dst16_stride + x];
+      const int s = src[y * src_stride + x];
+      const int32_t val = (w0 * d + src_weight * s + sc.c3) >> sc.fused_shift;
+      dst[y * dst_stride + x] = clip_pixel_highbd(val, bd);
     }
   }
 }
