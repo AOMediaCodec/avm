@@ -1631,10 +1631,9 @@ static AVM_FORCE_INLINE uint64_t row_prev_shifts_neon(const uint8_t *row) {
 }
 #endif  // AVM_ARCH_AARCH64
 
-// Backtracks the trellis from the lowest-cost state of position 0 and writes
-// qcoeff / dqcoeff along the path, then clears positions eob..first_scan_pos.
-// use_qm is a constant at each call site, so the iqmatrix and flat paths
-// compile separately.
+// Backtracks the trellis from state, the lowest-cost state of position 0, and
+// writes qcoeff / dqcoeff along the path; returns the eob. use_qm is a constant
+// at each call site, so the iqmatrix and flat paths compile separately.
 //
 // Short paths (first_scan_pos < FBP_ROW_WALK_MIN_FSP), and every path on
 // 32-bit Arm, use a scalar walk whose loop-carried chain is one signed byte
@@ -1655,87 +1654,78 @@ static AVM_FORCE_INLINE uint64_t row_prev_shifts_neon(const uint8_t *row) {
 // <= i the zero lands on position i and is overwritten in the same step, and
 // a zeroed position above i is either past the path or rewritten later.
 // After eob steps, positions first_scan_pos - eob + 1..first_scan_pos are
-// clear, so only eob..first_scan_pos - eob are left for the tail loop, which
-// is empty whenever the path covers more than half of the positions.
+// clear, so only eob..first_scan_pos - eob are left for the tail loop in
+// av2_find_best_path_neon(), which is empty whenever the path covers more than
+// half of the positions.
 static AVM_FORCE_INLINE int find_best_path_walk_neon(
-    const tcq_node_t *trellis, const int16_t *scan, const int32_t *dequant,
-    const qm_val_t *iqmatrix, const tran_low_t *tcoeff, int first_scan_pos,
-    int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff, int *min_rate,
-    int64_t *min_cost, const bool use_qm) {
-  const int state = min_cost_state_neon(trellis, min_rate, min_cost);
+    const tcq_node_t *trellis, int state, const int16_t *scan,
+    const int32_t *dequant, const qm_val_t *iqmatrix, const tran_low_t *tcoeff,
+    int first_scan_pos, int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff,
+    const bool use_qm) {
   int pos = 0;
   // Next position to clear top-down; first_scan_pos - pos inside the walk.
   int clear_pos = first_scan_pos;
-  if (state >= 0) {
-    // Without a quant matrix position 0 uses the DC step, all others AC.
-    const int dqv_ac = dequant[1];
-    int dqv = dequant[0];
+  // Without a quant matrix position 0 uses the DC step, all others AC.
+  const int dqv_ac = dequant[1];
+  int dqv = dequant[0];
 #if AVM_ARCH_AARCH64
-    if (first_scan_pos >= FBP_ROW_WALK_MIN_FSP) {
-      const uint8_t *row = (const uint8_t *)trellis;
-      uint64_t s = (uint64_t)state << 3;
-      do {
-        const uint64_t shifts = row_prev_shifts_neon(row);
-        // Bits 0..23 of the word at byte 12 of the node are absLevel.
-        int32_t word;
-        memcpy(&word, row + 2 * (s & 63) + 12, sizeof(word));
-        const int abs_level =
-            (int32_t)(((uint32_t)word & 0x00FFFFFFu) << 8) >> 8;
-        s = shifts >> (s & 63);
-        // tcq_quant(prevId) is bit 1 of prevId, bit 4 of s; 0 at the end.
-        const int q_i = (s & 0x80) ? 0 : (int)((s >> 4) & 1);
-        write_path_pos_neon(scan, dequant, iqmatrix, tcoeff, pos, clear_pos,
-                            abs_level, q_i, dqv, log_scale, qcoeff, dqcoeff,
-                            use_qm);
-        dqv = dqv_ac;
-        row += TCQ_N_STATES * sizeof(tcq_node_t);
-        clear_pos--;
-        pos++;
-      } while (!(s & 0x80));
-    } else
+  if (first_scan_pos >= FBP_ROW_WALK_MIN_FSP) {
+    const uint8_t *row = (const uint8_t *)trellis;
+    uint64_t s = (uint64_t)state << 3;
+    do {
+      const uint64_t shifts = row_prev_shifts_neon(row);
+      // Bits 0..23 of the word at byte 12 of the node are absLevel.
+      int32_t word;
+      memcpy(&word, row + 2 * (s & 63) + 12, sizeof(word));
+      const int abs_level = (int32_t)(((uint32_t)word & 0x00FFFFFFu) << 8) >> 8;
+      s = shifts >> (s & 63);
+      // tcq_quant(prevId) is bit 1 of prevId, bit 4 of s; 0 at the end.
+      const int q_i = (s & 0x80) ? 0 : (int)((s >> 4) & 1);
+      write_path_pos_neon(scan, dequant, iqmatrix, tcoeff, pos, clear_pos,
+                          abs_level, q_i, dqv, log_scale, qcoeff, dqcoeff,
+                          use_qm);
+      dqv = dqv_ac;
+      row += TCQ_N_STATES * sizeof(tcq_node_t);
+      clear_pos--;
+      pos++;
+    } while (!(s & 0x80));
+  } else
 #endif  // AVM_ARCH_AARCH64
-    {
-      // next_row is the address of row pos + 1, kept as a signed integer so
-      // that stepping it past the last row forms no out-of-range pointer and
-      // adding a negative prevId does not wrap. The node of position pos + 1
-      // is next_row plus prevId; the last node's prevId is negative, so that
-      // address stays inside row pos and is never read.
-      intptr_t next_row = (intptr_t)(trellis + TCQ_N_STATES);
-      const uint8_t *node = (const uint8_t *)(trellis + state);
-      int prev_id;
-      do {
-        // Byte 15 is prevId, bits 0..23 of the word at byte 12 are absLevel.
-        prev_id = (int8_t)node[15];
-        int32_t word;
-        memcpy(&word, node + 12, sizeof(word));
-        const int abs_level =
-            (int32_t)(((uint32_t)word & 0x00FFFFFFu) << 8) >> 8;
-        node = (const uint8_t *)(next_row + (intptr_t)prev_id *
-                                                (intptr_t)sizeof(tcq_node_t));
-        next_row += TCQ_N_STATES * (intptr_t)sizeof(tcq_node_t);
-        const int blk_pos = scan[pos];
-        const int neg = tcoeff[blk_pos] < 0;
-        if (use_qm) dqv = get_dqv(dequant, blk_pos, iqmatrix);
-        const int q_i = prev_id >= 0 ? tcq_quant(prev_id) : 0;
-        const int qc = abs_level == 0 ? 0 : 2 * abs_level - q_i;
-        const int dqc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qc * dqv,
-                                                          QUANT_TABLE_BITS) >>
-                        log_scale;
-        const int zero_blk = scan[clear_pos > pos ? clear_pos : pos];
-        qcoeff[zero_blk] = 0;
-        dqcoeff[zero_blk] = 0;
-        qcoeff[blk_pos] = neg ? -abs_level : abs_level;
-        dqcoeff[blk_pos] = neg ? -dqc : dqc;
-        if (!use_qm) dqv = dqv_ac;
-        clear_pos--;
-        pos++;
-      } while (prev_id >= 0);
-    }
-  }
-  for (int i = pos; i <= clear_pos; i++) {
-    const int blk_pos = scan[i];
-    qcoeff[blk_pos] = 0;
-    dqcoeff[blk_pos] = 0;
+  {
+    // next_row is the address of row pos + 1, kept as a signed integer so
+    // that stepping it past the last row forms no out-of-range pointer and
+    // adding a negative prevId does not wrap. The node of position pos + 1
+    // is next_row plus prevId; the last node's prevId is negative, so that
+    // address stays inside row pos and is never read.
+    intptr_t next_row = (intptr_t)(trellis + TCQ_N_STATES);
+    const uint8_t *node = (const uint8_t *)(trellis + state);
+    int prev_id;
+    do {
+      // Byte 15 is prevId, bits 0..23 of the word at byte 12 are absLevel.
+      prev_id = (int8_t)node[15];
+      int32_t word;
+      memcpy(&word, node + 12, sizeof(word));
+      const int abs_level = (int32_t)(((uint32_t)word & 0x00FFFFFFu) << 8) >> 8;
+      node = (const uint8_t *)(next_row + (intptr_t)prev_id *
+                                              (intptr_t)sizeof(tcq_node_t));
+      next_row += TCQ_N_STATES * (intptr_t)sizeof(tcq_node_t);
+      const int blk_pos = scan[pos];
+      const int neg = tcoeff[blk_pos] < 0;
+      if (use_qm) dqv = get_dqv(dequant, blk_pos, iqmatrix);
+      const int q_i = prev_id >= 0 ? tcq_quant(prev_id) : 0;
+      const int qc = abs_level == 0 ? 0 : 2 * abs_level - q_i;
+      const int dqc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qc * dqv,
+                                                        QUANT_TABLE_BITS) >>
+                      log_scale;
+      const int zero_blk = scan[clear_pos > pos ? clear_pos : pos];
+      qcoeff[zero_blk] = 0;
+      dqcoeff[zero_blk] = 0;
+      qcoeff[blk_pos] = neg ? -abs_level : abs_level;
+      dqcoeff[blk_pos] = neg ? -dqc : dqc;
+      if (!use_qm) dqv = dqv_ac;
+      clear_pos--;
+      pos++;
+    } while (prev_id >= 0);
   }
   return pos;
 }
@@ -1746,12 +1736,21 @@ int av2_find_best_path_neon(const struct tcq_node_t *trellis,
                             int first_scan_pos, int log_scale,
                             tran_low_t *qcoeff, tran_low_t *dqcoeff,
                             int *min_rate, int64_t *min_cost) {
-  if (iqmatrix != NULL) {
-    return find_best_path_walk_neon(trellis, scan, dequant, iqmatrix, tcoeff,
-                                    first_scan_pos, log_scale, qcoeff, dqcoeff,
-                                    min_rate, min_cost, true);
+  const int state = min_cost_state_neon(trellis, min_rate, min_cost);
+  int eob = 0;
+  if (state >= 0) {
+    eob = iqmatrix != NULL
+              ? find_best_path_walk_neon(trellis, state, scan, dequant,
+                                         iqmatrix, tcoeff, first_scan_pos,
+                                         log_scale, qcoeff, dqcoeff, true)
+              : find_best_path_walk_neon(trellis, state, scan, dequant, NULL,
+                                         tcoeff, first_scan_pos, log_scale,
+                                         qcoeff, dqcoeff, false);
   }
-  return find_best_path_walk_neon(trellis, scan, dequant, NULL, tcoeff,
-                                  first_scan_pos, log_scale, qcoeff, dqcoeff,
-                                  min_rate, min_cost, false);
+  for (int i = eob; i <= first_scan_pos - eob; i++) {
+    const int blk_pos = scan[i];
+    qcoeff[blk_pos] = 0;
+    dqcoeff[blk_pos] = 0;
+  }
+  return eob;
 }
