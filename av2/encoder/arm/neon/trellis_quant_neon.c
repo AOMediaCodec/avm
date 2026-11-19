@@ -1709,6 +1709,8 @@ static AVM_FORCE_INLINE int find_best_path_walk_neon(
       node = (const uint8_t *)(next_row + (intptr_t)prev_id *
                                               (intptr_t)sizeof(tcq_node_t));
       next_row += TCQ_N_STATES * (intptr_t)sizeof(tcq_node_t);
+      // write_path_pos_neon() written out: calling it here makes clang keep
+      // more registers live across the walk, which measured slower on 4x4.
       const int blk_pos = scan[pos];
       const int neg = tcoeff[blk_pos] < 0;
       if (use_qm) dqv = get_dqv(dequant, blk_pos, iqmatrix);
