@@ -984,6 +984,11 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     // temporal scalability.
     if (data == NULL && data_sz == 0) {
       AV2_COMMON *const cm = &pbi->common;
+      if (!av2_ci_temporal_unit_complete(pbi)) {
+        set_error_detail(ctx,
+                         "Content interpretation changed without a key frame");
+        return AVM_CODEC_CORRUPT_FRAME;
+      }
       av2_decoder_model_verifier_before_final_output(pbi, UINT64_MAX, true);
       if (av2_decoder_model_verifier_should_stop(pbi)) {
         av2_decoder_model_verifier_finish(pbi);
@@ -1177,16 +1182,10 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
 
     res = decode_one(ctx, &data_start, frame_unit_size, user_priv);
 
-    if (res != AVM_CODEC_OK) {
-      free(frame_worker_data->pbi->obu_list);
-      frame_worker_data->pbi->num_obus_with_frame_unit = 0;
-      return res;
-    }
-
-    set_last_frame_unit(frame_worker_data->pbi);
-    free(frame_worker_data->pbi->obu_list);
-    frame_worker_data->pbi->obu_list = NULL;
-    frame_worker_data->pbi->num_obus_with_frame_unit = 0;
+    if (res == AVM_CODEC_OK) set_last_frame_unit(pbi);
+    free(pbi->obu_list);
+    pbi->obu_list = NULL;
+    pbi->num_obus_with_frame_unit = 0;
 
     if (av2_decoder_model_verifier_should_stop(pbi)) {
       av2_decoder_model_verifier_finish(pbi);
@@ -1194,6 +1193,7 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
       set_error_detail(ctx, "Decoder model conformance violation");
       return AVM_CODEC_UNSUP_BITSTREAM;
     }
+    if (res != AVM_CODEC_OK) return res;
   }
 
   if (data_start != data_end) {

@@ -223,6 +223,38 @@ avmdec_decoder_model_every_rap_option() {
 }
 
 
+avmdec_decoder_model_fatal_at_eos() {
+  [ "$(av2_encode_available)" = "yes" ] || return 0
+  [ "$(avmdec_can_decode_av2)" = "yes" ] || return 0
+  local input="${AVM_TEST_OUTPUT_DIR}/decoder_model_black_64x64.yuv"
+  local stream="${AVM_TEST_OUTPUT_DIR}/decoder_model_eos.obu"
+  local log="${AVM_TEST_OUTPUT_DIR}/decoder_model_eos.log"
+  local encoder="$(avm_tool_path avmenc)"
+  local decoder="$(avm_tool_path avmdec)"
+  dd if=/dev/zero of="${input}" bs=6144 count=2 2>/dev/null || return 1
+  eval "${AVM_TEST_PREFIX}" "${encoder}" --quiet --obu --limit=2 \
+    --width=64 --height=64 --fps=10/1 --lag-in-frames=0 --cpu-used=8 \
+    --end-usage=q --qp=210 --timing-info=constant --target-seq-level-idx=0 \
+    --enable-intrabc=0 --enable-intrabc-ext=0 --dpb-size=4 \
+    --max-reference-frames=3 -o "${stream}" "${input}" || return 1
+  # Append 16 KiB of unregistered suffix metadata to the last frame. Its
+  # compressed-size limit uses the preceding parsing interval at end of stream.
+  # LEB128 size 16388, OBU_METADATA_SHORT, suffix flag, metadata type 10.
+  printf '\204\200\001\040\200\012' >>"${stream}" || return 1
+  dd if=/dev/zero bs=16384 count=1 2>/dev/null >>"${stream}" || return 1
+  printf '\200' >>"${stream}" || return 1
+  eval "${AVM_TEST_PREFIX}" "${decoder}" --noblit --check-conformance=warn \
+    "${stream}" >"${log}" 2>&1 || return 1
+  grep -q "code=MAX_COMPRESSED_SIZE " "${log}" || return 1
+  if eval "${AVM_TEST_PREFIX}" "${decoder}" --noblit --keep-going \
+      --check-conformance=fatal "${stream}" >"${log}" 2>&1; then
+    return 1
+  fi
+  grep -q "code=MAX_COMPRESSED_SIZE " "${log}" &&
+    grep -q "Failed to flush decoder:" "${log}"
+}
+
+
 
 avmdec_tests="avmdec_av2_ivf
               avmdec_av2_ivf_error_resilient
@@ -233,7 +265,8 @@ avmdec_tests="avmdec_av2_ivf
               avmdec_random_access_kf0
               avmdec_random_access_kf1
               avmdec_random_access_kf2
-              avmdec_decoder_model_every_rap_option"
+              avmdec_decoder_model_every_rap_option
+              avmdec_decoder_model_fatal_at_eos"
 
 if [ "$(avm_multithread_available)" = "yes" ]; then
   avmdec_tests="${avmdec_tests}

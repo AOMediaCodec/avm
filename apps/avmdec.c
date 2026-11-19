@@ -1178,7 +1178,12 @@ static int main_loop(int argc, const char **argv_) {
     if (flush_decoder) {
       // Flush the decoder.
       if (avm_codec_decode(&decoder, NULL, 0, NULL)) {
+        const char *detail = avm_codec_error_detail(&decoder);
         warn("Failed to flush decoder: %s", avm_codec_error(&decoder));
+        if (detail) warn("Additional information: %s", detail);
+        if (detail && !strcmp(detail, "Decoder model conformance violation")) {
+          goto fail;
+        }
       }
     }
     avm_usec_timer_mark(&timer);

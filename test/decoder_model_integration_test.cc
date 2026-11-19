@@ -990,12 +990,18 @@ TEST_F(DecoderModelHookOrderTest,
   EXPECT_EQ(boundary.cvs_aggregates, 2u);
   EXPECT_EQ(boundary.open_cvs, 1u);
 
+  testing::internal::CaptureStderr();
   av2_decoder_model_verifier_on_frame_wrapup_start(pbi_);
   av2_decoder_model_verifier_record_obu(pbi_, OBU_METADATA_SHORT, 0, 0, 0, 80);
   av2_decoder_model_verifier_on_frame_unit_complete(pbi_);
   av2_decoder_model_verifier_after_reference_update(pbi_, 1);
   av2_decoder_model_verifier_on_output(pbi_, -1, &frame_,
                                        AV2_DM_PRESENTATION_OWNER_CURRENT);
+
+  const std::string new_cvs = testing::internal::GetCapturedStderr();
+  EXPECT_EQ(new_cvs.find("code=DECODE_EXISTING_FRAME_BUFFER_EMPTY"),
+            std::string::npos)
+      << new_cvs;
 
   Av2DmRunStats continuing = {};
   Av2DmRunStats clk_start = {};
@@ -1143,10 +1149,10 @@ TEST_F(DecoderModelResultTest, TerminalFailureChangesHowLaterRunsFinish) {
     av2_decoder_model_verifier_on_sequence_header(pbi_, 0, 0);
     pbi_->common.brt_info.br_ops_dependent_flag = 0;
     pbi_->common.brt_info.br_time = 0;
-    av2_decoder_model_verifier_on_buffer_removal_timing(pbi_, 0);
     testing::internal::CaptureStderr();
     StartFrame(OBU_CLOSED_LOOP_KEY, 64, 64, &frame_, 0, KEY_FRAME, false, false,
                0, 0, true);
+    av2_decoder_model_verifier_on_buffer_removal_timing(pbi_, 0);
     av2_decoder_model_verifier_record_obu(pbi_, OBU_METADATA_SHORT, 0, 0, 0,
                                           100000000);
     av2_decoder_model_verifier_on_frame_unit_complete(pbi_);
@@ -1154,8 +1160,11 @@ TEST_F(DecoderModelResultTest, TerminalFailureChangesHowLaterRunsFinish) {
     av2_decoder_model_verifier_record_obu(pbi_, OBU_TEMPORAL_DELIMITER, 0, 0, 0,
                                           8);
     pbi_->common.brt_info.br_time = 9000;
+    StartFrame(OBU_OPEN_LOOP_KEY, 64, 64, &frame_, 0, KEY_FRAME, false, false);
     av2_decoder_model_verifier_on_buffer_removal_timing(pbi_, 0);
-    StartFrame(OBU_OPEN_LOOP_KEY);
+    av2_decoder_model_verifier_record_obu(pbi_, OBU_METADATA_SHORT, 0, 0, 0,
+                                          80);
+    av2_decoder_model_verifier_on_frame_unit_complete(pbi_);
     Av2DmVerifierStats before{};
     EXPECT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &before));
     EXPECT_EQ(before.live_runs, 2u);
@@ -1641,8 +1650,45 @@ TEST_F(DecoderModelResultTest,
   EXPECT_NE(diagnostics.find("AV2_DECODER_MODEL_CVS_RESULT "
                              "status=INDETERMINATE xlayer=0 cvs=3"),
             std::string::npos);
-  EXPECT_EQ(CountOccurrences(diagnostics, "reason=incomplete_extraction"), 4u);
-  EXPECT_EQ(CountOccurrences(diagnostics, "reason=missing_required_input"), 2u);
+  // The third CLK is filtered. This also establishes the exact reason for
+  // the continuing run that began at the second CLK and its CVS aggregate.
+  EXPECT_EQ(CountOccurrences(diagnostics, "reason=incomplete_extraction"), 6u);
+  EXPECT_EQ(CountOccurrences(diagnostics, "reason=missing_required_input"), 0u);
+}
+
+TEST_F(DecoderModelResultTest, TrailingFilteredFrameMarksOnlyApplicableRuns) {
+  for (bool oversized : { false, true }) {
+    ReinitializeVerifier(true, AVM_DECODER_MODEL_CHECK_WARN);
+    OperatingPointSet *ops = &pbi_->ops_list[0][1];
+    ops->valid = 1;
+    ops->ops_id = 1;
+    ops->ops_cnt = 1;
+    ops->ops_mlayer_info_idc = 1;
+    ops->op[0].ops_mlayer_count[0] = 1;
+    ops->op[0].mlayer_info.ops_mlayer_map[0] = 1;
+    ops->op[0].mlayer_info.ops_tlayer_map[0][0] = 1;  // temporal layer 0 only
+    av2_decoder_model_verifier_on_operating_point_set(pbi_, 0, 1);
+    testing::internal::CaptureStderr();
+    StartFrame(OBU_CLOSED_LOOP_KEY, oversized ? 4096 : 64);
+    UpdateAndOutput();
+    av2_decoder_model_verifier_on_source_frame_unit_start(pbi_, 0, 0, 1);
+    av2_decoder_model_verifier_record_obu(pbi_, OBU_REGULAR_TILE_GROUP, 0, 0, 1,
+                                          800);
+    av2_decoder_model_verifier_on_obu_filtered(pbi_);
+    av2_decoder_model_verifier_finish(pbi_);
+    const std::string report = testing::internal::GetCapturedStderr();
+    EXPECT_NE(report.find(oversized ? "RESULT status=NON_CONFORMANT"
+                                    : "RESULT status=INDETERMINATE"),
+              std::string::npos)
+        << report;
+    EXPECT_NE(report.find("reason=incomplete_extraction"), std::string::npos)
+        << report;
+    if (!oversized) {
+      EXPECT_NE(report.find("status=CONFORMANT xlayer=0 ops=1 op=0"),
+                std::string::npos)
+          << report;
+    }
+  }
 }
 
 TEST_F(DecoderModelResultTest, ConsecutiveCvsRetainRequiredLiveRuns) {
@@ -2337,10 +2383,10 @@ TEST_F(DecoderModelResultTest,
   av2_decoder_model_verifier_on_sequence_header(pbi_, 0, 0);
   pbi_->common.brt_info.br_ops_dependent_flag = 0;
   pbi_->common.brt_info.br_time = 0;
-  av2_decoder_model_verifier_on_buffer_removal_timing(pbi_, 0);
 
   StartFrame(OBU_CLOSED_LOOP_KEY, 64, 64, &frame_, 0, KEY_FRAME, false, false,
              0, 0, true);
+  av2_decoder_model_verifier_on_buffer_removal_timing(pbi_, 0);
   av2_decoder_model_verifier_record_obu(pbi_, OBU_METADATA_SHORT, 0, 0, 0,
                                         100000000);
   av2_decoder_model_verifier_on_frame_unit_complete(pbi_);
@@ -2463,6 +2509,126 @@ TEST_F(DecoderModelResultTest, ClkOlkRasClkRunsCoexistAcrossCvsOwnership) {
   }
 }
 
+TEST_F(DecoderModelResultTest, SpecialFrameUsesCurrentTileGeometry) {
+  for (OBU_TYPE type : { OBU_REGULAR_TIP, OBU_LEADING_TIP, OBU_BRIDGE_FRAME,
+                         OBU_REGULAR_TILE_GROUP }) {
+    ReinitializeVerifier(true, AVM_DECODER_MODEL_CHECK_WARN);
+    StartFrame(OBU_CLOSED_LOOP_KEY);
+    EXPECT_TRUE(av2_count_frame_header_for_level(&pbi_->common));
+    UpdateAndOutput();
+    AV2_COMMON *cm = &pbi_->common;
+    cm->cur_frame = &second_frame_;
+    cm->current_frame.frame_type = INTER_FRAME;
+    cm->features.tip_frame_mode =
+        type == OBU_REGULAR_TIP || type == OBU_LEADING_TIP ? TIP_FRAME_AS_OUTPUT
+                                                           : TIP_FRAME_DISABLED;
+    cm->bru.frame_inactive_flag = type == OBU_REGULAR_TILE_GROUP;
+    cm->bridge_frame_info.is_bridge_frame = type == OBU_BRIDGE_FRAME;
+    // The leading TIP has a parsed layout with a too-narrow first tile.
+    // The other three cases have stale column starts from a larger frame.
+    const bool reads_tiles = type == OBU_LEADING_TIP;
+    cm->seq_params.enable_lf_sub_pu = reads_tiles;
+    cm->features.allow_lf_sub_pu = reads_tiles;
+    cm->lf.apply_deblocking_filter_tip = reads_tiles;
+    cm->tiles.cols = 2;
+    cm->tiles.col_start_sb[1] = reads_tiles ? 4 : 32;
+    cm->tiles.col_start_sb[2] = reads_tiles ? cm->mi_params.mi_cols : 64;
+    if (type == OBU_BRIDGE_FRAME) {
+      // The inferred grid needs two columns to meet the 4096-sample tile
+      // width limit, even though no tile pattern is signaled.
+      cm->width = 8192;
+      cm->mi_params.mi_cols = cm->width / MI_SIZE;
+      cm->mib_size_log2 = cm->seq_params.mib_size_log2 = 4;
+      cm->tiles.col_start_sb[1] = 160;
+      cm->tiles.col_start_sb[2] = 256;
+    }
+    av2_decoder_model_verifier_on_source_frame_unit_start(pbi_, 0, 0, 0);
+    av2_decoder_model_verifier_record_obu(pbi_, type, 0, 0, 0, 800);
+    pbi_->obu_type = type;
+    EXPECT_EQ(av2_count_frame_header_for_level(cm), type == OBU_BRIDGE_FRAME);
+    testing::internal::CaptureStderr();
+    av2_decoder_model_verifier_on_frame_wrapup_start(pbi_);
+    av2_decoder_model_verifier_on_frame_unit_complete(pbi_);
+    const std::string report = testing::internal::GetCapturedStderr();
+    EXPECT_EQ(report.find("code=MAX_TILE_WIDTH"), std::string::npos) << report;
+    EXPECT_EQ(report.find("code=MAX_TILE_AREA"), std::string::npos) << report;
+    EXPECT_EQ(report.find("code=MIN_TILE_WIDTH") != std::string::npos,
+              reads_tiles)
+        << report;
+    cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
+    cm->bru.frame_inactive_flag = 0;
+    cm->bridge_frame_info.is_bridge_frame = 0;
+  }
+}
+
+TEST_F(DecoderModelResultTest, ConcreteOperatingPointInUnconstrainedSequence) {
+  pbi_->common.seq_params.seq_max_level_idx = SEQ_LEVEL_MAX;
+  av2_decoder_model_verifier_on_active_configuration(pbi_, 0, 0);
+  OperatingPointSet *ops = &pbi_->ops_list[0][1];
+  ops->valid = 1;
+  ops->ops_id = 1;
+  ops->ops_cnt = 1;
+  ops->ops_ptl_present_flag = 1;
+  ops->op[0].ops_level_idx[0] = SEQ_LEVEL_2_0;
+  ops->op[0].ops_mlayer_count[0] = 1;
+  ops->op[0].mlayer_info.ops_mlayer_map[0] = 1;
+  ops->op[0].mlayer_info.ops_tlayer_map[0][0] = 1;
+  av2_decoder_model_verifier_on_operating_point_set(pbi_, 0, 1);
+
+  StartFrame(OBU_CLOSED_LOOP_KEY, 640, 480);
+  Av2DmRunStats whole = {}, op = {};
+  ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 0, 0, &whole));
+  ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, 1, 0, &op));
+  EXPECT_EQ(whole.status, AV2_DM_RESULT_NOT_APPLICABLE);
+  EXPECT_EQ(op.status, AV2_DM_RESULT_NON_CONFORMANT);
+}
+
+TEST_F(DecoderModelResultTest, RemovalTimesAreScopedToOpsAndFrameUnit) {
+  SequenceHeader *seq = &pbi_->seq_list[0][0];
+  seq->decoder_model_info_present_flag = 1;
+  seq->seq_max_decoder_model_present_flag = 1;
+  seq->seq_max_decoder_buffer_delay = 70000;
+  seq->seq_max_encoder_buffer_delay = 20000;
+  seq->seq_max_low_delay_mode_flag = 1;
+  pbi_->common.seq_params = *seq;
+  av2_decoder_model_verifier_on_active_configuration(pbi_, 0, 0);
+  for (int id : { 1, 2 }) {
+    OperatingPointSet *ops = &pbi_->ops_list[0][id];
+    ops->valid = 1;
+    ops->ops_id = id;
+    ops->ops_cnt = 1;
+    ops->op[0].ops_mlayer_count[0] = 1;
+    ops->op[0].mlayer_info.ops_mlayer_map[0] = 1;
+    ops->op[0].mlayer_info.ops_tlayer_map[0][0] = 1;
+    av2_decoder_model_verifier_on_operating_point_set(pbi_, 0, id);
+  }
+  StartFrame(OBU_CLOSED_LOOP_KEY, 64, 64, &frame_, 0, KEY_FRAME, false, false);
+  BufferRemovalTimingInfo *brt = &pbi_->common.brt_info;
+  av2_decoder_model_verifier_on_buffer_removal_timing(pbi_, 0);
+  for (int id : { 1, 2 }) {
+    brt->br_ops_dependent_flag = 1;
+    brt->br_ops_id = id;
+    brt->br_ops_cnt[id] = 1;
+    brt->br_decoder_model_present_op_flag[id][0] = 1;
+    brt->br_time_op[id][0] = 511;
+    av2_decoder_model_verifier_on_buffer_removal_timing(pbi_, 0);
+  }
+  av2_decoder_model_verifier_on_frame_unit_complete(pbi_);
+  UpdateAndOutput();
+  for (int i = 0; i < 3; ++i) {
+    Av2DmRunStats run = {};
+    ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, i, 0, &run));
+    EXPECT_EQ(run.status, AV2_DM_RESULT_CONFORMANT);
+  }
+  // The same TU has another frame unit with no BRT for any of the scopes.
+  StartFrame(OBU_REGULAR_TILE_GROUP, 64, 64, &second_frame_, 0, INTER_FRAME);
+  for (int i = 0; i < 3; ++i) {
+    Av2DmRunStats run = {};
+    ASSERT_TRUE(av2_decoder_model_verifier_get_run_stats(pbi_, i, 0, &run));
+    EXPECT_EQ(run.status, AV2_DM_RESULT_INDETERMINATE);
+  }
+}
+
 TEST_F(DecoderModelResultTest, ExplicitOperatingPointLevelOverridesSequence) {
   SequenceHeader *const sequence = &pbi_->seq_list[0][0];
   sequence->seq_max_level_idx = SEQ_LEVEL_3_0;
@@ -2529,6 +2695,8 @@ TEST_F(DecoderModelResultTest,
   ops->ops_cnt = 1;
   ops->ops_ptl_present_flag = 1;
   ops->op[0].ops_seq_profile_idc[0] = MAIN_420_10_IP0;
+  ops->op[0].ops_initial_display_delay_present_flag = 1;
+  ops->op[0].ops_initial_display_delay = 1;
   ops->op[0].ops_level_idx[0] = SEQ_LEVEL_3_0;
   ops->op[0].ops_mlayer_count[0] = 1;
   ops->op[0].mlayer_info.ops_mlayer_map[0] = 1;
@@ -2539,6 +2707,7 @@ TEST_F(DecoderModelResultTest,
   StartFrame(OBU_CLOSED_LOOP_KEY, 64, 64, &frame_);
   UpdateAndOutput();
 
+  ops->op[0].ops_initial_display_delay = 4;
   ops->op[0].ops_level_idx[0] = SEQ_LEVEL_2_0;
   av2_decoder_model_verifier_on_operating_point_set(pbi_, 0, 1);
   av2_decoder_model_verifier_record_obu(pbi_, OBU_TEMPORAL_DELIMITER, 0, 0, 0,
@@ -2549,9 +2718,18 @@ TEST_F(DecoderModelResultTest,
   av2_decoder_model_verifier_after_reference_update(pbi_, 2);
   av2_decoder_model_verifier_on_output(pbi_, -1, &second_frame_,
                                        AV2_DM_PRESENTATION_OWNER_CURRENT);
+  Av2DmRunStats continuing = {}, fresh = {};
+  const bool have_continuing =
+      av2_decoder_model_verifier_get_run_stats(pbi_, 1, 0, &continuing);
+  const bool have_fresh =
+      av2_decoder_model_verifier_get_run_stats(pbi_, 1, 1, &fresh);
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
 
+  ASSERT_TRUE(have_continuing);
+  ASSERT_TRUE(have_fresh);
+  EXPECT_TRUE(continuing.initial_presentation_delay_known);
+  EXPECT_FALSE(fresh.initial_presentation_delay_known);
   EXPECT_EQ(CountOccurrences(diagnostics, "AV2_DECODER_MODEL_CVS_RESULT "), 1u);
   EXPECT_NE(diagnostics.find("status=NON_CONFORMANT xlayer=0 ops=1 op=0 "
                              "rap=0 mode=resource decoded=2"),
@@ -2859,6 +3037,8 @@ TEST_F(DecoderModelResultTest, MissingOutputGenerationIsIndeterminate) {
 
 TEST_F(DecoderModelResultTest,
        CopiedShowExistingOutputUsesSourceReferenceGeneration) {
+  pbi_->common.seq_params.still_picture = 0;
+  av2_decoder_model_verifier_on_active_configuration(pbi_, 0, 0);
   StartFrame(OBU_CLOSED_LOOP_KEY);
   UpdateAndOutput();
 
@@ -2868,7 +3048,12 @@ TEST_F(DecoderModelResultTest,
   av2_decoder_model_verifier_record_obu(pbi_, OBU_REGULAR_SEF, 0, 0, 0, 80);
   AV2_COMMON *const cm = &pbi_->common;
   pbi_->obu_type = OBU_REGULAR_SEF;
+  // The current decoder dimensions still describe a larger frame.
+  cm->current_frame.frame_type = KEY_FRAME;
+  cm->width = 640;
+  cm->height = 480;
   cm->show_existing_frame = 1;
+  EXPECT_FALSE(av2_count_frame_header_for_level(cm));
   cm->sef_ref_fb_idx = 0;
   cm->cur_frame = &second_frame_;
   second_frame_.xlayer_id = 0;
@@ -2893,6 +3078,8 @@ TEST_F(DecoderModelResultTest,
   av2_decoder_model_verifier_finish(pbi_);
   const std::string diagnostics = testing::internal::GetCapturedStderr();
 
+  EXPECT_EQ(diagnostics.find("code=MAX_DISPLAY_RATE"), std::string::npos)
+      << diagnostics;
   EXPECT_NE(diagnostics.find("status=CONFORMANT"), std::string::npos);
   EXPECT_NE(diagnostics.find("decoded=1 outputs=2"), std::string::npos);
   EXPECT_EQ(diagnostics.find("reason=missing_frame_generation"),
@@ -3342,11 +3529,12 @@ static void AppendDecodedFrames(libavm_test::AV2Decoder *decoder,
 static DecoderModelDecodeOutput DecodePackets(
     const std::vector<DecoderModelEncodedPacket> &packets,
     avm_decoder_model_check_mode_t mode = AVM_DECODER_MODEL_CHECK_WARN,
-    bool set_mode = true) {
+    bool set_mode = true, bool bru_opt_mode = false) {
   DecoderModelDecodeOutput output;
   avm_codec_dec_cfg_t config = {};
   config.threads = 1;
   libavm_test::AV2Decoder decoder(config);
+  if (bru_opt_mode) decoder.Control(AV2D_SET_BRU_OPT_MODE, 1);
   if (set_mode) decoder.Control(AV2D_SET_DECODER_MODEL_CHECK_MODE, mode);
   testing::internal::CaptureStderr();
   for (const DecoderModelEncodedPacket &packet : packets) {
@@ -3355,7 +3543,14 @@ static DecoderModelDecodeOutput DecodePackets(
     const avm_codec_err_t status = decoder.DecodeFrame(
         packet.bytes.data(), packet.bytes.size(), timestamp);
     output.statuses.push_back(status);
-    if (status != AVM_CODEC_OK) break;
+    if (status != AVM_CODEC_OK) {
+      if (mode == AVM_DECODER_MODEL_CHECK_FATAL) {
+        // Further input returns the latched error, and flush is safe below.
+        output.statuses.push_back(
+            decoder.DecodeFrame(packet.bytes.data(), packet.bytes.size()));
+      }
+      break;
+    }
     AppendDecodedFrames(&decoder, &output);
   }
   const avm_codec_err_t flush_status = decoder.DecodeFrame(nullptr, 0);
@@ -3386,7 +3581,8 @@ class DecoderModelEncodedStreamTest : public ::testing::Test,
                           libavm_test::Encoder *encoder) override {
     if (controls_set_ || video->frame() != 0) return;
     encoder->Control(AVME_SET_CPUUSED, cpu_used_);
-    encoder->Control(AVME_SET_QP, 235);
+    encoder->Control(AVME_SET_QP, qp_);
+    if (enable_bru_) encoder->Control(AV2E_SET_ENABLE_BRU, 1);
     encoder->Control(AV2E_SET_TARGET_SEQ_LEVEL_IDX, target_level_);
     encoder->Control(AV2E_SET_TIMING_INFO_TYPE, AVM_TIMING_EQUAL);
     encoder->Control(AV2E_SET_ENABLE_INTRABC, 0);
@@ -3453,8 +3649,34 @@ class DecoderModelEncodedStreamTest : public ::testing::Test,
   bool controls_set_;
   AV2_LEVEL target_level_;
   int cpu_used_;
+  int qp_ = 235;
+  bool enable_bru_ = false;
   std::vector<DecoderModelEncodedPacket> packets_;
 };
+
+TEST_F(DecoderModelEncodedStreamTest, OptimizedBruRetainsFrameGenerations) {
+  cpu_used_ = 8;
+  qp_ = 180;
+  enable_bru_ = true;
+  libavm_test::I420VideoSource video(
+      "Debugging_480x270p3000_yuv420p_20frames.yuv", 480, 270, 10, 1, 0, 12);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  ASSERT_FALSE(packets_.empty());
+  const DecoderModelDecodeOutput regular =
+      DecodePackets(packets_, AVM_DECODER_MODEL_CHECK_FATAL);
+  const DecoderModelDecodeOutput optimized =
+      DecodePackets(packets_, AVM_DECODER_MODEL_CHECK_FATAL, true, true);
+  EXPECT_EQ(regular.statuses, optimized.statuses);
+  for (avm_codec_err_t status : optimized.statuses)
+    EXPECT_EQ(status, AVM_CODEC_OK);
+  EXPECT_EQ(regular.frames, optimized.frames);
+  EXPECT_EQ(optimized.frames.size(), 12u);
+  EXPECT_EQ(regular.diagnostics, optimized.diagnostics);
+  EXPECT_NE(optimized.diagnostics.find("status=CONFORMANT"), std::string::npos);
+  EXPECT_NE(optimized.diagnostics.find("decoded=12 outputs=12"),
+            std::string::npos)
+      << optimized.diagnostics;
+}
 
 TEST_F(DecoderModelEncodedStreamTest, Level20Control) {
   Av2DmLevelLimits limits{};
@@ -3552,8 +3774,10 @@ TEST_F(DecoderModelEncodedStreamTest, Level30AndIncorrectLevel21) {
   EXPECT_NE(negative.diagnostics.find("violations=12 reason=none"),
             std::string::npos);
 
-  ASSERT_FALSE(fatal.statuses.empty());
-  EXPECT_EQ(fatal.statuses.front(), AVM_CODEC_UNSUP_BITSTREAM);
+  ASSERT_EQ(fatal.statuses.size(), 3u);
+  for (avm_codec_err_t status : fatal.statuses) {
+    EXPECT_EQ(status, AVM_CODEC_UNSUP_BITSTREAM);
+  }
   EXPECT_EQ(CountOccurrences(fatal.diagnostics, "AV2_DECODER_MODEL_WARNING "),
             1u);
   EXPECT_EQ(

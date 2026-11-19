@@ -7545,6 +7545,8 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         cm->mlayer_id, cm->seq_params.max_mlayer_id);
   }
 
+  av2_update_layer_ci_at_frame_header(pbi, obu_type);
+
   if (!keyframe_unit_in_tu) {
     if (pbi->decoder_model_verifier != NULL) {
       av2_decoder_model_verifier_on_active_configuration(pbi, xlayer_id,
@@ -7567,52 +7569,6 @@ static void handle_sequence_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       cm->olk_refresh_frame_flags[layer] = -1;
       cm->olk_co_vcl_refresh_frame_flags[layer] = -1;
       cm->prev_olk_co_vcl_refresh_frame_flags[layer] = -1;
-    }
-  }
-
-  // When OBU_CONTENT_INTERPRETATION is not accompanied with the current obu
-  // at a RAP boundary, cm->ci_params_per_layer[cm->mlayer_id] is reset to
-  // default values and then inherited from a dependent layer.
-  // CI params are initialized at:
-  //   - All CLK frames
-  //   - OLK or RAS frames only when random access decoding starts at this TU
-  // For higher mlayers, the RAP boundary is inherited from transitively
-  // dependent layers that have a CLK, or an OLK/RAS with random access.
-  const bool is_ci_present =
-      pbi->obus_in_frame_unit_data[cm->tlayer_id][cm->mlayer_id]
-                                  [OBU_CONTENT_INTERPRETATION];
-  bool is_rap_boundary =
-      (obu_type == OBU_CLOSED_LOOP_KEY) ||
-      ((obu_type == OBU_OPEN_LOOP_KEY || obu_type == OBU_RAS_FRAME) &&
-       pbi->random_accessed);
-  if (!is_rap_boundary && cm->mlayer_id > 0) {
-    for (int ref = 0; ref < cm->mlayer_id; ref++) {
-      if (is_mlayer_transitively_dependent(&cm->seq_params, cm->mlayer_id,
-                                           ref) &&
-          (pbi->obus_in_frame_unit_data[cm->tlayer_id][ref]
-                                       [OBU_CLOSED_LOOP_KEY] ||
-           ((pbi->obus_in_frame_unit_data[cm->tlayer_id][ref]
-                                         [OBU_OPEN_LOOP_KEY] ||
-             pbi->obus_in_frame_unit_data[cm->tlayer_id][ref][OBU_RAS_FRAME]) &&
-            pbi->random_accessed))) {
-        is_rap_boundary = true;
-        break;
-      }
-    }
-  }
-  if (!is_ci_present && is_rap_boundary) {
-    // Initialize to default first
-    av2_initialize_ci_params(&cm->ci_params_per_layer[cm->mlayer_id]);
-
-    // Then, inherit ci_params from the first transitively dependent layer
-    for (int ref_layer_id = cm->mlayer_id - 1; ref_layer_id >= 0;
-         ref_layer_id--) {
-      if (is_mlayer_transitively_dependent(&cm->seq_params, cm->mlayer_id,
-                                           ref_layer_id)) {
-        cm->ci_params_per_layer[cm->mlayer_id] =
-            cm->ci_params_per_layer[ref_layer_id];
-        break;
-      }
     }
   }
 
@@ -9783,10 +9739,6 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
     cm->features.frame_symbol_count = frame_symbol_count;
   }
 
-  if (pbi->decoder_model_verifier != NULL) {
-    av2_decoder_model_verifier_on_frame_wrapup_start(pbi);
-  }
-
   av2_alloc_cdef_buffers(cm, &pbi->cdef_worker, &pbi->cdef_sync,
                          pbi->num_workers);
   av2_alloc_cdef_sync(cm, &pbi->cdef_sync, pbi->num_workers);
@@ -9804,21 +9756,24 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
   // drop the recon
   // 3. if any inactive block exists and bru enabled, update ref and drop the
   // if enabled flag signaled == 1, do swap
-  if (cm->bru.enabled && pbi->bru_opt_mode &&
-      cm->current_frame.frame_type != KEY_FRAME) {
-    dec_bru_swap_stage(cm, xd);
-    if (cm->bru.frame_inactive_flag) {
-      cm->cur_frame->frame_context = *cm->fc;
+  const bool swap_bru_frame = cm->bru.enabled && pbi->bru_opt_mode &&
+                              cm->current_frame.frame_type != KEY_FRAME;
+  if (swap_bru_frame) dec_bru_swap_stage(cm, xd);
+  // Bind the generation to the physical buffer that will reach output.
+  if (pbi->decoder_model_verifier != NULL) {
+    av2_decoder_model_verifier_on_frame_wrapup_start(pbi);
+  }
+  if (swap_bru_frame && cm->bru.frame_inactive_flag) {
+    cm->cur_frame->frame_context = *cm->fc;
 #if CONFIG_PARAKIT_COLLECT_DATA
-      for (int i = 0; i < MAX_NUM_CTX_GROUPS; i++)
-        for (int j = 0; j < MAX_DIMS_CONTEXT3; j++)
-          for (int k = 0; k < MAX_DIMS_CONTEXT2; k++)
-            for (int l = 0; l < MAX_DIMS_CONTEXT1; l++)
-              for (int h = 0; h < MAX_DIMS_CONTEXT0; h++)
-                beginningFrameFlag[i][j][k][l][h] = 1;
+    for (int i = 0; i < MAX_NUM_CTX_GROUPS; i++)
+      for (int j = 0; j < MAX_DIMS_CONTEXT3; j++)
+        for (int k = 0; k < MAX_DIMS_CONTEXT2; k++)
+          for (int l = 0; l < MAX_DIMS_CONTEXT1; l++)
+            for (int h = 0; h < MAX_DIMS_CONTEXT0; h++)
+              beginningFrameFlag[i][j][k][l][h] = 1;
 #endif
-      return;
-    }
+    return;
   }
 
   if (!cm->bru.frame_inactive_flag) {

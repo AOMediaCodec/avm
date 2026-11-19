@@ -325,6 +325,12 @@ typedef struct MsdoConfig {
   int stream_ids[AVM_MAX_NUM_STREAMS];
 } MsdoConfig;
 
+typedef struct CiTemporalUnitState {
+  uint8_t signaled_layers;
+  uint8_t layers_with_key_dependency;
+  uint8_t changed_layers_awaiting_key;
+} CiTemporalUnitState;
+
 typedef struct AV2Decoder {
   DecoderCodingBlock dcb;
 
@@ -622,6 +628,7 @@ typedef struct AV2Decoder {
    * unit data
    */
   bool obus_in_frame_unit_data[MAX_NUM_TLAYERS][MAX_NUM_MLAYERS][NUM_OBU_TYPES];
+  CiTemporalUnitState ci_tu[MAX_NUM_XLAYERS];
 
   /*!
    * Indicates if the bitstream has multiple extended layers (multistream).

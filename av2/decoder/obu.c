@@ -834,7 +834,10 @@ static uint32_t read_tilegroup_obu(AV2Decoder *pbi,
       // cm->error.error_code is already set.
       return 0;
     }
-    if (pbi->decoder_model_verifier != NULL) {
+    // Bridge and inactive BRU frames enter tile wrapup below, where the
+    // final reconstruction buffer is known after a possible BRU swap.
+    if (pbi->decoder_model_verifier != NULL && !cm->bru.frame_inactive_flag &&
+        !cm->bridge_frame_info.is_bridge_frame) {
       av2_decoder_model_verifier_on_frame_wrapup_start(pbi);
     }
     header_size = (int32_t)avm_rb_bytes_read(rb);
@@ -2752,7 +2755,15 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
     av2_init_read_bit_buffer(pbi, &rb, data, data + payload_size);
     switch (obu_header.type) {
-      case OBU_TEMPORAL_DELIMITER:
+      case OBU_TEMPORAL_DELIMITER: {
+        const bool ci_complete = av2_ci_temporal_unit_complete(pbi);
+        memset(pbi->ci_tu, 0, sizeof(pbi->ci_tu));
+        if (!ci_complete) {
+          avm_internal_error(
+              &cm->error, AVM_CODEC_CORRUPT_FRAME,
+              "Content interpretation changed without a key frame");
+          return -1;
+        }
         // Reset per-TU state unconditionally for the current stream.
         decoded_payload_size = read_temporal_delimiter_obu();
         pbi->seen_frame_header = 0;
@@ -2776,6 +2787,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
           }
         }
         break;
+      }
       case OBU_MULTI_STREAM_DECODER_OPERATION:
         decoded_payload_size =
             read_multi_stream_decoder_operation_obu(pbi, &rb);
@@ -2931,9 +2943,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
             if (acc_fgm_id_bitmap & (1 << i)) {
               pbi->fgm_list[i].fgm_from_leading = 1;
             }
-          if (pbi->obus_in_frame_unit_data[obu_header.obu_tlayer_id]
-                                          [leading_mlayer_id]
-                                          [OBU_CONTENT_INTERPRETATION])
+          if (pbi->ci_tu[cm->xlayer_id].signaled_layers &
+              (1u << leading_mlayer_id))
             cm->ci_params_per_layer[leading_mlayer_id].ci_from_leading = true;
           if (pbi->obus_in_frame_unit_data[obu_header.obu_tlayer_id]
                                           [leading_mlayer_id]
@@ -2979,9 +2990,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
           }
 
           if (cm->ci_params_per_layer[regular_mlayer_id].ci_from_leading == 1 &&
-              !pbi->obus_in_frame_unit_data[obu_header.obu_tlayer_id]
-                                           [regular_mlayer_id]
-                                           [OBU_CONTENT_INTERPRETATION]) {
+              !(pbi->ci_tu[cm->xlayer_id].signaled_layers &
+                (1u << regular_mlayer_id))) {
             av2_initialize_ci_params(
                 &cm->ci_params_per_layer[regular_mlayer_id]);
           }

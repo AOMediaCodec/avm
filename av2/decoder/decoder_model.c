@@ -25,6 +25,7 @@
 #include "av2/common/annexA.h"
 #include "av2/common/av2_common_int.h"
 #include "av2/common/level.h"
+#include "av2/common/tile_common.h"
 #include "av2/decoder/annexF.h"
 #include "av2/decoder/decoder.h"
 
@@ -95,7 +96,9 @@ typedef struct Av2DmOpsRecord {
 
 typedef struct Av2DmBrtRecord {
   int xlayer_id;
-  BufferRemovalTimingInfo brt;
+  int ops_id;  // -1 for the whole extended layer.
+  bool present[MAX_OPS_COUNT];
+  uint32_t time[MAX_OPS_COUNT];
 } Av2DmBrtRecord;
 
 typedef struct Av2DmActiveConfigurationRecord {
@@ -120,6 +123,7 @@ typedef struct Av2DmFrameSnapshot {
   int mlayer_id;
   int temporal_id;
   bool show_existing_frame;
+  bool count_frame_header;
   bool implicit_output_frame;
   bool leading_frame;
   bool frame_is_intra;
@@ -353,8 +357,6 @@ struct Av2DecoderModelVerifier {
   bool active_configuration_present[MAX_NUM_XLAYERS];
   uint64_t active_configuration_record[MAX_NUM_XLAYERS];
   uint64_t active_sequence_record[MAX_NUM_XLAYERS];
-  bool current_brt_present[MAX_NUM_XLAYERS];
-  uint64_t current_brt_record[MAX_NUM_XLAYERS];
   int multistream_even_allocation;
   int multistream_large_picture_index;
   bool current_source_frame_dispatched;
@@ -394,6 +396,8 @@ static void finish_all_cvs(Av2DecoderModelVerifier *verifier);
 static void emit_bitstream_result(Av2DecoderModelVerifier *verifier,
                                   bool complete);
 static void destroy_context_runs(Av2DmContext *context);
+static void mark_live_runs_incomplete(Av2DmContext *context,
+                                      Av2DmIndeterminateReason reason);
 
 static void retire_xlayer_generations(Av2DecoderModelVerifier *verifier,
                                       const AV2Decoder *pbi, int xlayer_id) {
@@ -838,9 +842,7 @@ static bool build_context_config(const Av2DecoderModelVerifier *verifier,
   if (mlayer_id < 0 || mlayer_id >= MAX_NUM_MLAYERS) return true;
   const ContentInterpretation *const ci = &active->ci[mlayer_id];
 
-  config->applicability = sequence->seq_max_level_idx == 31
-                              ? AV2_DM_NOT_APPLICABLE
-                              : AV2_DM_APPLICABLE;
+  config->applicability = AV2_DM_APPLICABLE;
   config->level_idx = sequence->seq_max_level_idx;
   config->tier = sequence->seq_tier;
   config->profile = sequence->seq_profile_idc;
@@ -889,9 +891,6 @@ static bool build_context_config(const Av2DecoderModelVerifier *verifier,
       config->profile = op->ops_seq_profile_idc[xlayer_id];
       config->level_idx = op->ops_level_idx[xlayer_id];
       config->tier = op->ops_tier_flag[xlayer_id];
-      if (config->level_idx == 31) {
-        config->applicability = AV2_DM_NOT_APPLICABLE;
-      }
     }
     config->operating_point_parameters_present =
         op->ops_decoder_model_info_for_this_op_present_flag != 0;
@@ -906,6 +905,10 @@ static bool build_context_config(const Av2DecoderModelVerifier *verifier,
     }
   }
 
+  if (config->level_idx == SEQ_LEVEL_MAX &&
+      config->applicability == AV2_DM_APPLICABLE) {
+    config->applicability = AV2_DM_NOT_APPLICABLE;
+  }
   if (config->sequence_parameters_present ||
       config->operating_point_parameters_present) {
     config->mode = AV2_DM_DECODING_SCHEDULE_MODE;
@@ -955,32 +958,30 @@ static bool build_context_config(const Av2DecoderModelVerifier *verifier,
   return true;
 }
 
+// A frame unit may carry a whole-layer BRT and BRTs for different OPS IDs.
+static size_t find_brt_record(const Av2DecoderModelVerifier *verifier,
+                              int xlayer_id, int ops_id) {
+  for (size_t i = 0; i < verifier->brt_record_count; ++i) {
+    const Av2DmBrtRecord *record = &verifier->brt_records[i];
+    if (record->xlayer_id == xlayer_id && record->ops_id == ops_id) return i;
+  }
+  return verifier->brt_record_count;
+}
+
 static bool find_buffer_removal_time(const Av2DecoderModelVerifier *verifier,
                                      const Av2DmContext *context,
                                      uint32_t *buffer_removal_time) {
-  const int xlayer_id = context->key.whole_xlayer ? context->key.xlayer_id
-                                                  : context->key.ops_xlayer_id;
-  if (xlayer_id < 0 || xlayer_id >= MAX_NUM_XLAYERS ||
-      !verifier->current_brt_present[xlayer_id] ||
-      verifier->current_brt_record[xlayer_id] >= verifier->brt_record_count) {
+  const Av2DmContextKey *key = &context->key;
+  const int op = key->whole_xlayer ? 0 : key->operating_point;
+  const size_t index =
+      key->whole_xlayer
+          ? find_brt_record(verifier, key->xlayer_id, -1)
+          : find_brt_record(verifier, key->ops_xlayer_id, key->ops_id);
+  if (index == verifier->brt_record_count || op < 0 || op >= MAX_OPS_COUNT ||
+      !verifier->brt_records[index].present[op]) {
     return false;
   }
-  const BufferRemovalTimingInfo *const brt =
-      &verifier->brt_records[verifier->current_brt_record[xlayer_id]].brt;
-  if (context->key.whole_xlayer) {
-    if (brt->br_ops_dependent_flag || brt->br_time < 0) return false;
-    *buffer_removal_time = (uint32_t)brt->br_time;
-    return true;
-  }
-  const int ops_id = context->key.ops_id;
-  const int op = context->key.operating_point;
-  if (!brt->br_ops_dependent_flag || brt->br_ops_id != ops_id || ops_id < 0 ||
-      ops_id >= MAX_NUM_OPS_ID || op < 0 || op >= MAX_OPS_COUNT ||
-      !brt->br_decoder_model_present_op_flag[ops_id][op] ||
-      brt->br_time_op[ops_id][op] < 0) {
-    return false;
-  }
-  *buffer_removal_time = (uint32_t)brt->br_time_op[ops_id][op];
+  *buffer_removal_time = verifier->brt_records[index].time[op];
   return true;
 }
 
@@ -1020,6 +1021,9 @@ static bool reset_xlayer_cvs_obu_accounting(Av2DecoderModelVerifier *verifier,
   for (size_t i = 0; i < verifier->context_count; ++i) {
     Av2DmContext *const context = &verifier->contexts[i];
     if (context->key.xlayer_id != xlayer_id) continue;
+    // Old implicit outputs were delivered to continuing runs at their hook.
+    // A run that starts at this CLK must begin with an empty DPB.
+    clear_context_prefix_events(context);
     context->pending_dfg_bits = 0;
     context->pending_after_event_valid = false;
     context->pending_after_event = 0;
@@ -1190,8 +1194,6 @@ void av2_decoder_model_verifier_record_obu(AV2Decoder *pbi, int obu_type,
     ++verifier->temporal_unit_index;
   }
   if (obu_type == OBU_TEMPORAL_DELIMITER) {
-    memset(verifier->current_brt_present, 0,
-           sizeof(verifier->current_brt_present));
     verifier->current_tu_obu_count = 0;
   }
   verifier->temporal_unit_has_obu = true;
@@ -1264,6 +1266,7 @@ void av2_decoder_model_verifier_on_source_frame_unit_start(AV2Decoder *pbi,
   } else {
     verifier->source_frame_unit_started = true;
   }
+  verifier->brt_record_count = 0;
   verifier->current_source_frame_dispatched = false;
   for (size_t i = 0; i < verifier->context_count; ++i) {
     clear_context_prefix_events(&verifier->contexts[i]);
@@ -1292,6 +1295,7 @@ void av2_decoder_model_verifier_on_obu_filtered(AV2Decoder *pbi) {
       Av2DmContext *const context = &verifier->contexts[i];
       if (context->active && obu_belongs_to_context(context, obu)) {
         context->incomplete_extraction = true;
+        mark_live_runs_incomplete(context, AV2_DM_REASON_INCOMPLETE_EXTRACTION);
       }
     }
   }
@@ -1625,13 +1629,9 @@ void av2_decoder_model_verifier_on_buffer_removal_timing(AV2Decoder *pbi,
   if (pbi == NULL || pbi->decoder_model_verifier == NULL) return;
   Av2DecoderModelVerifier *const verifier = pbi->decoder_model_verifier;
   if (!verifier_accepts_events(verifier)) return;
-  size_t record_index = verifier->brt_record_count;
-  for (size_t i = 0; i < verifier->brt_record_count; ++i) {
-    if (verifier->brt_records[i].xlayer_id == xlayer_id) {
-      record_index = i;
-      break;
-    }
-  }
+  const BufferRemovalTimingInfo *const brt = &pbi->common.brt_info;
+  const int ops_id = brt->br_ops_dependent_flag ? brt->br_ops_id : -1;
+  const size_t record_index = find_brt_record(verifier, xlayer_id, ops_id);
   if (record_index == verifier->brt_record_count &&
       verifier->brt_record_count == SIZE_MAX) {
     mark_arithmetic_failed(verifier);
@@ -1648,17 +1648,23 @@ void av2_decoder_model_verifier_on_buffer_removal_timing(AV2Decoder *pbi,
   }
   Av2DmBrtRecord *const record = &verifier->brt_records[record_index];
   record->xlayer_id = xlayer_id;
-  record->brt = pbi->common.brt_info;
+  record->ops_id = ops_id;
+  if (brt->br_ops_dependent_flag) {
+    for (int op = 0; op < MAX_OPS_COUNT; ++op) {
+      record->present[op] = op < brt->br_ops_cnt[ops_id] &&
+                            brt->br_decoder_model_present_op_flag[ops_id][op];
+      if (record->present[op]) record->time[op] = brt->br_time_op[ops_id][op];
+    }
+  } else {
+    record->present[0] = true;
+    record->time[0] = brt->br_time;
+  }
   Av2DmAdapterEvent *const event =
       append_event(verifier, AV2_DM_ADAPTER_BUFFER_REMOVAL_TIMING);
   if (event != NULL) {
     event->record_index = record_index;
     if (record_index == verifier->brt_record_count) {
       if (!increment_size(verifier, &verifier->brt_record_count)) return;
-    }
-    if (xlayer_id >= 0 && xlayer_id < MAX_NUM_XLAYERS) {
-      verifier->current_brt_present[xlayer_id] = true;
-      verifier->current_brt_record[xlayer_id] = event->record_index;
     }
   }
 }
@@ -1697,17 +1703,43 @@ void av2_decoder_model_verifier_on_multistream_configuration(
 
 static void capture_tile_statistics(const AV2_COMMON *cm,
                                     Av2DmFrameSnapshot *snapshot) {
-  snapshot->num_tiles = (uint32_t)(cm->tiles.cols * cm->tiles.rows);
-  snapshot->tile_columns = (uint32_t)cm->tiles.cols;
+  const bool tip = cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT;
+  const bool tip_tiles_present = cm->seq_params.enable_lf_sub_pu &&
+                                 cm->features.allow_lf_sub_pu &&
+                                 cm->lf.apply_deblocking_filter_tip;
   snapshot->non_rightmost_tile_width_valid = true;
-  for (int row = 0; row < cm->tiles.rows; ++row) {
-    const int row_start = cm->tiles.row_start_sb[row] << cm->mib_size_log2;
-    int row_end = cm->tiles.row_start_sb[row + 1] << cm->mib_size_log2;
+  const CommonTileParams *tiles = &cm->tiles;
+  CommonTileParams bridge_tiles;
+  if (cm->bridge_frame_info.is_bridge_frame) {
+    // tile_params() infers uniform spacing at the minimum column/row counts.
+    av2_get_tile_limits(
+        &bridge_tiles, cm->mi_params.mi_rows, cm->mi_params.mi_cols,
+        cm->mib_size_log2, cm->seq_params.mib_size_log2,
+        cm->seq_params.seq_max_level_idx, cm->seq_params.seq_tier);
+    bridge_tiles.uniform_spacing = 1;
+    bridge_tiles.log2_cols = bridge_tiles.min_log2_cols;
+    av2_calculate_tile_cols(&bridge_tiles);
+    bridge_tiles.log2_rows = bridge_tiles.min_log2_rows;
+    av2_calculate_tile_rows(&bridge_tiles);
+    tiles = &bridge_tiles;
+  } else if (cm->bru.frame_inactive_flag || (tip && !tip_tiles_present)) {
+    // No tile layout was parsed for this frame. Use the whole picture.
+    snapshot->num_tiles = snapshot->tile_columns = 1;
+    snapshot->max_tile_width = (uint64_t)cm->mi_params.mi_cols * MI_SIZE;
+    snapshot->max_tile_area =
+        snapshot->max_tile_width * cm->mi_params.mi_rows * MI_SIZE;
+    return;
+  }
+  snapshot->num_tiles = (uint32_t)(tiles->cols * tiles->rows);
+  snapshot->tile_columns = (uint32_t)tiles->cols;
+  for (int row = 0; row < tiles->rows; ++row) {
+    const int row_start = tiles->row_start_sb[row] << cm->mib_size_log2;
+    int row_end = tiles->row_start_sb[row + 1] << cm->mib_size_log2;
     if (row_end > cm->mi_params.mi_rows) row_end = cm->mi_params.mi_rows;
     const uint64_t tile_height = (uint64_t)(row_end - row_start) * MI_SIZE;
-    for (int col = 0; col < cm->tiles.cols; ++col) {
-      const int col_start = cm->tiles.col_start_sb[col] << cm->mib_size_log2;
-      int col_end = cm->tiles.col_start_sb[col + 1] << cm->mib_size_log2;
+    for (int col = 0; col < tiles->cols; ++col) {
+      const int col_start = tiles->col_start_sb[col] << cm->mib_size_log2;
+      int col_end = tiles->col_start_sb[col + 1] << cm->mib_size_log2;
       if (col_end > cm->mi_params.mi_cols) col_end = cm->mi_params.mi_cols;
       const uint64_t tile_width = (uint64_t)(col_end - col_start) * MI_SIZE;
       const uint64_t tile_area = tile_width * tile_height;
@@ -1717,7 +1749,7 @@ static void capture_tile_statistics(const AV2_COMMON *cm,
       if (tile_area > snapshot->max_tile_area) {
         snapshot->max_tile_area = tile_area;
       }
-      if (col + 1 != cm->tiles.cols && tile_width < 64) {
+      if (col + 1 != tiles->cols && tile_width < 64) {
         snapshot->non_rightmost_tile_width_valid = false;
       }
     }
@@ -1786,6 +1818,7 @@ void av2_decoder_model_verifier_on_frame_wrapup_start(AV2Decoder *pbi) {
   snapshot->mlayer_id = cm->mlayer_id;
   snapshot->temporal_id = cm->tlayer_id;
   snapshot->show_existing_frame = cm->show_existing_frame != 0;
+  snapshot->count_frame_header = av2_count_frame_header_for_level(cm);
   snapshot->ref_valid_mask = real_ref_valid_mask(pbi);
   snapshot->implicit_output_frame = cm->implicit_output_picture != 0;
   snapshot->leading_frame = cm->is_leading_picture == 1;
@@ -1798,13 +1831,6 @@ void av2_decoder_model_verifier_on_frame_wrapup_start(AV2Decoder *pbi) {
           : false;
   snapshot->frame_width = cm->width;
   snapshot->frame_height = cm->height;
-  const uint32_t output_width = snapshot->frame_is_intra
-                                    ? snapshot->frame_width
-                                    : (uint32_t)cm->seq_params.max_frame_width;
-  const uint32_t output_height =
-      snapshot->frame_is_intra ? snapshot->frame_height
-                               : (uint32_t)cm->seq_params.max_frame_height;
-  snapshot->output_luma_samples = (uint64_t)output_width * output_height;
   snapshot->frame_symbol_count = cm->features.frame_symbol_count;
   snapshot->presentation_time_present = cm->temporal_point_info_present;
   snapshot->presentation_time_ticks =
@@ -1831,7 +1857,16 @@ void av2_decoder_model_verifier_on_frame_wrapup_start(AV2Decoder *pbi) {
   if (generation != NULL) {
     snapshot->generation_valid = true;
     snapshot->generation = generation->generation;
-    if (!snapshot->show_existing_frame) {
+    if (snapshot->show_existing_frame) {
+      snapshot->output_luma_samples = generation->output_luma_samples;
+    } else {
+      const uint32_t output_width =
+          snapshot->frame_is_intra ? snapshot->frame_width
+                                   : (uint32_t)cm->seq_params.max_frame_width;
+      const uint32_t output_height =
+          snapshot->frame_is_intra ? snapshot->frame_height
+                                   : (uint32_t)cm->seq_params.max_frame_height;
+      snapshot->output_luma_samples = (uint64_t)output_width * output_height;
       generation->source_frame_unit_index = snapshot->source_frame_unit_index;
       generation->temporal_unit_index = snapshot->temporal_unit_index;
       generation->xlayer_id = snapshot->xlayer_id;
@@ -1926,7 +1961,7 @@ static void append_frame_to_context(Av2DecoderModelVerifier *verifier,
       !config_equal(&context->last_config, &model_event->config);
   frame->decoder_model_parameters_updated =
       frame->random_access_point && parameters_changed;
-  frame->count_frame_header = true;
+  frame->count_frame_header = snapshot->count_frame_header;
   frame->frame_symbol_count = snapshot->frame_symbol_count;
   if (!compressed_size_for_context(verifier, context, snapshot,
                                    &frame->compressed_size_bytes)) {
@@ -3522,22 +3557,18 @@ static void update_live_run_parameters(Av2DecoderModelVerifier *verifier,
     mark_exact_operation_failed(verifier);
     return;
   }
-  const bool ras_start = run->config.ras_start;
-  const bool ras_seed_complete = run->config.ras_seed_complete;
-  const uint32_t ras_seed_count = run->config.ras_seed_count;
-  Av2DmRasSeed ras_seeds[AV2_DM_MAX_REF_FRAMES];
-  memcpy(ras_seeds, run->config.ras_seeds, sizeof(ras_seeds));
   updated_config.initial_display_delay = run->config.initial_display_delay;
-  updated_config.ras_start = ras_start;
-  updated_config.ras_seed_complete = ras_seed_complete;
-  updated_config.ras_seed_count = ras_seed_count;
-  memcpy(updated_config.ras_seeds, ras_seeds, sizeof(updated_config.ras_seeds));
+  updated_config.ras_start = run->config.ras_start;
+  updated_config.ras_seed_complete = run->config.ras_seed_complete;
+  updated_config.ras_seed_count = run->config.ras_seed_count;
+  memcpy(updated_config.ras_seeds, run->config.ras_seeds,
+         sizeof(updated_config.ras_seeds));
   run->report.current_event = event;
   const Av2DmParameterUpdateDisposition disposition =
       av2_decoder_model_classify_parameter_update(
-          run->model, &event->config, event->frame.coded_as_closed_loop_key);
+          run->model, &updated_config, event->frame.coded_as_closed_loop_key);
   const bool updated = av2_decoder_model_update_parameters(
-      run->model, &event->config, event->event_index,
+      run->model, &updated_config, event->event_index,
       event->frame.coded_as_closed_loop_key);
   run->report.current_event = NULL;
   if (!updated) {
@@ -3584,13 +3615,13 @@ void av2_decoder_model_verifier_set_defer_nonterminal_checks_for_testing(
   }
 }
 
-static void mark_live_runs_for_incompatible_configuration(
-    Av2DmContext *context) {
+static void mark_live_runs_incomplete(Av2DmContext *context,
+                                      Av2DmIndeterminateReason reason) {
   for (size_t i = 0; i < context->run_count; ++i) {
     Av2DmLiveRun *const run = context->runs[i];
     av2_decoder_model_mark_incomplete(run->model);
     if (run->reason == AV2_DM_REASON_NONE) {
-      run->reason = AV2_DM_REASON_INCOMPATIBLE_CONFIGURATION_TRANSITION;
+      run->reason = reason;
     }
   }
 }
@@ -3682,7 +3713,8 @@ static void dispatch_context_event(Av2DecoderModelVerifier *verifier,
       // Annex E resets FirstBitArrival only when a new parameter set is
       // received at a random-access point. A different transition cannot be
       // verified by silently restarting the sequential model.
-      mark_live_runs_for_incompatible_configuration(context);
+      mark_live_runs_incomplete(
+          context, AV2_DM_REASON_INCOMPATIBLE_CONFIGURATION_TRANSITION);
     }
   }
 

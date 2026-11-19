@@ -99,6 +99,10 @@ void av2_decode_tg_tiles_and_wrapup(struct AV2Decoder *pbi, const uint8_t *data,
                                     const uint8_t **p_data_end, int start_tile,
                                     int end_tile, int initialize_flag);
 
+bool av2_ci_temporal_unit_complete(const struct AV2Decoder *pbi);
+void av2_update_layer_ci_at_frame_header(struct AV2Decoder *pbi,
+                                         OBU_TYPE obu_type);
+
 uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
                                              struct avm_read_bit_buffer *rb);
 
