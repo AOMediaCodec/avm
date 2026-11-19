@@ -1578,6 +1578,7 @@ static AVM_FORCE_INLINE int min_cost_state_neon(const tcq_node_t *row,
   return state[0];
 }
 
+#if AVM_ARCH_AARCH64
 // Writes position pos of the path: qcoeff / dqcoeff at scan[pos] from the
 // node's absLevel and q_i (the quantizer of the next state), after first
 // zeroing position max(clear_pos, pos) (see find_best_path_walk_neon).
@@ -1600,7 +1601,6 @@ static AVM_FORCE_INLINE void write_path_pos_neon(
   dqcoeff[blk_pos] = neg ? -dqc : dqc;
 }
 
-#if AVM_ARCH_AARCH64
 // Paths from first_scan_pos >= this many positions take the row-shift walk.
 #define FBP_ROW_WALK_MIN_FSP 32
 
