@@ -3212,8 +3212,7 @@ static INLINE void accumulate_partition_timing_stats(
 
 static AVM_INLINE void init_allowed_partitions(
     const AV2_COMP *cpi, PartitionSearchState *part_search_state,
-    const PartitionCfg *part_cfg, const int bru_skip,
-    const bool *partition_allowed) {
+    const int bru_skip, const bool *partition_allowed) {
   if (bru_skip) {
     part_search_state->is_block_splittable = false;
     part_search_state->do_rectangular_split = false;
@@ -3228,8 +3227,6 @@ static AVM_INLINE void init_allowed_partitions(
   const AV2_COMMON *cm = &cpi->common;
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const BLOCK_SIZE bsize = blk_params->bsize;
-  const bool allow_rect = part_cfg->enable_rect_partitions ||
-                          !(blk_params->has_rows && blk_params->has_cols);
   const int min_partition_size = (blk_params->has_rows && blk_params->has_cols)
                                      ? blk_params->min_partition_size
                                      : BLOCK_4X4;
@@ -3253,15 +3250,15 @@ static AVM_INLINE void init_allowed_partitions(
 
   // Initialize allowed partition types for the partition block.
   part_search_state->is_block_splittable = is_partition_point(bsize);
-  part_search_state->do_rectangular_split = allow_rect;
+  part_search_state->do_rectangular_split = true;
   part_search_state->partition_allowed[PARTITION_NONE] =
       partition_allowed[PARTITION_NONE];
   part_search_state->partition_allowed[PARTITION_HORZ] =
-      partition_allowed[PARTITION_HORZ] && allow_rect &&
+      partition_allowed[PARTITION_HORZ] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ),
                    rect_min_partition_size);
   part_search_state->partition_allowed[PARTITION_VERT] =
-      partition_allowed[PARTITION_VERT] && allow_rect &&
+      partition_allowed[PARTITION_VERT] &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT),
                    rect_min_partition_size);
   const bool allow_ext_3way = !cpi->sf.part_sf.disable_ext_partitions &&
@@ -3475,7 +3472,7 @@ static void init_partition_search_state_params(
       pc_tree->region_type, partition_allowed);
   part_search_state->try_none_with_forced_split = false;
   init_allowed_partitions(
-      cpi, part_search_state, &cpi->oxcf.part_cfg,
+      cpi, part_search_state,
       is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
       partition_allowed);
 }
@@ -6345,7 +6342,7 @@ BEGIN_PARTITION_SEARCH:
       part_search_state.try_none_with_forced_split = false;
     }
     init_allowed_partitions(
-        cpi, &part_search_state, &cpi->oxcf.part_cfg,
+        cpi, &part_search_state,
         is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
         partition_allowed);
 #if CONFIG_ML_PART_SPLIT

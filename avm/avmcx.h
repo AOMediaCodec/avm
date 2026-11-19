@@ -682,15 +682,7 @@ enum avme_enc_control_id {
    */
   AV2E_SET_MTU = 71,
 
-  /* NOTE: enum 72 unused */
-
-  /*!\brief Codec control function to enable/disable rectangular partitions, int
-   * parameter
-   *
-   * - 0 = disable
-   * - 1 = enable (default)
-   */
-  AV2E_SET_ENABLE_RECT_PARTITIONS = 73,
+  /* NOTE: enum values 72-74 unused */
 
   /*!\brief Codec control function to enable/disable 1:4 and 4:1 partitions, int
    * parameter
@@ -1505,9 +1497,6 @@ AVM_CTRL_USE_TYPE(AV2E_SET_MTU, unsigned int)
 
 AVM_CTRL_USE_TYPE(AV2E_SET_TIMING_INFO_TYPE, int) /* avm_timing_info_type_t */
 #define AVM_CTRL_AV2E_SET_TIMING_INFO_TYPE
-
-AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_RECT_PARTITIONS, int)
-#define AVM_CTRL_AV2E_SET_ENABLE_RECT_PARTITIONS
 
 AVM_CTRL_USE_TYPE(AV2E_SET_ENABLE_1TO4_PARTITIONS, int)
 #define AVM_CTRL_AV2E_SET_ENABLE_1TO4_PARTITIONS

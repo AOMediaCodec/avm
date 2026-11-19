@@ -119,7 +119,6 @@ struct av2_extracfg {
   int use_ml_erp_pruning;
   unsigned int enable_ext_partitions;
   unsigned int enable_tx_partition;
-  int enable_rect_partitions;  // enable rectangular partitions for sequence
   int enable_uneven_4way_partitions;  // enable 1:2:4:1 and 1:4:2:1 partitions
                                       // for sequence
   int max_partition_aspect_ratio;
@@ -453,7 +452,6 @@ static struct av2_extracfg default_extra_cfg = {
   2,                            // use ml model for erp pruning
   1,                            // enable extended partitions
   1,                            // enable txfm partition
-  1,                            // enable rectangular partitions
   1,                            // enable 1:4 and 4:1 partitions
   8,
   0,    // disable ml based transform speed features
@@ -653,7 +651,6 @@ static struct av2_extracfg default_extra_cfg_rt = {
   .use_ml_erp_pruning = 0,
   .enable_ext_partitions = 0,
   .enable_tx_partition = 1,
-  .enable_rect_partitions = 1,
   .enable_uneven_4way_partitions = 1,
   .max_partition_aspect_ratio = 8,
   .disable_ml_transform_speed_features = 0,
@@ -1231,7 +1228,6 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->use_ml_erp_pruning = extra_cfg->use_ml_erp_pruning;
   cfg->enable_ext_partitions = extra_cfg->enable_ext_partitions;
   cfg->enable_tx_partition = extra_cfg->enable_tx_partition;
-  cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   cfg->enable_uneven_4way_partitions = extra_cfg->enable_uneven_4way_partitions;
   cfg->max_partition_aspect_ratio = extra_cfg->max_partition_aspect_ratio;
   cfg->disable_ml_transform_speed_features =
@@ -1345,7 +1341,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_diff_wtd_comp = cfg->enable_diff_wtd_comp;
   extra_cfg->enable_opfl_refine = cfg->enable_opfl_refine;
   extra_cfg->enable_angle_delta = cfg->enable_angle_delta;
-  extra_cfg->enable_rect_partitions = cfg->enable_rect_partitions;
   extra_cfg->enable_uneven_4way_partitions = cfg->enable_uneven_4way_partitions;
   extra_cfg->disable_ml_transform_speed_features =
       cfg->disable_ml_transform_speed_features;
@@ -1947,7 +1942,6 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   // Set partition related configuration.
   part_cfg->disable_ml_partition_speed_features =
       extra_cfg->disable_ml_partition_speed_features;
-  part_cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   part_cfg->enable_uneven_4way_partitions =
       extra_cfg->enable_uneven_4way_partitions;
   part_cfg->max_partition_aspect_ratio = extra_cfg->max_partition_aspect_ratio;
@@ -2568,14 +2562,6 @@ static avm_codec_err_t ctrl_set_enable_chroma_deltaq(avm_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_chroma_deltaq = CAST(AV2E_SET_ENABLE_CHROMA_DELTAQ, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-
-static avm_codec_err_t ctrl_set_enable_rect_partitions(
-    avm_codec_alg_priv_t *ctx, va_list args) {
-  struct av2_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.enable_rect_partitions =
-      CAST(AV2E_SET_ENABLE_RECT_PARTITIONS, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4452,11 +4438,6 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
                  err_string)) {
     extra_cfg.cross_frame_cdf_init_mode =
         avm_arg_parse_int_helper(&arg, err_string);
-  } else if (avm_arg_match_helper(&arg,
-                                  &g_av2_codec_arg_defs.enable_rect_partitions,
-                                  argv, err_string)) {
-    extra_cfg.enable_rect_partitions =
-        avm_arg_parse_int_helper(&arg, err_string);
   } else if (avm_arg_match_helper(
                  &arg, &g_av2_codec_arg_defs.enable_uneven_4way_partitions,
                  argv, err_string)) {
@@ -4984,7 +4965,6 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV2E_SET_TIMING_INFO_TYPE, ctrl_set_timing_info_type },
   { AV2E_SET_ENABLE_CDF_AVERAGING, ctrl_set_enable_cdf_averaging },
   { AV2E_SET_ENABLE_SFRAME, ctrl_set_enable_sframe },
-  { AV2E_SET_ENABLE_RECT_PARTITIONS, ctrl_set_enable_rect_partitions },
   { AV2E_SET_ENABLE_1TO4_PARTITIONS, ctrl_set_enable_uneven_4way_partitions },
   { AV2E_SET_MIN_PARTITION_SIZE, ctrl_set_min_partition_size },
   { AV2E_SET_MAX_PARTITION_SIZE, ctrl_set_max_partition_size },
@@ -5157,7 +5137,6 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
           128,  // superblock_size
           128,  // max_partition_size
           4,    // min_partition_size
-          1,    // enable_rect_partitions
           1,    // enable_uneven_4way_partitions
           1,    // disable_ml_partition_speed_features
           5,    // erp_pruning_level
@@ -5296,7 +5275,6 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = {
           .superblock_size = 128,
           .max_partition_size = 128,
           .min_partition_size = 4,
-          .enable_rect_partitions = 1,
           .enable_uneven_4way_partitions = 1,
           .disable_ml_partition_speed_features = 1,
           .erp_pruning_level = 0,

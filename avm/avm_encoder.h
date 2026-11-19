@@ -251,10 +251,6 @@ typedef struct cfg_options {
    * 8, 16, 32, 64, 128, 256
    */
   unsigned int min_partition_size;
-  /*!\brief enable rectangular partition type
-   *
-   */
-  unsigned int enable_rect_partitions;
   /*!\brief enable uneven 4 way partition type
    *
    */
