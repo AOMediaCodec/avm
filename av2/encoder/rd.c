@@ -1573,7 +1573,8 @@ void av2_model_rd_curvfit(BLOCK_SIZE bsize, double sse_norm, double xqr,
   xqr = AVMMAX(xqr, x_start + x_step + epsilon);
   xqr = AVMMIN(xqr, x_end - x_step - epsilon);
   const double x = (xqr - x_start) / x_step;
-  const int xi = (int)floor(x);
+  // x is positive after the clamping above, so the conversion rounds down.
+  const int xi = (int)x;
   const double xo = x - xi;
 
   assert(xi > 0);

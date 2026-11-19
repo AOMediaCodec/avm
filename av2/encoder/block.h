@@ -1371,6 +1371,13 @@ typedef struct macroblock {
    */
   const struct TipUnitHooks *tip_unit_hooks;
 
+  /*! \brief HOG entries of the intra mode MLP for the current superblock, or
+   * NULL.
+   *
+   * Owned by ThreadData and set by encode_rd_sb().
+   */
+  struct IntraMlpHogCache *intra_mlp_hog_cache;
+
   /*! \brief Derived coding information.
    *
    * Contains extra information not transmitted in the bitstream but are

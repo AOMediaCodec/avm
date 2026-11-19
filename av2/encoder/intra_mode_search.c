@@ -1600,11 +1600,16 @@ void av2_intra_mlp_compute_mode_mask(
     left_delta = left_mi->angle_delta[PLANE_TYPE_Y];
   }
 
+  // Position of the block in its superblock, for the HOG entries kept per
+  // superblock.
+  const int sb_mi_mask = mi_size_wide[cpi->common.sb_size] - 1;
   intra_mode_mlp_prepare_features(
       x->plane[0].src.buf, x->plane[0].src.stride, xd->bd,
       block_size_wide[bsize], block_size_high[bsize],
       x->qindex - MAXQ_OFFSET * (xd->bd - 8), above_mode, above_delta,
-      left_mode, left_delta, !frame_is_intra_only(&cpi->common), mlp_features);
+      left_mode, left_delta, !frame_is_intra_only(&cpi->common),
+      x->intra_mlp_hog_cache, (xd->mi_row & sb_mi_mask) << MI_SIZE_LOG2,
+      (xd->mi_col & sb_mi_mask) << MI_SIZE_LOG2, mlp_features);
 
   intra_mode_mlp_predict(mlp_features, mlp_logits);
 

@@ -235,6 +235,66 @@ static void ccso_derive_src_info(const AV2_COMMON *cm, CcsoCtx *ctx,
   }
 }
 
+// The class statistics of a filter unit are gathered in local accumulators
+// and added to the frame arrays when the unit is done. An accumulator holds
+// the sample count in its upper half and the error sum in its lower half, so a
+// sample costs one update. Consecutive samples mostly fall into the same
+// class; they go to CCSO_CLASS_ACC_TABLES tables in turn, which keeps their
+// updates independent of each other.
+#define CCSO_CLASS_ACC_TABLES 4
+#define CCSO_CLASS_ACC_ONE ((int64_t)1 << 32)
+
+typedef int64_t CcsoClassAcc[CCSO_CLASS_ACC_TABLES][CCSO_CLASS_STATS_ENTRIES];
+
+static INLINE void ccso_class_acc_reset(CcsoClassAcc acc, int num_entries) {
+  for (int t = 0; t < CCSO_CLASS_ACC_TABLES; t++)
+    memset(acc[t], 0, num_entries * sizeof(acc[t][0]));
+}
+
+// Error sum and sample count of one accumulator entry over all tables. The
+// error sum of a filter unit fits in 32 bits: a unit has at most 2^16 samples
+// of at most 12 bits.
+static INLINE void ccso_class_acc_get(CcsoClassAcc acc, int entry, int *err,
+                                      int *cnt) {
+  int64_t sum = 0;
+  for (int t = 0; t < CCSO_CLASS_ACC_TABLES; t++) sum += acc[t][entry];
+  *err = (int)(uint32_t)sum;
+  *cnt = (int)((sum - *err) >> 32);
+}
+
+// Adds one sample to an accumulator table. The entry is (class 0, class 1,
+// band); cls0 and cls1 are NULL for the band-offset-only statistics.
+static INLINE void ccso_class_acc_add(int64_t *table, int diff,
+                                      const uint16_t *luma, const uint8_t *cls0,
+                                      const uint8_t *cls1, int luma_pos,
+                                      int band_log2, int shift_bits) {
+  int entry = luma[luma_pos] >> shift_bits;
+  if (cls0 != NULL) {
+    entry += (cls0[luma_pos] * CCSO_INPUT_INTERVAL + cls1[luma_pos])
+             << band_log2;
+  }
+  table[entry] += CCSO_CLASS_ACC_ONE + diff;
+}
+
+// Adds a row of width samples to the accumulators. The luma sample and the
+// classes of sample i are at position i << luma_shift.
+static INLINE void ccso_class_acc_add_row(
+    CcsoClassAcc acc, const uint16_t *org, const uint16_t *rec,
+    const uint16_t *luma, const uint8_t *cls0, const uint8_t *cls1, int width,
+    int luma_shift, int band_log2, int shift_bits) {
+  int i = 0;
+  for (; i + CCSO_CLASS_ACC_TABLES <= width; i += CCSO_CLASS_ACC_TABLES) {
+    for (int t = 0; t < CCSO_CLASS_ACC_TABLES; t++) {
+      ccso_class_acc_add(acc[t], org[i + t] - rec[i + t], luma, cls0, cls1,
+                         (i + t) << luma_shift, band_log2, shift_bits);
+    }
+  }
+  for (; i < width; i++) {
+    ccso_class_acc_add(acc[0], org[i] - rec[i], luma, cls0, cls1,
+                       i << luma_shift, band_log2, shift_bits);
+  }
+}
+
 /* Accumulate the residual between original and reconstructed sample for
  * each entry of the LUT over the filter unit rows [row_start, row_end) */
 static void ccso_accumulate_class_err(const AV2_COMMON *cm, CcsoCtx *ctx,
@@ -264,8 +324,12 @@ static void ccso_accumulate_class_err(const AV2_COMMON *cm, CcsoCtx *ctx,
   const int fb_cols = (pic_width + blk_size_x - 1) >> blk_log2_x;
   const int y_begin = row_start << blk_log2_y;
   const int y_limit = AVMMIN(row_end << blk_log2_y, pic_height);
-  uint8_t cur_src_cls0;
-  uint8_t cur_src_cls1;
+  // Accumulator entry of a sample: (class 0, class 1, band).
+  const int band_log2 = cm->seq_params.bit_depth - shift_bits;
+  const int num_entries = (CCSO_INPUT_INTERVAL * CCSO_INPUT_INTERVAL)
+                          << band_log2;
+  CcsoClassAcc acc;
+  assert(band_log2 >= 0 && num_entries <= CCSO_CLASS_STATS_ENTRIES);
 
   src_y += CCSO_PADDING_SIZE * ctx->ccso_stride_ext + CCSO_PADDING_SIZE;
   ref += (ctx->ccso_stride << blk_log2_y) * row_start;
@@ -289,6 +353,7 @@ static void ccso_accumulate_class_err(const AV2_COMMON *cm, CcsoCtx *ctx,
       const uint16_t *src_y_unit = src_y;
       const uint8_t *src_unit0 = src_cls0;
       const uint8_t *src_unit1 = src_cls1;
+      ccso_class_acc_reset(acc, num_entries);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size_y) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size_x) {
           const int y_end_unit = AVMMIN(pic_height - y - unit_y, unit_size_y);
@@ -302,18 +367,16 @@ static void ccso_accumulate_class_err(const AV2_COMMON *cm, CcsoCtx *ctx,
                   BRU_ACTIVE_SB) {
             continue;
           }
+          const int x_unit = x + unit_x;
+          const int x_luma = x_unit << y_uv_hscale;
           for (int y_start = 0; y_start < y_end_unit; y_start++) {
-            for (int x_start = 0; x_start < x_end_unit; x_start++) {
-              const int x_pos = x + unit_x + x_start;
-              cur_src_cls0 = src_unit0[x_pos << y_uv_hscale];
-              cur_src_cls1 = src_unit1[x_pos << y_uv_hscale];
-              const int band_num =
-                  src_y_unit[x_pos << y_uv_hscale] >> shift_bits;
-              ctx->total_class_err[cur_src_cls0][cur_src_cls1][band_num]
-                                  [fb_idx] += ref_unit[x_pos] - dst_unit[x_pos];
-              ctx->total_class_cnt[cur_src_cls0][cur_src_cls1][band_num]
-                                  [fb_idx]++;
-            }
+            const uint16_t *const org = ref_unit + x_unit;
+            const uint16_t *const rec = dst_unit + x_unit;
+            const uint16_t *const luma = src_y_unit + x_luma;
+            const uint8_t *const cls0 = src_unit0 + x_luma;
+            const uint8_t *const cls1 = src_unit1 + x_luma;
+            ccso_class_acc_add_row(acc, org, rec, luma, cls0, cls1, x_end_unit,
+                                   y_uv_hscale, band_log2, shift_bits);
             ref_unit += ctx->ccso_stride;
             dst_unit += ctx->ccso_stride;
             src_y_unit +=
@@ -333,6 +396,18 @@ static void ccso_accumulate_class_err(const AV2_COMMON *cm, CcsoCtx *ctx,
         src_y_unit += scaled_ext_stride * unit_size_y;
         src_unit0 += scaled_stride * unit_size_y;
         src_unit1 += scaled_stride * unit_size_y;
+      }
+      // Add the statistics of the filter unit to the frame arrays.
+      for (int entry = 0; entry < num_entries; entry++) {
+        int err, cnt;
+        ccso_class_acc_get(acc, entry, &err, &cnt);
+        if (cnt == 0) continue;
+        const int cls = entry >> band_log2;
+        const int d0 = cls / CCSO_INPUT_INTERVAL;
+        const int d1 = cls % CCSO_INPUT_INTERVAL;
+        const int band_num = entry & ((1 << band_log2) - 1);
+        ctx->total_class_err[d0][d1][band_num][fb_idx] += err;
+        ctx->total_class_cnt[d0][d1][band_num][fb_idx] += cnt;
       }
     }
     ref += (ctx->ccso_stride << blk_log2_y);
@@ -425,6 +500,11 @@ static void ccso_accumulate_class_err_bo(const AV2_COMMON *cm, CcsoCtx *ctx,
   const int fb_cols = (pic_width + blk_size_x - 1) >> blk_log2_x;
   const int y_begin = row_start << blk_log2_y;
   const int y_limit = AVMMIN(row_end << blk_log2_y, pic_height);
+  // Accumulator entry of a sample: its band.
+  const int band_log2 = cm->seq_params.bit_depth - shift_bits;
+  const int num_entries = 1 << band_log2;
+  CcsoClassAcc acc;
+  assert(band_log2 >= 0 && num_entries <= CCSO_BAND_NUM);
 
   src_y += CCSO_PADDING_SIZE * ctx->ccso_stride_ext + CCSO_PADDING_SIZE;
   ref += (ctx->ccso_stride << blk_log2_y) * row_start;
@@ -446,6 +526,7 @@ static void ccso_accumulate_class_err_bo(const AV2_COMMON *cm, CcsoCtx *ctx,
       const uint16_t *ref_unit = ref;
       const uint16_t *dst_unit = dst;
       const uint16_t *src_y_unit = src_y;
+      ccso_class_acc_reset(acc, num_entries);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size_y) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size_x) {
           const int y_end_unit = AVMMIN(pic_height - y - unit_y, unit_size_y);
@@ -458,15 +539,12 @@ static void ccso_accumulate_class_err_bo(const AV2_COMMON *cm, CcsoCtx *ctx,
                   BRU_ACTIVE_SB) {
             continue;
           }
+          const int x_unit = x + unit_x;
           for (int y_start = 0; y_start < y_end_unit; y_start++) {
-            for (int x_start = 0; x_start < x_end_unit; x_start++) {
-              const int x_pos = x + unit_x + x_start;
-              const int band_num =
-                  src_y_unit[x_pos << y_uv_hscale] >> shift_bits;
-              ctx->total_class_err_bo[band_num][fb_idx] +=
-                  ref_unit[x_pos] - dst_unit[x_pos];
-              ctx->total_class_cnt_bo[band_num][fb_idx]++;
-            }
+            ccso_class_acc_add_row(acc, ref_unit + x_unit, dst_unit + x_unit,
+                                   src_y_unit + (x_unit << y_uv_hscale), NULL,
+                                   NULL, x_end_unit, y_uv_hscale, band_log2,
+                                   shift_bits);
             ref_unit += ctx->ccso_stride;
             dst_unit += ctx->ccso_stride;
             src_y_unit += scaled_ext_stride;
@@ -480,6 +558,14 @@ static void ccso_accumulate_class_err_bo(const AV2_COMMON *cm, CcsoCtx *ctx,
         ref_unit += unit_size_y * ctx->ccso_stride;
         dst_unit += unit_size_y * ctx->ccso_stride;
         src_y_unit += unit_size_y * scaled_ext_stride;
+      }
+      // Add the statistics of the filter unit to the frame arrays.
+      for (int band_num = 0; band_num < num_entries; band_num++) {
+        int err, cnt;
+        ccso_class_acc_get(acc, band_num, &err, &cnt);
+        if (cnt == 0) continue;
+        ctx->total_class_err_bo[band_num][fb_idx] += err;
+        ctx->total_class_cnt_bo[band_num][fb_idx] += cnt;
       }
     }
     ref += (ctx->ccso_stride << blk_log2_y);
@@ -1122,14 +1208,14 @@ static void derive_blk_md(AV2_COMMON *cm, CcsoCtx *ctx, MACROBLOCKD *xd,
       const int mi_col_start = tile_info.mi_col_start;
       const int mi_col_end = tile_info.mi_col_end;
 
-      for (int mi_row = mi_row_start; mi_row < mi_row_end; ++mi_row) {
-        for (int mi_col = mi_col_start; mi_col < mi_col_end; ++mi_col) {
-          if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x)) {
-            sb_idx = (mi_row / (blk_size_y + 1)) * ccso_nhfb +
-                     (mi_col / (blk_size_x + 1));
-          } else {
-            continue;
-          }
+      // Visit the filter units of the tile: their top-left mi positions are
+      // the multiples of the filter unit size.
+      for (int mi_row = (mi_row_start + blk_size_y) & ~blk_size_y;
+           mi_row < mi_row_end; mi_row += blk_size_y + 1) {
+        for (int mi_col = (mi_col_start + blk_size_x) & ~blk_size_x;
+             mi_col < mi_col_end; mi_col += blk_size_x + 1) {
+          sb_idx = (mi_row / (blk_size_y + 1)) * ccso_nhfb +
+                   (mi_col / (blk_size_x + 1));
           const int ccso_ctx = get_ccso_context((mi_row / (blk_size_y + 1)),
                                                 (mi_col / (blk_size_x + 1)),
                                                 ccso_nhfb, m_filter_control);
@@ -1228,14 +1314,14 @@ static void get_sb_reuse_dist(AV2_COMMON *cm, CcsoCtx *ctx, MACROBLOCKD *xd,
       const int mi_col_start = tile_info.mi_col_start;
       const int mi_col_end = tile_info.mi_col_end;
 
-      for (int mi_row = mi_row_start; mi_row < mi_row_end; ++mi_row) {
-        for (int mi_col = mi_col_start; mi_col < mi_col_end; ++mi_col) {
-          if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x)) {
-            sb_idx = (mi_row / (blk_size_y + 1)) * ccso_nhfb +
-                     (mi_col / (blk_size_x + 1));
-          } else {
-            continue;
-          }
+      // Visit the filter units of the tile: their top-left mi positions are
+      // the multiples of the filter unit size.
+      for (int mi_row = (mi_row_start + blk_size_y) & ~blk_size_y;
+           mi_row < mi_row_end; mi_row += blk_size_y + 1) {
+        for (int mi_col = (mi_col_start + blk_size_x) & ~blk_size_x;
+             mi_col < mi_col_end; mi_col += blk_size_x + 1) {
+          sb_idx = (mi_row / (blk_size_y + 1)) * ccso_nhfb +
+                   (mi_col / (blk_size_x + 1));
 
           // check BRU skip in entire CCSO FU
           if (bru_is_fu_skipped_mbmi(cm, mi_col, mi_row, sb_unit_size_x,

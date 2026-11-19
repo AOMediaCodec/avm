@@ -11,6 +11,7 @@
  */
 
 #include <math.h>
+#include <string.h>
 
 #include "avm_dsp/avm_dsp_common.h"
 
@@ -42,10 +43,35 @@
 #pragma fp_contract(off)
 #endif
 
+// Codes of IntraMlpHogCache::bin besides the bins 0 .. 31.
+#define MLP_HOG_BIN_VERT 32    // dx == 0: split between the bins 0 and 31
+#define MLP_HOG_BIN_ZERO 33    // dx == 0 and dy == 0: not counted
+#define MLP_HOG_BIN_UNSET 255  // not computed yet
+
+// HOG entry of the sample at src: its histogram bin (or MLP_HOG_BIN_VERT /
+// MLP_HOG_BIN_ZERO) and its gradient magnitude.
+static INLINE int mlp_hog_entry(const uint16_t *src, int src_stride, int *mag) {
+  const int dx = (int)src[1 - src_stride] + 2 * (int)src[1] +
+                 (int)src[1 + src_stride] - (int)src[-1 - src_stride] -
+                 2 * (int)src[-1] - (int)src[-1 + src_stride];
+  const int dy = (int)src[src_stride - 1] + 2 * (int)src[src_stride] +
+                 (int)src[src_stride + 1] - (int)src[-src_stride - 1] -
+                 2 * (int)src[-src_stride] - (int)src[-src_stride + 1];
+  *mag = abs(dx) + abs(dy);
+  if (dx == 0) return dy == 0 ? MLP_HOG_BIN_ZERO : MLP_HOG_BIN_VERT;
+  float angle = atan2f((float)dy, (float)dx);
+  if (angle < 0) angle += 3.14159265f;
+  int bin = (int)(angle * 32.0f / 3.14159265f);
+  if (bin >= 32) bin = 31;
+  if (bin < 0) bin = 0;
+  return bin;
+}
+
 void intra_mode_mlp_prepare_features(
     const uint16_t *src, int src_stride, int bd, int bw, int bh, int qp,
     int neighbor_above_mode, int neighbor_above_delta, int neighbor_left_mode,
-    int neighbor_left_delta, int is_inter_frame, float *features) {
+    int neighbor_left_delta, int is_inter_frame, IntraMlpHogCache *hog_cache,
+    int sb_row, int sb_col, float *features) {
   const float pixel_norm = (float)((1 << bd) - 1);
 
   // Nearest-neighbor downsample to 8x8
@@ -82,32 +108,37 @@ void intra_mode_mlp_prepare_features(
   float *hog = &features[72];
   for (int i = 0; i < 32; i++) hog[i] = 0.0f;
   float hog_total = 0.1f;
+  // The cache holds samples of at most 12 bits (the magnitude is 16 bits).
+  if (bd > 12 || sb_row < 0 || sb_col < 0 || sb_row + bh > MLP_HOG_CACHE_SIZE ||
+      sb_col + bw > MLP_HOG_CACHE_SIZE) {
+    hog_cache = NULL;
+  }
+  if (hog_cache != NULL && !hog_cache->valid) {
+    memset(hog_cache->bin, MLP_HOG_BIN_UNSET, sizeof(hog_cache->bin));
+    hog_cache->valid = 1;
+  }
   for (int r = 1; r < bh - 1; r++) {
     for (int c = 1; c < bw - 1; c++) {
-      const int idx_center = r * src_stride + c;
-      const int dx =
-          (int)src[idx_center + 1 - src_stride] + 2 * (int)src[idx_center + 1] +
-          (int)src[idx_center + 1 + src_stride] -
-          (int)src[idx_center - 1 - src_stride] - 2 * (int)src[idx_center - 1] -
-          (int)src[idx_center - 1 + src_stride];
-      const int dy = (int)src[idx_center + src_stride - 1] +
-                     2 * (int)src[idx_center + src_stride] +
-                     (int)src[idx_center + src_stride + 1] -
-                     (int)src[idx_center - src_stride - 1] -
-                     2 * (int)src[idx_center - src_stride] -
-                     (int)src[idx_center - src_stride + 1];
-      if (dx == 0 && dy == 0) continue;
-      const int mag = abs(dx) + abs(dy);
+      int bin, mag;
+      if (hog_cache != NULL) {
+        const int pos = (sb_row + r) * MLP_HOG_CACHE_SIZE + sb_col + c;
+        bin = hog_cache->bin[pos];
+        if (bin == MLP_HOG_BIN_UNSET) {
+          bin = mlp_hog_entry(&src[r * src_stride + c], src_stride, &mag);
+          hog_cache->bin[pos] = (uint8_t)bin;
+          hog_cache->mag[pos] = (uint16_t)mag;
+        } else {
+          mag = hog_cache->mag[pos];
+        }
+      } else {
+        bin = mlp_hog_entry(&src[r * src_stride + c], src_stride, &mag);
+      }
+      if (bin == MLP_HOG_BIN_ZERO) continue;
       hog_total += mag;
-      if (dx == 0) {
+      if (bin == MLP_HOG_BIN_VERT) {
         hog[0] += mag / 2;
         hog[31] += mag / 2;
       } else {
-        float angle = atan2f((float)dy, (float)dx);
-        if (angle < 0) angle += 3.14159265f;
-        int bin = (int)(angle * 32.0f / 3.14159265f);
-        if (bin >= 32) bin = 31;
-        if (bin < 0) bin = 0;
         hog[bin] += mag;
       }
     }

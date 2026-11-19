@@ -448,6 +448,7 @@ list(
   "${AVM_ROOT}/av2/encoder/x86/av2_highbd_quantize_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/highbd_block_error_intrin_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/av2_fwd_txfm2d_avx2.c"
+  "${AVM_ROOT}/av2/encoder/x86/av2_k_means_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/highbd_fwd_txfm_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/wedge_utils_avx2.c"
   "${AVM_ROOT}/av2/encoder/x86/encodetxb_avx2.c"

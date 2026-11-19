@@ -300,6 +300,10 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   add_proto qw/void av2_txb_init_levels/, "const tran_low_t *const coeff, const int width, const int height, uint8_t *const levels";
   specialize qw/av2_txb_init_levels sse4_1 avx2 neon/;
 
+  add_proto qw/void av2_calc_indices_dim1/, "const int *data, const int *centroids, uint8_t *indices, int n, int k";
+  specialize qw/av2_calc_indices_dim1 avx2/;
+  add_proto qw/void av2_calc_indices_dim2/, "const int *data, const int *centroids, uint8_t *indices, int n, int k";
+
   add_proto qw/uint64_t av2_wedge_sse_from_residuals/, "const int16_t *r1, const int16_t *d, const uint8_t *m, int N";
   specialize qw/av2_wedge_sse_from_residuals sse2 avx2 neon/;
   add_proto qw/int8_t av2_wedge_sign_from_residuals/, "const int16_t *ds, const uint8_t *m, int N, int64_t limit";

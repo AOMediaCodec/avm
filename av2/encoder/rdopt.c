@@ -6404,14 +6404,12 @@ static int64_t handle_inter_mode(
   // initialize mode_info
   for (int bawp = 0; bawp <= bawp_mode_count; bawp++) {
     for (int prec = prec_start; prec <= mbmi->max_mv_precision; ++prec) {
-      const int total_ref_mv_idx = ref_set[1] * ref_set[0];
-      for (int flat_idx = 0; flat_idx < total_ref_mv_idx; ++flat_idx) {
-        const int ref_mv_id_1 = flat_idx / ref_set[0];
-        const int ref_mv_id_0 = flat_idx % ref_set[0];
-        const int idx = has_two_drls
-                            ? ref_mv_id_1 * MAX_REF_MV_SEARCH + ref_mv_id_0
-                            : ref_mv_id_0;
-        reset_inter_mode_info(&mode_info[bawp][prec][idx], 0);
+      for (int ref_mv_id_1 = 0; ref_mv_id_1 < ref_set[1]; ++ref_mv_id_1) {
+        inter_mode_info *const info =
+            &mode_info[bawp][prec]
+                      [has_two_drls ? ref_mv_id_1 * MAX_REF_MV_SEARCH : 0];
+        for (int ref_mv_id_0 = 0; ref_mv_id_0 < ref_set[0]; ++ref_mv_id_0)
+          reset_inter_mode_info(&info[ref_mv_id_0], 0);
       }
     }
   }

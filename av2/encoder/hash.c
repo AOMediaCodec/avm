@@ -14,13 +14,17 @@
 
 static void crc_calculator_process_data(CRC_CALCULATOR *p_crc_calculator,
                                         uint8_t *pData, uint32_t dataLength) {
+  // The remainder is kept in a local: a store to the calculator could alias
+  // the data bytes, which would force a reload for every byte.
+  const uint32_t *const table = p_crc_calculator->table;
+  const uint32_t shift = p_crc_calculator->bits - 8;
+  uint32_t remainder = p_crc_calculator->remainder;
   for (uint32_t i = 0; i < dataLength; i++) {
-    const uint8_t index = (uint8_t)((p_crc_calculator->remainder >>
-                                     (p_crc_calculator->bits - 8)) ^
-                                    pData[i]);
-    p_crc_calculator->remainder <<= 8;
-    p_crc_calculator->remainder ^= p_crc_calculator->table[index];
+    const uint8_t index = (uint8_t)((remainder >> shift) ^ pData[i]);
+    remainder <<= 8;
+    remainder ^= table[index];
   }
+  p_crc_calculator->remainder = remainder;
 }
 
 static void crc_calculator_reset(CRC_CALCULATOR *p_crc_calculator) {

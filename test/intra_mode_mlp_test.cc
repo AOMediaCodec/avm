@@ -10,6 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <cstring>
 #include <cmath>
 #include <vector>
 
@@ -102,7 +103,7 @@ TEST_F(IntraModeMlpPrepareFeaturesTest, ConstantBlockDownsamplesToConstant) {
 
   float features[MLP_INPUT_DIM];
   intra_mode_mlp_prepare_features(src_buf_.data(), kStride, kBd, kBw, kBh, 128,
-                                  -1, 0, -1, 0, 0, features);
+                                  -1, 0, -1, 0, 0, NULL, 0, 0, features);
 
   const float pixel_norm = (float)((1 << kBd) - 1);
   for (int i = 0; i < 64; i++) {
@@ -117,7 +118,7 @@ TEST_F(IntraModeMlpPrepareFeaturesTest, AbsentNeighborUsesSentinel) {
   intra_mode_mlp_prepare_features(src_buf_.data(), kStride, kBd, kBw, kBh, 128,
                                   /*neighbor_above_mode=*/-1, /*delta=*/5,
                                   /*neighbor_left_mode=*/-1, /*delta=*/-5, 0,
-                                  features);
+                                  NULL, 0, 0, features);
   // Absent neighbor -> sentinel mode 13, delta forced to 0 regardless of the
   // (don't-care) delta argument passed in.
   EXPECT_NEAR(features[64], 13.0f / MLP_NORM_NEIGHBOR_MODE, kEps);
@@ -134,7 +135,7 @@ TEST_F(IntraModeMlpPrepareFeaturesTest, PresentNeighborUsesActualValues) {
   intra_mode_mlp_prepare_features(src_buf_.data(), kStride, kBd, kBw, kBh, 128,
                                   /*neighbor_above_mode=*/5, /*delta=*/2,
                                   /*neighbor_left_mode=*/1, /*delta=*/-1, 0,
-                                  features);
+                                  NULL, 0, 0, features);
   EXPECT_NEAR(features[64], 5.0f / MLP_NORM_NEIGHBOR_MODE, kEps);
   EXPECT_NEAR(features[65],
               (2.0f + MLP_NORM_DELTA_OFFSET) / MLP_NORM_DELTA_RANGE, kEps);
@@ -148,14 +149,16 @@ TEST_F(IntraModeMlpPrepareFeaturesTest,
   for (int i = 0; i < kStride * kBh; i++) src_buf_[i] = 0;
   float features[MLP_INPUT_DIM];
   intra_mode_mlp_prepare_features(src_buf_.data(), kStride, kBd, kBw, kBh, 128,
-                                  -1, 0, -1, 0, /*is_inter_frame=*/1, features);
+                                  -1, 0, -1, 0, /*is_inter_frame=*/1, NULL, 0,
+                                  0, features);
   EXPECT_NEAR(features[68], (float)kBw / MLP_NORM_BW, kEps);
   EXPECT_NEAR(features[69], (float)kBh / MLP_NORM_BH, kEps);
   EXPECT_NEAR(features[70], 128.0f / MLP_NORM_QP, kEps);
   EXPECT_FLOAT_EQ(features[71], 1.0f);
 
   intra_mode_mlp_prepare_features(src_buf_.data(), kStride, kBd, kBw, kBh, 128,
-                                  -1, 0, -1, 0, /*is_inter_frame=*/0, features);
+                                  -1, 0, -1, 0, /*is_inter_frame=*/0, NULL, 0,
+                                  0, features);
   EXPECT_FLOAT_EQ(features[71], 0.0f);
 }
 
@@ -169,7 +172,7 @@ TEST_F(IntraModeMlpPrepareFeaturesTest, DxOnlyGradientConcentratesInBinZero) {
 
   float features[MLP_INPUT_DIM];
   intra_mode_mlp_prepare_features(src_buf_.data(), kStride, kBd, kBw, kBh, 128,
-                                  -1, 0, -1, 0, 0, features);
+                                  -1, 0, -1, 0, 0, NULL, 0, 0, features);
   const float *hog = &features[72];
   EXPECT_NEAR(hog[0], 1.0f, 0.01f);
   for (int i = 1; i < 32; i++) EXPECT_NEAR(hog[i], 0.0f, 0.01f) << "bin " << i;
@@ -184,11 +187,49 @@ TEST_F(IntraModeMlpPrepareFeaturesTest, DyOnlyGradientSplitsBinZeroAndBin31) {
 
   float features[MLP_INPUT_DIM];
   intra_mode_mlp_prepare_features(src_buf_.data(), kStride, kBd, kBw, kBh, 128,
-                                  -1, 0, -1, 0, 0, features);
+                                  -1, 0, -1, 0, 0, NULL, 0, 0, features);
   const float *hog = &features[72];
   EXPECT_NEAR(hog[0], 0.5f, 0.01f);
   EXPECT_NEAR(hog[31], 0.5f, 0.01f);
   for (int i = 1; i < 31; i++) EXPECT_NEAR(hog[i], 0.0f, 0.01f) << "bin " << i;
+}
+
+// The HOG entries kept per superblock must give the features of the direct
+// computation, on the first use of an entry and on the later ones.
+TEST(IntraModeMlpPrepareFeaturesCache, MatchesDirectComputation) {
+  const int kSize = 64;
+  const int kSbRow = 32;
+  const int kSbCol = 96;
+  libavm_test::ACMRandom rng(libavm_test::ACMRandom::DeterministicSeed());
+  std::vector<uint16_t> src(kSize * kSize);
+  std::vector<IntraMlpHogCache> cache(1);
+  for (int bd = 8; bd <= 12; bd += 2) {
+    // Flat runs give the samples without a gradient, and vertical ones.
+    for (int i = 0; i < kSize * kSize; i++) {
+      src[i] = (i % 7 < 3) ? (uint16_t)(1 << (bd - 1))
+                           : (uint16_t)(rng.Rand16() & ((1 << bd) - 1));
+    }
+    cache[0].valid = 0;
+    // Nested blocks share samples: the second one reads entries of the first.
+    const int blocks[3][4] = { { 0, 0, 64, 64 },
+                               { 16, 32, 32, 16 },
+                               { 8, 8, 16, 32 } };
+    for (int pass = 0; pass < 2; pass++) {
+      for (const auto &blk : blocks) {
+        const uint16_t *const blk_src = &src[blk[0] * kSize + blk[1]];
+        float ref[MLP_INPUT_DIM];
+        float test[MLP_INPUT_DIM];
+        intra_mode_mlp_prepare_features(blk_src, kSize, bd, blk[2], blk[3], 128,
+                                        3, 1, -1, 0, pass, NULL, 0, 0, ref);
+        intra_mode_mlp_prepare_features(blk_src, kSize, bd, blk[2], blk[3], 128,
+                                        3, 1, -1, 0, pass, &cache[0],
+                                        kSbRow + blk[0], kSbCol + blk[1], test);
+        ASSERT_EQ(0, memcmp(ref, test, sizeof(ref)))
+            << "bd " << bd << " pass " << pass << " block " << blk[2] << "x"
+            << blk[3];
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

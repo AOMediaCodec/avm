@@ -1761,6 +1761,9 @@ typedef struct ThreadData {
   uint8_t *resi_stat_txb_entropy_ctx;
   // Results of this thread's motion searches in the current superblock.
   MotionSearchMemo ms_memo;
+  // HOG entries of the intra mode MLP for the superblock this thread encodes
+  // (see intra_mode_mlp.h), allocated on first use.
+  struct IntraMlpHogCache *intra_mlp_hog_cache;
   int intrabc_used;
   int deltaq_used;
   FRAME_CONTEXT *tctx;
