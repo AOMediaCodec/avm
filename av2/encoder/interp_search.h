@@ -57,6 +57,8 @@ typedef struct {
   int same_ref_compound_rank_cap;
   /*! \brief Max ref MV candidates per reference. */
   int ref_mv_set_cap;
+  /*! \brief Max ref MV candidates per reference for NEAR_NEARMV. */
+  int near_near_ref_mv_set_cap;
   /*! \brief Max WARP_DELTA reference candidates. */
   int warp_ref_idx_cap;
   /*! \brief Max WARP_DELTA precisions. */
