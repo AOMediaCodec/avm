@@ -65,7 +65,7 @@ typedef struct {
 // segment holds at least one whole diagonal.
 #define TCQ_PREP_SEG 256
 
-// Inputs of the q1 path, indexed by scan_pos - seg_lo. They are computed 4
+// Per-position inputs, indexed by scan_pos - seg_lo. They are computed 4
 // positions at a time, so there is room for 3 more positions at the end.
 typedef struct {
   // Odd candidate distortion << RDDIV_BITS of Q0 and Q1.
@@ -76,6 +76,9 @@ typedef struct {
   // qIdx of the general path (orig_qIdx - 2, at least 1), or 0 for the q1
   // path. Set for every position.
   DECLARE_ALIGNED(32, int32_t, qidx[TCQ_PREP_SEG + 4]);
+  // |tcoeff| << (log_scale - 1) and dqv, for the general path.
+  DECLARE_ALIGNED(32, int32_t, abs_sh[TCQ_PREP_SEG + 4]);
+  DECLARE_ALIGNED(32, int32_t, dqv[TCQ_PREP_SEG + 4]);
 } TcqSegPos;
 
 // prevId -1 of a new eob, in bits 56 to 63 of the node info.
@@ -166,26 +169,60 @@ DECLARE_ALIGNED(32, static const int32_t, kFullPerm[4][2][8]) = {
   { { 2, 3, 2, 3, 0, 1, 0, 1 }, { 6, 7, 6, 7, 4, 5, 4, 5 } },
 };
 
-// Inputs of the general path at one position.
-static AVM_FORCE_INLINE void tcq_prepare_full(const tcq_param_t *p,
-                                              int scan_pos, int blk_pos,
-                                              const int lf, const int qidx,
-                                              TcqFullPos *pos) {
-  const LV_MAP_COEFF_COST *tc = p->txb_costs;
-  const int log_scale = p->log_scale;
-  const __m256i dq_shift = _mm256_set1_epi64x(QUANT_TABLE_BITS + log_scale);
+// Golomb rate for gol_idx > 248 (hr >= 61): 2 * msb(hr - 6) + 4 bits,
+// hr = ((qc + 3) >> 2) - (lf ? 4 : 3).
+static AVM_FORCE_INLINE __m256i tcq_gol_large(__m256i qc, int lf) {
+  const __m256i h = _mm256_sub_epi64(
+      _mm256_srli_epi64(_mm256_add_epi64(qc, _mm256_set1_epi64x(3)), 2),
+      _mm256_set1_epi64x(lf ? 10 : 9));
+  // h < 2^24, high dword 0: float exponent = 127 + msb(h).
+  const __m256i e =
+      _mm256_srli_epi64(_mm256_castps_si256(_mm256_cvtepi32_ps(h)), 23);
+  return _mm256_add_epi64(
+      _mm256_slli_epi64(e, AV2_PROB_COST_SHIFT + 1),
+      _mm256_set1_epi64x((4 << AV2_PROB_COST_SHIFT) -
+                         (127 << (AV2_PROB_COST_SHIFT + 1))));
+}
+
+// Per-diagonal inputs of tcq_prepare_full().
+typedef struct {
+  const LV_MAP_COEFF_COST *tc;
+  const uint16_t *block_eob_rate;
+  __m256i dq_shift, sh_shift, rdmult;
+  int try_eob;
+  int eob_thr1, eob_thr2;  // num / 8, num / 4
+} TcqFullConsts;
+
+static AVM_FORCE_INLINE void tcq_full_consts(const tcq_param_t *p,
+                                             TcqFullConsts *f) {
+  const int num = p->txb_height << p->bwl;
+  f->tc = p->txb_costs;
+  f->block_eob_rate = p->block_eob_rate;
+  f->dq_shift = _mm256_set1_epi64x(QUANT_TABLE_BITS + p->log_scale);
   // Shift only the low 32 bits of each lane, like av2_pre_quant_c().
-  const __m256i sh_shift = _mm256_set1_epi64x(log_scale - 1);
-  const int abs_tc = abs(p->tcoeff[blk_pos]);
-  const int dqv = get_dqv(p->dequant, blk_pos, p->iqmatrix);
-  const int32_t abs_sh = abs_tc * (1 << (log_scale - 1));
+  f->sh_shift = _mm256_set1_epi64x(p->log_scale - 1);
+  f->rdmult = _mm256_set1_epi64x((uint32_t)p->rdmult);
+  f->try_eob = p->sharpness == 0;
+  f->eob_thr1 = num / 8;
+  f->eob_thr2 = num / 4;
+}
+
+// Inputs of the general path at one position.
+static AVM_FORCE_INLINE void tcq_prepare_full(const TcqFullConsts *f,
+                                              const TcqSegPos *d, int i,
+                                              int scan_pos, const int lf,
+                                              const int qidx, TcqFullPos *pos) {
+  const LV_MAP_COEFF_COST *tc = f->tc;
+  const int32_t abs_sh = d->abs_sh[i];
+  const int dqv = d->dqv[i];
   // Zero-extended so that the compiler emits single vpmul[u]dq.
   const __m256i v_abs_sh = _mm256_set1_epi64x((uint32_t)abs_sh);
   const __m256i v_dqv = _mm256_set1_epi64x((uint32_t)dqv);
   const __m256i dist0 = _mm256_mul_epi32(v_abs_sh, v_abs_sh);
   const __m256i qc = _mm256_add_epi64(_mm256_set1_epi64x(qidx),
                                       _mm256_setr_epi64x(0, 1, 2, 3));
-  const __m256i dist = tcq_dist(qc, v_dqv, v_abs_sh, dist0, dq_shift, sh_shift);
+  const __m256i dist =
+      tcq_dist(qc, v_dqv, v_abs_sh, dist0, f->dq_shift, f->sh_shift);
   // absLevel << 32.
   const __m256i lev = _mm256_slli_epi64(
       _mm256_srli_epi64(_mm256_add_epi64(qc, _mm256_set1_epi64x(1)), 1), 32);
@@ -202,12 +239,14 @@ static AVM_FORCE_INLINE void tcq_prepare_full(const tcq_param_t *p,
   // and state 4 with the Q0 odd level (lane 1).
   int mid_idx;
   const int idx = tcq_range_idx(lf, qidx, &mid_idx);
-  const int eob_ctx = get_lower_levels_ctx_eob(p->bwl, p->txb_height, scan_pos);
+  // get_lower_levels_ctx_eob() for scan_pos > 0.
+  assert(scan_pos > 0);
+  const int eob_ctx = 1 + (scan_pos > f->eob_thr1) + (scan_pos > f->eob_thr2);
   const uint16_t *eob_tbl = lf ? tc->base_lf_eob_cost_tbl[idx][eob_ctx]
                                : tc->base_eob_cost_tbl[idx][eob_ctx];
   __m128i rate_eob = _mm_add_epi32(
       _mm_cvtepu16_epi32(_mm_cvtsi32_si128((int)loadu_uint32(eob_tbl))),
-      _mm_set1_epi32(p->block_eob_rate[scan_pos]));
+      _mm_set1_epi32(f->block_eob_rate[scan_pos]));
   __m256i gol = _mm256_setzero_si256();
   if (mid_idx >= 0) {
     const uint16_t *mid_eob = lf ? tc->mid_lf_cost_tbl[mid_idx][7][0]
@@ -225,25 +264,22 @@ static AVM_FORCE_INLINE void tcq_prepare_full(const tcq_param_t *p,
                 (int)loadu_uint32(&kGolombExp0Bits[gol_idx]))),
             AV2_PROB_COST_SHIFT);
       } else {
-        gol = _mm256_setr_epi64x(get_golomb_cost_tcq((qidx + 1) >> 1, lf),
-                                 get_golomb_cost_tcq((qidx + 2) >> 1, lf),
-                                 get_golomb_cost_tcq((qidx + 3) >> 1, lf),
-                                 get_golomb_cost_tcq((qidx + 4) >> 1, lf));
+        gol = tcq_gol_large(qc, lf);
       }
     }
   }
   pos->gol_even = _mm256_permutevar8x32_epi32(gol, perm_even);
   pos->gol_odd = _mm256_permutevar8x32_epi32(gol, perm_odd);
-  if (p->sharpness == 0) {
+  if (f->try_eob) {
     // { gol_even[0], gol_odd[0] } of the eob candidates.
     const __m128i gol_eob =
         _mm_unpacklo_epi32(_mm256_castsi256_si128(pos->gol_even),
                            _mm256_castsi256_si128(pos->gol_odd));
     rate_eob = _mm_add_epi32(rate_eob, gol_eob);
     const __m256i rate = _mm256_cvtepu32_epi64(rate_eob);
-    const __m256i rd = _mm256_add_epi64(
-        tcq_rate_cost(rate, _mm256_set1_epi64x((uint32_t)p->rdmult)),
-        _mm256_unpacklo_epi64(pos->dist_even, pos->dist_odd));
+    const __m256i rd =
+        _mm256_add_epi64(tcq_rate_cost(rate, f->rdmult),
+                         _mm256_unpacklo_epi64(pos->dist_even, pos->dist_odd));
     pos->eob_rd = _mm256_blend_epi32(_mm256_set1_epi64x(INT64_MAX), rd, 0x0F);
     pos->eob_info = _mm256_or_si256(
         _mm256_or_si256(_mm256_unpacklo_epi64(pos->info_even, pos->info_odd),
@@ -251,6 +287,7 @@ static AVM_FORCE_INLINE void tcq_prepare_full(const tcq_param_t *p,
         _mm256_set1_epi64x(TCQ_NEW_EOB_PREV_ID));
   } else {
     pos->eob_rd = _mm256_set1_epi64x(INT64_MAX);
+    pos->eob_info = _mm256_setzero_si256();
   }
 }
 
@@ -287,6 +324,9 @@ static AVM_FORCE_INLINE void tcq_prepare_q1(const tcq_param_t *p, int scan_pos,
     const int rate = eob_tbl[1] + p->block_eob_rate[scan_pos];
     d->eob1_rd[i] = RDCOST(p->rdmult, rate, dist2);
     d->eob1_info[i] = rate | (INT64_C(1) << 32) | TCQ_NEW_EOB_PREV_ID;
+  } else {
+    d->eob1_rd[i] = INT64_MAX;
+    d->eob1_info[i] = 0;
   }
 }
 
@@ -304,10 +344,12 @@ static AVM_FORCE_INLINE void tcq_prepare_segment(const tcq_param_t *p,
     for (int scan_pos = seg_lo; scan_pos <= seg_hi; scan_pos++) {
       const int i = scan_pos - seg_lo;
       const int bp = scan[scan_pos];
+      const int abs_tc = abs(tcoeff[bp]);
       // int16_t like orig_qIdx in the C code.
-      const int orig_qidx =
-          (int16_t)(((int64_t)abs(tcoeff[bp]) * p->quant[1]) >> shift);
+      const int orig_qidx = (int16_t)(((int64_t)abs_tc * p->quant[1]) >> shift);
       d->qidx[i] = orig_qidx < 2 ? 0 : AVMMAX(orig_qidx - 2, 1);
+      d->abs_sh[i] = abs_tc * (1 << (log_scale - 1));
+      d->dqv[i] = get_dqv(p->dequant, bp, p->iqmatrix);
       if (orig_qidx < 2)
         tcq_prepare_q1(p, scan_pos, bp, scan_pos < TCQ_LF_SCAN_END, i, d);
     }
@@ -322,6 +364,8 @@ static AVM_FORCE_INLINE void tcq_prepare_segment(const tcq_param_t *p,
   const __m256i quant = _mm256_set1_epi64x((uint32_t)p->quant[1]);
   const __m128i v_shift = _mm_cvtsi32_si128(shift);
   const __m128i v_log_scale = _mm_cvtsi32_si128(log_scale);
+  const __m128i v_ls1 = _mm_cvtsi32_si128(log_scale - 1);
+  const __m128i dqv1 = _mm_set1_epi32(p->dequant[1]);  // blk_pos > 0
   const __m128i two = _mm_set1_epi32(2);
   const __m128i one = _mm_set1_epi32(1);
   const __m256i pick_lo = _mm256_setr_epi32(0, 2, 4, 6, 0, 2, 4, 6);
@@ -357,7 +401,8 @@ static AVM_FORCE_INLINE void tcq_prepare_segment(const tcq_param_t *p,
     const int sp3 = AVMMIN(sp + 3, seg_hi);
     const __m128i t = _mm_setr_epi32(tcoeff[scan[sp]], tcoeff[scan[sp1]],
                                      tcoeff[scan[sp2]], tcoeff[scan[sp3]]);
-    const __m256i a = _mm256_cvtepu32_epi64(_mm_abs_epi32(t));
+    const __m128i abs_t = _mm_abs_epi32(t);
+    const __m256i a = _mm256_cvtepu32_epi64(abs_t);
     const __m256i oq64 = _mm256_srl_epi64(_mm256_mul_epu32(a, quant), v_shift);
     // Wrap to int16_t like orig_qIdx in the C code.
     const __m128i oq = _mm_srai_epi32(
@@ -369,6 +414,8 @@ static AVM_FORCE_INLINE void tcq_prepare_segment(const tcq_param_t *p,
     const __m128i qidx =
         _mm_andnot_si128(is_q1, _mm_max_epi32(_mm_sub_epi32(oq, two), one));
     _mm_storeu_si128((__m128i *)&d->qidx[i], qidx);
+    _mm_storeu_si128((__m128i *)&d->abs_sh[i], _mm_sll_epi32(abs_t, v_ls1));
+    _mm_storeu_si128((__m128i *)&d->dqv[i], dqv1);
     if (!_mm_movemask_epi8(is_q1)) continue;
     // 2 * abs_sh, with abs_sh = abs << (log_scale - 1).
     const __m256i abs_sh2 = _mm256_sll_epi64(a, v_log_scale);
@@ -401,6 +448,10 @@ static AVM_FORCE_INLINE void tcq_prepare_segment(const tcq_param_t *p,
       _mm256_storeu_si256(
           (__m256i *)&d->eob1_rd[i],
           _mm256_add_epi64(tcq_rate_cost(rate64, rdmult), dist2));
+    } else {
+      _mm256_storeu_si256((__m256i *)&d->eob1_rd[i],
+                          _mm256_set1_epi64x(INT64_MAX));
+      _mm256_storeu_si256((__m256i *)&d->eob1_info[i], _mm256_setzero_si256());
     }
   }
 }

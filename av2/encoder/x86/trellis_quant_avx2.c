@@ -30,6 +30,7 @@ static const uint8_t kConst[4][16] = {
   { 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7 },
 };
 
+// prev_st bytes are negative or 0..7; table bytes 8..15 are never read.
 static __m128i map_state(__m128i state, __m128i prev_st) {
   // Track previous states.
   __m128i map_st = _mm_shuffle_epi8(state, prev_st);
@@ -62,8 +63,8 @@ void av2_update_nbr_diagonal_avx2(struct tcq_ctx_t *tcq_ctx, int row, int col,
   _mm_storeu_si64(&tcq_ctx->orig_st, state_id);
   __m128i state0 = state_id;
   __m128i lev01 = _mm_lddqu_si128((__m128i *)&tcq_ctx->lev_new[idx0]);
-  __m128i prev_st0 = _mm_lddqu_si128((__m128i *)&tcq_ctx->prev_st[idx0]);
-  __m128i prev_st1 = _mm_srli_si128(prev_st0, 8);
+  __m128i prev_st0 = _mm_loadu_si64(tcq_ctx->prev_st[idx0]);
+  __m128i prev_st1 = _mm_loadu_si64(tcq_ctx->prev_st[idx0 + 1]);
   __m128i state1 = map_state(prev_st0, state0);
   __m128i state2 = map_state(prev_st1, state1);
   __m128i state01 = _mm_unpacklo_epi64(state0, state1);
@@ -73,13 +74,18 @@ void av2_update_nbr_diagonal_avx2(struct tcq_ctx_t *tcq_ctx, int row, int col,
 
   for (int i = idx0; i < idx_end; i += 4) {
     // Track state transitions.
-    __m128i prev_st2 = _mm_lddqu_si128((__m128i *)&tcq_ctx->prev_st[i + 2]);
-    __m128i prev_st3 = _mm_srli_si128(prev_st2, 8);
-    __m128i prev_st4 = _mm_lddqu_si128((__m128i *)&tcq_ctx->prev_st[i + 4]);
-    __m128i prev_st5 = _mm_srli_si128(prev_st4, 8);
+    // One load per column: each matches one 8-byte store.
+    __m128i prev_st2 = _mm_loadu_si64(tcq_ctx->prev_st[i + 2]);
+    __m128i prev_st3 = _mm_loadu_si64(tcq_ctx->prev_st[i + 3]);
+    __m128i prev_st4 = _mm_loadu_si64(tcq_ctx->prev_st[i + 4]);
+    __m128i prev_st5 = _mm_loadu_si64(tcq_ctx->prev_st[i + 5]);
+    // Composed maps from column i + 2, off the state chain.
+    __m128i map3 = map_state(prev_st3, prev_st2);
+    __m128i map4 = map_state(prev_st4, map3);
+    __m128i map5 = map_state(prev_st5, map4);
     __m128i state3 = map_state(prev_st2, state2);
-    __m128i state4 = map_state(prev_st3, state3);
-    __m128i state5 = map_state(prev_st4, state4);
+    __m128i state4 = map_state(map3, state2);
+    __m128i state5 = map_state(map4, state2);
     __m128i state23 = _mm_unpacklo_epi64(state2, state3);
     __m128i state45 = _mm_unpacklo_epi64(state4, state5);
     __m256i state2345 = _mm256_set_m128i(state45, state23);
@@ -123,7 +129,7 @@ void av2_update_nbr_diagonal_avx2(struct tcq_ctx_t *tcq_ctx, int row, int col,
 
     // Prepare for next iteration.
     lev__01 = lev2345;
-    state2 = map_state(prev_st5, state5);
+    state2 = map_state(map5, state2);
   }
 }
 
@@ -431,34 +437,35 @@ static AVM_FORCE_INLINE __m256i tcq_rdc(__m256i rate, const TcqConsts *c) {
 
 // Each state keeps the cheaper of its even candidate and its partner's odd
 // candidate (ties go to the even one), then moves to its next state.
+// With try_eob, a new eob replaces state 0 / 4 when strictly cheaper.
 static AVM_FORCE_INLINE void tcq_select(TcqRegs *s, __m256i ev_rd_a,
                                         __m256i ev_info_a, __m256i ev_rd_b,
                                         __m256i ev_info_b, __m256i od_rd_a,
                                         __m256i od_info_a, __m256i od_rd_b,
-                                        __m256i od_info_b) {
+                                        __m256i od_info_b, int try_eob,
+                                        __m256i eob_cand_rd,
+                                        __m256i eob_cand_info) {
   const __m256i use_odd_a = _mm256_cmpgt_epi64(ev_rd_a, od_rd_b);
   const __m256i use_odd_b = _mm256_cmpgt_epi64(ev_rd_b, od_rd_a);
   const __m256i ra = _mm256_blendv_epi8(ev_rd_a, od_rd_b, use_odd_a);
   const __m256i rb = _mm256_blendv_epi8(ev_rd_b, od_rd_a, use_odd_b);
   const __m256i ia = _mm256_blendv_epi8(ev_info_a, od_info_b, use_odd_a);
   const __m256i ib = _mm256_blendv_epi8(ev_info_b, od_info_a, use_odd_b);
-  const __m256i rlo = _mm256_unpacklo_epi64(ra, rb);
+  __m256i rlo = _mm256_unpacklo_epi64(ra, rb);
   const __m256i rhi = _mm256_unpackhi_epi64(ra, rb);
-  const __m256i ilo = _mm256_unpacklo_epi64(ia, ib);
+  __m256i ilo = _mm256_unpacklo_epi64(ia, ib);
   const __m256i ihi = _mm256_unpackhi_epi64(ia, ib);
+  if (try_eob) {
+    // New eob of states 0 and 4: lanes 0 and 1 of rlo / ilo. Lanes 2 and 3
+    // feed rd_b, so eob_cand_rd must be INT64_MAX there.
+    const __m256i use = _mm256_cmpgt_epi64(rlo, eob_cand_rd);
+    rlo = _mm256_blendv_epi8(rlo, eob_cand_rd, use);
+    ilo = _mm256_blendv_epi8(ilo, eob_cand_info, use);
+  }
   s->rd_a = _mm256_permute2x128_si256(rlo, rhi, 0x20);
   s->rd_b = _mm256_permute2x128_si256(rhi, rlo, 0x31);
   s->info_a = _mm256_permute2x128_si256(ilo, ihi, 0x20);
   s->info_b = _mm256_permute2x128_si256(ihi, ilo, 0x31);
-}
-
-// New eob candidates for states 0 (a lane 0) and 4 (a lane 1). Unused lanes
-// of eob_rd are INT64_MAX.
-static AVM_FORCE_INLINE void tcq_try_eob(TcqRegs *s, __m256i eob_rd,
-                                         __m256i eob_node_info) {
-  const __m256i use = _mm256_cmpgt_epi64(s->rd_a, eob_rd);
-  s->rd_a = _mm256_blendv_epi8(s->rd_a, eob_rd, use);
-  s->info_a = _mm256_blendv_epi8(s->info_a, eob_node_info, use);
 }
 
 // Fetch the packed rates of each lane from the per-origin tables.
@@ -473,7 +480,9 @@ static AVM_FORCE_INLINE __m256i tcq_fetch(const TcqRegs *s, __m256i t0,
 // Position with orig_qIdx < 2: candidates are zero and the odd level 1.
 static AVM_FORCE_INLINE void tcq_step_q1(TcqRegs *s, const TcqConsts *c,
                                          __m256i tq0, __m256i tq1, __m256i neg,
-                                         __m256i dist_odd) {
+                                         __m256i dist_odd, int try_eob,
+                                         __m256i eob_cand_rd,
+                                         __m256i eob_cand_info) {
   const __m256i v = tcq_fetch(s, tq0, tq1, neg);
   const __m256i za = _mm256_and_si256(v, c->mask16);
   const __m256i oa = _mm256_and_si256(_mm256_srli_epi64(v, 16), c->mask16);
@@ -497,7 +506,7 @@ static AVM_FORCE_INLINE void tcq_step_q1(TcqRegs *s, const TcqConsts *c,
   const __m256i od_info_b =
       _mm256_add_epi64(_mm256_add_epi64(rate_b, ob), c->pid1_b);
   tcq_select(s, ev_rd_a, ev_info_a, ev_rd_b, ev_info_b, od_rd_a, od_info_a,
-             od_rd_b, od_info_b);
+             od_rd_b, od_info_b, try_eob, eob_cand_rd, eob_cand_info);
 }
 
 // Position with orig_qIdx >= 2: candidates are zero, one even and one odd
@@ -505,8 +514,8 @@ static AVM_FORCE_INLINE void tcq_step_q1(TcqRegs *s, const TcqConsts *c,
 static AVM_FORCE_INLINE void tcq_step_full(TcqRegs *s, const TcqConsts *c,
                                            __m256i teo0, __m256i teo1,
                                            __m256i neg_eo, __m256i tz,
-                                           __m256i neg_z,
-                                           const TcqFullPos *pos) {
+                                           __m256i neg_z, const TcqFullPos *pos,
+                                           int try_eob) {
   const __m256i gol_even = pos->gol_even;
   const __m256i gol_odd = pos->gol_odd;
   const __m256i dist_even = pos->dist_even;
@@ -564,7 +573,7 @@ static AVM_FORCE_INLINE void tcq_step_full(TcqRegs *s, const TcqConsts *c,
   const __m256i od_info_b = _mm256_add_epi64(
       _mm256_add_epi64(rate_b, ob), _mm256_add_epi64(info_odd, c->pid_b));
   tcq_select(s, ev_rd_a, ev_info_a, ev_rd_b, ev_info_b, od_rd_a, od_info_a,
-             od_rd_b, od_info_b);
+             od_rd_b, od_info_b, try_eob, pos->eob_rd, pos->eob_info);
 }
 
 // Per-origin tables of the general path, even | odd << 16 for Q0 and Q1. The
@@ -677,8 +686,8 @@ static void tcq_dc_position(const tcq_param_t *p, tcq_ctx_t *tcq_ctx,
 // low-frequency region tables; the DC position is not handled here.
 static AVM_FORCE_INLINE void tcq_diagonal(
     const tcq_param_t *p, const TcqConsts *c, const TcqSegPos *d,
-    const TcqDiagTables *t, int seg_lo, int scan_hi, int scan_lo, int blk_pos,
-    int col, int diag_ctx, const int lf, TcqRegs *s, tcq_ctx_t *tcq_ctx,
+    const TcqDiagTables *t, int seg_lo, int scan_hi, int scan_lo, int col,
+    int diag_ctx, const int lf, TcqRegs *s, tcq_ctx_t *tcq_ctx,
     tcq_node_t *trellis) {
   const LV_MAP_COEFF_COST *tc = p->txb_costs;
   const int try_eob = p->sharpness == 0;
@@ -690,13 +699,13 @@ static AVM_FORCE_INLINE void tcq_diagonal(
   assert(scan_lo >= seg_lo && scan_hi - seg_lo < TCQ_PREP_SEG);
   // Inputs of the general path, indexed by scan_hi - scan_pos.
   TcqFullPos full[MAX_DIAG];
-  const int blk_pos_inc = (1 << p->bwl) - 1;
   const int32_t *seg_qidx = &d->qidx[scan_lo - seg_lo];
+  TcqFullConsts fc;
+  tcq_full_consts(p, &fc);
   for (int k = 0, scan_pos = scan_hi; scan_pos >= scan_lo; --scan_pos, ++k) {
     const int qidx = seg_qidx[scan_pos - scan_lo];
     if (qidx == 0) continue;
-    tcq_prepare_full(p, scan_pos, blk_pos + k * blk_pos_inc, lf, qidx,
-                     &full[k]);
+    tcq_prepare_full(&fc, d, scan_pos - seg_lo, scan_pos, lf, qidx, &full[k]);
   }
 
   const __m256i inf = _mm256_set1_epi64x(INT64_MAX);
@@ -709,14 +718,12 @@ static AVM_FORCE_INLINE void tcq_diagonal(
       const __m256i dist_odd = _mm256_permute4x64_epi64(
           _mm256_castsi128_si256(_mm_load_si128((const __m128i *)d->dist[i])),
           0x50);
-      tcq_step_q1(s, c, _mm256_permutevar8x32_epi32(t->lq0, nib),
-                  _mm256_permutevar8x32_epi32(t->lq1, nib), t->neg_q1,
-                  dist_odd);
-      if (try_eob) {
-        tcq_try_eob(
-            s, _mm256_blend_epi32(inf, _mm256_set1_epi64x(d->eob1_rd[i]), 0x0C),
-            _mm256_set1_epi64x(d->eob1_info[i]));
-      }
+      tcq_step_q1(
+          s, c, _mm256_permutevar8x32_epi32(t->lq0, nib),
+          _mm256_permutevar8x32_epi32(t->lq1, nib), t->neg_q1, dist_odd,
+          try_eob,
+          _mm256_blend_epi32(inf, _mm256_set1_epi64x(d->eob1_rd[i]), 0x0C),
+          _mm256_set1_epi64x(d->eob1_info[i]));
     } else {
       const TcqFullPos *ps = &full[k];
       int mid_idx;
@@ -734,8 +741,8 @@ static AVM_FORCE_INLINE void tcq_diagonal(
       __m256i teo0, teo1, neg_eo;
       tcq_tables_full(low, mid, nib, mnib, &teo0, &teo1, &neg_eo);
       tcq_step_full(s, c, teo0, teo1, neg_eo,
-                    _mm256_permutevar8x32_epi32(t->lz, nib), t->neg_z, ps);
-      if (try_eob) tcq_try_eob(s, ps->eob_rd, ps->eob_info);
+                    _mm256_permutevar8x32_epi32(t->lz, nib), t->neg_z, ps,
+                    try_eob);
     }
     tcq_update_orig(s, tcq_ctx->lev_new[col], tcq_ctx->prev_st[col]);
     tcq_store_nodes(s, &trellis[scan_pos << TCQ_N_STATES_LOG]);
@@ -788,11 +795,11 @@ void av2_trellis_loop_diagonal_st8_avx2(const tcq_param_t *p, int scan_hi,
     }
     // A constant lf lets the compiler build one copy per region.
     if (!lf) {
-      tcq_diagonal(p, &c, &d, &t, seg_lo, scan_hi, lo, blk_pos, col, diag_ctx,
-                   0, &s, tcq_ctx, trellis);
+      tcq_diagonal(p, &c, &d, &t, seg_lo, scan_hi, lo, col, diag_ctx, 0, &s,
+                   tcq_ctx, trellis);
     } else {
-      tcq_diagonal(p, &c, &d, &t, seg_lo, scan_hi, lo, blk_pos, col, diag_ctx,
-                   1, &s, tcq_ctx, trellis);
+      tcq_diagonal(p, &c, &d, &t, seg_lo, scan_hi, lo, col, diag_ctx, 1, &s,
+                   tcq_ctx, trellis);
     }
     tcq_store_orig(&s, tcq_ctx);
     av2_update_nbr_diagonal_avx2(tcq_ctx, row + inc, col - inc, bwl);
