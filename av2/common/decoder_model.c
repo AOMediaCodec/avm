@@ -909,7 +909,12 @@ static bool valid_active_buffer_index(const Av2DmBufferPool *pool,
 }
 
 void av2_dm_buffer_pool_init(Av2DmBufferPool *pool) {
-  if (pool != NULL) memset(pool, 0, sizeof(*pool));
+  if (pool == NULL) return;
+  memset(pool, 0, sizeof(*pool));
+  for (uint32_t i = 0; i < AV2_DM_MAX_REF_FRAMES; ++i) pool->vbi[i] = -1;
+  for (uint32_t i = 0; i < AV2_DM_MAX_BUFFER_POOL_SIZE; ++i) {
+    buffer_reset(&pool->buffers[i]);
+  }
 }
 
 bool av2_dm_buffer_pool_initialize(Av2DmBufferPool *pool,
@@ -919,13 +924,9 @@ bool av2_dm_buffer_pool_initialize(Av2DmBufferPool *pool,
     return false;
   }
   if (pool->initialized) av2_dm_buffer_pool_destroy(pool);
-  memset(pool, 0, sizeof(*pool));
+  av2_dm_buffer_pool_init(pool);
   pool->num_ref_frames = num_ref_frames;
   pool->pool_size = num_ref_frames + 2;
-  for (uint32_t i = 0; i < AV2_DM_MAX_REF_FRAMES; ++i) pool->vbi[i] = -1;
-  for (uint32_t i = 0; i < AV2_DM_MAX_BUFFER_POOL_SIZE; ++i) {
-    buffer_reset(&pool->buffers[i]);
-  }
   pool->initialized = true;
   return true;
 }
@@ -1126,6 +1127,7 @@ typedef struct Av2DmTuRecord {
   uint64_t output_luma_samples;
   uint32_t output_frames;
   uint32_t frame_headers;
+  uint32_t counted_frame_headers;
   bool header_complete;
   bool header_window_checked;
   bool header_rate_reported;
@@ -1281,6 +1283,8 @@ struct Av2DecoderModel {
   uint64_t retired_header_event_index;
   uint64_t retired_header_limit;
   bool retired_unresolved_tu;
+  bool retired_timed_tu_valid;
+  Av2DmRational retired_tu_window_end;
   Av2DmPendingOutputWitness pending_display_late;
   Av2DmPendingOutputWitness pending_decode_deadline;
   uint64_t maximum_tile_area;
@@ -1311,6 +1315,7 @@ void av2_dm_level_limits_destroy(Av2DmLevelLimits *limits) {
 
 bool av2_dm_level_limits_copy(Av2DmLevelLimits *destination,
                               const Av2DmLevelLimits *source) {
+  if (destination == NULL || source == NULL) return false;
   Av2DmLevelLimits temporary = *source;
   av2_dm_rational_init(&temporary.bit_rate);
   av2_dm_rational_init(&temporary.buffer_size);
@@ -1593,21 +1598,6 @@ static bool rational_reciprocal(const Av2DmRational *value,
   return made;
 }
 
-static bool rational_to_u64(const Av2DmRational *value, uint64_t *result) {
-  rational_begin_operation();
-  Av2DmBigUInt magnitude = { 0 };
-  Av2DmBigUInt denominator = { 0 };
-  const bool converted = !value->negative &&
-                         big_uint_from_rational(value, false, &magnitude) &&
-                         big_uint_from_rational(value, true, &denominator) &&
-                         denominator.count == 1 && denominator.limbs[0] == 1 &&
-                         magnitude.count <= 1;
-  if (converted) *result = magnitude.count == 0 ? 0 : magnitude.limbs[0];
-  big_uint_destroy(&magnitude);
-  big_uint_destroy(&denominator);
-  return converted;
-}
-
 static bool rational_less(const Av2DmRational *left, const Av2DmRational *right,
                           bool *is_less) {
   int comparison;
@@ -1704,22 +1694,6 @@ bool av2_dm_get_level_limits(uint32_t level_idx, uint32_t tier,
   return true;
 }
 
-// Apply a multistream allocation divisor exactly. Reject a fractional result
-// for limits whose representation requires an integer.
-static bool scaled_integer(uint64_t value, uint32_t scale_numerator,
-                           uint32_t scale_denominator, uint64_t *scaled) {
-  Av2DmRational rational = { 0 };
-  if (!av2_dm_rational_make(value, 1, &rational) ||
-      !av2_dm_rational_multiply_u64(&rational, scale_denominator, &rational) ||
-      !av2_dm_rational_divide_u64(&rational, scale_numerator, &rational) ||
-      !rational_to_u64(&rational, scaled)) {
-    av2_dm_rational_destroy(&rational);
-    return false;
-  }
-  av2_dm_rational_destroy(&rational);
-  return true;
-}
-
 bool av2_dm_apply_multistream_limits(uint32_t level_idx, uint32_t tier,
                                      uint32_t profile, uint32_t scale_numerator,
                                      uint32_t scale_denominator,
@@ -1743,13 +1717,7 @@ bool av2_dm_apply_multistream_limits(uint32_t level_idx, uint32_t tier,
     av2_dm_level_limits_destroy(&multistream);
     return false;
   }
-  uint64_t scaled_display;
-  uint64_t scaled_decode;
-  if (!scaled_integer(multistream.max_display_rate, scale_numerator,
-                      scale_denominator, &scaled_display) ||
-      !scaled_integer(multistream.max_decode_rate, scale_numerator,
-                      scale_denominator, &scaled_decode) ||
-      !av2_dm_rational_multiply_u64(&multistream.bit_rate, scale_denominator,
+  if (!av2_dm_rational_multiply_u64(&multistream.bit_rate, scale_denominator,
                                     &multistream.bit_rate) ||
       !av2_dm_rational_divide_u64(&multistream.bit_rate, scale_numerator,
                                   &multistream.bit_rate) ||
@@ -1765,13 +1733,20 @@ bool av2_dm_apply_multistream_limits(uint32_t level_idx, uint32_t tier,
       (uint64_t)row.max_h_size_x * (uint32_t)row.max_v_size_x;
   multistream.max_horizontal_size = (uint32_t)row.max_h_size_x;
   multistream.max_vertical_size = (uint32_t)row.max_v_size_x;
-  multistream.max_display_rate = scaled_display;
-  multistream.max_decode_rate = scaled_decode;
+  // Annex A uses integer division for sample rates. The table lookup above
+  // accepts only the divisors 3/2, 4 and 9; the largest table rate fits twice.
+  multistream.max_display_rate =
+      multistream.max_display_rate * scale_denominator / scale_numerator;
+  multistream.max_decode_rate =
+      multistream.max_decode_rate * scale_denominator / scale_numerator;
   multistream.max_header_rate = 132;
   multistream.max_tiles = (uint32_t)((uint64_t)multistream.max_tiles *
                                      scale_denominator / scale_numerator);
   multistream.max_tile_columns = (uint32_t)row.max_tile_cols_x;
 
+// Annex A lists which substream limits constrain the operating point. Tile
+// width, tile area, tile-size/header-rate product and picture-size profile
+// factor are retained from the operating point.
 #define MIN_LIMIT(member)                    \
   do {                                       \
     if (multistream.member < updated.member) \
@@ -2294,6 +2269,7 @@ static void model_fixed_owners_init(Av2DecoderModel *model) {
   av2_dm_rational_init(&model->last_frame_parsing_time);
   av2_dm_rational_init(&model->last_display_duration);
   av2_dm_rational_init(&model->latest_timed_tu_output_time);
+  av2_dm_rational_init(&model->retired_tu_window_end);
   av2_dm_rational_init(&model->pending_display_late.threshold);
   av2_dm_rational_init(&model->pending_display_late.observed);
   av2_dm_rational_init(&model->pending_display_late.presentation_offset);
@@ -2309,6 +2285,12 @@ Av2DecoderModel *av2_decoder_model_create(const Av2DmConfig *config,
   Av2DecoderModel *const model = internal_calloc(1, sizeof(*model));
   if (model == NULL) return NULL;
   model_fixed_owners_init(model);
+  model->lane.current_buffer_index = -1;
+  model->resource_lane.current_buffer_index = -1;
+  av2_dm_rational_init(&model->lane.time);
+  av2_dm_rational_init(&model->resource_lane.time);
+  av2_dm_rational_init(&model->lane.initial_presentation_delay);
+  av2_dm_rational_init(&model->resource_lane.initial_presentation_delay);
   if (!av2_dm_config_copy(&model->config, config)) {
     av2_decoder_model_destroy(model);
     return NULL;
@@ -2326,13 +2308,13 @@ Av2DecoderModel *av2_decoder_model_create(const Av2DmConfig *config,
     update_result_status(model);
     return model;
   }
-  if (config->applicability == AV2_DM_MISSING_REQUIRED_INPUT) {
+  if (config->applicability == AV2_DM_MISSING_REQUIRED_INPUT ||
+      config->num_ref_frames == 0 ||
+      config->num_ref_frames > AV2_DM_MAX_REF_FRAMES) {
     missing_input(model);
     return model;
   }
-  if (config->num_ref_frames == 0 ||
-      config->num_ref_frames > AV2_DM_MAX_REF_FRAMES ||
-      !lane_initialize(&model->lane, config->num_ref_frames) ||
+  if (!lane_initialize(&model->lane, config->num_ref_frames) ||
       !lane_initialize(&model->resource_lane, config->num_ref_frames)) {
     av2_decoder_model_destroy(model);
     return NULL;
@@ -2374,8 +2356,7 @@ Av2DecoderModel *av2_decoder_model_create(const Av2DmConfig *config,
   return model;
 }
 
-void av2_decoder_model_destroy(Av2DecoderModel *model) {
-  if (model == NULL) return;
+static void destroy_model_contents(Av2DecoderModel *model) {
   av2_dm_config_destroy(&model->config);
   av2_dm_level_limits_destroy(&model->limits);
   av2_dm_rational_destroy(&model->decoder_buffer_delay);
@@ -2411,25 +2392,38 @@ void av2_decoder_model_destroy(Av2DecoderModel *model) {
   av2_dm_rational_destroy(&model->last_frame_parsing_time);
   av2_dm_rational_destroy(&model->last_display_duration);
   av2_dm_rational_destroy(&model->latest_timed_tu_output_time);
+  av2_dm_rational_destroy(&model->retired_tu_window_end);
   av2_dm_rational_destroy(&model->pending_display_late.threshold);
   av2_dm_rational_destroy(&model->pending_display_late.observed);
   av2_dm_rational_destroy(&model->pending_display_late.presentation_offset);
   av2_dm_rational_destroy(&model->pending_decode_deadline.threshold);
   av2_dm_rational_destroy(&model->pending_decode_deadline.observed);
   av2_dm_rational_destroy(&model->pending_decode_deadline.presentation_offset);
+}
+
+void av2_decoder_model_destroy(Av2DecoderModel *model) {
+  if (model == NULL) return;
+  destroy_model_contents(model);
   avm_free(model);
 }
 
+// Snapshot plus unpublished reports for one event. Allocation/arithmetic
+// failure restores the snapshot and discards these reports; success publishes
+// them in order. Bitstream violations alone do not trigger rollback.
+typedef struct Av2DmModelTransaction {
+  Av2DecoderModel snapshot;
+  Av2DmViolation *violations;
+  size_t violation_count;
+  size_t violation_capacity;
+  bool allocation_failed;
+  bool arithmetic_failed;
+} Av2DmModelTransaction;
+
 // Deep snapshot for event rollback; all owned members must be independent of
 // the source even when cloning fails partway through.
-static Av2DecoderModel *decoder_model_clone(const Av2DecoderModel *source,
-                                            bool *allocation_failed) {
-  *allocation_failed = false;
-  Av2DecoderModel *const copy = internal_calloc(1, sizeof(*copy));
-  if (copy == NULL) {
-    *allocation_failed = true;
-    return NULL;
-  }
+static bool copy_model_snapshot(Av2DecoderModel *copy,
+                                const Av2DecoderModel *source,
+                                bool *allocation_failed) {
   *copy = *source;
   model_fixed_owners_init(copy);
   copy->buffer_size_transitions = NULL;
@@ -2530,6 +2524,8 @@ static Av2DecoderModel *decoder_model_clone(const Av2DecoderModel *source,
                             &source->last_frame_parsing_time) ||
       !av2_dm_rational_copy(&copy->last_display_duration,
                             &source->last_display_duration) ||
+      !av2_dm_rational_copy(&copy->retired_tu_window_end,
+                            &source->retired_tu_window_end) ||
       !av2_dm_rational_copy(&copy->latest_timed_tu_output_time,
                             &source->latest_timed_tu_output_time)) {
     goto failure;
@@ -2557,29 +2553,14 @@ static Av2DecoderModel *decoder_model_clone(const Av2DecoderModel *source,
           &source->pending_decode_deadline.presentation_offset)) {
     goto failure;
   }
-  return copy;
+  return true;
 
 failure:
   if (av2_dm_last_failure_was_allocation()) {
     *allocation_failed = true;
   }
-  av2_decoder_model_destroy(copy);
-  return NULL;
+  return false;
 }
-
-// Snapshot plus unpublished reports for one event. Allocation/arithmetic
-// failure restores the snapshot and discards these reports; success publishes
-// them in order. Bitstream violations alone do not trigger rollback.
-typedef struct Av2DmModelTransaction {
-  Av2DecoderModel *snapshot;
-  Av2DmReportFn report;
-  void *report_opaque;
-  Av2DmViolation *violations;
-  size_t violation_count;
-  size_t violation_capacity;
-  bool allocation_failed;
-  bool arithmetic_failed;
-} Av2DmModelTransaction;
 
 static void transaction_report(void *opaque, const Av2DmViolation *violation) {
   Av2DmModelTransaction *const transaction = opaque;
@@ -2624,32 +2605,37 @@ static void destroy_model_transaction(Av2DmModelTransaction *transaction) {
     av2_dm_violation_destroy(&transaction->violations[i]);
   }
   avm_free(transaction->violations);
-  memset(transaction, 0, sizeof(*transaction));
+  avm_free(transaction);
 }
 
-static bool begin_model_transaction(Av2DecoderModel *model,
-                                    Av2DmModelTransaction *transaction) {
-  memset(transaction, 0, sizeof(*transaction));
-  transaction->snapshot =
-      decoder_model_clone(model, &transaction->allocation_failed);
-  if (transaction->snapshot == NULL) {
+static Av2DmModelTransaction *begin_model_transaction(Av2DecoderModel *model) {
+  Av2DmModelTransaction *const transaction =
+      internal_calloc(1, sizeof(*transaction));
+  if (transaction == NULL) {
+    allocation_failure(model);
+    return NULL;
+  }
+  if (!copy_model_snapshot(&transaction->snapshot, model,
+                           &transaction->allocation_failed)) {
     if (transaction->allocation_failed) {
       allocation_failure(model);
     } else {
       arithmetic_failure(model);
     }
-    return false;
+    destroy_model_contents(&transaction->snapshot);
+    avm_free(transaction);
+    return NULL;
   }
-  transaction->report = model->report;
-  transaction->report_opaque = model->report_opaque;
   model->report = transaction_report;
   model->report_opaque = transaction;
-  return true;
+  return transaction;
 }
 
 static void end_model_transaction(Av2DecoderModel *model,
                                   Av2DmModelTransaction *transaction) {
-  Av2DecoderModel *const snapshot = transaction->snapshot;
+  Av2DecoderModel *const snapshot = &transaction->snapshot;
+  const Av2DmReportFn report = snapshot->report;
+  void *const report_opaque = snapshot->report_opaque;
   const bool allocation_failed =
       transaction->allocation_failed ||
       (model->result.allocation_failed && !snapshot->result.allocation_failed);
@@ -2660,8 +2646,6 @@ static void end_model_transaction(Av2DecoderModel *model,
     Av2DecoderModel failed = *model;
     *model = *snapshot;
     *snapshot = failed;
-    av2_decoder_model_destroy(snapshot);
-    transaction->snapshot = NULL;
     if (allocation_failed) {
       allocation_failure(model);
     } else {
@@ -2669,17 +2653,14 @@ static void end_model_transaction(Av2DecoderModel *model,
       model->processing_stopped = true;
       update_result_status(model);
     }
-    destroy_model_transaction(transaction);
-    return;
+  } else {
+    model->report = report;
+    model->report_opaque = report_opaque;
   }
-  model->report = transaction->report;
-  model->report_opaque = transaction->report_opaque;
-  av2_decoder_model_destroy(snapshot);
-  transaction->snapshot = NULL;
-  if (transaction->report != NULL) {
+  destroy_model_contents(snapshot);
+  if (!allocation_failed && !arithmetic_failed && report != NULL) {
     for (size_t i = 0; i < transaction->violation_count; ++i) {
-      transaction->report(transaction->report_opaque,
-                          &transaction->violations[i]);
+      report(report_opaque, &transaction->violations[i]);
     }
   }
   destroy_model_transaction(transaction);
@@ -3045,31 +3026,16 @@ static bool calculate_decode_time(Av2DecoderModel *model,
                                   const Av2DmFrameEvent *event,
                                   uint64_t *luma_samples,
                                   Av2DmRational *decode_time) {
-  uint64_t samples;
-  if (event->frame_is_intra) {
-    Av2DmRational product = { 0 };
-    if (!rational_from_product(event->frame_width, event->frame_height,
-                               &product) ||
-        !rational_to_u64(&product, &samples)) {
-      av2_dm_rational_destroy(&product);
-      return false;
-    }
-    av2_dm_rational_destroy(&product);
-    if (event->allow_global_intrabc && event->inloop_filtering_enabled) {
-      if (samples > UINT64_MAX / 2) return false;
-      samples *= 2;
-    }
-  } else {
-    Av2DmRational product = { 0 };
-    if (!rational_from_product(model->config.max_frame_width,
-                               model->config.max_frame_height, &product) ||
-        !rational_to_u64(&product, &samples)) {
-      av2_dm_rational_destroy(&product);
-      return false;
-    }
-    av2_dm_rational_destroy(&product);
+  *luma_samples = event->frame_is_intra
+                      ? (uint64_t)event->frame_width * event->frame_height
+                      : (uint64_t)model->config.max_frame_width *
+                            model->config.max_frame_height;
+  uint64_t samples = *luma_samples;
+  if (event->frame_is_intra && event->allow_global_intrabc &&
+      event->inloop_filtering_enabled) {
+    if (samples > UINT64_MAX / 2) return false;
+    samples *= 2;
   }
-  *luma_samples = samples;
   return av2_dm_rational_make(samples, model->limits.max_decode_rate,
                               decode_time);
 }
@@ -3292,8 +3258,7 @@ static bool buffer_size_transition_applies(
       (comparison == 0 &&
        (!transition->after_removal
             ? !at_last_arrival || transition->dfg_number <= dfg_number
-            : transition->dfg_number < dfg_number ||
-                  (transition->dfg_number == dfg_number && after_own_removal)));
+            : after_own_removal && transition->dfg_number <= dfg_number));
   return true;
 }
 
@@ -3400,8 +3365,7 @@ static bool add_pending_buffer_size_transition(Av2DecoderModel *model,
 static bool retire_buffer_size_transitions(Av2DecoderModel *model,
                                            const Av2DmDfgRecord *dfg) {
   Av2DmRational base = { 0 };
-  if (!buffer_size_at(model, &dfg->last_arrival, model->dfg_number, true, false,
-                      &base)) {
+  if (!av2_dm_rational_copy(&base, &model->buffer_size_base)) {
     return false;
   }
   uint32_t write_index = 0;
@@ -3414,7 +3378,10 @@ static bool retire_buffer_size_transitions(Av2DecoderModel *model,
       av2_dm_rational_destroy(&base);
       return false;
     }
-    if (comparison <= 0) {
+    // A following zero-bit DFG can have the same last arrival. Keep all
+    // transitions at that instant so its pre-removal capacity is available.
+    if (comparison < 0) {
+      av2_dm_rational_move(&base, &transition->size);
       buffer_size_transition_destroy(transition);
       continue;
     }
@@ -3886,6 +3853,7 @@ static void decoder_model_start_frame_internal(Av2DecoderModel *model,
     model->maximum_tile_area = 0;
     model->retired_header_summary_valid = false;
     model->retired_header_summary_reported = false;
+    model->retired_timed_tu_valid = false;
     model->retired_max_frame_headers = 0;
     model->retired_header_event_index = 0;
     model->retired_header_limit = 0;
@@ -3901,12 +3869,38 @@ static void decoder_model_start_frame_internal(Av2DecoderModel *model,
   Av2DmTuRecord *const tu =
       get_tu(model, event->temporal_unit_index, event->event_index);
   if (tu != NULL && event->temporal_unit_output_time_present) {
-    if (!av2_dm_rational_copy(&tu->output_time,
-                              &event->temporal_unit_output_time)) {
-      arithmetic_failure(model);
-      return;
+    if (tu->output_time_valid) {
+      int comparison;
+      if (!av2_dm_rational_compare(&tu->output_time,
+                                   &event->temporal_unit_output_time,
+                                   &comparison)) {
+        arithmetic_failure(model);
+        return;
+      }
+      if (comparison != 0) {
+        // All headers in a TU share one output time.
+        missing_input(model);
+        return;
+      }
+    } else {
+      if (!av2_dm_rational_copy(&tu->output_time,
+                                &event->temporal_unit_output_time)) {
+        arithmetic_failure(model);
+        return;
+      }
+      tu->output_time_valid = true;
+      if (model->retired_timed_tu_valid) {
+        int comparison;
+        if (!av2_dm_rational_compare(
+                &tu->output_time, &model->retired_tu_window_end, &comparison)) {
+          arithmetic_failure(model);
+          return;
+        }
+        // This externally timed TU may require headers outside retained
+        // history. Keep testing the known windows for provable violations.
+        if (comparison <= 0) incomplete_verification(model);
+      }
     }
-    tu->output_time_valid = true;
     if (!update_latest_timed_tu(model, &tu->output_time)) {
       arithmetic_failure(model);
       return;
@@ -3979,14 +3973,11 @@ static void decoder_model_start_frame_internal(Av2DecoderModel *model,
 
   check_static_level_limits(model, event);
   if (model->processing_stopped) return;
-  uint64_t decode_luma_samples;
-  if (!calculate_decode_time(model, event, &decode_luma_samples,
+  if (!calculate_decode_time(model, event, &dfg->luma_samples,
                              &dfg->decode_time)) {
     arithmetic_failure(model);
     return;
   }
-  dfg->luma_samples =
-      dfg->decode_count_two ? decode_luma_samples / 2 : decode_luma_samples;
   if (dfg->decode_count_two &&
       (model->config.max_mlayer_id != 0 || !dfg->coded_as_closed_loop_key)) {
     model->any_decode_count_two_requires_reserved_buffer = true;
@@ -4149,10 +4140,10 @@ static void decoder_model_start_frame_internal(Av2DecoderModel *model,
 void av2_decoder_model_start_frame(Av2DecoderModel *model,
                                    const Av2DmFrameEvent *event) {
   if (event == NULL || !model_accepts_events(model)) return;
-  Av2DmModelTransaction transaction;
-  if (!begin_model_transaction(model, &transaction)) return;
+  Av2DmModelTransaction *const transaction = begin_model_transaction(model);
+  if (transaction == NULL) return;
   decoder_model_start_frame_internal(model, event);
-  end_model_transaction(model, &transaction);
+  end_model_transaction(model, transaction);
 }
 
 static bool update_lane_reference_buffers(
@@ -4178,15 +4169,15 @@ void av2_decoder_model_update_reference_buffers(
     arithmetic_failure(model);
     return;
   }
-  Av2DmModelTransaction transaction;
-  if (!begin_model_transaction(model, &transaction)) return;
+  Av2DmModelTransaction *const transaction = begin_model_transaction(model);
+  if (transaction == NULL) return;
   if (!update_lane_reference_buffers(&model->lane, event) ||
       !update_lane_reference_buffers(&model->resource_lane, event)) {
     arithmetic_failure(model);
   }
   retire_unresolvable_tus(model);
   model_event_complete(model);
-  end_model_transaction(model, &transaction);
+  end_model_transaction(model, transaction);
 }
 
 static bool invalidate_lane_reference_buffers(Av2DmLane *lane,
@@ -4207,8 +4198,8 @@ void av2_decoder_model_invalidate_reference_buffers(Av2DecoderModel *model,
                                                     uint32_t ref_valid_mask,
                                                     bool closed_loop_key) {
   if (!model_accepts_events(model)) return;
-  Av2DmModelTransaction transaction;
-  if (!begin_model_transaction(model, &transaction)) return;
+  Av2DmModelTransaction *const transaction = begin_model_transaction(model);
+  if (transaction == NULL) return;
   // Annex E invalidate_ref_buffers() operates on the active VBI range.
   if (!invalidate_lane_reference_buffers(&model->lane, ref_valid_mask,
                                          closed_loop_key) ||
@@ -4217,7 +4208,7 @@ void av2_decoder_model_invalidate_reference_buffers(Av2DecoderModel *model,
     arithmetic_failure(model);
   }
   model_event_complete(model);
-  end_model_transaction(model, &transaction);
+  end_model_transaction(model, transaction);
 }
 
 static void complete_output_checks(Av2DecoderModel *model,
@@ -4389,11 +4380,11 @@ void av2_decoder_model_set_initial_presentation_delay(Av2DecoderModel *model,
                                                       bool end_of_bitstream,
                                                       uint64_t event_index) {
   if (!model_accepts_events(model)) return;
-  Av2DmModelTransaction transaction;
-  if (!begin_model_transaction(model, &transaction)) return;
+  Av2DmModelTransaction *const transaction = begin_model_transaction(model);
+  if (transaction == NULL) return;
   decoder_model_set_initial_presentation_delay_internal(model, end_of_bitstream,
                                                         event_index);
-  end_model_transaction(model, &transaction);
+  end_model_transaction(model, transaction);
 }
 
 static void check_tu_display_rate(Av2DecoderModel *model, Av2DmTuRecord *tu,
@@ -4905,10 +4896,10 @@ static void decoder_model_output_frame_internal(Av2DecoderModel *model,
 void av2_decoder_model_output_frame(Av2DecoderModel *model,
                                     const Av2DmOutputEvent *event) {
   if (event == NULL || !model_accepts_events(model)) return;
-  Av2DmModelTransaction transaction;
-  if (!begin_model_transaction(model, &transaction)) return;
+  Av2DmModelTransaction *const transaction = begin_model_transaction(model);
+  if (transaction == NULL) return;
   decoder_model_output_frame_internal(model, event);
-  end_model_transaction(model, &transaction);
+  end_model_transaction(model, transaction);
 }
 
 static void check_smoothing_fullness_at(Av2DecoderModel *model,
@@ -5157,9 +5148,13 @@ static bool decoder_model_update_parameters_internal(
   }
 
   int buffer_size_comparison;
+  // An update without an intervening DFG replaces the pending declaration.
+  // The last coded DFG (or the initial capacity) determines its direction.
+  const Av2DmRational *const previous_buffer_size =
+      model->previous_dfg_valid ? &model->previous_dfg.limits.buffer_size
+                                : &model->buffer_size_base;
   if (!av2_dm_rational_compare(&parameters.limits.buffer_size,
-                               &model->limits.buffer_size,
-                               &buffer_size_comparison)) {
+                               previous_buffer_size, &buffer_size_comparison)) {
     arithmetic_failure(model);
     goto cleanup;
   }
@@ -5231,15 +5226,12 @@ bool av2_decoder_model_update_parameters(Av2DecoderModel *model,
                                          const Av2DmConfig *config,
                                          uint64_t event_index,
                                          bool closed_loop_key_transition) {
-  if (model == NULL || config == NULL || model->result.finished ||
-      model->processing_stopped) {
-    return false;
-  }
-  Av2DmModelTransaction transaction;
-  if (!begin_model_transaction(model, &transaction)) return false;
+  if (config == NULL || !model_accepts_events(model)) return false;
+  Av2DmModelTransaction *const transaction = begin_model_transaction(model);
+  if (transaction == NULL) return false;
   const bool updated = decoder_model_update_parameters_internal(
       model, config, event_index, closed_loop_key_transition);
-  end_model_transaction(model, &transaction);
+  end_model_transaction(model, transaction);
   return updated && !model->result.allocation_failed &&
          !model->result.arithmetic_failed;
 }
@@ -5466,12 +5458,14 @@ static void check_header_rate_windows_in_output_order(
     uint64_t proving_event_index) {
   uint32_t first_tu = 0;
   uint64_t frame_headers = 0;
+  uint64_t new_headers = 0;
   uint64_t cvs_number = 0;
   for (uint32_t i = 0; i < ordered_tu_count; ++i) {
     Av2DmTuRecord *const end_tu = &model->tus[ordered_tus[i]];
     if (i == 0 || end_tu->cvs_number != cvs_number) {
       first_tu = i;
       frame_headers = 0;
+      new_headers = 0;
       cvs_number = end_tu->cvs_number;
     }
     if (UINT64_MAX - frame_headers < end_tu->frame_headers) {
@@ -5479,6 +5473,7 @@ static void check_header_rate_windows_in_output_order(
       return;
     }
     frame_headers += end_tu->frame_headers;
+    new_headers += end_tu->frame_headers - end_tu->counted_frame_headers;
     Av2DmRational window_start = { 0 };
     if (!av2_dm_rational_subtract(&end_tu->output_time, one_second,
                                   &window_start)) {
@@ -5502,19 +5497,30 @@ static void check_header_rate_windows_in_output_order(
         return;
       }
       frame_headers -= candidate->frame_headers;
+      new_headers -=
+          candidate->frame_headers - candidate->counted_frame_headers;
       ++first_tu;
     }
-    if (end_tu->header_complete && !end_tu->header_window_checked) {
-      end_tu->header_window_checked = true;
+    // Retired TUs may still contribute to this window. Keep their counts and
+    // add newly observed headers in output-time order, including reordered TUs.
+    if (!end_tu->header_window_checked) {
       end_tu->header_window_headers = frame_headers;
+      end_tu->header_window_checked = true;
+    } else if (UINT64_MAX - end_tu->header_window_headers < new_headers) {
+      arithmetic_failure(model);
+      av2_dm_rational_destroy(&window_start);
+      return;
+    } else {
+      end_tu->header_window_headers += new_headers;
     }
-    check_header_rate_at(model, end_tu,
-                         end_tu->header_window_checked
-                             ? end_tu->header_window_headers
-                             : frame_headers,
+    check_header_rate_at(model, end_tu, end_tu->header_window_headers,
                          proving_event_index);
     av2_dm_rational_destroy(&window_start);
     if (model->processing_stopped) return;
+  }
+  for (uint32_t i = 0; i < ordered_tu_count; ++i) {
+    Av2DmTuRecord *const tu = &model->tus[ordered_tus[i]];
+    tu->counted_frame_headers = tu->frame_headers;
   }
 }
 
@@ -5647,6 +5653,24 @@ static void retire_closed_tus(Av2DecoderModel *model,
       }
     }
     if (retire) {
+      if (tu->output_time_valid && tu->cvs_number == model->cvs_number &&
+          !header_history_proven) {
+        Av2DmRational window_end = { 0 };
+        const bool updated =
+            av2_dm_rational_add(&tu->output_time, one_second, &window_end) &&
+            (model->retired_timed_tu_valid
+                 ? rational_max(&model->retired_tu_window_end, &window_end,
+                                &model->retired_tu_window_end)
+                 : av2_dm_rational_copy(&model->retired_tu_window_end,
+                                        &window_end));
+        av2_dm_rational_destroy(&window_end);
+        if (!updated) {
+          arithmetic_failure(model);
+          av2_dm_rational_destroy(&frontier);
+          return;
+        }
+        model->retired_timed_tu_valid = true;
+      }
       remember_retired_tu(model, tu);
       tu_record_destroy(tu);
       continue;
@@ -5785,10 +5809,10 @@ void av2_decoder_model_finish(Av2DecoderModel *model) {
     decoder_model_finish_internal(model);
     return;
   }
-  Av2DmModelTransaction transaction;
-  if (!begin_model_transaction(model, &transaction)) return;
+  Av2DmModelTransaction *const transaction = begin_model_transaction(model);
+  if (transaction == NULL) return;
   decoder_model_finish_internal(model);
-  end_model_transaction(model, &transaction);
+  end_model_transaction(model, transaction);
 }
 
 bool av2_decoder_model_get_result(const Av2DecoderModel *model,
@@ -5843,6 +5867,8 @@ bool av2_decoder_model_get_state(const Av2DecoderModel *model,
   temporary.frame_number = model->frame_number;
   temporary.dfg_number = model->dfg_number;
   temporary.shown_frame_number = model->shown_frame_number;
+  if (!model->lane.pool.initialized)
+    av2_dm_buffer_pool_init(&temporary.buffer_pool);
   bool copied = av2_dm_rational_copy(&temporary.time, &model->lane.time) &&
                 av2_dm_rational_copy(&temporary.initial_presentation_delay,
                                      &model->lane.initial_presentation_delay) &&

@@ -362,7 +362,9 @@ bool av2_dm_config_copy(Av2DmConfig *destination, const Av2DmConfig *source);
 
 // One frame-start observation. coded_bits is the associated DFG size in bits;
 // compressed_size_bytes is the counted OBU byte total before the Annex A
-// 128-byte allowance. temporal_unit_output_time, when present, is in seconds.
+// 128-byte allowance. Explicit output times are in seconds and must agree for
+// all frames in a TU. If a reordered time overlaps retired header history,
+// verification is incomplete, and the model still reports provable violations.
 typedef struct Av2DmFrameEvent {
   uint64_t event_index;
   uint64_t temporal_unit_index;
