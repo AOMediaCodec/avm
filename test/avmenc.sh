@@ -317,6 +317,26 @@ avmenc_av2_obu_temporal_delimiter_lag() {
   fi
 }
 
+avmenc_av2_obu_min_partition_size() {
+  if [ "$(avmenc_can_encode_av2)" = "yes" ]; then
+    local output="${AVM_TEST_OUTPUT_DIR}/av2_min_part_32.obu"
+    avmenc $(y4m_input_non_square_par) \
+      --cpu-used=6 \
+      --limit=2 \
+      --end-usage=q \
+      --qp=150 \
+      --min-partition-size=32 \
+      --threads=1 \
+      --obu \
+      --output="${output}" || return 1
+
+    if [ ! -e "${output}" ]; then
+      elog "Output file does not exist."
+      return 1
+    fi
+  fi
+}
+
 avmenc_tests="avmenc_av2_ivf
               avmenc_av2_obu
               avmenc_av2_obu_lcr_ops_atlas
@@ -328,6 +348,7 @@ avmenc_tests="avmenc_av2_ivf
               avmenc_av2_webm_non_square_par
               avmenc_av2_webm_cdf_update_mode
               avmenc_av2_obu_temporal_delimiter
-              avmenc_av2_obu_temporal_delimiter_lag"
+              avmenc_av2_obu_temporal_delimiter_lag
+              avmenc_av2_obu_min_partition_size"
 
 run_tests avmenc_verify_environment "${avmenc_tests}"
