@@ -1140,6 +1140,13 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // applied on key/golden/arf frames.
   bool limit_max_ref_mv_idx;
 
+  // Prune the DRL candidates in ref_mv_idx_to_search(). Modes without NEARMV
+  // search the lowest-index candidate in the dry pass and the two lowest-index
+  // candidates in the wet pass. NEARMV modes on blocks larger than 64 pixels
+  // without scaled references search the candidate with the lowest valid
+  // simple translation RD cost, or the lowest-index one when none is valid.
+  int prune_drl_candidates;
+
   // Maximum number of ref_mv_idx candidates searched for single-reference
   // modes (excluding WARPMV) in the full (non-dry) pass. 0: no cap.
   int limit_single_ref_mv_idx;
