@@ -911,8 +911,11 @@ static AVM_INLINE void perform_two_pass_partition_search(
   // First pass to estimate partition structures
   SB_FIRST_PASS_STATS sb_fp_stats;
   av2_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-  // Dry pass: rough shape only, floor at dry_floor.
-  x->sb_enc.min_partition_size = dry_floor;
+  // Dry pass: rough shape only, floor at dry_floor clamped to [min, max].
+  const BLOCK_SIZE eff_dry_floor =
+      AVMMIN(AVMMAX(x->sb_enc.min_partition_size, dry_floor),
+             x->sb_enc.max_partition_size);
+  x->sb_enc.min_partition_size = eff_dry_floor;
   // Drop the previous superblock's dry-pass rd records. The recorded rdcosts
   // are in the dry pass's rdmult units, which the wet pass must not recompute.
   if (fast_two_pass) av2_zero(x->unit_dry_rd);
@@ -928,10 +931,13 @@ static AVM_INLINE void perform_two_pass_partition_search(
        cm->current_frame.pyramid_level >= WET_PASS_KEEP_SKIP_MIN_PYRAMID_LEVEL)
           ? cm
           : NULL;
-  // Trust the dry-pass shape for >= (dry_floor << 1) blocks; re-search
+  // Trust the dry-pass shape for >= (eff_dry_floor << 1) blocks; re-search
   // smaller ones. The trust boundary moves with the dry-pass floor.
-  set_min_none_to_invalid(part_ref, get_larger_sqr_bsize(dry_floor),
-                          resplit_max_side, keep_skip_cm,
+  const BLOCK_SIZE trust_min_bsize = (eff_dry_floor == BLOCK_256X256)
+                                         ? BLOCK_256X256
+                                         : get_larger_sqr_bsize(eff_dry_floor);
+  set_min_none_to_invalid(part_ref, trust_min_bsize, resplit_max_side,
+                          keep_skip_cm,
                           cpi->sf.part_sf.wet_pass_keep_skip_none_min_side);
 
   // Second pass. Fast reuses the dry pass's simple motion searches;
