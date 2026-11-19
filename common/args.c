@@ -78,7 +78,6 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(superblock_size);
     GET_PARAMS(max_partition_size);
     GET_PARAMS(min_partition_size);
-    GET_PARAMS(enable_rect_partitions);
     GET_PARAMS(enable_uneven_4way_partitions);
     GET_PARAMS(disable_ml_partition_speed_features);
     GET_PARAMS(disable_ml_transform_speed_features);

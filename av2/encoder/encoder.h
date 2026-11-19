@@ -217,10 +217,6 @@ typedef struct {
    * */
   unsigned int enable_ext_partitions;
   /*!
-   * Flag to indicate if rectanguar partitions should be enabled.
-   */
-  bool enable_rect_partitions;
-  /*!
    * Flag to indicate if 1:2:4:1 / 1:4:2:1 partitions should be enabled.
    */
   bool enable_uneven_4way_partitions;

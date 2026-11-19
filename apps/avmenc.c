@@ -322,7 +322,6 @@ const arg_def_t *av2_key_val_args[] = {
   &g_av2_codec_arg_defs.enable_parity_hiding,
   &g_av2_codec_arg_defs.enable_pc_wiener,
   &g_av2_codec_arg_defs.enable_qm,
-  &g_av2_codec_arg_defs.enable_rect_partitions,
   &g_av2_codec_arg_defs.enable_ref_frame_mvs,
   &g_av2_codec_arg_defs.enable_refinemv,
   &g_av2_codec_arg_defs.enable_refmvbank,
@@ -537,7 +536,6 @@ static void init_config(cfg_options_t *config) {
   config->superblock_size = 256;
   config->max_partition_size = 256;
   config->min_partition_size = 4;
-  config->enable_rect_partitions = 1;
   config->enable_uneven_4way_partitions = 1;
   config->disable_ml_transform_speed_features = 0;
   config->disable_ml_partition_speed_features = 1;
