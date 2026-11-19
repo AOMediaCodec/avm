@@ -61,7 +61,6 @@ struct FRAME_COUNTS;
 enum {
   OUTPUT_ENABLED = 0,
   DRY_RUN_NORMAL,
-  DRY_RUN_COSTCOEFFS,
 } UENUM1BYTE(RUN_TYPE);
 
 struct tokenize_b_args {

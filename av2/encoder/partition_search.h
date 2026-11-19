@@ -62,9 +62,6 @@ void av2_ml_early_term_after_split(AV2_COMP *const cpi, MACROBLOCK *const x,
 void av2_build_partition_tree_fixed_partitioning(
     AV2_COMMON *const cm, TREE_TYPE tree_type, int mi_row, int mi_col,
     PARTITION_TREE *ptree, const PARTITION_TREE *ptree_luma);
-void av2_build_partition_tree_var_based_partitioning(
-    AV2_COMMON *const cm, TREE_TYPE tree_type, int mi_row, int mi_col,
-    PARTITION_TREE *ptree, const PARTITION_TREE *ptree_luma);
 void setup_block_rdmult(const AV2_COMP *const cpi, MACROBLOCK *const x,
                         int mi_row, int mi_col, BLOCK_SIZE bsize,
                         AQ_MODE aq_mode, MB_MODE_INFO *mbmi);
@@ -124,18 +121,6 @@ static INLINE PARTITION_TYPE get_partition(const AV2_COMMON *const cm,
       if (mbmi_right->sb_type[plane_type] == subsize) return PARTITION_VERT;
 
     } else {
-      // Smaller width and smaller height. Might be PARTITION_SPLIT or could be
-      // PARTITION_HORZ_A or PARTITION_VERT_A. If subsize isn't halved in both
-      // dimensions, we immediately know this is a split (which will recurse to
-      // get to subsize). Otherwise look down and to the right. With
-      // PARTITION_VERT_A, the right block will have height bhigh; with
-      // PARTITION_HORZ_A, the lower block with have width bwide. Otherwise
-      // it's PARTITION_SPLIT.
-      if (sswide * 2 != bwide || sshigh * 2 != bhigh) {
-        if (mi_size_wide[mbmi_below->sb_type[plane_type]] < bwide &&
-            mi_size_high[mbmi_right->sb_type[plane_type]] < bhigh)
-          return PARTITION_SPLIT;
-      }
       return PARTITION_SPLIT;
     }
   }

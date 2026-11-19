@@ -709,106 +709,61 @@ static INLINE int get_sms_arr_1d_idx(int mi_bsize, int mi_in_sb) {
     return sms_bufs->b_##width##x##height##_##sdp_flag;   \
   }
 
+#define SMS_ARR_BSIZE_CASES(sdp_flag)           \
+  /* Square blocks */                           \
+  MAKE_SMS_ARR_SWITCH_CASE(256, 256, sdp_flag); \
+  MAKE_SMS_ARR_SWITCH_CASE(128, 128, sdp_flag); \
+  MAKE_SMS_ARR_SWITCH_CASE(64, 64, sdp_flag);   \
+  MAKE_SMS_ARR_SWITCH_CASE(32, 32, sdp_flag);   \
+  MAKE_SMS_ARR_SWITCH_CASE(16, 16, sdp_flag);   \
+  MAKE_SMS_ARR_SWITCH_CASE(8, 8, sdp_flag);     \
+  MAKE_SMS_ARR_SWITCH_CASE(4, 4, sdp_flag);     \
+  /* 1:2 blocks */                              \
+  MAKE_SMS_ARR_SWITCH_CASE(128, 256, sdp_flag); \
+  MAKE_SMS_ARR_SWITCH_CASE(64, 128, sdp_flag);  \
+  MAKE_SMS_ARR_SWITCH_CASE(32, 64, sdp_flag);   \
+  MAKE_SMS_ARR_SWITCH_CASE(16, 32, sdp_flag);   \
+  MAKE_SMS_ARR_SWITCH_CASE(8, 16, sdp_flag);    \
+  MAKE_SMS_ARR_SWITCH_CASE(4, 8, sdp_flag);     \
+  /* 2:1 blocks */                              \
+  MAKE_SMS_ARR_SWITCH_CASE(256, 128, sdp_flag); \
+  MAKE_SMS_ARR_SWITCH_CASE(128, 64, sdp_flag);  \
+  MAKE_SMS_ARR_SWITCH_CASE(64, 32, sdp_flag);   \
+  MAKE_SMS_ARR_SWITCH_CASE(32, 16, sdp_flag);   \
+  MAKE_SMS_ARR_SWITCH_CASE(16, 8, sdp_flag);    \
+  MAKE_SMS_ARR_SWITCH_CASE(8, 4, sdp_flag);     \
+  /* 1:4 blocks */                              \
+  MAKE_SMS_ARR_SWITCH_CASE(16, 64, sdp_flag);   \
+  MAKE_SMS_ARR_SWITCH_CASE(8, 32, sdp_flag);    \
+  MAKE_SMS_ARR_SWITCH_CASE(4, 16, sdp_flag);    \
+  /* 4:1 blocks */                              \
+  MAKE_SMS_ARR_SWITCH_CASE(64, 16, sdp_flag);   \
+  MAKE_SMS_ARR_SWITCH_CASE(32, 8, sdp_flag);    \
+  MAKE_SMS_ARR_SWITCH_CASE(16, 4, sdp_flag);    \
+  /* 1:8 blocks */                              \
+  MAKE_SMS_ARR_SWITCH_CASE(8, 64, sdp_flag);    \
+  MAKE_SMS_ARR_SWITCH_CASE(4, 32, sdp_flag);    \
+  /* 8:1 blocks */                              \
+  MAKE_SMS_ARR_SWITCH_CASE(64, 8, sdp_flag);    \
+  MAKE_SMS_ARR_SWITCH_CASE(32, 4, sdp_flag);
+
 // Returns the buffer in SimpleMotionDataBufs that correspond to bsize.
 static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
                                             BLOCK_SIZE bsize,
                                             int8_t region_type) {
   if (region_type == 1) {
     switch (bsize) {
-      // Square blocks
-      MAKE_SMS_ARR_SWITCH_CASE(256, 256, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(128, 128, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(64, 64, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(32, 32, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(16, 16, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(8, 8, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(4, 4, 1);
-
-      // 1:2 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(128, 256, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(64, 128, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(32, 64, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(16, 32, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(8, 16, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(4, 8, 1);
-
-      // 2:1 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(256, 128, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(128, 64, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(64, 32, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(32, 16, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(16, 8, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(8, 4, 1);
-
-      // 1:4 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(16, 64, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(8, 32, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(4, 16, 1);
-
-      // 4:1 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(64, 16, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(32, 8, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(16, 4, 1);
-
-      // 1:8 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(8, 64, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(4, 32, 1);
-
-      // 8:1 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(64, 8, 1);
-      MAKE_SMS_ARR_SWITCH_CASE(32, 4, 1);
-
+      SMS_ARR_BSIZE_CASES(1)
       default: assert(0 && "Invalid bsize"); return NULL;
     }
   } else {  // region_type = 0
     switch (bsize) {
-      // Square blocks
-      MAKE_SMS_ARR_SWITCH_CASE(256, 256, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(128, 128, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(64, 64, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(32, 32, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(16, 16, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(8, 8, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(4, 4, 0);
-
-      // 1:2 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(128, 256, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(64, 128, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(32, 64, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(16, 32, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(8, 16, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(4, 8, 0);
-
-      // 2:1 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(256, 128, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(128, 64, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(64, 32, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(32, 16, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(16, 8, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(8, 4, 0);
-
-      // 1:4 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(16, 64, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(8, 32, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(4, 16, 0);
-
-      // 4:1 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(64, 16, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(32, 8, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(16, 4, 0);
-
-      // 1:8 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(8, 64, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(4, 32, 0);
-
-      // 8:1 blocks
-      MAKE_SMS_ARR_SWITCH_CASE(64, 8, 0);
-      MAKE_SMS_ARR_SWITCH_CASE(32, 4, 0);
-
+      SMS_ARR_BSIZE_CASES(0)
       default: assert(0 && "Invalid bsize"); return NULL;
     }
   }
 }
+#undef SMS_ARR_BSIZE_CASES
 #undef MAKE_SMS_ARR_SWITCH_CASE
 
 // Retrieves the SimpleMotionData from SimpleMotionDataBufs

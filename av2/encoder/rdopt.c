@@ -592,144 +592,134 @@ static INLINE PREDICTION_MODE get_single_mode(PREDICTION_MODE this_mode,
 
 static AVM_INLINE void estimate_ref_frame_costs(
     const AV2_COMMON *cm, const MACROBLOCKD *xd, const ModeCosts *mode_costs,
-    int segment_id, unsigned int *ref_costs_single,
+    unsigned int *ref_costs_single,
     unsigned int (*ref_costs_comp)[MAX_COMPOUND_REF_INDEX]) {
-  (void)segment_id;
-  int seg_ref_active = 0;
-  if (seg_ref_active) {
-    memset(ref_costs_single, 0, SINGLE_REF_FRAMES * sizeof(*ref_costs_single));
-    int ref_frame;
-    for (ref_frame = 0; ref_frame < MAX_COMPOUND_REF_INDEX; ++ref_frame)
-      memset(ref_costs_comp[ref_frame], 0,
-             MAX_COMPOUND_REF_INDEX * sizeof((*ref_costs_comp)[0]));
+  unsigned int base_cost = 0;
+
+  int intra_inter_ctx = av2_get_intra_inter_context(xd);
+  int is_intra_allowed = 1;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  if (mbmi->tree_type == SHARED_PART &&
+      mbmi->region_type == MIXED_INTER_INTRA_REGION &&
+      mbmi->chroma_ref_info.offset_started) {
+    is_intra_allowed = 0;
+  }
+  if (is_intra_allowed) {
+    ref_costs_single[INTRA_FRAME_INDEX] =
+        base_cost + mode_costs->intra_inter_cost[intra_inter_ctx][0];
+    base_cost += mode_costs->intra_inter_cost[intra_inter_ctx][1];
   } else {
-    unsigned int base_cost = 0;
+    ref_costs_single[INTRA_FRAME_INDEX] = INT_MAX;
+  }
+  if (xd->mi[0]->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
+    ref_costs_single[INTRA_FRAME_INDEX] = 0;
+  }
 
-    int intra_inter_ctx = av2_get_intra_inter_context(xd);
-    int is_intra_allowed = 1;
-    MB_MODE_INFO *const mbmi = xd->mi[0];
-    if (mbmi->tree_type == SHARED_PART &&
-        mbmi->region_type == MIXED_INTER_INTRA_REGION &&
-        mbmi->chroma_ref_info.offset_started) {
-      is_intra_allowed = 0;
-    }
-    if (is_intra_allowed) {
-      ref_costs_single[INTRA_FRAME_INDEX] =
-          base_cost + mode_costs->intra_inter_cost[intra_inter_ctx][0];
-      base_cost += mode_costs->intra_inter_cost[intra_inter_ctx][1];
-    } else {
-      ref_costs_single[INTRA_FRAME_INDEX] = INT_MAX;
-    }
-    if (xd->mi[0]->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
-      ref_costs_single[INTRA_FRAME_INDEX] = 0;
-    }
+  if (is_tip_allowed(cm, xd)) {
+    const int tip_ctx = get_tip_ctx(xd);
+    ref_costs_single[TIP_FRAME_INDEX] =
+        base_cost + mode_costs->tip_cost[tip_ctx][1];
+    base_cost += mode_costs->tip_cost[tip_ctx][0];
+  } else {
+    ref_costs_single[TIP_FRAME_INDEX] = INT_MAX;
+  }
 
-    if (is_tip_allowed(cm, xd)) {
-      const int tip_ctx = get_tip_ctx(xd);
-      ref_costs_single[TIP_FRAME_INDEX] =
-          base_cost + mode_costs->tip_cost[tip_ctx][1];
-      base_cost += mode_costs->tip_cost[tip_ctx][0];
-    } else {
-      ref_costs_single[TIP_FRAME_INDEX] = INT_MAX;
+  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i)
+    ref_costs_single[i] = base_cost;
+
+  const int n_refs = cm->ref_frames_info.num_total_refs;
+  for (int i = 0; i < n_refs; i++) {
+    if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
+      ref_costs_single[i] = INT_MAX;  // set bru ref cost max to prevent
+                                      // inter pred from bru ref frames
+      continue;
     }
-
-    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i)
-      ref_costs_single[i] = base_cost;
-
-    const int n_refs = cm->ref_frames_info.num_total_refs;
-    for (int i = 0; i < n_refs; i++) {
-      if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
-        ref_costs_single[i] = INT_MAX;  // set bru ref cost max to prevent
-                                        // inter pred from bru ref frames
+    for (int j = 0; j <= AVMMIN(i, n_refs - 2); j++) {
+      if (cm->bru.enabled && j == cm->bru.update_ref_idx) {
         continue;
       }
-      for (int j = 0; j <= AVMMIN(i, n_refs - 2); j++) {
-        if (cm->bru.enabled && j == cm->bru.update_ref_idx) {
-          continue;
-        }
-        avm_cdf_prob ctx = av2_get_ref_pred_context(xd, j, n_refs);
-        const int bit = i == j;
-        ref_costs_single[i] += mode_costs->single_ref_cost[ctx][j][bit];
-      }
+      avm_cdf_prob ctx = av2_get_ref_pred_context(xd, j, n_refs);
+      const int bit = i == j;
+      ref_costs_single[i] += mode_costs->single_ref_cost[ctx][j][bit];
+    }
+  }
+
+  for (int i = n_refs; i < INTER_REFS_PER_FRAME; i++)
+    ref_costs_single[i] = INT_MAX;
+
+  if (cm->current_frame.reference_mode != SINGLE_REFERENCE) {
+    for (int i = 0; i < MAX_COMPOUND_REF_INDEX; i++) {
+      for (int j = 0; j < MAX_COMPOUND_REF_INDEX; j++)
+        ref_costs_comp[i][j] = INT_MAX;
     }
 
-    for (int i = n_refs; i < INTER_REFS_PER_FRAME; i++)
-      ref_costs_single[i] = INT_MAX;
-
-    if (cm->current_frame.reference_mode != SINGLE_REFERENCE) {
-      for (int i = 0; i < MAX_COMPOUND_REF_INDEX; i++) {
-        for (int j = 0; j < MAX_COMPOUND_REF_INDEX; j++)
-          ref_costs_comp[i][j] = INT_MAX;
+    int use_same_ref_comp = cm->ref_frames_info.num_same_ref_compound > 0;
+    for (int i = 0; i < n_refs + use_same_ref_comp - 1; i++) {
+      if (i >= RANKED_REF0_TO_PRUNE) break;
+      if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
+        continue;
       }
-
-      int use_same_ref_comp = cm->ref_frames_info.num_same_ref_compound > 0;
-      for (int i = 0; i < n_refs + use_same_ref_comp - 1; i++) {
-        if (i >= RANKED_REF0_TO_PRUNE) break;
-        if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
-          continue;
+      if (i == n_refs - 1 && i >= cm->ref_frames_info.num_same_ref_compound)
+        break;
+      int prev_cost = base_cost;
+      for (int j = 0; j < n_refs; j++) {
+        int implicit_ref0_bit =
+            j >= RANKED_REF0_TO_PRUNE - 1 ||
+            (i == j && i < cm->ref_frames_info.num_same_ref_compound &&
+             i + 1 >= cm->ref_frames_info.num_same_ref_compound &&
+             i >= n_refs - 2);
+        int implicit_ref0_ref1_bits =
+            j >= n_refs - 2 && j >= cm->ref_frames_info.num_same_ref_compound;
+        if (j <= i) {
+          if (cm->bru.enabled && j == cm->bru.update_ref_idx) {
+            continue;
+          }
+          // Keep track of the cost to encode the first reference
+          avm_cdf_prob ctx = av2_get_ref_pred_context(xd, j, n_refs);
+          const int bit = i == j;
+          if (!implicit_ref0_bit && !implicit_ref0_ref1_bits)
+            prev_cost += mode_costs->comp_ref0_cost[ctx][j][bit];
         }
-        if (i == n_refs - 1 && i >= cm->ref_frames_info.num_same_ref_compound)
-          break;
-        int prev_cost = base_cost;
-        for (int j = 0; j < n_refs; j++) {
-          int implicit_ref0_bit =
-              j >= RANKED_REF0_TO_PRUNE - 1 ||
-              (i == j && i < cm->ref_frames_info.num_same_ref_compound &&
-               i + 1 >= cm->ref_frames_info.num_same_ref_compound &&
-               i >= n_refs - 2);
-          int implicit_ref0_ref1_bits =
-              j >= n_refs - 2 && j >= cm->ref_frames_info.num_same_ref_compound;
-          if (j <= i) {
+        if (j > i ||
+            (j == i && i < cm->ref_frames_info.num_same_ref_compound)) {
+          // Assign the cost of signaling both references
+          ref_costs_comp[i][j] = prev_cost;
+          if (j < n_refs - 1) {
             if (cm->bru.enabled && j == cm->bru.update_ref_idx) {
+              ref_costs_comp[i][j] = INT_MAX;
+              ref_costs_comp[j][i] = INT_MAX;
               continue;
             }
-            // Keep track of the cost to encode the first reference
             avm_cdf_prob ctx = av2_get_ref_pred_context(xd, j, n_refs);
-            const int bit = i == j;
-            if (!implicit_ref0_bit && !implicit_ref0_ref1_bits)
-              prev_cost += mode_costs->comp_ref0_cost[ctx][j][bit];
-          }
-          if (j > i ||
-              (j == i && i < cm->ref_frames_info.num_same_ref_compound)) {
-            // Assign the cost of signaling both references
-            ref_costs_comp[i][j] = prev_cost;
-            if (j < n_refs - 1) {
-              if (cm->bru.enabled && j == cm->bru.update_ref_idx) {
-                ref_costs_comp[i][j] = INT_MAX;
-                ref_costs_comp[j][i] = INT_MAX;
-                continue;
-              }
-              avm_cdf_prob ctx = av2_get_ref_pred_context(xd, j, n_refs);
-              const int bit_type =
-                  av2_get_compound_ref_bit_type(&cm->ref_frames_info, i, j);
-              if (cm->bru.enabled &&
-                  (i == cm->bru.update_ref_idx || j == cm->bru.update_ref_idx))
-                continue;
-              ref_costs_comp[i][j] +=
-                  mode_costs->comp_ref1_cost[ctx][bit_type][j][1];
-              // Maintain the cost of sending a 0 bit for the 2nd reference to
-              // be used in the next iteration.
-              prev_cost += mode_costs->comp_ref1_cost[ctx][bit_type][j][0];
-            }
+            const int bit_type =
+                av2_get_compound_ref_bit_type(&cm->ref_frames_info, i, j);
+            if (cm->bru.enabled &&
+                (i == cm->bru.update_ref_idx || j == cm->bru.update_ref_idx))
+              continue;
+            ref_costs_comp[i][j] +=
+                mode_costs->comp_ref1_cost[ctx][bit_type][j][1];
+            // Maintain the cost of sending a 0 bit for the 2nd reference to
+            // be used in the next iteration.
+            prev_cost += mode_costs->comp_ref1_cost[ctx][bit_type][j][0];
           }
         }
       }
+    }
 #ifndef NDEBUG
-      for (int i = 0; i < n_refs - 1; i++) {
-        for (int j = i + 1; j < n_refs; j++) {
-          if (cm->bru.enabled &&
-              (i == cm->bru.update_ref_idx || j == cm->bru.update_ref_idx))
-            continue;
-          if (i < RANKED_REF0_TO_PRUNE) assert(ref_costs_comp[i][j] != INT_MAX);
-        }
+    for (int i = 0; i < n_refs - 1; i++) {
+      for (int j = i + 1; j < n_refs; j++) {
+        if (cm->bru.enabled &&
+            (i == cm->bru.update_ref_idx || j == cm->bru.update_ref_idx))
+          continue;
+        if (i < RANKED_REF0_TO_PRUNE) assert(ref_costs_comp[i][j] != INT_MAX);
       }
+    }
 #endif  // NDEBUG
-    } else {
-      for (int ref0 = 0; ref0 < MAX_COMPOUND_REF_INDEX; ++ref0) {
-        for (int ref1 = ref0 + 1; ref1 < MAX_COMPOUND_REF_INDEX; ++ref1) {
-          ref_costs_comp[ref0][ref1] = 512;
-          ref_costs_comp[ref1][ref0] = 512;
-        }
+  } else {
+    for (int ref0 = 0; ref0 < MAX_COMPOUND_REF_INDEX; ++ref0) {
+      for (int ref1 = ref0 + 1; ref1 < MAX_COMPOUND_REF_INDEX; ++ref1) {
+        ref_costs_comp[ref0][ref1] = 512;
+        ref_costs_comp[ref1][ref0] = 512;
       }
     }
   }
@@ -8243,11 +8233,10 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
-  unsigned char segment_id = mbmi->segment_id;
   assert(mbmi->partition == PARTITION_NONE);
 
   av2_collect_neighbors_ref_counts(xd);
-  estimate_ref_frame_costs(cm, xd, &x->mode_costs, segment_id, ref_costs_single,
+  estimate_ref_frame_costs(cm, xd, &x->mode_costs, ref_costs_single,
                            ref_costs_comp);
 
   const bool can_skip_by_mask =
@@ -10884,7 +10873,6 @@ void av2_rd_pick_inter_mode_sb_seg_skip(const AV2_COMP *cpi,
   const FeatureFlags *const features = &cm->features;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-  unsigned char segment_id = mbmi->segment_id;
   const int comp_pred = 0;
   int i;
   int64_t best_pred_diff[REFERENCE_MODES];
@@ -10903,7 +10891,7 @@ void av2_rd_pick_inter_mode_sb_seg_skip(const AV2_COMP *cpi,
 
   av2_collect_neighbors_ref_counts(xd);
 
-  estimate_ref_frame_costs(cm, xd, mode_costs, segment_id, ref_costs_single,
+  estimate_ref_frame_costs(cm, xd, mode_costs, ref_costs_single,
                            ref_costs_comp);
   for (i = 0; i < MAX_COMPOUND_REF_INDEX; ++i) x->pred_sse[i] = INT_MAX;
   for (i = 0; i < MAX_COMPOUND_REF_INDEX; ++i) x->pred_mv_sad[i] = INT_MAX;
@@ -10912,7 +10900,7 @@ void av2_rd_pick_inter_mode_sb_seg_skip(const AV2_COMP *cpi,
   x->pred_mv_sad[TIP_FRAME_INDEX] = INT_MAX;
   rd_cost->rate = INT_MAX;
 
-  assert(segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP));
+  assert(segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP));
 
   // Reset skip mode flag.
   mbmi->skip_mode = 0;
