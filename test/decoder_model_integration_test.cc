@@ -3351,8 +3351,6 @@ TEST_F(DecoderModelResultTest, CopiesEveryRapSelectionIntoVerifierState) {
   EXPECT_FALSE(stats.check_every_rap);
 }
 
-#if CONFIG_AV2_ENCODER && CONFIG_AV2_DECODER
-
 struct DecoderModelEncodedPacket {
   std::vector<uint8_t> bytes;
   avm_codec_pts_t pts;
@@ -3401,6 +3399,7 @@ struct DecoderModelDecodeOutput {
   std::string diagnostics;
 };
 
+#if CONFIG_AV2_ENCODER
 static bool ParseSequenceLevel(uint8_t *payload, size_t payload_size,
                                uint32_t *level_bit_offset, uint32_t *level) {
   if (payload == nullptr || payload_size == 0 || level_bit_offset == nullptr ||
@@ -3482,6 +3481,8 @@ static bool RewriteSequenceLevels(std::vector<DecoderModelEncodedPacket> *data,
   return *rewritten_headers != 0;
 }
 
+#endif  // CONFIG_AV2_ENCODER
+
 static DecoderModelDecodedFrame CopyDecodedFrame(const avm_image_t &image) {
   DecoderModelDecodedFrame frame;
   frame.format = image.fmt;
@@ -3560,6 +3561,52 @@ static DecoderModelDecodeOutput DecodePackets(
   return output;
 }
 
+TEST(DecoderModelBitstreamTest, OptimizedBruRetainsFrameGenerations) {
+  // Twelve 64x64 frames at 10 fps. The luma changes every four frames.
+  // Inactive BRU frames exercise the optimized decoder's buffer swap.
+  // Each entry is one encoded temporal unit and its presentation timestamp.
+  const std::vector<DecoderModelEncodedPacket> packets = {
+    { { 0x01, 0x08, 0x18, 0x04, 0x80, 0x0a, 0x00, 0x15, 0x7f, 0xfc, 0x10,
+        0xc0, 0x00, 0x00, 0x3c, 0xdd, 0xcd, 0x53, 0x17, 0x37, 0xe2, 0xf7,
+        0xcb, 0x4d, 0xcd, 0x15, 0xe4, 0x0b, 0x60, 0x04, 0x00, 0x00, 0x00,
+        0x01, 0x00, 0x00, 0x00, 0x0a, 0xd0, 0x0c, 0x10, 0xf0, 0x01, 0x72,
+        0x1e, 0x00, 0x00, 0x00, 0x4a, 0x2c, 0xee, 0x38 },
+      0 },
+    { { 0x01, 0x08, 0x0a, 0x1c, 0xf8, 0x09, 0x51, 0x0d, 0xa0, 0xf8, 0x00, 0x08,
+        0x81 },
+      1 },
+    { { 0x01, 0x08, 0x05, 0x38, 0xe0, 0x4d, 0x8b, 0x40 }, 2 },
+    { { 0x01, 0x08, 0x05, 0x1c, 0xf8, 0x1c, 0x2e, 0xc0 }, 3 },
+    { { 0x01, 0x08, 0x0d, 0x1c, 0xf8, 0x21, 0xdc, 0x0d, 0xb4, 0x1f, 0x00, 0x03,
+        0x00, 0x00, 0x36, 0xc0 },
+      4 },
+    { { 0x01, 0x08, 0x05, 0x38, 0xe0, 0xad, 0xab, 0x40 }, 5 },
+    { { 0x01, 0x08, 0x04, 0x1c, 0xf8, 0x31, 0xf6 }, 6 },
+    { { 0x01, 0x08, 0x04, 0x1c, 0xf8, 0x39, 0xb6 }, 7 },
+    { { 0x01, 0x08, 0x0e, 0x1c, 0xf8, 0x41, 0x5c, 0x0d, 0xb4, 0x1f, 0x00, 0x03,
+        0x00, 0x77, 0x4f, 0x81, 0xd0 },
+      8 },
+    { { 0x01, 0x08, 0x05, 0x38, 0xe1, 0x2f, 0xab, 0x40 }, 9 },
+    { { 0x01, 0x08, 0x04, 0x1c, 0xf8, 0x51, 0x76 }, 10 },
+    { { 0x01, 0x08, 0x04, 0x1c, 0xf8, 0x59, 0xf6 }, 11 },
+  };
+  const DecoderModelDecodeOutput regular =
+      DecodePackets(packets, AVM_DECODER_MODEL_CHECK_FATAL);
+  const DecoderModelDecodeOutput optimized =
+      DecodePackets(packets, AVM_DECODER_MODEL_CHECK_FATAL, true, true);
+  EXPECT_EQ(regular.statuses, optimized.statuses);
+  for (avm_codec_err_t status : optimized.statuses)
+    EXPECT_EQ(status, AVM_CODEC_OK);
+  EXPECT_EQ(regular.frames, optimized.frames);
+  EXPECT_EQ(optimized.frames.size(), 12u);
+  EXPECT_EQ(regular.diagnostics, optimized.diagnostics);
+  EXPECT_NE(optimized.diagnostics.find("status=CONFORMANT"), std::string::npos);
+  EXPECT_NE(optimized.diagnostics.find("decoded=12 outputs=12"),
+            std::string::npos)
+      << optimized.diagnostics;
+}
+
+#if CONFIG_AV2_ENCODER
 class DecoderModelEncodedStreamTest : public ::testing::Test,
                                       public libavm_test::EncoderTest {
  protected:
@@ -3581,8 +3628,7 @@ class DecoderModelEncodedStreamTest : public ::testing::Test,
                           libavm_test::Encoder *encoder) override {
     if (controls_set_ || video->frame() != 0) return;
     encoder->Control(AVME_SET_CPUUSED, cpu_used_);
-    encoder->Control(AVME_SET_QP, qp_);
-    if (enable_bru_) encoder->Control(AV2E_SET_ENABLE_BRU, 1);
+    encoder->Control(AVME_SET_QP, 235);
     encoder->Control(AV2E_SET_TARGET_SEQ_LEVEL_IDX, target_level_);
     encoder->Control(AV2E_SET_TIMING_INFO_TYPE, AVM_TIMING_EQUAL);
     encoder->Control(AV2E_SET_ENABLE_INTRABC, 0);
@@ -3649,34 +3695,8 @@ class DecoderModelEncodedStreamTest : public ::testing::Test,
   bool controls_set_;
   AV2_LEVEL target_level_;
   int cpu_used_;
-  int qp_ = 235;
-  bool enable_bru_ = false;
   std::vector<DecoderModelEncodedPacket> packets_;
 };
-
-TEST_F(DecoderModelEncodedStreamTest, OptimizedBruRetainsFrameGenerations) {
-  cpu_used_ = 8;
-  qp_ = 180;
-  enable_bru_ = true;
-  libavm_test::I420VideoSource video(
-      "Debugging_480x270p3000_yuv420p_20frames.yuv", 480, 270, 10, 1, 0, 12);
-  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-  ASSERT_FALSE(packets_.empty());
-  const DecoderModelDecodeOutput regular =
-      DecodePackets(packets_, AVM_DECODER_MODEL_CHECK_FATAL);
-  const DecoderModelDecodeOutput optimized =
-      DecodePackets(packets_, AVM_DECODER_MODEL_CHECK_FATAL, true, true);
-  EXPECT_EQ(regular.statuses, optimized.statuses);
-  for (avm_codec_err_t status : optimized.statuses)
-    EXPECT_EQ(status, AVM_CODEC_OK);
-  EXPECT_EQ(regular.frames, optimized.frames);
-  EXPECT_EQ(optimized.frames.size(), 12u);
-  EXPECT_EQ(regular.diagnostics, optimized.diagnostics);
-  EXPECT_NE(optimized.diagnostics.find("status=CONFORMANT"), std::string::npos);
-  EXPECT_NE(optimized.diagnostics.find("decoded=12 outputs=12"),
-            std::string::npos)
-      << optimized.diagnostics;
-}
 
 TEST_F(DecoderModelEncodedStreamTest, Level20Control) {
   Av2DmLevelLimits limits{};
@@ -3841,6 +3861,6 @@ TEST_F(DecoderModelEncodedStreamTest, Profile5IncorrectLevel20PreservesPixels) {
 }
 #endif  // CONFIG_12BIT_PROFILE
 
-#endif  // CONFIG_AV2_ENCODER && CONFIG_AV2_DECODER
+#endif  // CONFIG_AV2_ENCODER
 
 }  // namespace
