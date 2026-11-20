@@ -134,6 +134,12 @@ static AVM_FORCE_INLINE int get_base_diag_ctx(int diag_ctx) {
   return diag_ctx & 255;
 }
 
+// Slot j of av2_pre_quant_c() holds the quantization index
+// qIdx + kTcqQcInc[qIdx & 3][j].
+static const int32_t kTcqQcInc[4][4] = {
+  { 0, 1, 2, 3 }, { 3, 0, 1, 2 }, { 2, 3, 0, 1 }, { 1, 2, 3, 0 }
+};
+
 // Get the low range part of a coeff
 static AVM_FORCE_INLINE int get_low_range(int abs_qc, int lf) {
   int base_levels = lf ? 6 : 4;
