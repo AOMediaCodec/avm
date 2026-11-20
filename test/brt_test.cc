@@ -16,14 +16,18 @@
 
 #include "av2/encoder/brt_syntax.h"
 #include "av2/decoder/decoder.h"
+#include "av2/decoder/decoder_model.h"
 #include "av2/decoder/decodeframe.h"
 extern "C" {
 #include "av2/decoder/obu.h"
 }
 #include "avm_dsp/bitreader_buffer.h"
 #include "avm_mem/avm_mem.h"
+#include "test/decoder_model_lifecycle.h"
 
 namespace {
+
+using Av2DmVerifierStats = libavm_test::ScopedDmVerifierStats;
 
 static void rb_error_handler(void *data, avm_codec_err_t error,
                              const char *detail) {
@@ -59,6 +63,8 @@ class BrtTest : public ::testing::Test {
 };
 
 TEST_F(BrtTest, NonOpsDependent) {
+  av2_decoder_model_verifier_init(pbi_);
+  ASSERT_NE(pbi_->decoder_model_verifier, nullptr);
   BufferRemovalTimingInfo src;
   memset(&src, 0, sizeof(src));
   src.br_ops_dependent_flag = 0;
@@ -74,6 +80,11 @@ TEST_F(BrtTest, NonOpsDependent) {
 
   EXPECT_EQ(pbi_->common.brt_info.br_ops_dependent_flag, 0);
   EXPECT_EQ(pbi_->common.brt_info.br_time, 42);
+
+  Av2DmVerifierStats stats = {};
+  ASSERT_TRUE(av2_decoder_model_verifier_get_stats(pbi_, &stats));
+  EXPECT_EQ(stats.event_count, 1u);
+  av2_decoder_model_verifier_destroy(pbi_);
 }
 
 TEST_F(BrtTest, OpsDependentWithModel) {
@@ -139,24 +150,24 @@ TEST_F(BrtTest, OpsDependentNoModel) {
 }
 
 TEST_F(BrtTest, BrTimeRiceGolombSweep) {
-  const int values[] = { 0, 1, 5, 16, 100 };
-  for (int vi = 0; vi < 5; vi++) {
+  const int values[] = { 0, 1, 5, 16, 100, 511 };
+  for (int value : values) {
     BufferRemovalTimingInfo src;
     memset(&src, 0, sizeof(src));
     src.br_ops_dependent_flag = 0;
-    src.br_time = values[vi];
+    src.br_time = value;
 
     memset(buf_, 0, sizeof(buf_));
     uint32_t written = write_brt_obu(&src, buf_);
-    ASSERT_GT(written, 0u) << "val=" << values[vi];
+    ASSERT_GT(written, 0u) << "val=" << value;
 
     memset(&pbi_->common.brt_info, 0, sizeof(pbi_->common.brt_info));
     pbi_->common.error.error_code = AVM_CODEC_OK;
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
                                       rb_error_handler };
     uint32_t read = av2_read_buffer_removal_timing_obu(pbi_, &rb, 0);
-    ASSERT_EQ(read, written) << "val=" << values[vi];
-    EXPECT_EQ(pbi_->common.brt_info.br_time, values[vi]);
+    ASSERT_EQ(read, written) << "val=" << value;
+    EXPECT_EQ(pbi_->common.brt_info.br_time, value);
   }
 }
 

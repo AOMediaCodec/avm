@@ -82,6 +82,8 @@ struct avm_reader {
   Accounting *accounting;
 #endif
   uint8_t allow_update_cdf;
+  uint8_t count_frame_symbols;
+  uint64_t frame_symbol_count;
 };
 
 typedef struct avm_reader avm_reader;
@@ -235,6 +237,7 @@ static INLINE void bitstream_queue_pop_literal(int data, int bits) {
 
 static INLINE int avm_read_bypass_(avm_reader *r ACCT_INFO_PARAM) {
   int ret = od_ec_decode_literal_bypass(&r->ec, 1);
+  if (r->count_frame_symbols) ++r->frame_symbol_count;
 #if CONFIG_BITSTREAM_DEBUG
   bitstream_queue_pop_literal(ret, 1);
 #endif  // CONFIG_BITSTREAM_DEBUG
@@ -270,6 +273,7 @@ static INLINE int avm_read_literal_(avm_reader *r, int bits ACCT_INFO_PARAM) {
     literal += od_ec_decode_literal_bypass(&r->ec, n);
     n_bits -= n;
   }
+  if (r->count_frame_symbols) r->frame_symbol_count += (uint64_t)bits;
 #if CONFIG_BITSTREAM_DEBUG
   bitstream_queue_pop_literal(literal, bits);
 #endif  // CONFIG_BITSTREAM_DEBUG
@@ -285,17 +289,17 @@ static INLINE int avm_read_literal_(avm_reader *r, int bits ACCT_INFO_PARAM) {
   return literal;
 }
 
-// Deocode unary coded symbol with truncation at max_nbits.
+// Decode unary coded symbol with truncation at max_nbits.
 static INLINE int avm_read_unary_(avm_reader *r,
                                   int max_nbits ACCT_INFO_PARAM) {
   int ret = od_ec_decode_unary_bypass(&r->ec, max_nbits);
+  const int n_bits = ret < max_nbits ? ret + 1 : max_nbits;
+  if (r->count_frame_symbols) r->frame_symbol_count += (uint64_t)n_bits;
 #if CONFIG_BITSTREAM_DEBUG
-  int nbits = ret < max_nbits ? ret + 1 : max_nbits;
   int data = ret == max_nbits ? 0 : 1;
-  bitstream_queue_pop_literal(data, nbits);
+  bitstream_queue_pop_literal(data, n_bits);
 #endif  // CONFIG_BITSTREAM_DEBUG
 #if CONFIG_ACCOUNTING
-  int n_bits = ret < max_nbits ? ret + 1 : max_nbits;
   if (ACCT_INFO_NAME.c_file)
     avm_process_accounting(r, ret, SYMBOL_UNARY, ACCT_INFO_NAME);
 #if CONFIG_THROUGHPUT_ANALYSIS
@@ -368,6 +372,7 @@ static INLINE int avm_read_symbol_(avm_reader *r, avm_cdf_prob *cdf,
                                    int nsymbs ACCT_INFO_PARAM) {
   int ret;
   ret = avm_read_cdf(r, cdf, nsymbs, ACCT_INFO_NAME);
+  if (r->count_frame_symbols) ++r->frame_symbol_count;
   if (r->allow_update_cdf) update_cdf(cdf, ret, nsymbs);
   return ret;
 }
@@ -389,6 +394,7 @@ static INLINE int avm_read_symbol_probdata(avm_reader *r, avm_cdf_prob *cdf,
                                            ProbModelInfo prob_info) {
   FILE *filedata = prob_info.fDataCollect;
   const int symLength = prob_info.num_symb;
+  if (r->count_frame_symbols) ++r->frame_symbol_count;
   // Estimated probability and counter information
   const int counter_engine = (int)cdf[symLength];
   for (int i = 0; i < prob_info.num_dim; i++) {

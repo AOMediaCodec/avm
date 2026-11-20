@@ -131,6 +131,16 @@ static AVM_INLINE void write_inter_mode(
                    INTER_SINGLE_MODES);
 }
 
+bool av2_encoder_decoder_model_accumulate_frame_symbols(
+    uint64_t *frame_symbols, uint64_t tile_group_symbols) {
+  if (frame_symbols == NULL ||
+      tile_group_symbols > UINT64_MAX - *frame_symbols) {
+    return false;
+  }
+  *frame_symbols += tile_group_symbols;
+  return true;
+}
+
 static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
                           FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
                           const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
@@ -5895,7 +5905,10 @@ static uint32_t write_tilegroup_payload(AV2_COMP *const cpi, uint8_t *const dst,
   *largest_tile_id = 0;
 
   uint8_t *tile_data_start = dst + total_size;
-  mode_bc.frame_symbol_count = 0;
+  // Level monitoring spans tile groups. Other callers use the current group.
+  if (!cpi->level_params.keep_level_stats || is_stat_generation_stage(cpi)) {
+    cm->features.frame_symbol_count = 0;
+  }
   int tile_idx = 0;
   for (tile_row = 0; tile_row < tile_rows; tile_row++) {
     TileInfo tile_info;
@@ -5930,6 +5943,10 @@ static uint32_t write_tilegroup_payload(AV2_COMP *const cpi, uint8_t *const dst,
           !cm->bridge_frame_info.is_bridge_frame)
         write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);
       avm_stop_encode(&mode_bc);
+      if (!av2_encoder_decoder_model_accumulate_frame_symbols(
+              &cm->features.frame_symbol_count, mode_bc.frame_symbol_count)) {
+        cpi->dm_frame_symbol_count_overflow = true;
+      }
       unsigned int tile_size = mode_bc.pos;
       assert(tile_size >= AV2_MIN_TILE_SIZE_BYTES);
 
@@ -5940,7 +5957,6 @@ static uint32_t write_tilegroup_payload(AV2_COMP *const cpi, uint8_t *const dst,
         *largest_tile_id = tile_cols * tile_row + tile_col;
         max_tile_size = tile_size;
       }
-      cm->features.frame_symbol_count = mode_bc.frame_symbol_count;
       if (tile_idx < end_tile_idx) {
         mem_put_le32(buf->data, tile_size - AV2_MIN_TILE_SIZE_BYTES);
       }
@@ -6037,22 +6053,9 @@ static uint32_t write_tilegroup_header(AV2_COMP *cpi, OBU_TYPE obu_type,
   if (first_tile_group_in_frame || send_uncompressed_header_flag)
     write_uncompressed_header(cpi, obu_type, saved_wb, &wb);
 
-  if (first_tile_group_in_frame) {
-    bool count_header = (obu_type == OBU_REGULAR_TILE_GROUP ||
-                         obu_type == OBU_LEADING_TILE_GROUP);
-    count_header |= (obu_type == OBU_SWITCH);
-    count_header |=
-        (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF);
-    count_header |=
-        (obu_type == OBU_LEADING_TIP || obu_type == OBU_REGULAR_TIP);
-    count_header |=
-        (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY);
-
-    AV2LevelParams *const level_params = &cpi->level_params;
-
-    count_header |= (obu_type == OBU_RAS_FRAME);
-    if (level_params->keep_level_stats && count_header)
-      ++level_params->frame_header_count;
+  if (first_tile_group_in_frame && cpi->level_params.keep_level_stats &&
+      av2_count_frame_header_for_level(&cpi->common)) {
+    ++cpi->level_params.frame_header_count;
   }
 
   bool skip_tile_indices = false;
@@ -7227,6 +7230,11 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 int av2_pack_bitstream(AV2_COMP *const cpi, uint8_t *dst, size_t *size,
                        int *const largest_tile_id) {
   AV2_COMMON *const cm = &cpi->common;
+  if (cpi->level_params.keep_level_stats != 0 &&
+      !is_stat_generation_stage(cpi)) {
+    cm->features.frame_symbol_count = 0;
+    cpi->dm_frame_symbol_count_overflow = false;
+  }
 
   // For some pairs of sequence-level and frame-level flags, if
   // single_picture_header_flag is true and the frame-level flag is 0, force

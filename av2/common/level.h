@@ -10,12 +10,10 @@
  * aomedia.org/license/patent-license/.
  */
 
-#ifndef AVM_AV2_ENCODER_LEVEL_H_
-#define AVM_AV2_ENCODER_LEVEL_H_
+#ifndef AVM_AV2_COMMON_LEVEL_H_
+#define AVM_AV2_COMMON_LEVEL_H_
 
 #include "av2/common/av2_common_int.h"
-
-struct AV2_COMP;
 
 // AV2 Level Specifications
 typedef struct {
@@ -50,211 +48,21 @@ typedef struct {
   int max_header_rate_x;
 } AV2SubstreamLevelSpec;
 
-typedef struct {
-  int64_t ts_start;
-  int64_t ts_end;
-  size_t encoded_size_in_bytes;
-  int pic_size;
-  int frame_header_count;
-  int tiles;
-  int immediate_output_picture;
-  int show_existing_frame;
-} FrameRecord;
+// Validated read-only Annex A lookups used by the decoder-model verifier.
+int av2_get_level_compression_basis(int level_index, int tier,
+                                    uint32_t *compression_basis);
+int av2_get_substream_level_spec(int level_index, uint32_t scale_numerator,
+                                 uint32_t scale_denominator,
+                                 AV2SubstreamLevelSpec *level_spec);
 
-// Record frame info. in a rolling window.
-#define FRAME_WINDOW_SIZE 256
-typedef struct {
-  FrameRecord buf[FRAME_WINDOW_SIZE];
-  int num;    // Number of FrameRecord stored in the buffer.
-  int start;  // Buffer index of the first FrameRecord.
-} FrameWindowBuffer;
-
-typedef struct {
-  int max_bitrate;  // Max bitrate in any 1-second window, in bps.
-  int max_tile_size;
-  int max_tile_width;
-  int min_cropped_tile_width;
-  int min_cropped_tile_height;
-  int tile_width_is_valid;
-  int min_frame_width;
-  int min_frame_height;
-  double total_compressed_size;  // In bytes.
-  double total_time_encoded;     // In seconds.
-  double min_cr;
-} AV2LevelStats;
-
-// The following data structures are for the decoder model.
-typedef struct {
-  int decoder_ref_count;
-  int player_ref_count;
-  int display_index;
-  FRAME_TYPE frame_type;
-  double presentation_time;
-} FRAME_BUFFER;
-
-// Interval of bits transmission for a DFG(Decodable Frame Group).
-typedef struct {
-  double first_bit_arrival_time;  // Time when the first bit arrives.
-  double last_bit_arrival_time;   // Time when the last bit arrives.
-  // Removal time means the time when the bits to be decoded are removed from
-  // the smoothing buffer. Removal time is essentially the time when the
-  // decoding of the frame starts.
-  double removal_time;
-} DFG_INTERVAL;
-
-#define DFG_INTERVAL_QUEUE_SIZE 64
-typedef struct {
-  int head;
-  int size;
-  double total_interval;
-  DFG_INTERVAL buf[DFG_INTERVAL_QUEUE_SIZE];
-} DFG_INTERVAL_QUEUE;
-
-enum {
-  RESOURCE_MODE = 0,  // Resource availability mode.
-  SCHEDULE_MODE       // Decoding schedule mode.
-} UENUM1BYTE(DECODER_MODEL_MODE);
-
-enum {
-  DECODER_MODEL_OK = 0,
-  DECODE_FRAME_BUF_UNAVAILABLE,
-  DECODE_EXISTING_FRAME_BUF_EMPTY,
-  DISPLAY_FRAME_LATE,
-  SMOOTHING_BUFFER_UNDERFLOW,
-  SMOOTHING_BUFFER_OVERFLOW,
-  DECODER_MODEL_DISABLED,
-  DECODER_MODEL_MULTIPLE_XLAYERS,
-} UENUM1BYTE(DECODER_MODEL_STATUS);
-
-typedef struct {
-  DECODER_MODEL_STATUS status;
-  DECODER_MODEL_MODE mode;
-  bool is_low_delay_mode;
-  AV2_LEVEL level;
-  int encoder_buffer_delay;  // In units of 1/90000 seconds.
-  int decoder_buffer_delay;  // In units of 1/90000 seconds.
-  int num_ticks_per_picture;
-  int initial_display_delay;  // In units of frames.
-  int64_t decode_rate;
-  double display_clock_tick;          // In units of seconds.
-  double current_time;                // In units of seconds.
-  double initial_presentation_delay;  // In units of seconds.
-  double bit_rate;                    // Bits per second.
-
-  int num_frame;
-  int num_decoded_frame;
-  int num_shown_frame;
-  int vbi[REF_FRAMES];  // Virtual buffer index.
-  FRAME_BUFFER frame_buffer_pool[BUFFER_POOL_MAX_SIZE];
-  DFG_INTERVAL_QUEUE dfg_interval_queue;
-
-  // Information for the DFG(Decodable Frame Group) being processed.
-  double first_bit_arrival_time;
-  double last_bit_arrival_time;
-  size_t coded_bits;
-
-  // Information for the frame being processed.
-  double removal_time;
-  double presentation_time;
-  int decode_samples;
-  int display_samples;
-
-  int64_t max_display_rate;
-  int64_t max_decode_rate;
-  bool max_tile_rate_satisfy;
-  bool compressed_size_satisfy;
-  bool frame_symbol_count_satisfy;
-
-  // Number of reference frames signaled in the sequence header.  Determines
-  // the active buffer pool size (num_ref_frames + 2), matching the spec's
-  // NumRefFrames + 2.  The backing array is sized at BUFFER_POOL_MAX_SIZE.
-  int num_ref_frames;
-
-  // Number of shown frames that share the current presentation time (i.e.
-  // belong to the same temporal unit).  Reset to 0 when the presentation time
-  // advances to a new temporal unit.
-  int num_frames_current_tu;
-
-  // Tracks whether every inter-TU presentation interval satisfies the minimum
-  // required by the spec (§E.3.2).
-  bool min_presentation_interval_satisfy;
-
-  // Index of the currently decoded frame
-  int cfbi;
-
-  int last_output_mlayer;
-  int last_output_xlayer;
-  int last_display_index;
-} DECODER_MODEL;
-
-typedef struct {
-  AV2LevelStats level_stats;
-  AV2LevelSpec level_spec;
-  FrameWindowBuffer frame_window_buffer;
-  DECODER_MODEL decoder_models[SEQ_LEVELS];
-} AV2LevelInfo;
-
-typedef struct AV2LevelParams {
-  // Specifies the level that the coded video sequence conforms to for each
-  // operating point.
-  AV2_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
-  // Bit mask to indicate whether to keep level stats for corresponding
-  // operating points.
-  uint32_t keep_level_stats;
-  // Level information for each operating point.
-  AV2LevelInfo *level_info[MAX_NUM_OPERATING_POINTS];
-  // Count the number of OBU_FRAME and OBU_FRAME_HEADER for level calculation.
-  int frame_header_count;
-  double multi_stream_scaling_x;
-} AV2LevelParams;
-
-static INLINE int is_in_operating_point(int operating_point, int tlayer_id,
-                                        int mlayer_id) {
-  if (!operating_point) return 1;
-
-  return ((operating_point >> tlayer_id) & 1) &&
-         ((operating_point >> (mlayer_id + MAX_NUM_TLAYERS)) & 1);
-}
-int level_to_sub_stream_level_index(AV2_LEVEL level, double scaling_factor_x);
-
-void av2_init_level_info(struct AV2_COMP *cpi);
+// Returns a borrowed row for the encoder's legacy index mapping. The index
+// must identify an existing row in the Annex A substream table.
+const AV2SubstreamLevelSpec *av2_get_substream_level_spec_by_index(int index);
 
 bool is_filter_enabled_frame(const AV2_COMMON *const cm);
-
-void av2_update_level_info(struct AV2_COMP *cpi, size_t size, int64_t ts_start,
-                           int64_t ts_end, int decode_frame);
-
-// Compression ratio of current frame.
-double av2_get_compression_ratio(const AV2_COMMON *const cm,
-                                 size_t encoded_frame_size);
-
-// Return sequence level indices in seq_level_idx[MAX_NUM_OPERATING_POINTS].
-avm_codec_err_t av2_get_seq_level_idx(const struct AV2_COMP *cpi,
-                                      const SequenceHeader *seq_params,
-                                      const AV2LevelParams *level_params,
-                                      int *seq_level_idx);
-
-void av2_decoder_model_init(const struct AV2_COMP *const cpi, AV2_LEVEL level,
-                            int op_index, DECODER_MODEL *const decoder_model);
-
-void av2_decoder_model_update_buffer_and_finish_frame_decode_for_operating_points(
-    const struct AV2_COMP *const cpi);
-
-void av2_decoder_model_check_output_frame_for_operating_points(
-    const struct AV2_COMP *const cpi, int ref_idx,
-    RefCntBuffer *output_frame_ptr);
-
-// Return max bitrate(bps) for given level.
-double av2_get_max_bitrate_for_level(AV2_LEVEL level_index, int tier,
-                                     BITSTREAM_PROFILE profile,
-                                     double multi_stream_scaling_x);
-
-// Get max number of tiles and tile columns for given level.
-void av2_get_max_tiles_for_level(AV2_LEVEL level_index, int *const max_tiles,
-                                 int *const max_tile_cols);
 
 // Return maximum legal DPB size defined by the level.
 int av2_get_max_level_ref_frames(const AV2_COMMON *const cm, OBU_TYPE obu_type,
                                  AV2_LEVEL level_index);
 
-#endif  // AVM_AV2_ENCODER_LEVEL_H_
+#endif  // AVM_AV2_COMMON_LEVEL_H_

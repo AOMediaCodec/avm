@@ -79,6 +79,7 @@ typedef struct SubBitstreamExtractionState {
 } SubBitstreamExtractionState;
 
 struct AV2Decoder;
+struct OperatingPointSet;
 
 // clang-format off
 // Operating point selection and analysis process (Annex F, Section F.3.1):
@@ -142,6 +143,14 @@ int av2_sbe_build_retention_map(SubBitstreamExtractionState *sbe,
 int av2_sbe_should_retain_obu(const SubBitstreamExtractionState *sbe,
                               OBU_TYPE obu_type, int obu_xlayer_id,
                               int obu_mlayer_id, int obu_tlayer_id);
+
+// Build the exact Annex F retention map used to account CodedBits for one
+// decoder-model scope. A whole-xlayer scope retains every embedded and temporal
+// layer of xlayer_id. An operating-point scope uses op_index from ops.
+int av2_sbe_configure_decoder_model_scope(SubBitstreamExtractionState *sbe,
+                                          int xlayer_id,
+                                          const struct OperatingPointSet *ops,
+                                          int op_index, int whole_xlayer);
 
 // Step 5 fallback: extract profile/level/tier from sequence header
 // when no OPS or LCR provides this information.

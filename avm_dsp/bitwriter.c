@@ -16,6 +16,7 @@
 void avm_start_encode(avm_writer *w, uint8_t *source) {
   w->buffer = source;
   w->pos = 0;
+  w->frame_symbol_count = 0;
   avm_od_ec_enc_init(&w->ec, 62025);
 }
 

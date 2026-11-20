@@ -140,6 +140,68 @@ static int av2_ci_params_identical(const ContentInterpretation *ci1,
   return 0;
 }
 
+// A grouped CI can precede the first frame of its own xlayer, or its
+// xlayer can have no frame at all. A changed CI must find a qualifying
+// CLK/OLK in this TU before the next temporal delimiter or end of input.
+bool av2_ci_temporal_unit_complete(const AV2Decoder *pbi) {
+  for (int x = 0; x < MAX_NUM_XLAYERS; ++x) {
+    if (pbi->ci_tu[x].changed_layers_awaiting_key) return false;
+  }
+  return true;
+}
+
+void av2_update_layer_ci_at_frame_header(AV2Decoder *pbi, OBU_TYPE obu_type) {
+  AV2_COMMON *const cm = &pbi->common;
+  const unsigned layer = cm->mlayer_id;
+  const unsigned xlayer = cm->xlayer_id;
+  const unsigned max_layer = cm->seq_params.max_mlayer_id;
+  if (xlayer >= MAX_NUM_XLAYERS || layer >= MAX_NUM_MLAYERS ||
+      max_layer >= MAX_NUM_MLAYERS || layer > max_layer) {
+    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                       "Invalid layer for content interpretation");
+    return;
+  }
+  CiTemporalUnitState *const ci = &pbi->ci_tu[xlayer];
+  const bool start = !ci->layers_with_key_dependency &&
+                     (obu_type == OBU_CLOSED_LOOP_KEY ||
+                      (pbi->random_accessed && (obu_type == OBU_OPEN_LOOP_KEY ||
+                                                obu_type == OBU_RAS_FRAME)));
+  if (obu_type == OBU_CLOSED_LOOP_KEY || obu_type == OBU_OPEN_LOOP_KEY) {
+    for (unsigned m = layer; m <= max_layer; ++m) {
+      if (is_mlayer_transitively_dependent(&cm->seq_params, m, layer))
+        ci->layers_with_key_dependency |= 1u << m;
+    }
+    ci->changed_layers_awaiting_key &= ~ci->layers_with_key_dependency;
+  }
+  // Frame units are ordered by mlayer. Any key that could establish CI
+  // for this layer or a lower one has now been seen.
+  if (ci->changed_layers_awaiting_key & ((2u << layer) - 1)) {
+    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                       "Content interpretation changed without a key frame");
+    return;
+  }
+  // At entry to a CVS establish all layers, including independent layers
+  // without frames in this TU. A later explicit CI in this TU takes priority.
+  if (!start &&
+      !(ci->signaled_layers & ci->layers_with_key_dependency & (1u << layer)))
+    return;
+  for (unsigned m = 0; m <= max_layer; ++m) {
+    if ((ci->signaled_layers & (1u << m)) ||
+        (!start &&
+         !is_mlayer_transitively_dependent(&cm->seq_params, m, layer)))
+      continue;
+    ContentInterpretation *const dst = &cm->ci_params_per_layer[m];
+    memset(dst, 0, sizeof(*dst));
+    av2_initialize_ci_params(dst);
+    for (int k = (int)m - 1; k >= 0; --k) {
+      if (is_mlayer_transitively_dependent(&cm->seq_params, m, k)) {
+        *dst = cm->ci_params_per_layer[k];
+        break;
+      }
+    }
+  }
+}
+
 uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
                                              struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
@@ -211,48 +273,31 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
     return 0;
   }
 
-  assert(pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id]
-                                     [OBU_CONTENT_INTERPRETATION]);
-  // this CI OBU is signalled with a KEY OBU in the frame data unit
-  int ci_is_with_keyobu =
-      (pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id]
-                                   [OBU_CLOSED_LOOP_KEY] ||
-       pbi->obus_in_frame_unit_data[obu_tlayer_id][obu_mlayer_id]
-                                   [OBU_OPEN_LOOP_KEY]);
-  // In multi-mlayer encoding, higher mlayers don't have CLK/OLK themselves
-  // but share the RAP TU with a lower dependent layer.  Accept a new CI OBU
-  // when any transitively dependent layer has a key OBU in the same TU.
-  if (!ci_is_with_keyobu && obu_mlayer_id > 0) {
-    for (int ref = 0; ref < obu_mlayer_id; ref++) {
-      if (is_mlayer_transitively_dependent(&cm->seq_params, obu_mlayer_id,
-                                           ref) &&
-          (pbi->obus_in_frame_unit_data[obu_tlayer_id][ref]
-                                       [OBU_CLOSED_LOOP_KEY] ||
-           pbi->obus_in_frame_unit_data[obu_tlayer_id][ref]
-                                       [OBU_OPEN_LOOP_KEY])) {
-        ci_is_with_keyobu = 1;
-        break;
-      }
-    }
+  const unsigned layer = obu_mlayer_id;
+  const unsigned xlayer = cm->xlayer_id;
+  if (xlayer >= MAX_NUM_XLAYERS || layer >= MAX_NUM_MLAYERS ||
+      (unsigned)obu_tlayer_id >= MAX_NUM_TLAYERS) {
+    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                       "Invalid layer for content interpretation");
+    return 0;
   }
-
-  if (!ci_is_with_keyobu) {
-    // Check if a CI OBU has already been received for this embedded layer
-    // If this is the first CI OBU in the bitstream but it is signalled not at
-    // the random access point, This CI OBU should be the same as the default,
-    // which is considered as the exisiting CI.
-    ci_temp.ci_from_leading =
-        cm->ci_params_per_layer[obu_mlayer_id].ci_from_leading;
-    if (!av2_ci_params_identical(&cm->ci_params_per_layer[obu_mlayer_id],
-                                 &ci_temp)) {
+  assert(pbi->obus_in_frame_unit_data[obu_tlayer_id][layer]
+                                     [OBU_CONTENT_INTERPRETATION]);
+  CiTemporalUnitState *const ci = &pbi->ci_tu[xlayer];
+  ContentInterpretation *const current = &cm->ci_params_per_layer[layer];
+  ci_temp.ci_from_leading = current->ci_from_leading;
+  if (!av2_ci_params_identical(current, &ci_temp)) {
+    if (ci->signaled_layers & (1u << layer)) {
       avm_internal_error(
           &cm->error, AVM_CODEC_CORRUPT_FRAME,
           "Multiple CI OBUs in embedded layer must be identical.");
+      return 0;
     }
-  } else {
-    // Got the first CI Obu for this layer.
-    cm->ci_params_per_layer[obu_mlayer_id] = ci_temp;
+    if (!(ci->layers_with_key_dependency & (1u << layer)))
+      ci->changed_layers_awaiting_key |= 1u << layer;
   }
-
+  ci_temp.ci_from_leading = false;
+  *current = ci_temp;
+  ci->signaled_layers |= 1u << layer;
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }

@@ -963,6 +963,7 @@ typedef struct OperatingPoint {
 
   // Details per layer
   int ops_xlayer_map;
+  bool ops_initial_display_delay_present_flag;
   int ops_initial_display_delay;
   int ops_decoder_model_info_for_this_op_present_flag;
   int ops_mlayer_explicit_info_flag[MAX_NUM_XLAYERS];
@@ -2970,6 +2971,8 @@ typedef struct AV2Common {
    * Temporal point info
    */
   avm_metadata_temporal_point_info_t temporal_point_info_metadata;
+  /*! Whether temporal point information is present. */
+  bool temporal_point_info_present;
 
   /*!
    * Order hint of the last encountered OLK
@@ -3204,6 +3207,15 @@ static INLINE int frame_is_intra_only(const AV2_COMMON *const cm) {
 
 static INLINE int frame_is_sframe(const AV2_COMMON *cm) {
   return cm->current_frame.frame_type == S_FRAME;
+}
+
+// CountFrameHeaderForLevelConstraint for the first frame header. Frame
+// header copies never contribute to NumFrameHeadersPerSec.
+static INLINE bool av2_count_frame_header_for_level(const AV2_COMMON *cm) {
+  return cm->bridge_frame_info.is_bridge_frame ||
+         (!cm->show_existing_frame &&
+          cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT &&
+          !cm->bru.frame_inactive_flag);
 }
 
 static INLINE int get_ref_frame_map_idx(const AV2_COMMON *const cm,

@@ -340,64 +340,47 @@ int av2_check_profile_interop_conformance(
  */
 /* clang-format on */
 
-// Returns the row index used to look up a profile's factors in the
-// PicSize/Bitrate factor tables below.
-//
-// NOTE: This is a table row index, NOT the spec's ProfileScalingFactor from
-// Table A.2. The two coincide for profiles 0..4 (0, 0, 0, 1, 2), but profile
-// MAIN_444C_12_IP2 (idc 5) has spec ProfileScalingFactor 2 -- the same as
-// profile MAIN_444_10_IP1 (idc 4) -- while requiring DIFFERENT PicSize and
-// Bitrate factors (36 / 3.0 vs 30 / 2.5). Since one ProfileScalingFactor value
-// cannot select two different factor rows, profile 5 is given its own row
-// index (3) here.
-int get_profile_factor_table_row_index(int seq_profile_idc) {
-  if (seq_profile_idc == MAIN_420_10_IP0 ||
-      seq_profile_idc == MAIN_420_10_IP1 ||
-      seq_profile_idc == MAIN_420_10_IP2) {
-    return 0;
-  }
-
-  if (seq_profile_idc == MAIN_422_10_IP1) {
-    return 1;
-  }
-
-  if (seq_profile_idc == MAIN_444_10_IP1) {
-    return 2;
-  }
-
+static const AV2ProfileLevelFactors profile_level_factors[] = {
+  { 15, 1, 1 },        // MAIN_420_10_IP0
+  { 15, 1, 1 },        // MAIN_420_10_IP1
+  { 15, 1, 1 },        // MAIN_420_10_IP2
+  { 20, 1667, 1000 },  // MAIN_422_10_IP1
+  { 30, 5, 2 },        // MAIN_444_10_IP1
 #if CONFIG_12BIT_PROFILE
-  if (seq_profile_idc == MAIN_444C_12_IP2) {
-    return 3;
-  }
-#endif  // CONFIG_12BIT_PROFILE
+  { 36, 3, 1 },  // MAIN_444C_12_IP2
+#endif
+};
 
-  // Default for invalid combinations and Configurable profile
-  return 0;
+_Static_assert(sizeof(profile_level_factors) /
+                       sizeof(profile_level_factors[0]) ==
+                   RESERVED_PROFILES_START,
+               "Annex A factor table must cover every supported profile");
+
+bool av2_get_profile_level_factors(int seq_profile_idc,
+                                   AV2ProfileLevelFactors *factors) {
+  if (factors == NULL || seq_profile_idc < 0 ||
+      seq_profile_idc >= RESERVED_PROFILES_START) {
+    return false;
+  }
+  *factors = profile_level_factors[seq_profile_idc];
+  return true;
 }
 
-// BitrateProfileFactor and PicSizeProfileFactor from Table A.2, indexed by the
-// row returned by get_profile_factor_table_row_index().
-static const double bitrate_profile_factor_table[] = { 1.0, 1.667, 2.5, 3.0 };
-static const double picture_size_profile_factor_table[] = { 15.0, 20.0, 30.0,
-                                                            36.0 };
-
-#define NUM_PROFILE_FACTOR_ROWS \
-  (int)(sizeof(bitrate_profile_factor_table) / sizeof(double))
-
-double get_bitrate_profile_factor(int profile_factor_row) {
-  assert(profile_factor_row >= 0 &&
-         profile_factor_row < NUM_PROFILE_FACTOR_ROWS);
-  if (profile_factor_row < 0 || profile_factor_row >= NUM_PROFILE_FACTOR_ROWS) {
-    return 0.0;
+bool av2_obu_counts_toward_compressed_size(OBU_TYPE obu_type) {
+  switch (obu_type) {
+    case OBU_CLOSED_LOOP_KEY:
+    case OBU_OPEN_LOOP_KEY:
+    case OBU_LEADING_TILE_GROUP:
+    case OBU_REGULAR_TILE_GROUP:
+    case OBU_METADATA_SHORT:
+    case OBU_METADATA_GROUP:
+    case OBU_SWITCH:
+    case OBU_LEADING_SEF:
+    case OBU_REGULAR_SEF:
+    case OBU_LEADING_TIP:
+    case OBU_REGULAR_TIP:
+    case OBU_BRIDGE_FRAME:
+    case OBU_RAS_FRAME: return true;
+    default: return false;
   }
-  return bitrate_profile_factor_table[profile_factor_row];
-}
-
-double get_picture_size_profile_factor(int profile_factor_row) {
-  assert(profile_factor_row >= 0 &&
-         profile_factor_row < NUM_PROFILE_FACTOR_ROWS);
-  if (profile_factor_row < 0 || profile_factor_row >= NUM_PROFILE_FACTOR_ROWS) {
-    return 0.0;
-  }
-  return picture_size_profile_factor_table[profile_factor_row];
 }

@@ -325,6 +325,12 @@ typedef struct MsdoConfig {
   int stream_ids[AVM_MAX_NUM_STREAMS];
 } MsdoConfig;
 
+typedef struct CiTemporalUnitState {
+  uint8_t signaled_layers;
+  uint8_t layers_with_key_dependency;
+  uint8_t changed_layers_awaiting_key;
+} CiTemporalUnitState;
+
 typedef struct AV2Decoder {
   DecoderCodingBlock dcb;
 
@@ -402,6 +408,11 @@ typedef struct AV2Decoder {
   DecOperatingPointParams dec_op_params;
   // Sub-bitstream extraction state (Annex F)
   SubBitstreamExtractionState sbe_state;
+  struct Av2DecoderModelVerifier *decoder_model_verifier;
+  int decoder_model_check_mode;
+  int decoder_model_check_every_rap;
+  bool decoder_model_verifier_allocation_failed;
+  bool decoder_model_verifier_allocation_reported;
   int seen_frame_header;
   // The expected start_tile (tg_start syntax element) of the next tile group.
   int next_start_tile;
@@ -617,6 +628,7 @@ typedef struct AV2Decoder {
    * unit data
    */
   bool obus_in_frame_unit_data[MAX_NUM_TLAYERS][MAX_NUM_MLAYERS][NUM_OBU_TYPES];
+  CiTemporalUnitState ci_tu[MAX_NUM_XLAYERS];
 
   /*!
    * Indicates if the bitstream has multiple extended layers (multistream).

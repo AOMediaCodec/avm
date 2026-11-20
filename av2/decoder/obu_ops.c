@@ -19,6 +19,7 @@
 #include "av2/decoder/decoder.h"
 #include "av2/decoder/decodeframe.h"
 #include "av2/decoder/obu.h"
+#include "av2/decoder/decoder_model.h"
 
 static void read_ops_mlayer_info(int xLId,
                                  struct OpsMLayerInfo *ops_mlayer_info,
@@ -170,8 +171,8 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
       if (op->ops_decoder_model_info_for_this_op_present_flag) {
         read_ops_decoder_model_info(&op->decoder_model_info, rb);
       }
-      int ops_initial_display_delay_present_flag = avm_rb_read_bit(rb);
-      if (ops_initial_display_delay_present_flag) {
+      op->ops_initial_display_delay_present_flag = avm_rb_read_bit(rb);
+      if (op->ops_initial_display_delay_present_flag) {
         int ops_initial_display_delay_minus_1 = avm_rb_read_literal(rb, 4);
         op->ops_initial_display_delay = ops_initial_display_delay_minus_1 + 1;
       } else {
@@ -291,5 +292,9 @@ uint32_t av2_read_operating_point_set_obu(struct AV2Decoder *pbi,
     return 0;
   }
   ops->valid = 1;
+  if (pbi->decoder_model_verifier != NULL) {
+    av2_decoder_model_verifier_on_operating_point_set(pbi, obu_xlayer_id,
+                                                      ops_id);
+  }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }

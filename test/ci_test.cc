@@ -50,6 +50,21 @@ class CiTest : public ::testing::Test {
     memset(pbi_, 0, sizeof(*pbi_));
     memset(buf_, 0, sizeof(buf_));
   }
+  void ParseTimingCi(int xlayer, int mlayer, unsigned scale) {
+    ContentInterpretation src = {};
+    av2_initialize_ci_params(&src);
+    src.ci_timing_info_present_flag = 1;
+    src.timing_info.num_units_in_display_tick = 1;
+    src.timing_info.time_scale = scale;
+    const uint32_t bytes = write_ci_obu(&src, buf_);
+    avm_read_bit_buffer rb = { buf_, buf_ + bytes, 0, nullptr,
+                               rb_error_handler };
+    pbi_->common.xlayer_id = xlayer;
+    pbi_->common.mlayer_id = mlayer;
+    pbi_->obus_in_frame_unit_data[0][mlayer][OBU_CONTENT_INTERPRETATION] = true;
+    ASSERT_EQ(av2_read_content_interpretation_obu(pbi_, &rb), bytes);
+    ASSERT_EQ(pbi_->common.error.error_code, AVM_CODEC_OK);
+  }
   void TearDown() override { avm_free(pbi_); }
 
   AV2Decoder *pbi_;
@@ -77,6 +92,78 @@ TEST_F(CiTest, MinimalCiRoundtrip) {
   EXPECT_EQ(dst->ci_chroma_sample_position_present_flag, 0);
   EXPECT_EQ(dst->ci_aspect_ratio_info_present_flag, 0);
   EXPECT_EQ(dst->ci_timing_info_present_flag, 0);
+}
+
+TEST_F(CiTest, InheritsTimingAcrossFrameUnitsAndHonorsExplicitLayerCi) {
+  AV2_COMMON *const cm = &pbi_->common;
+  cm->seq_params.max_mlayer_id = 2;
+  ASSERT_NO_FATAL_FAILURE(ParseTimingCi(0, 0, 30));
+  av2_update_layer_ci_at_frame_header(pbi_, OBU_CLOSED_LOOP_KEY);
+  EXPECT_EQ(cm->ci_params_per_layer[1].timing_info.time_scale, 30u);
+  EXPECT_EQ(cm->ci_params_per_layer[2].timing_info.time_scale, 30u);
+
+  memset(pbi_->obus_in_frame_unit_data, 0,
+         sizeof(pbi_->obus_in_frame_unit_data));
+  ASSERT_NO_FATAL_FAILURE(ParseTimingCi(0, 1, 60));
+  av2_update_layer_ci_at_frame_header(pbi_, OBU_REGULAR_TILE_GROUP);
+  EXPECT_EQ(cm->ci_params_per_layer[0].timing_info.time_scale, 30u);
+  EXPECT_EQ(cm->ci_params_per_layer[1].timing_info.time_scale, 60u);
+  EXPECT_EQ(cm->ci_params_per_layer[2].timing_info.time_scale, 60u);
+
+  // A repeat of the base CI outside a RAP must preserve the upper-layer CI.
+  memset(pbi_->ci_tu, 0, sizeof(pbi_->ci_tu));
+  ASSERT_NO_FATAL_FAILURE(ParseTimingCi(0, 0, 30));
+  av2_update_layer_ci_at_frame_header(pbi_, OBU_REGULAR_TILE_GROUP);
+  EXPECT_EQ(cm->ci_params_per_layer[2].timing_info.time_scale, 60u);
+}
+
+TEST_F(CiTest, ClkReinitializesIndependentAndAbsentLayers) {
+  AV2_COMMON *cm = &pbi_->common;
+  cm->seq_params.max_mlayer_id = 2;
+  cm->seq_params.mlayer_dependency_present_flag = true;
+  cm->seq_params.mlayer_dependency_map[2][0] = 1;
+  cm->ci_params_per_layer[1].ci_timing_info_present_flag = 1;
+  cm->ci_params_per_layer[1].timing_info.time_scale = 15;
+  ASSERT_NO_FATAL_FAILURE(ParseTimingCi(0, 0, 30));
+  av2_update_layer_ci_at_frame_header(pbi_, OBU_CLOSED_LOOP_KEY);
+  EXPECT_FALSE(cm->ci_params_per_layer[1].ci_timing_info_present_flag);
+  EXPECT_TRUE(cm->ci_params_per_layer[2].ci_timing_info_present_flag);
+  EXPECT_EQ(cm->ci_params_per_layer[2].timing_info.time_scale, 30u);
+  // Neither upper layer has a frame until the next temporal unit.
+  ASSERT_TRUE(av2_ci_temporal_unit_complete(pbi_));
+  memset(pbi_->ci_tu, 0, sizeof(pbi_->ci_tu));
+  cm->mlayer_id = 2;
+  av2_update_layer_ci_at_frame_header(pbi_, OBU_REGULAR_TILE_GROUP);
+  EXPECT_EQ(cm->ci_params_per_layer[2].timing_info.time_scale, 30u);
+}
+
+TEST_F(CiTest, GroupedCiUsesKeyAndActiveDependencyMapOfItsOwnXlayer) {
+  AV2_COMMON *cm = &pbi_->common;
+  cm->seq_params.max_mlayer_id = 1;
+  cm->seq_params.mlayer_dependency_present_flag = true;
+  // The grouped CI for xlayer 1 and a CLK for xlayer 0 share a pre-scan.
+  pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = true;
+  ASSERT_NO_FATAL_FAILURE(ParseTimingCi(1, 1, 60));
+  const ContentInterpretation saved = cm->ci_params_per_layer[1];
+  cm->xlayer_id = cm->mlayer_id = 0;
+  av2_update_layer_ci_at_frame_header(pbi_, OBU_CLOSED_LOOP_KEY);
+  EXPECT_FALSE(av2_ci_temporal_unit_complete(pbi_));
+  // Xlayer 1 activates a new dependency map at its CLK.
+  cm->xlayer_id = 1;
+  cm->ci_params_per_layer[1] = saved;
+  cm->seq_params.mlayer_dependency_map[1][0] = 1;
+  av2_update_layer_ci_at_frame_header(pbi_, OBU_CLOSED_LOOP_KEY);
+  EXPECT_TRUE(av2_ci_temporal_unit_complete(pbi_));
+  EXPECT_EQ(cm->ci_params_per_layer[1].timing_info.time_scale, 60u);
+
+  memset(pbi_->ci_tu, 0, sizeof(pbi_->ci_tu));
+  ASSERT_NO_FATAL_FAILURE(ParseTimingCi(1, 1, 60));
+  EXPECT_TRUE(av2_ci_temporal_unit_complete(pbi_));  // identical repeat
+  memset(pbi_->ci_tu, 0, sizeof(pbi_->ci_tu));
+  ASSERT_NO_FATAL_FAILURE(ParseTimingCi(1, 1, 30));
+  EXPECT_FALSE(av2_ci_temporal_unit_complete(pbi_));  // no frame in xlayer 1
+  av2_update_layer_ci_at_frame_header(pbi_, OBU_REGULAR_TILE_GROUP);
+  EXPECT_EQ(cm->error.error_code, AVM_CODEC_CORRUPT_FRAME);
 }
 
 TEST_F(CiTest, ColorInfoExplicitRoundtrip) {
@@ -337,6 +424,7 @@ TEST_F(CiTest, ScanTypeSweep) {
     }
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
+    memset(pbi_->ci_tu, 0, sizeof(pbi_->ci_tu));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
     pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
@@ -371,6 +459,7 @@ TEST_F(CiTest, ColorIdcHighValues) {
     }
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
+    memset(pbi_->ci_tu, 0, sizeof(pbi_->ci_tu));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
     pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
@@ -427,6 +516,7 @@ TEST_F(CiTest, FlagCombinations) {
     }
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
+    memset(pbi_->ci_tu, 0, sizeof(pbi_->ci_tu));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
     pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
@@ -467,6 +557,7 @@ TEST_F(CiTest, ChromaSamplePositionValueSweep) {
     }
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
+    memset(pbi_->ci_tu, 0, sizeof(pbi_->ci_tu));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
     pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
@@ -503,6 +594,7 @@ TEST_F(CiTest, SarIdcStandardValueSweep) {
     }
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
+    memset(pbi_->ci_tu, 0, sizeof(pbi_->ci_tu));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
     pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
@@ -545,6 +637,7 @@ TEST_F(CiTest, ColorFieldBoundaryValues) {
     }
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
+    memset(pbi_->ci_tu, 0, sizeof(pbi_->ci_tu));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
     pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;
@@ -584,6 +677,7 @@ TEST_F(CiTest, TimingInfoBoundaryValues) {
     uint32_t written = write_ci_obu(&src, buf_);
     ASSERT_GT(written, 0u) << "ti=" << ti;
 
+    memset(pbi_->ci_tu, 0, sizeof(pbi_->ci_tu));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
     pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     struct avm_read_bit_buffer rb = { buf_, buf_ + written, 0, nullptr,
@@ -625,6 +719,7 @@ TEST_F(CiTest, ScanTypeChromaInteraction) {
     }
     memset(pbi_->obus_in_frame_unit_data, 0,
            sizeof(pbi_->obus_in_frame_unit_data));
+    memset(pbi_->ci_tu, 0, sizeof(pbi_->ci_tu));
     pbi_->obus_in_frame_unit_data[0][0][OBU_CLOSED_LOOP_KEY] = 1;
     pbi_->obus_in_frame_unit_data[0][0][OBU_CONTENT_INTERPRETATION] = 1;
     pbi_->common.error.error_code = AVM_CODEC_OK;

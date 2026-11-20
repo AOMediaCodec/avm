@@ -1113,6 +1113,8 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   if (cm->next_mlayer_id >= 0) {
     cm->mlayer_id = cm->next_mlayer_id;
   }
+  // Only the base layer can carry the temporal delimiter for this frame unit.
+  cpi->dm_starts_temporal_unit &= cm->mlayer_id == 0;
 
   // Check if we need to stuff more src frames
   if (flush == 0) {
@@ -1351,6 +1353,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     assert(cpi->gf_group.update_type[cpi->gf_group.index] == OVERLAY_UPDATE ||
            cpi->gf_group.update_type[cpi->gf_group.index] ==
                KFFLT_OVERLAY_UPDATE);
+    av2_decoder_model_flush_implicit_output_for_operating_points(cpi, true);
     // This is an OLK KF overlay. We need to clear all references except for the
     // OLK.
     for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
@@ -1364,6 +1367,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
         }
       }
     }
+    av2_decoder_model_invalidate_olk_ref_buffers_for_operating_points(cpi);
     // Set gf_state flag so the next gf group knows that the OLK has been
     // encoded
     cpi->gf_state.olk_overlay_last = 1;
