@@ -6289,10 +6289,13 @@ bool av2_rd_pick_partition(
     search_none_after_rect &= (xd->tree_type != CHROMA_PART);
   }
 
-  // Pruning: Disable rectangular partitions for inner blocks when the current
-  // block is forced to only use square partitions.
+  // Pruning: Disable rectangular partitions for inner square blocks when the
+  // current block is forced to only use square partitions. Non-square blocks
+  // (e.g. boundary BLOCK_256X128 / BLOCK_128X256 produced by HORZ/VERT splits
+  // at frame edges) must still be allowed to split into square subblocks.
   const PartitionBlkParams *blk_params = &part_search_state.part_blk_params;
-  if (is_bsize_gt(bsize, cpi->sf.part_sf.use_square_partition_only_threshold)) {
+  if (is_square_block(bsize) &&
+      is_bsize_gt(bsize, cpi->sf.part_sf.use_square_partition_only_threshold)) {
     part_search_state.partition_allowed[PARTITION_HORZ] &=
         !blk_params->has_rows;
     part_search_state.partition_allowed[PARTITION_VERT] &=
