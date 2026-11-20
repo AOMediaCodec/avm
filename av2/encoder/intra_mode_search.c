@@ -669,6 +669,14 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
   bool best_has_cctx_search = !rank_without_cctx;
   // Mode cost (excluding the token rate) of 'best_mbmi'.
   int best_mode_cost = 0;
+  // The later chroma searches of a block (in av2_handle_intra_mode()) reuse
+  // the explicit CfL alpha and the best MHCCP direction of its first search.
+  const int reuse_cfl_search =
+      mode_rd_info_uv != NULL && !xd->lossless[mbmi->segment_id]
+          ? cpi->sf.intra_sf.reuse_uv_cfl_search
+          : 0;
+  int64_t best_mhccp_rd = INT64_MAX;
+  int best_mhccp_dir = -1;
   for (int dpcm_uv_index = 0; dpcm_uv_index < dpcm_uv_loop_num;
        ++dpcm_uv_index) {
     mbmi->use_dpcm_uv = dpcm_uv_index;
@@ -729,6 +737,12 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
           mode != UV_DC_PRED) {
         continue;
       }
+      if (reuse_cfl_search >= 2 && !is_reevaluation &&
+          mode_rd_info_uv->mhccp_dir_stored && mode == UV_CFL_PRED &&
+          mbmi->cfl_idx == CFL_MULTI_PARAM &&
+          mbmi->mh_dir != mode_rd_info_uv->mhccp_dir) {
+        continue;
+      }
       if (dpcm_uv_index > 0 && ((mode != V_PRED && mode != H_PRED))) {
         continue;
       }
@@ -771,8 +785,23 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
 
         if (mbmi->cfl_idx == CFL_MULTI_PARAM && !is_mhccp_allowed(cm, xd))
           continue;
-        if (mbmi->cfl_idx == 0)
-          cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, best_rd);
+        if (mbmi->cfl_idx == 0) {
+          if (reuse_cfl_search && !is_reevaluation &&
+              mode_rd_info_uv->cfl_alpha_stored) {
+            mbmi->cfl_alpha_idx = mode_rd_info_uv->cfl_alpha_idx;
+            mbmi->cfl_alpha_signs = mode_rd_info_uv->cfl_alpha_signs;
+            cfl_alpha_rate = mode_rd_info_uv->cfl_alpha_rate;
+          } else {
+            cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, best_rd);
+            if (reuse_cfl_search && !is_reevaluation &&
+                cfl_alpha_rate != INT_MAX) {
+              mode_rd_info_uv->cfl_alpha_stored = true;
+              mode_rd_info_uv->cfl_alpha_idx = mbmi->cfl_alpha_idx;
+              mode_rd_info_uv->cfl_alpha_signs = mbmi->cfl_alpha_signs;
+              mode_rd_info_uv->cfl_alpha_rate = cfl_alpha_rate;
+            }
+          }
+        }
         if (is_mhccp_allowed(cm, xd)) {
           if (intra_mode_cfg->enable_cfl_intra)
             cfl_idx_rate +=
@@ -820,6 +849,11 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
                is_mhccp_allowed(cm, xd));
       }
       this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
+      if (mode == UV_CFL_PRED && mbmi->cfl_idx == CFL_MULTI_PARAM &&
+          !is_reevaluation && this_rd < best_mhccp_rd) {
+        best_mhccp_rd = this_rd;
+        best_mhccp_dir = mbmi->mh_dir;
+      }
 
       if (this_rd < best_rd || is_reevaluation) {
         // When the RDCost retrieved using the fetched UV mode information, the
@@ -845,6 +879,11 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
     }
   }
   x->skip_cctx_search = false;
+  if (reuse_cfl_search >= 2 && !mode_rd_info_uv->mhccp_dir_stored &&
+      best_mhccp_dir >= 0) {
+    mode_rd_info_uv->mhccp_dir_stored = true;
+    mode_rd_info_uv->mhccp_dir = (uint8_t)best_mhccp_dir;
+  }
 
   if (!best_has_cctx_search && best_rd < INT64_MAX) {
     // Run the CCTX search for the winning mode. If it fails to produce a valid
@@ -1413,11 +1452,29 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
       intra_search_state->skip_intra_modes = 1;
       return INT64_MAX;
     }
+    // Skip the chroma search of this candidate, but not the later ones, when
+    // its luma RD alone, or plus a share of the smallest chroma RD of the
+    // earlier chroma searches in this DPCM / FSC loop, exceeds the best RD.
+    const int uv_rd_alpha16 = sf->intra_sf.uv_search_rd_bound_alpha16;
+    if (best_rd < (INT64_MAX / 2)) {
+      if (sf->intra_sf.uv_search_luma_bound && rdy > best_rd) return INT64_MAX;
+      if (uv_rd_alpha16 > 0 && mode_rd_info_uv->min_uv_rd != INT64_MAX &&
+          rdy + ((mode_rd_info_uv->min_uv_rd * uv_rd_alpha16) >> 4) > best_rd)
+        return INT64_MAX;
+    }
     av2_rd_pick_intra_sbuv_mode(
         cpi, x, &intra_search_state->rate_uv_intra,
         &intra_search_state->rate_uv_tokenonly, &intra_search_state->dist_uvs,
         &intra_search_state->skip_uvs, ctx, bsize,
         sf->intra_sf.reuse_uv_mode_rd_info ? mode_rd_info_uv : NULL);
+    if (uv_rd_alpha16 > 0 && xd->is_chroma_ref &&
+        intra_search_state->rate_uv_intra != INT_MAX) {
+      const int64_t this_uv_rd =
+          RDCOST(x->rdmult, intra_search_state->rate_uv_intra,
+                 intra_search_state->dist_uvs);
+      if (this_uv_rd < mode_rd_info_uv->min_uv_rd)
+        mode_rd_info_uv->min_uv_rd = this_uv_rd;
+    }
     intra_search_state->mode_uv = mbmi->uv_mode;
     if (xd->lossless[mbmi->segment_id]) {
       intra_search_state->best_dpcm_uv_index = mbmi->use_dpcm_uv;

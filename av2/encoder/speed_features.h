@@ -1236,6 +1236,22 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   // True: CCTX search only for the winning chroma mode
   bool uv_mode_rank_skip_cctx;
 
+  // The chroma search of the intra candidates in inter frames, called once per
+  // luma candidate in av2_handle_intra_mode().
+  // uv_search_luma_bound: skip a candidate's chroma search when its luma RD
+  // alone exceeds the best RD of the block.
+  bool uv_search_luma_bound;
+  // uv_search_rd_bound_alpha16: if > 0, also skip a later candidate's chroma
+  // search when its luma RD plus uv_search_rd_bound_alpha16 / 16 of the
+  // smallest chroma RD of the earlier chroma searches in the same DPCM / FSC
+  // loop exceeds the best RD.
+  int uv_search_rd_bound_alpha16;
+  // reuse_uv_cfl_search: the later chroma searches of a block reuse the
+  // explicit CfL alpha of its first search (1), and also its best MHCCP
+  // direction (2). 0: off. The values are kept in ModeRDInfoUV, so this acts
+  // only with reuse_uv_mode_rd_info.
+  int reuse_uv_cfl_search;
+
   // Use model RD cost of DIP modes to build top N model RD cost table for
   // better pruning. This logic is applied to mixed inter intra regions.
   // False: Do not use model RD cost of DIP modes
