@@ -946,6 +946,10 @@ static void set_good_speed_features_framesize_independent(
             : 1;
 
     sf->tpl_sf.prune_starting_mv = 3;
+
+    sf->intra_sf.uv_search_luma_bound = true;
+    sf->intra_sf.uv_search_rd_bound_alpha16 = 12;
+    sf->intra_sf.reuse_uv_cfl_search = 2;
   }
 
   if (speed >= 4) {
@@ -1553,6 +1557,9 @@ static AVM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
   intra_sf->disable_palette = false;
   intra_sf->reuse_uv_mode_rd_info = false;
   intra_sf->uv_mode_rank_skip_cctx = false;
+  intra_sf->uv_search_luma_bound = false;
+  intra_sf->uv_search_rd_bound_alpha16 = 0;
+  intra_sf->reuse_uv_cfl_search = 0;
   intra_sf->include_dip_for_top_n_model_rd_pruning = false;
   intra_sf->skip_intra_dip_search = false;
   intra_sf->intrabc_max_rd_cands = -1;

@@ -9628,7 +9628,8 @@ static void av2_evaluate_intra_modes_in_inter_frame(
         break;
       uint8_t enable_mrls_flag = cm->seq_params.enable_mrls && !fsc_mode;
       const int num_mrl_indices = enable_mrls_flag ? MRL_LINE_NUMBER : 1;
-      ModeRDInfoUV mode_rd_info_uv = { { false }, { 0 }, { 0 } };
+      ModeRDInfoUV mode_rd_info_uv = { 0 };
+      mode_rd_info_uv.min_uv_rd = INT64_MAX;
       // When fsc_mode is enabled, rate of the chroma mode across luma modes is
       // different. Hence, the reuse of chroma mode rd_info is not applicable
       // when fsc_mode enabled.
