@@ -2052,21 +2052,28 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
 
     // Adjust sequence flags for LC decode mode.
     if (!cpi->seq_params_locked) {
-      cpi->common.seq_params.enable_mv_traj = cpi->oxcf.tool_cfg.enable_mv_traj;
-      cpi->common.seq_params.enable_gdf = cpi->oxcf.tool_cfg.enable_gdf;
-      cpi->common.seq_params.enable_tip_refinemv =
-          cpi->oxcf.tool_cfg.enable_tip_refinemv;
-      cpi->common.seq_params.order_hint_info.reduced_ref_frame_mvs_mode =
-          cpi->oxcf.tool_cfg.reduced_ref_frame_mvs_mode;
+      SequenceHeader *const seq = &cpi->common.seq_params;
+      seq->enable_mv_traj = seq->single_picture_header_flag
+                                ? 0
+                                : cpi->oxcf.tool_cfg.enable_mv_traj;
+      seq->enable_gdf = cpi->oxcf.tool_cfg.enable_gdf;
+      seq->enable_tip_refinemv = cpi->oxcf.tool_cfg.enable_tip_refinemv;
+      seq->order_hint_info.reduced_ref_frame_mvs_mode =
+          seq->single_picture_header_flag
+              ? 0
+              : cpi->oxcf.tool_cfg.reduced_ref_frame_mvs_mode;
 
-      cpi->common.seq_params.enable_opfl_refine =
-          cpi->oxcf.tool_cfg.enable_opfl_refine;
-      cpi->common.seq_params.enable_mhccp =
-          cpi->oxcf.intra_mode_cfg.enable_mhccp;
-      cpi->common.seq_params.enable_lf_sub_pu =
-          cpi->oxcf.tool_cfg.enable_lf_sub_pu;
-      cpi->common.seq_params.enable_cdef_on_skip_txfm =
-          cpi->oxcf.tool_cfg.enable_cdef_on_skip_txfm;
+      seq->enable_opfl_refine = seq->single_picture_header_flag
+                                    ? AVM_OPFL_REFINE_NONE
+                                    : cpi->oxcf.tool_cfg.enable_opfl_refine;
+      seq->enable_mhccp = cpi->oxcf.intra_mode_cfg.enable_mhccp;
+      seq->enable_lf_sub_pu = seq->single_picture_header_flag
+                                  ? 0
+                                  : cpi->oxcf.tool_cfg.enable_lf_sub_pu;
+      seq->enable_cdef_on_skip_txfm =
+          seq->single_picture_header_flag
+              ? CDEF_ON_SKIP_TXFM_ADAPTIVE
+              : cpi->oxcf.tool_cfg.enable_cdef_on_skip_txfm;
     }
   }
 
