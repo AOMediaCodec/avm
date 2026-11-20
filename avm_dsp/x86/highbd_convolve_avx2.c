@@ -21,14 +21,6 @@
 // -----------------------------------------------------------------------------
 // Copy and average
 
-static const uint8_t ip_shuffle_f2f3[32] = { 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6,
-                                             7, 6, 7, 8, 9, 0, 1, 2, 3, 2, 3,
-                                             4, 5, 4, 5, 6, 7, 6, 7, 8, 9 };
-static const uint8_t ip_shuffle_f4f5[32] = { 4, 5, 6,  7,  6,  7,  8,  9,
-                                             8, 9, 10, 11, 10, 11, 12, 13,
-                                             4, 5, 6,  7,  6,  7,  8,  9,
-                                             8, 9, 10, 11, 10, 11, 12, 13 };
-
 void av2_highbd_convolve_y_sr_avx2(const uint16_t *src, int src_stride,
                                    uint16_t *dst, int dst_stride, int w, int h,
                                    const InterpFilterParams *filter_params_y,

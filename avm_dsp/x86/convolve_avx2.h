@@ -60,6 +60,16 @@ DECLARE_ALIGNED(32, static const uint8_t, filt4_global_avx2[32]) = {
   6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14
 };
 
+DECLARE_ALIGNED(32, static const uint8_t,
+                ip_shuffle_f2f3[32]) = { 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6,
+                                         7, 6, 7, 8, 9, 0, 1, 2, 3, 2, 3,
+                                         4, 5, 4, 5, 6, 7, 6, 7, 8, 9 };
+
+DECLARE_ALIGNED(32, static const uint8_t, ip_shuffle_f4f5[32]) = {
+  4, 5, 6, 7, 6, 7, 8, 9, 8, 9, 10, 11, 10, 11, 12, 13,
+  4, 5, 6, 7, 6, 7, 8, 9, 8, 9, 10, 11, 10, 11, 12, 13
+};
+
 #define CONVOLVE_HORIZ_FILTER_8TAP                                           \
   for (i = 0; i < im_h; i += 2) {                                            \
     const __m256i row0 =                                                     \
