@@ -474,4 +474,53 @@ TEST(EncodeAPI, HighbdDeltaQReachesMaxQindex12Bit) {
 }
 #endif  // CONFIG_12BIT_PROFILE
 
+TEST(EncodeAPI, KeyFlagWithKeyframeFiltering) {
+  constexpr unsigned int kWidth = 64;
+  constexpr unsigned int kHeight = 64;
+  constexpr int kFrames = 10;
+  std::vector<uint8_t> buf(kWidth * kHeight * 3 / 2);
+  libavm_test::ACMRandom rnd(libavm_test::ACMRandom::DeterministicSeed());
+  avm_image_t img;
+  ASSERT_EQ(&img, avm_img_wrap(&img, AVM_IMG_FMT_I420, kWidth, kHeight, 1,
+                               buf.data()));
+
+  avm_codec_iface_t *iface = avm_codec_av2_cx();
+  avm_codec_enc_cfg_t cfg;
+  ASSERT_EQ(AVM_CODEC_OK,
+            avm_codec_enc_config_default(iface, &cfg, AVM_USAGE_GOOD_QUALITY));
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_lag_in_frames = 19;
+  cfg.g_threads = 1;
+
+  avm_codec_ctx_t enc;
+  ASSERT_EQ(avm_codec_enc_init(&enc, iface, &cfg, 0), AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AVME_SET_CPUUSED, 5), AVM_CODEC_OK);
+  EXPECT_EQ(avm_codec_control(&enc, AV2E_SET_ENABLE_KEYFRAME_FILTERING, 2),
+            AVM_CODEC_OK);
+
+  avm_codec_frame_flags_t first_flags = 0;
+  bool got_pkt = false;
+  for (int i = 0; i <= kFrames && !got_pkt; ++i) {
+    if (i < kFrames) {
+      for (uint8_t &v : buf) v = rnd.Rand8();
+    }
+    EXPECT_EQ(avm_codec_encode(&enc, i < kFrames ? &img : nullptr, i, 1, 0),
+              AVM_CODEC_OK);
+    avm_codec_iter_t iter = nullptr;
+    const avm_codec_cx_pkt_t *pkt;
+    while ((pkt = avm_codec_get_cx_data(&enc, &iter)) != nullptr) {
+      if (pkt->kind == AVM_CODEC_CX_FRAME_PKT) {
+        first_flags = pkt->data.frame.flags;
+        got_pkt = true;
+        break;
+      }
+    }
+  }
+  EXPECT_EQ(avm_codec_destroy(&enc), AVM_CODEC_OK);
+  ASSERT_TRUE(got_pkt);
+  EXPECT_TRUE(first_flags & AVM_FRAME_IS_KEY);
+  EXPECT_TRUE(first_flags & AVM_FRAME_IS_INTRAONLY);
+}
+
 }  // namespace
