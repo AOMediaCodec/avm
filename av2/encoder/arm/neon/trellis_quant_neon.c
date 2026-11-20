@@ -1543,3 +1543,221 @@ void av2_decide_states_q1_neon(const struct tcq_node_t *prev,
   decide_states_q1_neon_impl(&nodes, rd, &pq_scaled, try_eob,
                              vdup_n_u32((uint32_t)rdmult), decision);
 }
+
+// Lowest-cost state of the first trellis row, as the first loop of
+// av2_find_best_path_c(): a later state wins only on a strictly lower cost, so
+// ties go to the lowest state. The states are reduced in pairs, then pairs of
+// winners, then the two halves, which keeps the compare chain 3 deep instead of
+// 8. Returns -2 with rate 0 and cost INT64_MAX when no cost is below INT64_MAX.
+static AVM_FORCE_INLINE int min_cost_state_neon(const tcq_node_t *row,
+                                                int *min_rate,
+                                                int64_t *min_cost) {
+  int64_t cost[4];
+  int state[4];
+  for (int k = 0; k < 4; k++) {
+    const int64_t lo = row[2 * k].rdCost;
+    const int64_t hi = row[2 * k + 1].rdCost;
+    const int take_hi = hi < lo;
+    cost[k] = take_hi ? hi : lo;
+    state[k] = 2 * k + take_hi;
+  }
+  for (int width = 2; width >= 1; width >>= 1) {
+    for (int k = 0; k < width; k++) {
+      const int take_hi = cost[2 * k + 1] < cost[2 * k];
+      cost[k] = take_hi ? cost[2 * k + 1] : cost[2 * k];
+      state[k] = take_hi ? state[2 * k + 1] : state[2 * k];
+    }
+  }
+  if (cost[0] == INT64_MAX) {
+    *min_rate = 0;
+    *min_cost = INT64_MAX;
+    return -2;
+  }
+  *min_rate = row[state[0]].rate;
+  *min_cost = cost[0];
+  return state[0];
+}
+
+#if AVM_ARCH_AARCH64
+// Writes position pos of the path: qcoeff / dqcoeff at scan[pos] from the
+// node's absLevel and q_i (the quantizer of the next state), after first
+// zeroing position max(clear_pos, pos) (see find_best_path_walk_neon).
+static AVM_FORCE_INLINE void write_path_pos_neon(
+    const int16_t *scan, const int32_t *dequant, const qm_val_t *iqmatrix,
+    const tran_low_t *tcoeff, int pos, int clear_pos, int abs_level, int q_i,
+    int dqv, int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff,
+    const bool use_qm) {
+  const int blk_pos = scan[pos];
+  const int neg = tcoeff[blk_pos] < 0;
+  if (use_qm) dqv = get_dqv(dequant, blk_pos, iqmatrix);
+  const int qc = abs_level == 0 ? 0 : 2 * abs_level - q_i;
+  const int dqc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qc * dqv,
+                                                    QUANT_TABLE_BITS) >>
+                  log_scale;
+  const int zero_blk = scan[clear_pos > pos ? clear_pos : pos];
+  qcoeff[zero_blk] = 0;
+  dqcoeff[zero_blk] = 0;
+  qcoeff[blk_pos] = neg ? -abs_level : abs_level;
+  dqcoeff[blk_pos] = neg ? -dqc : dqc;
+}
+
+// Paths from first_scan_pos >= this many positions take the row-shift walk.
+#define FBP_ROW_WALK_MIN_FSP 32
+
+// prevId * 8 of the 8 nodes of one trellis row, packed one byte per state
+// (byte k for state k) into a 64-bit word. prevId is byte 15 of each 16-byte
+// node; four rounds of keeping the odd bytes (uzp2) bring byte 15 of node k
+// to byte k. A negative prevId (-1 or -2) becomes 0xf8 or 0xf0, so bit 7 of
+// the byte marks the end of the path; a state 0..7 becomes 0..56.
+static AVM_FORCE_INLINE uint64_t row_prev_shifts_neon(const uint8_t *row) {
+  const uint8x16_t n0 = vld1q_u8(row);
+  const uint8x16_t n1 = vld1q_u8(row + 16);
+  const uint8x16_t n2 = vld1q_u8(row + 32);
+  const uint8x16_t n3 = vld1q_u8(row + 48);
+  const uint8x16_t n4 = vld1q_u8(row + 64);
+  const uint8x16_t n5 = vld1q_u8(row + 80);
+  const uint8x16_t n6 = vld1q_u8(row + 96);
+  const uint8x16_t n7 = vld1q_u8(row + 112);
+  const uint8x16_t a0 = vuzpq_u8(n0, n1).val[1];
+  const uint8x16_t a1 = vuzpq_u8(n2, n3).val[1];
+  const uint8x16_t a2 = vuzpq_u8(n4, n5).val[1];
+  const uint8x16_t a3 = vuzpq_u8(n6, n7).val[1];
+  const uint8x16_t b0 = vuzpq_u8(a0, a1).val[1];
+  const uint8x16_t b1 = vuzpq_u8(a2, a3).val[1];
+  const uint8x16_t c = vuzpq_u8(b0, b1).val[1];
+  const uint8x16_t d = vuzpq_u8(c, c).val[1];
+  const uint8x8_t shifts = vshl_n_u8(vget_low_u8(d), 3);
+  return vget_lane_u64(vreinterpret_u64_u8(shifts), 0);
+}
+#endif  // AVM_ARCH_AARCH64
+
+// Backtracks the trellis from state, the lowest-cost state of position 0, and
+// writes qcoeff / dqcoeff along the path; returns the eob and sets
+// *clear_pos_out to first_scan_pos - eob, the last position the tail loop
+// clears. use_qm is a constant at each call site, so the iqmatrix and flat
+// paths compile separately.
+//
+// Short paths (first_scan_pos < FBP_ROW_WALK_MIN_FSP), and every path on
+// 32-bit Arm, use a scalar walk whose loop-carried chain is one signed byte
+// load of the next prevId plus one address add: the node of position pos + 1
+// is the next row base plus prevId.
+//
+// Long paths on AArch64 use the row-shift walk, whose chain is one variable
+// shift. Each step packs the prevIds of its row into a word R
+// (row_prev_shifts_neon), which depends only on pos, so the out-of-order core
+// gathers rows ahead. The chain value s keeps 8 * state in bits 0..5; the next
+// state's byte is R >> s (the shift reads only bits 0..5 of s), with 8 * prevId
+// in bits 0..5 and the end-of-path flag in bit 7. absLevel is read from the
+// node at row + 2 * (s & 63), off the chain (bits 0..2 of s are zero).
+//
+// The clearing runs inside both walks, top-down, off the chain: walk step i
+// first zeroes position max(first_scan_pos - i, i), then writes position i.
+// No step zeroes a position the walk already wrote: when first_scan_pos - i
+// <= i the zero lands on position i and is overwritten in the same step, and
+// a zeroed position above i is either past the path or rewritten later.
+// After eob steps, positions first_scan_pos - eob + 1..first_scan_pos are
+// clear, so only eob..first_scan_pos - eob are left for the tail loop in
+// av2_find_best_path_neon(), which is empty whenever the path covers more than
+// half of the positions.
+static AVM_FORCE_INLINE int find_best_path_walk_neon(
+    const tcq_node_t *trellis, int state, const int16_t *scan,
+    const int32_t *dequant, const qm_val_t *iqmatrix, const tran_low_t *tcoeff,
+    int first_scan_pos, int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff,
+    int *clear_pos_out, const bool use_qm) {
+  int pos = 0;
+  // Next position to clear top-down; first_scan_pos - pos inside the walk.
+  int clear_pos = first_scan_pos;
+  // Without a quant matrix position 0 uses the DC step, all others AC.
+  const int dqv_ac = dequant[1];
+  int dqv = dequant[0];
+#if AVM_ARCH_AARCH64
+  if (first_scan_pos >= FBP_ROW_WALK_MIN_FSP) {
+    const uint8_t *row = (const uint8_t *)trellis;
+    uint64_t s = (uint64_t)state << 3;
+    do {
+      const uint64_t shifts = row_prev_shifts_neon(row);
+      // Bits 0..23 of the word at byte 12 of the node are absLevel.
+      int32_t word;
+      memcpy(&word, row + 2 * (s & 63) + 12, sizeof(word));
+      const int abs_level = (int32_t)(((uint32_t)word & 0x00FFFFFFu) << 8) >> 8;
+      s = shifts >> (s & 63);
+      // tcq_quant(prevId) is bit 1 of prevId, bit 4 of s; 0 at the end.
+      const int q_i = (s & 0x80) ? 0 : (int)((s >> 4) & 1);
+      write_path_pos_neon(scan, dequant, iqmatrix, tcoeff, pos, clear_pos,
+                          abs_level, q_i, dqv, log_scale, qcoeff, dqcoeff,
+                          use_qm);
+      dqv = dqv_ac;
+      row += TCQ_N_STATES * sizeof(tcq_node_t);
+      clear_pos--;
+      pos++;
+    } while (!(s & 0x80));
+  } else
+#endif  // AVM_ARCH_AARCH64
+  {
+    // next_row is the address of row pos + 1, kept as a signed integer so
+    // that stepping it past the last row forms no out-of-range pointer and
+    // adding a negative prevId does not wrap. The node of position pos + 1
+    // is next_row plus prevId; the last node's prevId is negative, so that
+    // address stays inside row pos and is never read.
+    intptr_t next_row = (intptr_t)(trellis + TCQ_N_STATES);
+    const uint8_t *node = (const uint8_t *)(trellis + state);
+    int prev_id;
+    do {
+      // Byte 15 is prevId, bits 0..23 of the word at byte 12 are absLevel.
+      prev_id = (int8_t)node[15];
+      int32_t word;
+      memcpy(&word, node + 12, sizeof(word));
+      const int abs_level = (int32_t)(((uint32_t)word & 0x00FFFFFFu) << 8) >> 8;
+      node = (const uint8_t *)(next_row + (intptr_t)prev_id *
+                                              (intptr_t)sizeof(tcq_node_t));
+      next_row += TCQ_N_STATES * (intptr_t)sizeof(tcq_node_t);
+      // write_path_pos_neon() written out: calling it here makes clang keep
+      // more registers live across the walk, which measured slower on 4x4.
+      const int blk_pos = scan[pos];
+      const int neg = tcoeff[blk_pos] < 0;
+      if (use_qm) dqv = get_dqv(dequant, blk_pos, iqmatrix);
+      const int q_i = prev_id >= 0 ? tcq_quant(prev_id) : 0;
+      const int qc = abs_level == 0 ? 0 : 2 * abs_level - q_i;
+      const int dqc = (tran_low_t)ROUND_POWER_OF_TWO_64((tran_high_t)qc * dqv,
+                                                        QUANT_TABLE_BITS) >>
+                      log_scale;
+      const int zero_blk = scan[clear_pos > pos ? clear_pos : pos];
+      qcoeff[zero_blk] = 0;
+      dqcoeff[zero_blk] = 0;
+      qcoeff[blk_pos] = neg ? -abs_level : abs_level;
+      dqcoeff[blk_pos] = neg ? -dqc : dqc;
+      if (!use_qm) dqv = dqv_ac;
+      clear_pos--;
+      pos++;
+    } while (prev_id >= 0);
+  }
+  *clear_pos_out = clear_pos;
+  return pos;
+}
+
+int av2_find_best_path_neon(const struct tcq_node_t *trellis,
+                            const int16_t *scan, const int32_t *dequant,
+                            const qm_val_t *iqmatrix, const tran_low_t *tcoeff,
+                            int first_scan_pos, int log_scale,
+                            tran_low_t *qcoeff, tran_low_t *dqcoeff,
+                            int *min_rate, int64_t *min_cost) {
+  const int state = min_cost_state_neon(trellis, min_rate, min_cost);
+  int eob = 0;
+  int clear_pos = first_scan_pos;
+  if (state >= 0) {
+    eob =
+        iqmatrix != NULL
+            ? find_best_path_walk_neon(trellis, state, scan, dequant, iqmatrix,
+                                       tcoeff, first_scan_pos, log_scale,
+                                       qcoeff, dqcoeff, &clear_pos, true)
+            : find_best_path_walk_neon(trellis, state, scan, dequant, NULL,
+                                       tcoeff, first_scan_pos, log_scale,
+                                       qcoeff, dqcoeff, &clear_pos, false);
+  }
+  for (int i = eob; i <= clear_pos; i++) {
+    const int blk_pos = scan[i];
+    qcoeff[blk_pos] = 0;
+    dqcoeff[blk_pos] = 0;
+  }
+  return eob;
+}

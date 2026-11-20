@@ -18,6 +18,7 @@
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <vector>
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/register_state_check.h"
@@ -1933,6 +1934,758 @@ TEST_P(TcqLoopDiagonalSt8BlockTest, Extremes) {
     EXPECT_GT(n_wrap_, 0) << "int16_t wrap never exercised";
   }
 }
+
+// ---------------------------------------------------------------------------
+// av2_find_best_path: C reference vs each optimized version, called directly
+// (the TcqLoopDiagonalSt8* tests call the RTCD pointer for both sides, so
+// they compare the optimized version with itself).
+// ---------------------------------------------------------------------------
+
+typedef int (*FindBestPathFunc)(const struct tcq_node_t *trellis,
+                                const int16_t *scan, const int32_t *dequant,
+                                const qm_val_t *iqmatrix,
+                                const tran_low_t *tcoeff, int first_scan_pos,
+                                int log_scale, tran_low_t *qcoeff,
+                                tran_low_t *dqcoeff, int *min_rate,
+                                int64_t *min_cost);
+
+// ref func, test func, tx size, bit depth, iqmatrix != NULL.
+typedef std::tuple<FindBestPathFunc, FindBestPathFunc, TX_SIZE, int, bool>
+    FindBestPathParam;
+
+// Inputs are trellises with the production layout (row s = scan position s,
+// 8 states; prevId the state at s + 1, or -1 (eob) / -2 (dead node, as
+// init_tcq_decision) where the path ends; every prevId of the last row
+// negative), the production scan of the TX size, dequant rows of
+// av2_dc_quant_QTX / av2_ac_quant_QTX at the bit depth, and the TX's
+// log_scale (av2_get_tx_scale + 1), as av2_trellis_quant() passes them.
+class FindBestPathTest : public ::testing::TestWithParam<FindBestPathParam> {
+ public:
+  enum LevelMode {
+    kLevelRandom,   // mostly 0 / 1 / 2, some up to 255 and up to kMaxLevel
+    kLevelZero,     // every absLevel 0
+    kLevelMax,      // every absLevel kMaxLevel (24-bit field maximum)
+    kLevelMid,      // every absLevel 1 << (bd - 1)
+    kLevelChecker,  // 0 and kMaxLevel by raster (r + c) parity of the node
+  };
+  enum CoeffMode {
+    kCoeffRandom,   // random sign and magnitude up to CoeffCap()
+    kCoeffZero,     // all 0 (sign +)
+    kCoeffMax,      // all +CoeffCap()
+    kCoeffNegMax,   // all -CoeffCap()
+    kCoeffMid,      // all 1 << (bd - 1)
+    kCoeffChecker,  // +CoeffCap() and -CoeffCap() by raster (r + c) parity
+  };
+  enum PathMode {
+    kPathNatural,   // random prevIds; the path ends where it meets a negative
+    kPathFull,      // the path reaches first_scan_pos
+    kPathFullQ0,    // kPathFull through states with tcq_quant() == 0 only
+    kPathEndAt,     // the path ends at scan position end_pos (eob end_pos + 1)
+    kPathNoState,   // row 0 all INT64_MAX: no state wins, eob 0
+    kPathOneState,  // row 0 INT64_MAX but for one random state
+  };
+  enum CostMode {
+    kCostRandom,  // random row 0 costs, some negative, a few repeated
+    kCostTied,    // states w..7 tied below states 0..w-1, w in 0..6 (w wins)
+  };
+
+  struct Config {
+    int first_scan_pos;  // -1: random (small, around 32, the max, uniform)
+    PathMode path;
+    int end_pos;  // kPathEndAt: last scan position on the path; -1: random
+    LevelMode level;
+    CoeffMode coeff;
+    CostMode cost;
+    int qindex;        // -1: random
+    int qm_value;      // iqmatrix entries; -1: random 1..255
+    int in_off;        // element offset of trellis, scan, tcoeff and iqmatrix
+    int out_off;       // element offset of qcoeff and dqcoeff
+    int tcoeff_block;  // tcoeff at BLOCK_OFFSET(tcoeff_block)
+    int out_block;     // qcoeff / dqcoeff at BLOCK_OFFSET(out_block)
+  };
+
+  static Config Default() {
+    return Config{ -1,
+                   kPathNatural,
+                   -1,
+                   kLevelRandom,
+                   kCoeffRandom,
+                   kCostRandom,
+                   -1,
+                   -1,
+                   0,
+                   0,
+                   0,
+                   0 };
+  }
+
+  void SetUp() override {
+    ref_func_ = std::get<0>(GetParam());
+    tst_func_ = std::get<1>(GetParam());
+    tx_size_ = std::get<2>(GetParam());
+    bd_ = std::get<3>(GetParam());
+    use_qm_ = std::get<4>(GetParam());
+    bwl_ = get_txb_bwl(tx_size_);
+    width_ = 1 << bwl_;
+    height_ = get_txb_high(tx_size_);
+    num_coeffs_ = width_ * height_;
+    log_scale_ = av2_get_tx_scale(tx_size_) + 1;
+    scan_tbl_ = get_scan(tx_size_, DCT_DCT)->scan;
+
+    trellis_ = Alloc<tcq_node_t>(MAX_TRELLIS * TCQ_MAX_STATES);
+    scan_buf_ = Alloc<int16_t>(kScanBuf);
+    tcoeff_buf_ = Alloc<tran_low_t>(kRasterBuf);
+    iqm_buf_ = Alloc<qm_val_t>(kRasterBuf);
+    qc_ref_ = Alloc<tran_low_t>(kRasterBuf);
+    qc_tst_ = Alloc<tran_low_t>(kRasterBuf);
+    dq_ref_ = Alloc<tran_low_t>(kRasterBuf);
+    dq_tst_ = Alloc<tran_low_t>(kRasterBuf);
+    dequant_ = Alloc<int32_t>(8);
+    ASSERT_NE(trellis_, nullptr);
+    ASSERT_NE(scan_buf_, nullptr);
+    ASSERT_NE(tcoeff_buf_, nullptr);
+    ASSERT_NE(iqm_buf_, nullptr);
+    ASSERT_NE(qc_ref_, nullptr);
+    ASSERT_NE(qc_tst_, nullptr);
+    ASSERT_NE(dq_ref_, nullptr);
+    ASSERT_NE(dq_tst_, nullptr);
+    ASSERT_NE(dequant_, nullptr);
+    n_early_ = n_full_ = n_none_ = n_wide_ = 0;
+
+    // Random backgrounds, made once and copied in by RunOne(), so a read or
+    // write outside the scanned positions shows.
+    scan_bg_.resize(kScanBuf);
+    for (int16_t &v : scan_bg_) v = (int16_t)rng_.Rand16();
+    tcoeff_bg_.resize(kRasterBuf);
+    for (tran_low_t &v : tcoeff_bg_) v = (tran_low_t)rng_.Rand31() - (1 << 30);
+    iqm_bg_.resize(kRasterBuf);
+    for (qm_val_t &v : iqm_bg_) v = rng_.Rand8();
+    qc_bg_.resize(kRasterBuf);
+    for (tran_low_t &v : qc_bg_) v = (tran_low_t)rng_.Rand31();
+    dq_bg_.resize(kRasterBuf);
+    for (tran_low_t &v : dq_bg_) v = (tran_low_t)rng_.Rand31();
+  }
+
+  void TearDown() override {
+    avm_free(trellis_);
+    avm_free(scan_buf_);
+    avm_free(tcoeff_buf_);
+    avm_free(iqm_buf_);
+    avm_free(qc_ref_);
+    avm_free(qc_tst_);
+    avm_free(dq_ref_);
+    avm_free(dq_tst_);
+    avm_free(dequant_);
+    libavm_test::ClearSystemState();
+  }
+
+ protected:
+  static constexpr int kRandomIters = 1000;
+  static constexpr int kBoundaryIters = 100;
+  static constexpr int kMaxLevel = (1 << 23) - 1;
+  // Pointer offsets go up to kAlignSlack elements; block offsets up to
+  // BLOCK_OFFSET(kMaxBlock).
+  static constexpr int kAlignSlack = 16;
+  static constexpr int kMaxBlock = MAX_TRELLIS / 16;
+  static constexpr int kRasterBuf = MAX_TRELLIS + 16 * kMaxBlock + kAlignSlack;
+  static constexpr int kScanBuf = MAX_TRELLIS + kAlignSlack;
+  static constexpr int64_t kDeadCost = INT64_MAX >> 10;  // init_tcq_decision()
+
+  template <typename T>
+  static T *Alloc(int n) {
+    return static_cast<T *>(avm_memalign(64, sizeof(T) * n));
+  }
+
+  int MaxQindex() const {
+    return bd_ == 8    ? QINDEX_RANGE_8_BITS - 1
+           : bd_ == 10 ? QINDEX_RANGE_10_BITS - 1
+                       : QINDEX_RANGE_12_BITS - 1;
+  }
+
+  // Largest |tcoeff| the forward transform gives at this bit depth.
+  int CoeffCap() const { return (1 << (bd_ + 7)) - 1; }
+
+  int RandomFirstScanPos() {
+    const int r = rng_(8);
+    int fsp;
+    if (r == 0) {
+      fsp = rng_(8);  // small
+    } else if (r == 1) {
+      fsp = 28 + rng_(8);  // around the NEON walk switch (32)
+    } else if (r == 2) {
+      fsp = num_coeffs_ - 1;
+    } else {
+      fsp = rng_(num_coeffs_);
+    }
+    return AVMMIN(fsp, num_coeffs_ - 1);
+  }
+
+  int RandomLevel() {
+    const int r = rng_(16);
+    if (r < 7) return 0;
+    if (r < 12) return 1 + rng_(2);
+    if (r < 15) return rng_(256);
+    return rng_(kMaxLevel + 1);
+  }
+
+  int Level(LevelMode m, int pos) {
+    switch (m) {
+      case kLevelZero: return 0;
+      case kLevelMax: return kMaxLevel;
+      case kLevelMid: return 1 << (bd_ - 1);
+      case kLevelChecker: {
+        const int blk = scan_tbl_[pos];
+        return (((blk >> bwl_) + (blk & (width_ - 1))) & 1) ? kMaxLevel : 0;
+      }
+      default: return RandomLevel();
+    }
+  }
+
+  tran_low_t Coeff(CoeffMode m, int blk) {
+    const int cap = CoeffCap();
+    switch (m) {
+      case kCoeffZero: return 0;
+      case kCoeffMax: return cap;
+      case kCoeffNegMax: return -cap;
+      case kCoeffMid: return 1 << (bd_ - 1);
+      case kCoeffChecker:
+        return (((blk >> bwl_) + (blk & (width_ - 1))) & 1) ? -cap : cap;
+      default: {
+        const int mag = rng_(4) == 0 ? rng_(cap + 1) : rng_(64);
+        return rng_(2) ? -mag : mag;
+      }
+    }
+  }
+
+  void SetupDequant(int qindex) {
+    const avm_bit_depth_t bd = static_cast<avm_bit_depth_t>(bd_);
+    // A DC delta q, as y_dc_delta_q gives, so the DC dequant differs from AC.
+    const int dc_delta = rng_(2) ? 0 : rng_(97) - 48;
+    dequant_[0] = av2_dc_quant_QTX(qindex, dc_delta, 0, bd);
+    // QUANTS layout: entry 0 DC, 1..7 AC.
+    for (int i = 1; i < 8; i++)
+      dequant_[i] = av2_ac_quant_QTX(qindex, 0, 0, bd);
+  }
+
+  // Fills trellis rows 0..first_scan_pos_ and shapes the path that starts at
+  // the lowest row 0 cost as cfg.path asks.
+  void GenerateTrellis(const Config &cfg) {
+    const int fsp = first_scan_pos_;
+    for (int pos = 0; pos <= fsp; pos++) {
+      for (int st = 0; st < TCQ_N_STATES; st++) {
+        tcq_node_t &n = trellis_[(pos << TCQ_N_STATES_LOG) + st];
+        if (rng_(8) == 0) {
+          // A dead node, as init_tcq_decision() leaves it.
+          n.rdCost = kDeadCost;
+          n.rate = 0;
+          n.absLevel = -1;
+          n.prevId = -2;
+          continue;
+        }
+        n.rdCost = ((int64_t)rng_.Rand31() << rng_(24)) + rng_.Rand16();
+        // av2_trellis_quant() gives negative costs when deltaDist < 0.
+        const int sign = rng_(16);
+        if (sign < 4) n.rdCost = -n.rdCost;
+        if (sign == 4) n.rdCost = INT64_MIN;
+        n.rate = (int32_t)rng_.Rand31() - (rng_(8) == 0 ? (1 << 30) : 0);
+        n.absLevel = Level(cfg.level, pos);
+        const int r = rng_(64);
+        n.prevId = pos == fsp ? -1 - rng_(2)
+                   : r == 0   ? -1
+                   : r == 1   ? -2
+                              : rng_(8);
+      }
+    }
+    tcq_node_t *row0 = trellis_;
+    if (cfg.cost == kCostTied) {
+      const int64_t c = ((int64_t)rng_.Rand31() << 8) + 1;
+      const int w = rng_(TCQ_N_STATES - 1);
+      for (int st = 0; st < TCQ_N_STATES; st++) {
+        row0[st].rdCost = st < w ? c + 1 + rng_(16) : c;
+      }
+    } else if (rng_(4) == 0) {
+      // A repeated cost: the lower state must win the tie.
+      const int a = rng_(TCQ_N_STATES), b = rng_(TCQ_N_STATES);
+      row0[AVMMAX(a, b)].rdCost = row0[AVMMIN(a, b)].rdCost;
+    }
+    if (cfg.path == kPathNoState || cfg.path == kPathOneState) {
+      const int keep = cfg.path == kPathOneState ? rng_(TCQ_N_STATES) : -1;
+      for (int st = 0; st < TCQ_N_STATES; st++) {
+        if (st != keep) row0[st].rdCost = INT64_MAX;
+      }
+    }
+
+    // The state the path starts from (av2_find_best_path_c's first loop).
+    int state = -2;
+    int64_t best = INT64_MAX;
+    for (int st = 0; st < TCQ_N_STATES; st++) {
+      if (row0[st].rdCost < best) {
+        best = row0[st].rdCost;
+        state = st;
+      }
+    }
+    if (state < 0) return;
+    int end = -1;
+    if (cfg.path == kPathFull || cfg.path == kPathFullQ0) {
+      end = fsp;
+    } else if (cfg.path == kPathEndAt) {
+      end = cfg.end_pos >= 0 ? AVMMIN(cfg.end_pos, fsp) : rng_(fsp + 1);
+    }
+    if (end < 0) return;
+    for (int pos = 0; pos <= end; pos++) {
+      tcq_node_t &n = trellis_[(pos << TCQ_N_STATES_LOG) + state];
+      if (n.absLevel < 0) n.absLevel = Level(cfg.level, pos);
+      if (pos == end) {
+        n.prevId = -1 - rng_(2);
+      } else if (cfg.path == kPathFullQ0) {
+        // States 0, 1, 4, 5: tcq_quant() == 0, so qc = 2 * absLevel.
+        static constexpr int kQ0[4] = { 0, 1, 4, 5 };
+        n.prevId = kQ0[rng_(4)];
+      } else if (n.prevId < 0) {
+        n.prevId = rng_(TCQ_N_STATES);
+      }
+      state = n.prevId;
+    }
+  }
+
+  std::string Context(const char *test, int iter, const Config &cfg) const {
+    std::ostringstream os;
+    os << test << " tx=" << width_ << "x" << height_ << " (TX_SIZE "
+       << (int)tx_size_ << ") bd=" << bd_ << " qm=" << use_qm_
+       << " iter=" << iter << " first_scan_pos=" << first_scan_pos_
+       << " qindex=" << qindex_ << " log_scale=" << log_scale_
+       << " path=" << cfg.path << " in_off=" << cfg.in_off
+       << " out_off=" << cfg.out_off << " tcoeff_block=" << cfg.tcoeff_block
+       << " out_block=" << cfg.out_block;
+    return os.str();
+  }
+
+  // Generates one input and compares C with the version under test: the
+  // return value, *min_rate, *min_cost and the whole qcoeff / dqcoeff
+  // buffers (random background, so a write outside the scanned positions
+  // shows). The trellis is an exact-size heap copy of rows
+  // 0..first_scan_pos, so a read past the last row is an ASan error.
+  void RunOne(const Config &cfg, const char *test, int iter) {
+    ASSERT_LE(cfg.in_off, kAlignSlack);
+    ASSERT_LE(cfg.out_off, kAlignSlack);
+    ASSERT_LE(cfg.tcoeff_block, kMaxBlock);
+    ASSERT_LE(cfg.out_block, kMaxBlock);
+    first_scan_pos_ = cfg.first_scan_pos >= 0
+                          ? AVMMIN(cfg.first_scan_pos, num_coeffs_ - 1)
+                          : RandomFirstScanPos();
+    qindex_ = cfg.qindex >= 0 ? cfg.qindex : rng_(MaxQindex() + 1);
+    SetupDequant(qindex_);
+    GenerateTrellis(cfg);
+
+    const int nodes = (first_scan_pos_ + 1) * TCQ_MAX_STATES;
+    std::vector<tcq_node_t> trellis(nodes + cfg.in_off);
+    memcpy(trellis.data() + cfg.in_off, trellis_, sizeof(tcq_node_t) * nodes);
+    const tcq_node_t *tr = trellis.data() + cfg.in_off;
+
+    memcpy(scan_buf_, scan_bg_.data(), sizeof(int16_t) * kScanBuf);
+    memcpy(scan_buf_ + cfg.in_off, scan_tbl_, sizeof(int16_t) * num_coeffs_);
+    const int16_t *scan = scan_buf_ + cfg.in_off;
+
+    memcpy(tcoeff_buf_, tcoeff_bg_.data(), sizeof(tran_low_t) * kRasterBuf);
+    memcpy(iqm_buf_, iqm_bg_.data(), sizeof(qm_val_t) * kRasterBuf);
+    tran_low_t *tcoeff =
+        tcoeff_buf_ + cfg.in_off + BLOCK_OFFSET(cfg.tcoeff_block);
+    qm_val_t *iqm = iqm_buf_ + cfg.in_off;
+    for (int i = 0; i < num_coeffs_; i++) {
+      tcoeff[i] = Coeff(cfg.coeff, i);
+      iqm[i] = (qm_val_t)(cfg.qm_value >= 0 ? cfg.qm_value : 1 + rng_(255));
+    }
+    const qm_val_t *iqmatrix = use_qm_ ? iqm : NULL;
+
+    memcpy(qc_ref_, qc_bg_.data(), sizeof(tran_low_t) * kRasterBuf);
+    memcpy(dq_ref_, dq_bg_.data(), sizeof(tran_low_t) * kRasterBuf);
+    memcpy(qc_tst_, qc_ref_, sizeof(tran_low_t) * kRasterBuf);
+    memcpy(dq_tst_, dq_ref_, sizeof(tran_low_t) * kRasterBuf);
+    const int out = cfg.out_off + BLOCK_OFFSET(cfg.out_block);
+
+    int rate_ref = 0x5a5a5a5a, rate_tst = 0x5a5a5a5a;
+    int64_t cost_ref = -1, cost_tst = -1;
+    const int eob_ref = ref_func_(tr, scan, dequant_, iqmatrix, tcoeff,
+                                  first_scan_pos_, log_scale_, qc_ref_ + out,
+                                  dq_ref_ + out, &rate_ref, &cost_ref);
+    int eob_tst = -1;
+    ASM_REGISTER_STATE_CHECK(
+        eob_tst = tst_func_(tr, scan, dequant_, iqmatrix, tcoeff,
+                            first_scan_pos_, log_scale_, qc_tst_ + out,
+                            dq_tst_ + out, &rate_tst, &cost_tst));
+
+    if (eob_ref == 0) {
+      n_none_++;
+    } else if (eob_ref <= first_scan_pos_) {
+      n_early_++;
+    } else {
+      n_full_++;
+    }
+    if (first_scan_pos_ >= 32) n_wide_++;
+
+    const std::string ctx = Context(test, iter, cfg);
+    ASSERT_EQ(eob_ref, eob_tst) << "eob " << ctx;
+    ASSERT_EQ(rate_ref, rate_tst) << "min_rate " << ctx;
+    ASSERT_EQ(cost_ref, cost_tst) << "min_cost " << ctx;
+    if (memcmp(qc_ref_, qc_tst_, sizeof(tran_low_t) * kRasterBuf) == 0 &&
+        memcmp(dq_ref_, dq_tst_, sizeof(tran_low_t) * kRasterBuf) == 0) {
+      return;
+    }
+    for (int i = 0; i < kRasterBuf; i++) {
+      const int pos = i - out;
+      const bool inside = pos >= 0 && pos < num_coeffs_;
+      const int r = inside ? pos >> bwl_ : -1;
+      const int c = inside ? pos & (width_ - 1) : pos;
+      ASSERT_EQ(qc_ref_[i], qc_tst_[i])
+          << "qcoeff mismatch at r=" << r << " c=" << c
+          << (inside ? " (in block)" : " (OUTSIDE block)") << " eob=" << eob_ref
+          << " " << ctx;
+      ASSERT_EQ(dq_ref_[i], dq_tst_[i])
+          << "dqcoeff mismatch at r=" << r << " c=" << c
+          << (inside ? " (in block)" : " (OUTSIDE block)") << " eob=" << eob_ref
+          << " " << ctx;
+    }
+  }
+
+  void RunSpeedTest() {
+    Config cfg = Default();
+    cfg.first_scan_pos = num_coeffs_ - 1;
+    cfg.path = kPathFull;
+    first_scan_pos_ = cfg.first_scan_pos;
+    qindex_ = MaxQindex() / 2;
+    SetupDequant(qindex_);
+    GenerateTrellis(cfg);
+    for (int i = 0; i < num_coeffs_; i++) {
+      tcoeff_buf_[i] = Coeff(kCoeffRandom, i);
+      iqm_buf_[i] = (qm_val_t)(1 + rng_(255));
+    }
+    memcpy(scan_buf_, scan_tbl_, sizeof(int16_t) * num_coeffs_);
+    const qm_val_t *iqmatrix = use_qm_ ? iqm_buf_ : NULL;
+    const int kNumCalls = AVMMAX(1, (1 << 24) / num_coeffs_);
+    int rate = 0;
+    int64_t cost = 0;
+    int64_t elapsed[2];
+    for (int k = 0; k < 2; k++) {
+      const FindBestPathFunc fn = k ? tst_func_ : ref_func_;
+      avm_usec_timer timer;
+      avm_usec_timer_start(&timer);
+      for (int i = 0; i < kNumCalls; i++) {
+        fn(trellis_, scan_buf_, dequant_, iqmatrix, tcoeff_buf_,
+           first_scan_pos_, log_scale_, qc_ref_, dq_ref_, &rate, &cost);
+      }
+      avm_usec_timer_mark(&timer);
+      elapsed[k] = avm_usec_timer_elapsed(&timer);
+    }
+    printf(
+        "av2_find_best_path %dx%d (TX_SIZE %d) bd=%d qm=%d: C=%7.1fms "
+        "SIMD=%7.1fms gain=%.2fx\n",
+        width_, height_, (int)tx_size_, bd_, use_qm_, elapsed[0] / 1000.0,
+        elapsed[1] / 1000.0,
+        (double)elapsed[0] / AVMMAX(elapsed[1], (int64_t)1));
+  }
+
+  libavm_test::ACMRandom rng_{ libavm_test::ACMRandom::DeterministicSeed() };
+  FindBestPathFunc ref_func_;
+  FindBestPathFunc tst_func_;
+  TX_SIZE tx_size_;
+  int bd_;
+  bool use_qm_;
+  int bwl_, width_, height_, num_coeffs_, log_scale_;
+  const int16_t *scan_tbl_;
+  int first_scan_pos_ = 0;
+  int qindex_ = 0;
+
+  tcq_node_t *trellis_ = nullptr;
+  int16_t *scan_buf_ = nullptr;
+  tran_low_t *tcoeff_buf_ = nullptr;
+  qm_val_t *iqm_buf_ = nullptr;
+  tran_low_t *qc_ref_ = nullptr;
+  tran_low_t *qc_tst_ = nullptr;
+  tran_low_t *dq_ref_ = nullptr;
+  tran_low_t *dq_tst_ = nullptr;
+  std::vector<int16_t> scan_bg_;
+  std::vector<tran_low_t> tcoeff_bg_;
+  std::vector<qm_val_t> iqm_bg_;
+  std::vector<tran_low_t> qc_bg_;
+  std::vector<tran_low_t> dq_bg_;
+  int32_t *dequant_ = nullptr;
+
+  int64_t n_early_, n_full_, n_none_, n_wide_;
+};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(FindBestPathTest);
+
+// -- Random: 1000 iterations per (tx size, bit depth, qm) --
+TEST_P(FindBestPathTest, RandomValues) {
+  for (int iter = 0; iter < kRandomIters; ++iter) {
+    Config cfg = Default();
+    static const PathMode kModes[3] = { kPathNatural, kPathFull, kPathEndAt };
+    cfg.path = kModes[iter % 3];
+    RunOne(cfg, "RandomValues", iter);
+    if (HasFatalFailure()) return;
+  }
+  EXPECT_GT(n_early_, 0) << "no path ended before first_scan_pos";
+  EXPECT_GT(n_full_, 0) << "no path reached first_scan_pos";
+  if (num_coeffs_ > 32) {
+    EXPECT_GT(n_wide_, 0) << "first_scan_pos >= 32 unseen";
+  }
+}
+
+// -- first_scan_pos at the small values, around the NEON walk switch at 32, and
+// the TX maximum (1023 for the 1024-coefficient sizes) --
+TEST_P(FindBestPathTest, FirstScanPosBoundary) {
+  const std::vector<int> fsps = { 0,
+                                  1,
+                                  2,
+                                  3,
+                                  4,
+                                  5,
+                                  7,
+                                  8,
+                                  30,
+                                  31,
+                                  32,
+                                  33,
+                                  34,
+                                  46,
+                                  47,
+                                  48,
+                                  49,
+                                  50,
+                                  51,
+                                  52,
+                                  num_coeffs_ - 4,
+                                  num_coeffs_ - 2,
+                                  num_coeffs_ - 1 };
+  int iter = 0;
+  for (const int fsp : fsps) {
+    if (fsp < 0 || fsp >= num_coeffs_) continue;
+    for (int i = 0; i < 12; ++i, ++iter) {
+      Config cfg = Default();
+      cfg.first_scan_pos = fsp;
+      cfg.path = i < 4 ? kPathFull : i < 8 ? kPathNatural : kPathEndAt;
+      RunOne(cfg, "FirstScanPosBoundary", iter);
+      if (HasFatalFailure()) return;
+    }
+  }
+}
+
+// -- The path ends before first_scan_pos (prevId < 0 at end_pos): at the
+// first positions, around the walk switch at 32, around fsp / 2 (where the
+// top-down clearing meets the walk) and next to the last row --
+TEST_P(FindBestPathTest, PathEndsEarly) {
+  const int fsp = num_coeffs_ - 1;
+  const std::vector<int> ends = { 0,           1,       2,           3,
+                                  4,           5,       6,           7,
+                                  30,          31,      32,          33,
+                                  fsp / 2 - 1, fsp / 2, fsp / 2 + 1, fsp - 4,
+                                  fsp - 3,     fsp - 2, fsp - 1 };
+  int iter = 0;
+  for (const int e : ends) {
+    if (e < 0 || e >= fsp) continue;
+    for (int i = 0; i < 4; ++i, ++iter) {
+      Config cfg = Default();
+      cfg.first_scan_pos = i & 1 ? fsp : AVMMAX(e + 1, RandomFirstScanPos());
+      cfg.path = kPathEndAt;
+      cfg.end_pos = e;
+      RunOne(cfg, "PathEndsEarly", iter);
+      if (HasFatalFailure()) return;
+    }
+  }
+  if (fsp > 0) {
+    EXPECT_GT(n_early_, 0) << "no early-ending path";
+  }
+}
+
+// -- No valid state: every row 0 cost INT64_MAX (eob 0, min_cost INT64_MAX,
+// min_rate 0, all outputs cleared); and only one finite state --
+TEST_P(FindBestPathTest, NoValidState) {
+  const int fsps[] = { 0, 1, 31, 32, 33, 47, 48, 49, num_coeffs_ - 1 };
+  int iter = 0;
+  for (const int fsp : fsps) {
+    if (fsp >= num_coeffs_) continue;
+    for (int i = 0; i < 8; ++i, ++iter) {
+      Config cfg = Default();
+      cfg.first_scan_pos = fsp;
+      cfg.path = i < 4 ? kPathNoState : kPathOneState;
+      RunOne(cfg, "NoValidState", iter);
+      if (HasFatalFailure()) return;
+    }
+  }
+  EXPECT_GT(n_none_, 0) << "the no-valid-state case never ran";
+}
+
+// -- Row 0 costs tied from a random state up: the lowest tied state wins --
+TEST_P(FindBestPathTest, TiedCosts) {
+  for (int iter = 0; iter < kBoundaryIters; ++iter) {
+    Config cfg = Default();
+    cfg.cost = kCostTied;
+    cfg.path = iter & 1 ? kPathFull : kPathNatural;
+    RunOne(cfg, "TiedCosts", iter);
+    if (HasFatalFailure()) return;
+  }
+}
+
+// -- Boundary: extremes --
+TEST_P(FindBestPathTest, ExtremesAllZero) {
+  for (int iter = 0; iter < kBoundaryIters; ++iter) {
+    Config cfg = Default();
+    cfg.first_scan_pos = iter & 1 ? num_coeffs_ - 1 : -1;
+    cfg.path = kPathFull;
+    cfg.level = kLevelZero;
+    cfg.coeff = kCoeffZero;
+    cfg.qindex = 0;
+    cfg.qm_value = 0;
+    RunOne(cfg, "ExtremesAllZero", iter);
+    if (HasFatalFailure()) return;
+  }
+}
+
+TEST_P(FindBestPathTest, ExtremesAllMax) {
+  for (int iter = 0; iter < kBoundaryIters; ++iter) {
+    Config cfg = Default();
+    cfg.first_scan_pos = iter & 1 ? num_coeffs_ - 1 : -1;
+    cfg.path = kPathFull;
+    cfg.level = kLevelMax;
+    cfg.coeff = kCoeffMax;
+    cfg.qindex = MaxQindex();
+    cfg.qm_value = 255;
+    RunOne(cfg, "ExtremesAllMax", iter);
+    if (HasFatalFailure()) return;
+  }
+}
+
+// -- Boundary: accumulator stress. The widest intermediate is
+// (2 * absLevel - q_i) * dqv in 64 bits: the largest absLevel through states
+// with q_i == 0, the largest dequant (max qindex, iqmatrix 255), negative
+// coefficients (the sign flip of the largest dqc) --
+TEST_P(FindBestPathTest, AccumulatorStress) {
+  for (int iter = 0; iter < kBoundaryIters; ++iter) {
+    Config cfg = Default();
+    cfg.first_scan_pos = iter & 1 ? num_coeffs_ - 1 : -1;
+    cfg.path = kPathFullQ0;
+    cfg.level = kLevelMax;
+    cfg.coeff = kCoeffNegMax;
+    cfg.qindex = MaxQindex();
+    cfg.qm_value = 255;
+    RunOne(cfg, "AccumulatorStress", iter);
+    if (HasFatalFailure()) return;
+  }
+}
+
+// -- Boundary: bit-depth limits (all-max is ExtremesAllMax) --
+TEST_P(FindBestPathTest, BitDepthMidpoint) {
+  for (int iter = 0; iter < kBoundaryIters; ++iter) {
+    Config cfg = Default();
+    cfg.first_scan_pos = iter & 1 ? num_coeffs_ - 1 : -1;
+    cfg.path = kPathFull;
+    cfg.level = kLevelMid;
+    cfg.coeff = kCoeffMid;
+    cfg.qindex = MaxQindex() / 2;
+    cfg.qm_value = 128;
+    RunOne(cfg, "BitDepthMidpoint", iter);
+    if (HasFatalFailure()) return;
+  }
+}
+
+TEST_P(FindBestPathTest, BitDepthCheckerboard) {
+  for (int iter = 0; iter < kBoundaryIters; ++iter) {
+    Config cfg = Default();
+    cfg.first_scan_pos = iter & 1 ? num_coeffs_ - 1 : -1;
+    cfg.path = kPathFull;
+    cfg.level = kLevelChecker;
+    cfg.coeff = kCoeffChecker;
+    cfg.qindex = iter & 2 ? MaxQindex() : 0;
+    RunOne(cfg, "BitDepthCheckerboard", iter);
+    if (HasFatalFailure()) return;
+  }
+}
+
+// -- Alignment: +1 and +3 elements from an aligned base, for the inputs
+// (trellis, scan, tcoeff, iqmatrix), the outputs (qcoeff, dqcoeff), and both
+TEST_P(FindBestPathTest, InputsMisaligned) {
+  int iter = 0;
+  for (const int off : { 1, 3 }) {
+    for (int i = 0; i < kBoundaryIters / 2; ++i, ++iter) {
+      Config cfg = Default();
+      cfg.in_off = off;
+      cfg.path = i & 1 ? kPathFull : kPathNatural;
+      RunOne(cfg, "InputsMisaligned", iter);
+      if (HasFatalFailure()) return;
+    }
+  }
+}
+
+TEST_P(FindBestPathTest, OutputsMisaligned) {
+  int iter = 0;
+  for (const int off : { 1, 3 }) {
+    for (int i = 0; i < kBoundaryIters / 2; ++i, ++iter) {
+      Config cfg = Default();
+      cfg.out_off = off;
+      cfg.path = i & 1 ? kPathFull : kPathEndAt;
+      RunOne(cfg, "OutputsMisaligned", iter);
+      if (HasFatalFailure()) return;
+    }
+  }
+}
+
+TEST_P(FindBestPathTest, BothMisaligned) {
+  static const int kOffs[3][2] = { { 1, 1 }, { 3, 3 }, { 1, 3 } };
+  int iter = 0;
+  for (const auto &o : kOffs) {
+    for (int i = 0; i < kBoundaryIters / 3; ++i, ++iter) {
+      Config cfg = Default();
+      cfg.in_off = o[0];
+      cfg.out_off = o[1];
+      cfg.path = kPathFull;
+      RunOne(cfg, "BothMisaligned", iter);
+      if (HasFatalFailure()) return;
+    }
+  }
+}
+
+// -- Strides: the kernel takes no stride; it indexes tcoeff, qcoeff, dqcoeff
+// and iqmatrix by the scan's raster position. "stride == width" is the dense
+// raster every other test uses. The padded / different-strides case is the
+// encoder's layout: tcoeff and the outputs at different BLOCK_OFFSET()s into
+// the plane buffers (p->coeff, p->qcoeff + BLOCK_OFFSET(block)), the whole
+// buffer around them compared --
+TEST_P(FindBestPathTest, BlockOffsets) {
+  static const int kBlocks[3][2] = { { 1, 0 }, { 0, 1 }, { kMaxBlock, 3 } };
+  int iter = 0;
+  for (const auto &b : kBlocks) {
+    for (int i = 0; i < kBoundaryIters / 3; ++i, ++iter) {
+      Config cfg = Default();
+      cfg.tcoeff_block = b[0];
+      cfg.out_block = b[1];
+      cfg.path = i & 1 ? kPathFull : kPathNatural;
+      RunOne(cfg, "BlockOffsets", iter);
+      if (HasFatalFailure()) return;
+    }
+  }
+}
+
+TEST_P(FindBestPathTest, DISABLED_Speed) { RunSpeedTest(); }
+
+#if HAVE_NEON
+// Every TX size: the production caller (av2_trellis_quant, 2D luma) runs on
+// all of them.
+static const TX_SIZE kFindBestPathTxSizes[] = {
+  TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_64X64, TX_4X8,   TX_8X4,
+  TX_8X16, TX_16X8, TX_16X32, TX_32X16, TX_32X64, TX_64X32, TX_4X16,
+  TX_16X4, TX_8X32, TX_32X8,  TX_16X64, TX_64X16, TX_4X32,  TX_32X4,
+  TX_8X64, TX_64X8, TX_4X64,  TX_64X4,
+};
+static_assert(sizeof(kFindBestPathTxSizes) / sizeof(kFindBestPathTxSizes[0]) ==
+                  TX_SIZES_ALL,
+              "every TX size");
+
+INSTANTIATE_TEST_SUITE_P(
+    NEON, FindBestPathTest,
+    ::testing::Combine(::testing::Values(av2_find_best_path_c),
+                       ::testing::Values(av2_find_best_path_neon),
+                       ::testing::ValuesIn(kFindBestPathTxSizes),
+                       ::testing::Values(8, 10, 12), ::testing::Bool()));
+#endif  // HAVE_NEON
 
 #if HAVE_AVX2 || HAVE_NEON
 // The other 64-point TX sizes give the kernel the same inputs as a listed one.
