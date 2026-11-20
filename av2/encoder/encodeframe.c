@@ -987,6 +987,12 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
   x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
 
   x->sms_bufs = td->sms_bufs;
+  // The motion search memo only serves the superblock it was filled in.
+  x->ms_memo = &td->ms_memo;
+  if (++x->ms_memo->sb_id == 0) {
+    memset(x->ms_memo, 0, sizeof(*x->ms_memo));
+    x->ms_memo->sb_id = 1;
+  }
   x->reuse_inter_mode_cache_type =
       av2_get_erp_reuse_mode_flag(cpi->sf.inter_sf.reuse_erp_mode_flag);
   // The recursive partition search below runs init_encode_rd_sb() at the start
@@ -1184,6 +1190,9 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
       cm->tiles.cols == 1 && cm->tiles.rows == 1) {
     av2_inter_mode_data_fit(tile_data, x->rdmult);
   }
+  // The memo belongs to this thread's superblock; copies of x made outside
+  // this function must not reach it.
+  x->ms_memo = NULL;
 }
 
 static AVM_INLINE void bridge_frame_set_offsets(

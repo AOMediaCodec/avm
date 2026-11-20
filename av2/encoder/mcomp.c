@@ -649,7 +649,10 @@ static INLINE int mvsad_err_cost(const FULLPEL_MV mv,
   MV ref_mv = { GET_MV_SUBPEL(mv_cost_params->full_ref_mv.row),
                 GET_MV_SUBPEL(mv_cost_params->full_ref_mv.col) };
 
-  if (!mv_cost_params->is_adaptive_mvd)
+  // ref_mv is full-pel, so lowering it to one-pel or a finer precision leaves
+  // it unchanged.
+  if (!mv_cost_params->is_adaptive_mvd &&
+      pb_mv_precision < MV_PRECISION_ONE_PEL)
     lower_mv_precision(&ref_mv, pb_mv_precision);
 
   const MV diff = { (this_mv.row - ref_mv.row), (this_mv.col - ref_mv.col) };

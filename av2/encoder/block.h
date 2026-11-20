@@ -1255,6 +1255,86 @@ typedef struct {
   //! Per-thread buffer of JOINT_MVD_PRED_BUF_PELS pixels that holds the slots.
   uint16_t *buf;
 } JointMvdPredCache;
+
+//! Number of slots of a MotionSearchMemo.
+#define MS_MEMO_SLOTS 4096
+
+/*! \brief The inputs of a single-reference motion search that vary within a
+ * superblock. Compared with memcmp, so it is zeroed before it is filled.
+ */
+typedef struct {
+  //! Reference MV row, at the searched precision.
+  int32_t ref_mv_row;
+  //! Reference MV column, at the searched precision.
+  int32_t ref_mv_col;
+  //! Full-pel start row of the search.
+  int32_t start_row;
+  //! Full-pel start column of the search.
+  int32_t start_col;
+  //! Full-pel search range; INT_MAX when not reduced.
+  int32_t search_range;
+  //! MV cost scale x->mv_costs.errorperbit.
+  int32_t errorperbit;
+  //! MV cost scale x->mv_costs.sadperbit.
+  int32_t sadperbit;
+  //! Row of the block, in mi units.
+  int16_t mi_row;
+  //! Column of the block, in mi units.
+  int16_t mi_col;
+  //! Block size.
+  int8_t bsize;
+  //! Reference frame.
+  int8_t ref;
+  //! MV precision of the search.
+  int8_t precision;
+  //! First step of the full-pel search.
+  int8_t step_param;
+  //! 1 for the refinement of av2_single_motion_search_high_precision().
+  int8_t refine_only;
+  //! 1 for the MVD search of WARPMV.
+  int8_t warpmv;
+  //! Number of optical-flow full-pel refinement iterations.
+  int8_t opfl_its;
+  //! Padding, zero.
+  int8_t pad;
+} MsMemoKey;
+
+/*! \brief A stored motion search result of a MotionSearchMemo. */
+typedef struct {
+  //! Inputs of the search.
+  MsMemoKey key;
+  //! Superblock the entry belongs to; it is free in any other.
+  uint32_t sb_id;
+  //! Cost of the full-pel result.
+  int bestsme;
+  //! Best full-pel MV.
+  FULLPEL_MV full_mv;
+  //! Second best full-pel MV.
+  FULLPEL_MV second_mv;
+  //! Cost list of the full-pel search.
+  int cost_list[5];
+  //! Whether the sub-pel result below is filled.
+  int has_subpel;
+  //! Result of the sub-pel search.
+  MV subpel_mv;
+  //! x->pred_sse after the sub-pel search.
+  unsigned int pred_sse;
+  //! Cost returned by the sub-pel search of the refinement.
+  int subpel_sme;
+} MsMemoEntry;
+
+/*! \brief Results of the single-reference motion searches of one superblock.
+ *
+ * One per thread. The wet pass of the two-pass partition search repeats many of
+ * the dry pass's searches with the same inputs, and those return the stored
+ * result.
+ */
+typedef struct MotionSearchMemo {
+  //! Entries, found by hashing the key and probing 8 slots.
+  MsMemoEntry slot[MS_MEMO_SLOTS];
+  //! Id of the current superblock.
+  uint32_t sb_id;
+} MotionSearchMemo;
 struct inter_modes_info;
 
 /*! \brief Encoder's parameters related to the current coding block.
@@ -1359,6 +1439,8 @@ typedef struct macroblock {
   uint16_t *resi_stat_bobs;
   //! Scratch entropy-ctx used by compute_residual_stats().
   uint8_t *resi_stat_txb_entropy_ctx;
+  //! Motion search memo of the current superblock (the thread's ms_memo).
+  MotionSearchMemo *ms_memo;
   /**@}*/
 
   /*****************************************************************************

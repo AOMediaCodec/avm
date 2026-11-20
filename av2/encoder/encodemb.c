@@ -650,7 +650,10 @@ void av2_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   if (reuse == 0 ||
       (txfm_param->sec_tx_type == 0 && txfm_param->sec_tx_set_idx == 0)) {
     av2_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-    if (plane == 0) {
+    // The primary coefficients are read back by the secondary transform of
+    // this call, or by the IST trials that reuse them (reuse == 1); reuse == 2
+    // is a search trial that no IST trial follows.
+    if (plane == 0 && (reuse == 1 || txfm_param->sec_tx_type)) {
       memcpy(p->temp_coeff, coeff, tr_width * tr_height * sizeof(tran_low_t));
     }
   }

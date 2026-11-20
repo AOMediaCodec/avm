@@ -17,16 +17,18 @@
 #include "av2/encoder/reconinter_enc.h"
 
 // return mv_diff
+// With match_chroma 0 the chroma BAWP flag (bawp_flag[1]) is not compared.
 static INLINE int is_interp_filter_good_match(
     const INTERPOLATION_FILTER_STATS *st, MB_MODE_INFO *const mi,
-    int skip_level) {
+    int skip_level, int match_chroma) {
   const int is_comp = has_second_ref(mi);
   int i;
 
   for (i = 0; i < 2; ++i) {
     if (st->ref_frames[i] != mi->ref_frame[i]) return INT_MAX;
-    if (st->bawp_flag[i] != mi->bawp_flag[i]) return INT_MAX;
   }
+  if (st->bawp_flag[0] != mi->bawp_flag[0]) return INT_MAX;
+  if (match_chroma && st->bawp_flag[1] != mi->bawp_flag[1]) return INT_MAX;
   if (is_comp && st->cwp_idx != mi->cwp_idx) return INT_MAX;
 
   if (skip_level == 1 && is_comp) {
@@ -62,9 +64,34 @@ static INLINE int save_interp_filter_search_stat(
   return interp_filter_stats_idx;
 }
 
+static INLINE INTERP_STATS_CAND interp_stats_cand(const MB_MODE_INFO *mbmi) {
+  INTERP_STATS_CAND c;
+  c.mode = mbmi->mode;
+  c.ref_mv_idx[0] = mbmi->ref_mv_idx[0];
+  c.ref_mv_idx[1] = mbmi->ref_mv_idx[1];
+  c.pb_mv_precision = mbmi->pb_mv_precision;
+  c.motion_mode = mbmi->motion_mode;
+  c.interintra = is_interintra_pred(mbmi);
+  c.use_amvd = mbmi->use_amvd;
+  c.refinemv_flag = mbmi->refinemv_flag;
+  c.cwp_idx = mbmi->cwp_idx;
+  c.skip_mode = mbmi->skip_mode;
+  return c;
+}
+
+static INLINE int same_interp_stats_cand(const INTERP_STATS_CAND *a,
+                                         const INTERP_STATS_CAND *b) {
+  return a->mode == b->mode && a->ref_mv_idx[0] == b->ref_mv_idx[0] &&
+         a->ref_mv_idx[1] == b->ref_mv_idx[1] &&
+         a->pb_mv_precision == b->pb_mv_precision &&
+         a->motion_mode == b->motion_mode && a->interintra == b->interintra &&
+         a->use_amvd == b->use_amvd && a->refinemv_flag == b->refinemv_flag &&
+         a->cwp_idx == b->cwp_idx && a->skip_mode == b->skip_mode;
+}
+
 static INLINE int find_interp_filter_in_stats(
     MB_MODE_INFO *const mbmi, INTERPOLATION_FILTER_STATS *interp_filter_stats,
-    int interp_filter_stats_idx, int skip_level) {
+    int interp_filter_stats_idx, int skip_level, int match_chroma) {
   // [skip_levels][single or comp]
   const int thr[2][2] = { { 0, 0 }, { 3, 7 } };
   const int is_comp = has_second_ref(mbmi);
@@ -76,7 +103,8 @@ static INLINE int find_interp_filter_in_stats(
   int match = -1;
   for (int j = 0; j < interp_filter_stats_idx; ++j) {
     const INTERPOLATION_FILTER_STATS *st = &interp_filter_stats[j];
-    const int mv_diff = is_interp_filter_good_match(st, mbmi, skip_level);
+    const int mv_diff =
+        is_interp_filter_good_match(st, mbmi, skip_level, match_chroma);
     // Exact match is found.
     if (mv_diff == 0) {
       match = j;
@@ -103,7 +131,7 @@ int av2_find_interp_filter_match(
   if (cpi->sf.interp_sf.use_interp_filter && need_search)
     match_found_idx = find_interp_filter_in_stats(
         mbmi, interp_filter_stats, interp_filter_stats_idx,
-        cpi->sf.interp_sf.use_interp_filter);
+        cpi->sf.interp_sf.use_interp_filter, 1);
 
   if (!need_search || match_found_idx == -1)
     set_default_interp_filters(mbmi, &cpi->common, xd, assign_filter);
@@ -422,12 +450,43 @@ int64_t av2_interpolation_filter_search(
       mbmi, cpi, assign_filter, need_search, args->interp_filter_stats, xd,
       args->interp_filter_stats_idx);
 
+  // The entry the previous search saved, if this option is its chroma BAWP
+  // twin (same everything but bawp_flag[1]). Read only for BAWP options, which
+  // handle_single_inter_prediction() starts with the record reset.
+  const int prev_saved_idx =
+      mbmi->bawp_flag[0] > 0 ? args->last_saved_interp_stats_idx : -1;
+  args->last_saved_interp_stats_idx = -1;
+
   if (match_found_idx != -1) {
     *rd = args->interp_filter_stats[match_found_idx].rd;
     x->pred_sse[ref_frame] =
         args->interp_filter_stats[match_found_idx].pred_sse;
     *skip_build_pred = INTERP_EVAL_LUMA_EVAL_CHROMA;
     return 0;
+  }
+
+  // The chroma BAWP flag changes only the chroma prediction, which the search
+  // does not read under skip_model_rd_uv. If the previous search was this
+  // option's twin with the other chroma flag (the same candidate otherwise),
+  // take its result and save it for this flag too, as the search would have.
+  if (need_search && cpi->sf.interp_sf.use_interp_filter && num_planes > 1 &&
+      skip_model_rd_uv && mbmi->bawp_flag[0] > 0 && prev_saved_idx >= 0) {
+    const INTERP_STATS_CAND cand = interp_stats_cand(mbmi);
+    const INTERPOLATION_FILTER_STATS *const twin =
+        &args->interp_filter_stats[prev_saved_idx];
+    if (same_interp_stats_cand(&args->last_saved_interp_cand, &cand) &&
+        twin->bawp_flag[1] != mbmi->bawp_flag[1] &&
+        is_interp_filter_good_match(
+            twin, mbmi, cpi->sf.interp_sf.use_interp_filter, 0) == 0) {
+      mbmi->interp_fltr = twin->interp_fltr;
+      *rd = twin->rd;
+      x->pred_sse[ref_frame] = twin->pred_sse;
+      *skip_build_pred = INTERP_EVAL_LUMA_EVAL_CHROMA;
+      args->interp_filter_stats_idx = save_interp_filter_search_stat(
+          mbmi, *rd, x->pred_sse[ref_frame], args->interp_filter_stats,
+          args->interp_filter_stats_idx);
+      return 0;
+    }
   }
 
   int switchable_ctx = av2_get_pred_context_switchable_interp(xd);
@@ -532,9 +591,13 @@ int64_t av2_interpolation_filter_search(
   // save search results
   if (cpi->sf.interp_sf.use_interp_filter) {
     assert(match_found_idx == -1);
+    const int idx = args->interp_filter_stats_idx;
     args->interp_filter_stats_idx = save_interp_filter_search_stat(
-        mbmi, *rd, x->pred_sse[ref_frame], args->interp_filter_stats,
-        args->interp_filter_stats_idx);
+        mbmi, *rd, x->pred_sse[ref_frame], args->interp_filter_stats, idx);
+    if (args->interp_filter_stats_idx > idx) {
+      args->last_saved_interp_stats_idx = idx;
+      args->last_saved_interp_cand = interp_stats_cand(mbmi);
+    }
   }
   return 0;
 }

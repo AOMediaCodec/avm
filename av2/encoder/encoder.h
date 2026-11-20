@@ -1759,6 +1759,8 @@ typedef struct ThreadData {
   uint16_t *resi_stat_eobs;
   uint16_t *resi_stat_bobs;
   uint8_t *resi_stat_txb_entropy_ctx;
+  // Results of this thread's motion searches in the current superblock.
+  MotionSearchMemo ms_memo;
   int intrabc_used;
   int deltaq_used;
   FRAME_CONTEXT *tctx;
