@@ -163,15 +163,18 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   // Learned budget for the inter mode candidates (inter_cand_gate.h), per
-  // speed. It is on for 1080p and larger: below 1080p it saves little time for
-  // its quality loss. The model was trained on clips below 4K and skips more
-  // winners at 4K, so 4K uses a lower level at speeds 1, 4 and 5.
+  // speed. Enabled only for >= 1080p non-screen content: below 1080p and on
+  // screen content (B2) it loses coding efficiency for little saved time.
+  // Speeds 1 and 2 use level 1 (never skips single-reference NEWMV and uses a
+  // conservative WARP threshold) to protect coding efficiency on A2 and B1 and
+  // avoid breaking downstream compound/warp NEWMV reuse. Off at speed 4 and at
+  // 4K speeds 2-3 where the time/quality ratio is below the speed bar.
   static const int inter_cand_gate_level[2][7] = {
-    { 0, 2, 2, 2, 3, 3, 3 },  // 1080p to below 4K.
-    { 0, 1, 2, 2, 2, 2, 3 },  // 4K and larger.
+    { 0, 1, 1, 2, 0, 2, 2 },  // 1080p to below 4K.
+    { 0, 1, 0, 0, 0, 2, 2 },  // 4K and larger.
   };
   sf->inter_sf.inter_cand_gate_level =
-      is_1080p_or_larger
+      (is_1080p_or_larger && !cm->features.allow_screen_content_tools)
           ? inter_cand_gate_level[is_4k_or_larger][AVMMIN(speed, 6)]
           : 0;
 
@@ -315,8 +318,14 @@ static void set_good_speed_feature_framesize_dependent(
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 0;
     }
   }
+  // Restrict WARP_DELTA sub-mode pruning to >= 1080p non-screen content:
+  // below 1080p (especially A4/A5) and on screen content (B2), pruning
+  // WARPMV+MVD and fine-precision WARP_NEWMV costs large BD-rate loss for
+  // negligible speedup.
   sf->inter_sf.prune_warp_delta_modes =
-      prune_warp_delta_modes_level(speed, is_4k_or_larger);
+      (is_1080p_or_larger && !cm->features.allow_screen_content_tools)
+          ? prune_warp_delta_modes_level(speed, is_4k_or_larger)
+          : 0;
   // Speeds 1-6 override this in av2_set_speed_features_qindex_dependent().
   sf->part_sf.use_square_partition_only_threshold = BLOCK_LARGEST;
 }
@@ -2436,8 +2445,10 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     sf->inter_sf.disable_interinter_wedge_newmv_search = 1;
     sf->inter_sf.prune_comp_type_by_model_rd = 1;
     sf->inter_sf.prune_motion_mode_level = 2;
-    sf->inter_sf.prune_warp_delta_modes =
-        prune_warp_delta_modes_level(2, min_side >= 2160);
+    if (min_side >= 1080 && !allow_screen_content_tools) {
+      sf->inter_sf.prune_warp_delta_modes =
+          prune_warp_delta_modes_level(2, min_side >= 2160);
+    }
     sf->inter_sf.enable_four_param_warp_in_winner_mode = 1;
     sf->inter_sf.reuse_inter_intra_mode = 1;
     sf->inter_sf.skip_repeated_newmv = 1;
@@ -2538,8 +2549,10 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     }
     sf->inter_sf.prune_bawp_by_gop_usage = 1;
     sf->inter_sf.fast_warp_delta_decoupled_search = 1;
-    sf->inter_sf.prune_warp_delta_modes =
-        prune_warp_delta_modes_level(4, min_side >= 2160);
+    if (min_side >= 1080 && !allow_screen_content_tools) {
+      sf->inter_sf.prune_warp_delta_modes =
+          prune_warp_delta_modes_level(4, min_side >= 2160);
+    }
     sf->inter_sf.prune_inter_modes_based_on_tpl = 3;
 
     sf->intra_sf.skip_intra_in_interframe = 2;
