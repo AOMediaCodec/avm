@@ -120,6 +120,29 @@ typedef struct {
    * to each chroma intra mode in av2_handle_intra_mode().
    */
   int64_t dist_info[LUMA_MODE_COUNT];
+  /*!
+   * Explicit CfL alpha of the block's first chroma search, reused by its later
+   * searches (sf 'reuse_uv_cfl_search').
+   */
+  bool cfl_alpha_stored;
+  /*! Alpha index of the stored explicit CfL alpha. */
+  uint8_t cfl_alpha_idx;
+  /*! Joint sign of the stored explicit CfL alpha. */
+  int8_t cfl_alpha_signs;
+  /*! Rate of the stored explicit CfL alpha. */
+  int cfl_alpha_rate;
+  /*!
+   * Best MHCCP direction of the block's first chroma search, the only one its
+   * later searches evaluate (sf 'reuse_uv_cfl_search' >= 2).
+   */
+  bool mhccp_dir_stored;
+  /*! The stored MHCCP direction. */
+  uint8_t mhccp_dir;
+  /*!
+   * Smallest chroma RD of the chroma searches so far in this DPCM / FSC loop
+   * (sf 'uv_search_rd_bound_alpha16'); INT64_MAX before the first one.
+   */
+  int64_t min_uv_rd;
 } ModeRDInfoUV;
 
 /*!\brief Get mode cost for chroma channels.
