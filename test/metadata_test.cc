@@ -318,12 +318,13 @@ TEST_P(MetadataEncodeTest, TestMetadataEncodingWithFilmGrain) {
   init_flags_ = AVM_CODEC_USE_PSNR;
   cfg_.g_w = 352;
   cfg_.g_h = 288;
-  cfg_.rc_end_usage = AVM_CBR;
+  cfg_.rc_end_usage = AVM_Q;
+  cfg_.rc_min_quantizer = 160;
+  cfg_.rc_max_quantizer = 160;
   cfg_.kf_mode = AVM_KF_AUTO;
   cfg_.g_lag_in_frames = 0;
   cfg_.kf_min_dist = cfg_.kf_max_dist = 3000;
   cfg_.g_error_resilient = 0;
-  cfg_.rc_target_bitrate = 40;
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
