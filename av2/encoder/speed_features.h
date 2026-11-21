@@ -1180,7 +1180,18 @@ typedef struct INTERP_FILTER_SPEED_FEATURES {
 } INTERP_FILTER_SPEED_FEATURES;
 
 typedef struct INTRA_MODE_SPEED_FEATURES {
-  // flag to allow skipping intra mode for inter frame prediction
+  // Controls skipping intra mode evaluation in inter frames:
+  // 0: No skipping.
+  // 1: Break out of the intra mode loop when RD exceeds 1.5x best RD (and in
+  //    REALTIME mode, skip pre-loop on transform-skip with low distortion).
+  // 2: In GOOD mode, also skip intra modes pre-loop and return early when no
+  //    neighbor uses intra prediction and the inter winner is optical flow,
+  //    NEAR_NEARMV, or transform-skip without NEWMV or warped motion; in
+  //    REALTIME mode, skip pre-loop on transform-skip.
+  // 3: In GOOD mode, extend level 2 to allow any transform-skip inter winner
+  //    when no neighbor uses intra prediction.
+  // 4: In GOOD mode, extend level 3 to skip on any transform-skip inter winner
+  //    regardless of neighbor modes.
   int skip_intra_in_interframe;
 
   // variance threshold for intra mode gating when inter turned out to be skip

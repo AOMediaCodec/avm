@@ -444,6 +444,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_interintra_by_ref_idx = 1;
     sf->inter_sf.prune_warp_delta_by_ref_idx = 1;
     sf->intra_sf.intra_pruning_with_mlp = 1;
+    if (cpi->oxcf.mode == GOOD) sf->intra_sf.skip_intra_in_interframe = 2;
     sf->intra_sf.intra_mode_prune_top = 4;
     sf->inter_sf.prune_comp_mode_eval_using_est_rd = true;
     sf->inter_sf.prune_warp_newmv_ref_mv_idx = true;
@@ -604,6 +605,9 @@ static void set_good_speed_features_framesize_independent(
 
     if (!cm->features.is_scc_content_by_detector) {
       sf->intra_sf.prune_palette_search_level = 1;
+    }
+    if (cpi->oxcf.mode == GOOD) {
+      sf->intra_sf.skip_intra_in_interframe = boosted ? 2 : 3;
     }
 
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
@@ -837,9 +841,7 @@ static void set_good_speed_features_framesize_independent(
     // Disabling it until it is fixed.
     // sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
 
-    // TODO(any): Experiment with this speed feature set to 2 for higher quality
-    // presets as well
-    sf->intra_sf.skip_intra_in_interframe = 2;
+    sf->intra_sf.skip_intra_in_interframe = (cpi->oxcf.mode == GOOD) ? 4 : 2;
 
     sf->tpl_sf.prune_starting_mv = 2;
     sf->tpl_sf.subpel_force_stop = HALF_PEL;
@@ -2562,7 +2564,7 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
     }
     sf->inter_sf.prune_inter_modes_based_on_tpl = 3;
 
-    sf->intra_sf.skip_intra_in_interframe = 2;
+    sf->intra_sf.skip_intra_in_interframe = 4;
     sf->intra_sf.uv_mode_rank_skip_cctx = true;
     sf->intra_sf.intrabc_max_rd_cands = 1;
     sf->intra_sf.intrabc_skip_int_qtr_rd = true;

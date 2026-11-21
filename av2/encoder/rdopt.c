@@ -9504,6 +9504,12 @@ static INLINE void init_top_comp_est_rd(
   }
 }
 
+static INLINE bool has_intra_neighbor(const MACROBLOCKD *xd) {
+  return (xd->left_mbmi && !is_inter_block(xd->left_mbmi, xd->tree_type)) ||
+         (xd->above_mbmi && !is_inter_block(xd->above_mbmi, xd->tree_type)) ||
+         av2_get_intra_inter_context(xd) > 0;
+}
+
 // Evaluate intra prediction modes in an inter frame at the block level
 static void av2_evaluate_intra_modes_in_inter_frame(
     const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
@@ -9545,6 +9551,26 @@ static void av2_evaluate_intra_modes_in_inter_frame(
       av2_nn_softmax(scores, probs, 2);
 
       if (probs[1] > 0.8) search_state->intra_search_state.skip_intra_modes = 1;
+    } else if (cpi->oxcf.mode == GOOD &&
+               sf->intra_sf.skip_intra_in_interframe >= 2) {
+      if (search_state->best_rd < (INT64_MAX / 2) &&
+          is_inter_mode(search_state->best_mbmode.mode)) {
+        const int lvl = sf->intra_sf.skip_intra_in_interframe;
+        const MB_MODE_INFO *const best_mbmi = &search_state->best_mbmode;
+        const PREDICTION_MODE best_mode = best_mbmi->mode;
+        const bool skip_tx =
+            best_mbmi->skip_txfm[xd->tree_type == CHROMA_PART] != 0;
+        const bool skip_tx_eligible =
+            skip_tx && (lvl >= 3 || (!have_newmv_in_inter_mode(best_mode) &&
+                                     best_mode != WARPMV &&
+                                     best_mbmi->motion_mode < WARP_CAUSAL));
+        const bool opfl = opfl_allowed_cur_pred_mode(cm, xd, best_mbmi);
+        const bool nnmv = best_mode == NEAR_NEARMV;
+        if ((lvl >= 4 && skip_tx) ||
+            ((skip_tx_eligible || opfl || nnmv) && !has_intra_neighbor(xd))) {
+          search_state->intra_search_state.skip_intra_modes = 1;
+        }
+      }
     } else if (search_state->best_mbmode
                    .skip_txfm[xd->tree_type == CHROMA_PART]) {
       if (sf->intra_sf.skip_intra_in_interframe == 1 &&
@@ -9559,6 +9585,13 @@ static void av2_evaluate_intra_modes_in_inter_frame(
         search_state->intra_search_state.skip_intra_modes = 1;
       }
     }
+  }
+
+  if (cpi->oxcf.mode == GOOD && sf->intra_sf.skip_intra_in_interframe >= 2 &&
+      (!is_intra_mode_allowed ||
+       search_state->intra_search_state.skip_intra_modes)) {
+    set_mv_precision(mbmi, mbmi->max_mv_precision);
+    return;
   }
 
   int64_t best_model_rd = INT64_MAX;
