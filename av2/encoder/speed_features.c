@@ -344,6 +344,7 @@ static void set_good_speed_features_lowdelay_framesize_independent(
   if (speed >= 6) {
     sf->inter_sf.enable_skip_mode_wet_pass_ld = true;
     sf->inter_sf.prune_warpmv_by_pyr_lvl = false;
+    sf->inter_sf.disable_bawp = 1;
   }
 }
 
@@ -1535,6 +1536,7 @@ static AVM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_warp_newmv_ref_mv_idx = false;
   inter_sf->enable_fast_bawp = 0;
   inter_sf->prune_bawp_by_gop_usage = 0;
+  inter_sf->disable_bawp = 0;
   inter_sf->limit_max_ref_mv_idx = false;
   inter_sf->prune_drl_candidates = 0;
   inter_sf->limit_single_ref_mv_idx = 0;
@@ -2121,6 +2123,9 @@ void av2_set_speed_features_framesize_independent(AV2_COMP *cpi, int speed) {
     if (sf->intra_sf.skip_intra_dip_search) {
       cpi->common.seq_params.enable_intra_dip = 0;
     }
+
+    if (!is_scc && sf->inter_sf.disable_bawp)
+      cpi->common.seq_params.enable_bawp = 0;
 
     if (oxcf->tool_cfg.max_drl_refmvs == 0 &&
         !cpi->common.seq_params.single_picture_header_flag &&
