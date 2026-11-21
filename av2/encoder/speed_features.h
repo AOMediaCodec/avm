@@ -1135,6 +1135,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 1: on
   int prune_bawp_by_gop_usage;
 
+  // Disable BAWP by sequence level flag.
+  // 0: off
+  // 1: on
+  int disable_bawp;
+
   // Limit the maximum number of reference MVs searched for single-DRL compound
   // prediction modes. The cap is applicable for larger blocks and is not
   // applied on key/golden/arf frames.
