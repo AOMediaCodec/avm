@@ -2951,6 +2951,20 @@ typedef struct AV2_COMP {
   uint8_t resize_dyn_gop_coscaled;
 
   /*!
+   * Non-zero if the current frame is flagged as sharp low-color screen/UI
+   * content (or explicitly signaled via screen-content tuning) to keep
+   * RESIZE_DYNAMIC at native resolution.
+   */
+  uint8_t resize_dyn_is_screen_content;
+
+  /*!
+   * Latched resize_dyn_is_screen_content flag from the current GOP's keyframe,
+   * propagated onto GF/ARF frames to protect transition frames inside a screen
+   * content GOP.
+   */
+  uint8_t kf_resize_dyn_is_sc;
+
+  /*!
    * Unboosted full-resolution leaf baseline qindex for the current GF group in
    * RESIZE_DYNAMIC mode.
    */

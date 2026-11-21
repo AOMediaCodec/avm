@@ -1124,6 +1124,8 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   cpi->resize_dyn_have_ema_dist = 0;
   cpi->resize_dyn_causal_hold = 0;
   cpi->resize_dyn_gop_coscaled = 0;
+  cpi->resize_dyn_is_screen_content = 0;
+  cpi->kf_resize_dyn_is_sc = 0;
   cpi->resize_dyn_base_qindex = 0;
   cpi->resize_dyn_causal_boost_qindex = 0;
   cpi->resize_dyn_causal_leaf_qindex = 0;
@@ -2494,6 +2496,9 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
         features->allow_screen_content_tools && cpi->oxcf.kf_cfg.enable_intrabc;
     features->is_scc_content_by_detector = features->allow_screen_content_tools;
     cpi->allow_sc_kf_trial = false;  // Keyframe trial is GOOD-mode only.
+    cpi->resize_dyn_is_screen_content =
+        (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) ||
+        (cm->seq_params.force_screen_content_tools == 1);
     return;
   }
   // Estimate if the source frame is screen content, based on the portion of
@@ -2509,11 +2514,18 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
   // These threshold values are selected experimentally.
   const int color_thresh = 4;
   const unsigned int var_thresh = 0;
+  // Minimum 8-bit-scaled per-pixel variance for sharp screen/UI/voxel blocks;
+  // separates discrete UI/text/voxel edges (var >= 8) from smooth 1-LSB sky or
+  // wall gradients in natural video (var < 4).
+  const unsigned int sharp_var_thresh = 8;
   // Counts of blocks with no more than color_thresh colors.
   int counts_1 = 0;
   // Counts of blocks with no more than color_thresh colors and variance larger
   // than var_thresh.
   int counts_2 = 0;
+  // Counts of blocks with 2..color_thresh colors and sharp contrast
+  // (var >= sharp_var_thresh).
+  int counts_sharp = 0;
 
   for (int r = 0; r + blk_h <= height; r += blk_h) {
     for (int c = 0; c + blk_w <= width; c += blk_w) {
@@ -2530,6 +2542,7 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
         const unsigned int var =
             av2_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_16X16, bd);
         if (var > var_thresh) ++counts_2;
+        if (var >= sharp_var_thresh) ++counts_sharp;
       }
     }
   }
@@ -2559,6 +2572,14 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
   cpi->allow_sc_kf_trial =
       (cm->seq_params.force_screen_content_tools == 2) &&
       ((int64_t)counts_1 * blk_h * blk_w * 50 > (int64_t)width * height);
+
+  // Flag sharp low-color screen/UI/voxel content (> 1/128 ~= 0.78% of frame
+  // area with 2..4 colors and 8-bit per-pixel variance >= 8) or explicit
+  // screen-content tuning so RESIZE_DYNAMIC keeps native resolution.
+  cpi->resize_dyn_is_screen_content =
+      (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) ||
+      (cm->seq_params.force_screen_content_tools == 1) ||
+      ((int64_t)counts_sharp * blk_h * blk_w * 128 > (int64_t)width * height);
 
   if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
     features->allow_screen_content_tools = features->allow_intrabc =
@@ -5157,9 +5178,11 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
     // the chances that could be missed detection as screen content.
     if (frame_is_kf_gf_arf(cpi)) {
       features->allow_screen_content_tools |= features->kf_allow_sc_tools;
+      cpi->resize_dyn_is_screen_content |= cpi->kf_resize_dyn_is_sc;
     }
   } else {
     features->kf_allow_sc_tools = features->allow_screen_content_tools;
+    cpi->kf_resize_dyn_is_sc = cpi->resize_dyn_is_screen_content;
   }
   cpi->is_screen_content_type = features->allow_screen_content_tools;
   if (!cpi->seq_params_locked && cpi->is_screen_content_type &&

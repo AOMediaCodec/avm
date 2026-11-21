@@ -2946,6 +2946,23 @@ static uint8_t calculate_dynamic_mode_resize_scale(AV2_COMP *cpi) {
     return SCALE_NUMERATOR;
   }
 
+  // Keep native resolution on sharp low-color screen/UI/voxel content (or
+  // explicit screen-content tuning) where spatial resampling blurs crisp text,
+  // HUD, or 1-pixel edges and degrades perceptual quality.
+  if (cpi->resize_dyn_is_screen_content) {
+    memset(cpi->resize_dyn_gf_denom, SCALE_NUMERATOR,
+           sizeof(cpi->resize_dyn_gf_denom));
+    cpi->resize_dyn_gf_ready =
+        (oxcf->gf_cfg.lag_in_frames > 0 &&
+         cm->current_frame.frame_type != KEY_FRAME && !frame_is_intra_only(cm));
+    cpi->resize_dyn_prev_denom = SCALE_NUMERATOR;
+    cpi->resize_dyn_have_ema_mc = 0;
+    cpi->resize_dyn_have_ema_dist = 0;
+    cpi->resize_dyn_causal_hold = 0;
+    cpi->resize_dyn_gop_coscaled = 0;
+    return SCALE_NUMERATOR;
+  }
+
   if (cm->current_frame.frame_type == KEY_FRAME) {
     cpi->resize_dyn_gf_ready = 0;
     cpi->resize_dyn_prev_denom = 0;
