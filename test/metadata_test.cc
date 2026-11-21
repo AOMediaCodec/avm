@@ -14,6 +14,7 @@
 
 #include "avm/avm_codec.h"
 #include "avm/avm_image.h"
+#include "avm/avmcx.h"
 #include "avm/internal/avm_image_internal.h"
 #include "avm_scale/yv12config.h"
 #include "av2/encoder/bitstream.h"
@@ -104,6 +105,7 @@ class MetadataEncodeTest
     SetMode(GET_PARAM(1));
     set_cpu_used_ = 5;
     max_partition_size_ = 16;
+    enable_film_grain_ = false;
   }
 
   virtual void PreEncodeFrameHook(::libavm_test::VideoSource *video,
@@ -112,6 +114,9 @@ class MetadataEncodeTest
       encoder->Control(AVME_SET_CPUUSED, set_cpu_used_);
       encoder->Control(AV2E_SET_MAX_PARTITION_SIZE, max_partition_size_);
       encoder->Control(AV2E_SET_ENABLE_KEYFRAME_FILTERING, 0);
+      if (enable_film_grain_) {
+        encoder->Control(AV2E_SET_FILM_GRAIN_TEST_VECTOR, 1);
+      }
     }
 
     avm_image_t *current_frame = video->img();
@@ -268,8 +273,15 @@ class MetadataEncodeTest
     }
   }
 
+  virtual void MismatchHook(const avm_image_t *img1, const avm_image_t *img2) {
+    if (!enable_film_grain_) {
+      EncoderTest::MismatchHook(img1, img2);
+    }
+  }
+
   int set_cpu_used_;
   int max_partition_size_;
+  bool enable_film_grain_;
 };
 
 TEST_P(MetadataEncodeTest, TestMetadataEncoding) {
@@ -295,6 +307,24 @@ TEST_P(MetadataEncodeTest, TestMetadataEncoding) {
   cfg_.g_error_resilient = 0;
   // Run at low bitrate.
   cfg_.rc_target_bitrate = 40;
+
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+}
+
+TEST_P(MetadataEncodeTest, TestMetadataEncodingWithFilmGrain) {
+  enable_film_grain_ = true;
+  ::libavm_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+                                       30, 1, 0, 5);
+  init_flags_ = AVM_CODEC_USE_PSNR;
+  cfg_.g_w = 352;
+  cfg_.g_h = 288;
+  cfg_.rc_end_usage = AVM_Q;
+  cfg_.rc_min_quantizer = 160;
+  cfg_.rc_max_quantizer = 160;
+  cfg_.kf_mode = AVM_KF_AUTO;
+  cfg_.g_lag_in_frames = 0;
+  cfg_.kf_min_dist = cfg_.kf_max_dist = 3000;
+  cfg_.g_error_resilient = 0;
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
