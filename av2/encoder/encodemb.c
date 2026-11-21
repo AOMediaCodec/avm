@@ -321,6 +321,122 @@ int av2_optimize_fsc(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
                                 rate_cost, cpi->oxcf.algo_cfg.sharpness);
 }
 
+// For a given transformed coeff, quantized value 't' is :
+// |t| = |coeff| * wt * quant >> (16 - log_scale + QUANT_FP_BITS + AVM_QM_BITS).
+// try_prune_res() prunes quantized coefficients with abs value <= 1. Precision
+// used for representing quantized coeffs in fp for pruning decision.
+#define RES_PRUNE_T_FP_BITS 10
+#define RES_PRUNE_T_VAL(x) ((int)((x) * (1 << RES_PRUNE_T_FP_BITS)))
+
+// Pruning is restricted to |t| < RES_PRUNE_T_MAX.
+#define RES_PRUNE_T_MAX RES_PRUNE_T_VAL(0.85)
+
+static AVM_INLINE int get_min_zero_run(int64_t t_fp) {
+  if (t_fp >= RES_PRUNE_T_MAX) return INT_MAX;
+  const int col = AVMMAX(0, (int)((t_fp * 20) >> RES_PRUNE_T_FP_BITS) - 10);
+  // Min required zero run for |t| to be pruned.
+  static const uint8_t min_zero_run[7] = { 2, 3, 5, 8, 10, 16, 20 };
+  return min_zero_run[col];
+}
+
+enum {
+  RES_PRUNE_STOP,      // abs(level) > 1 or |t| >= RES_PRUNE_T_MAX
+  RES_PRUNE_OK,        // abs(level) = 1, |t| and zero run met
+  RES_PRUNE_FAIL_RUN,  // abs(level) = 1, |t| < RES_PRUNE_T_MAX and zero run not
+                       // met
+};
+
+// Checks if the residual coefficient at scan position idx is prunable.
+// A quantized coefficient with abs level larger than 1 is never pruned, and
+// meeting one stops all further probing (RES_PRUNE_STOP). If abs level is 1,
+// its importance is judged from the zero run in reverse scan order and from
+// |t|, its position on the real number line in the range 0.5 - 1. The closer
+// |t| is to 0.5, the shorter the zero run needed for it to be considered
+// insignificant; the closer to 1, the longer. A coefficient with |t| >=
+// RES_PRUNE_T_MAX is not pruned and the decision is left to trellis.
+static int try_prune_res(const tran_low_t *qcoeff, const int16_t *scan,
+                         const tran_low_t *coeff, const qm_val_t *qmatrix,
+                         const int32_t *quant, int shift, int idx, int *prev) {
+  const int pos = scan[idx];
+  *prev = idx;
+  // max droppable quantized coefficient is 1.
+  if (abs(qcoeff[pos]) != 1) return RES_PRUNE_STOP;
+  const int64_t wt = qmatrix ? qmatrix[pos] : (1 << AVM_QM_BITS);
+  const int64_t t_fp =
+      ((int64_t)abs(coeff[pos]) * wt * quant[pos != 0]) >> shift;
+  const int min_run = get_min_zero_run(t_fp);
+  if (min_run == INT_MAX || idx - min_run < 0) return RES_PRUNE_STOP;
+  int p = idx - 1;
+  while (p >= 0 && qcoeff[scan[p]] == 0) p--;
+  *prev = p;
+  return (idx - 1 - p >= min_run) ? RES_PRUNE_OK : RES_PRUNE_FAIL_RUN;
+}
+
+static void prune_res_by_lvl_and_zero_run(const struct AV2_COMP *cpi,
+                                          MACROBLOCK *x, int plane, int block,
+                                          TX_SIZE tx_size, TX_TYPE tx_type) {
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MACROBLOCK_PLANE *const p = &x->plane[plane];
+  const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type.primary_tx);
+  const int16_t *const scan = scan_order->scan;
+  tran_low_t *const qcoeff = p->qcoeff + BLOCK_OFFSET(block);
+  tran_low_t *const dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
+  const tran_low_t *const coeff = p->coeff + BLOCK_OFFSET(block);
+  const qm_val_t *const qmatrix = av2_get_qmatrix(
+      &cpi->common.quant_params, xd, plane, tx_size, tx_type.primary_tx);
+  const int32_t *const quant = p->quant_fp_QTX;
+  const int shift = 16 - av2_get_tx_scale(tx_size) + QUANT_FP_BITS +
+                    AVM_QM_BITS - RES_PRUNE_T_FP_BITS;
+  const int old_eob = p->eobs[block];
+  int eob = old_eob;
+
+  while (eob > 0) {
+    int prev;
+    const int r = try_prune_res(qcoeff, scan, coeff, qmatrix, quant, shift,
+                                eob - 1, &prev);
+    if (r == RES_PRUNE_STOP) break;
+    if (r == RES_PRUNE_OK) {
+      qcoeff[scan[eob - 1]] = 0;
+      dqcoeff[scan[eob - 1]] = 0;
+      eob = prev + 1;
+      continue;
+    }
+    // Continuity: If a single coefficient fails on its zero run probe further.
+#define RES_PRUNE_LOOKAHEAD 3
+#define RES_PRUNE_LOOKAHEAD_GAIN 24
+    int pos_ok[RES_PRUNE_LOOKAHEAD];
+    int cur = prev;
+    int n_ok = 0;
+    while (n_ok < RES_PRUNE_LOOKAHEAD && cur >= 0) {
+      int p2;
+      if (try_prune_res(qcoeff, scan, coeff, qmatrix, quant, shift, cur, &p2) !=
+          RES_PRUNE_OK)
+        break;
+      pos_ok[n_ok++] = cur;
+      cur = p2;
+    }
+    if (n_ok != RES_PRUNE_LOOKAHEAD &&
+        ((prev - cur) < RES_PRUNE_LOOKAHEAD_GAIN))
+      break;
+    // Zero the failing coefficient and the ones that qualified; everything
+    // else between the new and the old eob is already zero.
+    qcoeff[scan[eob - 1]] = 0;
+    dqcoeff[scan[eob - 1]] = 0;
+    for (int i = 0; i < n_ok; i++) {
+      qcoeff[scan[pos_ok[i]]] = 0;
+      dqcoeff[scan[pos_ok[i]]] = 0;
+    }
+    eob = cur + 1;
+  }
+  if (eob != old_eob) {
+    p->eobs[block] = eob;
+    if (eob == 0) {
+      p->bobs[block] = av2_get_max_eob(tx_size);
+      p->txb_entropy_ctx[block] = 0;
+    }
+  }
+}
+
 /*
  This function performs coefficient optimization over the quantized coefficient
  samples when the transform type is trigonometric along at least 1 dimension.
@@ -330,12 +446,21 @@ int av2_optimize_fsc(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
 int av2_optimize_b(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
                    int block, TX_SIZE tx_size, TX_TYPE tx_type,
                    CctxType cctx_type, const TXB_CTX *const txb_ctx,
-                   int *rate_cost) {
+                   int *rate_cost, bool delay_trellis_start_pos) {
   MACROBLOCKD *const xd = &x->e_mbd;
   struct macroblock_plane *const p = &x->plane[plane];
-  const int eob = p->eobs[block];
   const int segment_id = xd->mi[0]->segment_id;
+  const TX_CLASS tx_class = tx_type_to_class[tx_type.primary_tx];
+  int use_tcq = tcq_enable(cpi->common.features.tcq_mode,
+                           xd->lossless[segment_id], plane, tx_class);
 
+  // Delay trellis start position by pruning single coefficients
+  if (use_tcq && delay_trellis_start_pos && p->eobs[block] != 0 &&
+      cpi->optimize_seg_arr[segment_id] && !xd->lossless[segment_id] &&
+      cpi->oxcf.algo_cfg.sharpness == 0) {
+    prune_res_by_lvl_and_zero_run(cpi, x, plane, block, tx_size, tx_type);
+  }
+  const int eob = p->eobs[block];
   if (eob == 0 || !cpi->optimize_seg_arr[segment_id] ||
       xd->lossless[segment_id]) {
     *rate_cost =
@@ -344,9 +469,6 @@ int av2_optimize_b(const struct AV2_COMP *cpi, MACROBLOCK *x, int plane,
                                      cctx_type);
     return eob;
   }
-  const TX_CLASS tx_class = tx_type_to_class[tx_type.primary_tx];
-  int use_tcq = tcq_enable(cpi->common.features.tcq_mode,
-                           xd->lossless[segment_id], plane, tx_class);
   if (use_tcq) {
     return av2_trellis_quant(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
                              rate_cost, cpi->oxcf.algo_cfg.sharpness);
@@ -954,7 +1076,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
                          &dummy_rate_cost);
       else
         av2_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                       &txb_ctx, &dummy_rate_cost);
+                       &txb_ctx, &dummy_rate_cost, false);
     }
     if (!quant_param.use_optimize_b && do_dropout && !fsc_mode &&
         !enable_parity_hiding) {
@@ -1469,7 +1591,7 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
                          &dummy_rate_cost);
       else
         av2_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, CCTX_NONE,
-                       &txb_ctx, &dummy_rate_cost);
+                       &txb_ctx, &dummy_rate_cost, false);
     }
 
     if (do_dropout && !fsc_mode && !enable_parity_hiding) {
@@ -1502,7 +1624,7 @@ void av2_encode_block_intra(int plane, int block, int blk_row, int blk_col,
                            &txb_ctx, &dummy_rate_cost);
         else
           av2_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
-                         CCTX_NONE, &txb_ctx, &dummy_rate_cost);
+                         CCTX_NONE, &txb_ctx, &dummy_rate_cost, false);
       }
       if (do_dropout && !fsc_mode && !enable_parity_hiding) {
         av2_dropout_qcoeff(x, plane, block, tx_size, tx_type,
@@ -1736,7 +1858,7 @@ void av2_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                     xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                         cm->seq_params.enable_fsc);
         av2_optimize_b(args->cpi, x, AVM_PLANE_U, block, tx_size, tx_type,
-                       cctx_type, &txb_ctx, &dummy_rate_cost);
+                       cctx_type, &txb_ctx, &dummy_rate_cost, false);
       }
     }
 
@@ -1755,7 +1877,7 @@ void av2_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                   xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                       cm->seq_params.enable_fsc);
       av2_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                     &txb_ctx, &dummy_rate_cost);
+                     &txb_ctx, &dummy_rate_cost, false);
     }
   }
 

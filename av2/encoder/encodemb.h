@@ -113,7 +113,7 @@ int av2_optimize_fsc(const struct AV2_COMP *cpi, MACROBLOCK *mb, int plane,
 int av2_optimize_b(const struct AV2_COMP *cpi, MACROBLOCK *mb, int plane,
                    int block, TX_SIZE tx_size, TX_TYPE tx_type,
                    CctxType cctx_type, const TXB_CTX *const txb_ctx,
-                   int *rate_cost);
+                   int *rate_cost, bool delay_trellis_start_pos);
 // This function tunes the coefficients when trellis quantization is off.
 void parity_hiding_trellis_off(const struct AV2_COMP *cpi, MACROBLOCK *mb,
                                const int plane_type, int block, TX_SIZE tx_size,
