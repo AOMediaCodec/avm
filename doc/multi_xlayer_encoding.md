@@ -523,6 +523,15 @@ names map directly to the `AV2E_SET_*` codec control IDs:
 | `enable_intrabc` | `--enable-intrabc` | Intra block copy |
 | `enable_palette` | `--enable-palette` | Palette mode |
 | `enable_interintra_comp` | `--enable-interintra-comp` | Inter-intra compound |
+| `min_gf_interval` / `max_gf_interval` | `--min-gf-interval` / `--max-gf-interval` | Group-of-frames interval |
+| `gf_min_pyr_height` / `gf_max_pyr_height` | `--gf-min-pyr-height` / `--gf-max-pyr-height` | Pyramid height of the group of frames |
+
+Each xlayer decides its own coding structure. When the layers show the same
+content with the global LCR `doh_constraint` set, give all layers the same GOP
+controls (for example `min_gf_interval` = `max_gf_interval` = 16 and
+`gf_min_pyr_height` = `gf_max_pyr_height` = 4); with the adaptive defaults one
+layer may choose a different structure than the others and the layers no
+longer line up in the temporal units.
 
 This is particularly useful for creating fast debug configurations
 that disable expensive coding tools. See the `*_fast.json` configs

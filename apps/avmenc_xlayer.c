@@ -584,6 +584,10 @@ static int init_xlayer_encoder(XLayerEncoderState *state,
       { "enable_ref_frame_mvs", AV2E_SET_ENABLE_REF_FRAME_MVS },
       { "enable_overlay", AV2E_SET_ENABLE_OVERLAY },
       { "enable_angle_delta", AV2E_SET_ENABLE_ANGLE_DELTA },
+      { "min_gf_interval", AV2E_SET_MIN_GF_INTERVAL },
+      { "max_gf_interval", AV2E_SET_MAX_GF_INTERVAL },
+      { "gf_min_pyr_height", AV2E_SET_GF_MIN_PYRAMID_HEIGHT },
+      { "gf_max_pyr_height", AV2E_SET_GF_MAX_PYRAMID_HEIGHT },
     };
     static const int num_ctrl_map =
         (int)(sizeof(ctrl_map) / sizeof(ctrl_map[0]));
