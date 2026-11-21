@@ -147,6 +147,38 @@
 #define RESIZE_DYN_EXTREME_MC_D10_MULT 1.72
 #define RESIZE_DYN_HIGHRES_COSCALE_P50_MIN 5.5
 #define RESIZE_DYN_HIGHRES_COSCALE_ACR_MIN 0.50
+#define RESIZE_DYN_HIGHRES_HIGH_ACR_Q_BOOST 1.90
+#define RESIZE_DYN_HIGHRES_LOWQ_KF_MAX_Q_NORM 0.15
+#define RESIZE_DYN_HIGHRES_HIGH_ACR_KF_MAX_Q_NORM 0.95
+#define RESIZE_DYN_SMOOTH_ROLLOFF_MAX 2.42
+#define RESIZE_DYN_VERY_SMOOTH_ROLLOFF_MAX 2.20
+#define RESIZE_DYN_HIGH_ACR_SMOOTH_P50_MIN 20.0
+#define RESIZE_DYN_HIGH_ACR_SMOOTH_MC_BOOST 2.50
+#define RESIZE_DYN_HIGH_ACR_SMOOTH_Q_BOOST_MID 3.25
+#define RESIZE_DYN_HIGH_ACR_SMOOTH_Q_BOOST_COARSE 2.65
+#define RESIZE_DYN_SMOOTH_SYN_MAX_DENOM_MID (SCALE_NUMERATOR + 6)
+#define RESIZE_DYN_SMOOTH_SYN_MAX_DENOM_COARSE (SCALE_NUMERATOR + 7)
+#define RESIZE_DYN_SMOOTH_SYN_Q_BOOST_MID 1.50
+#define RESIZE_DYN_SMOOTH_SYN_QCAP_MID 1.55
+#define RESIZE_DYN_SMOOTH_SYN_QREF_MID 5.80
+#define RESIZE_DYN_SMOOTH_SYN_MAX_MID 60.0
+#define RESIZE_DYN_SMOOTH_SYN_QCAP_COARSE 0.60
+#define RESIZE_DYN_SMOOTH_SYN_QREF_COARSE 1.15
+#define RESIZE_DYN_SMOOTH_SYN_MAX_COARSE 15.0
+#define RESIZE_DYN_FLAT_BG_UNI_MAX 0.040
+#define RESIZE_DYN_FLAT_BG_NZ_P50_MIN 10.0
+#define RESIZE_DYN_FLAT_BG_NZ_MIN 55.0
+#define RESIZE_DYN_FLAT_BG_HOLD_NZ_MIN 45.0
+#define RESIZE_DYN_FLAT_BG_ACR_MIN 0.080
+#define RESIZE_DYN_FLAT_BG_HOLD_ACR_MIN 0.048
+#define RESIZE_DYN_FLAT_BG_ROLLOFF_MAX 2.95
+#define RESIZE_DYN_FLAT_BG_Q_BOOST_MID 1.50
+#define RESIZE_DYN_FLAT_BG_Q_BOOST_COARSE 1.35
+#define RESIZE_DYN_FLAT_BG_QCAP_MID 1.50
+#define RESIZE_DYN_FLAT_BG_QREF_MID 6.80
+#define RESIZE_DYN_FLAT_BG_QCAP_COARSE 0.90
+#define RESIZE_DYN_FLAT_BG_QREF_COARSE 1.80
+#define RESIZE_DYN_FLAT_BG_MAX_COARSE 18.0
 #define RESIZE_DYN_CAUSAL_SPATIAL_JUMP_RATIO 2.35
 #define RESIZE_DYN_CAUSAL_HOLD_BREAK_STEP 3
 
@@ -424,14 +456,15 @@ static double compute_resample_chroma_mse(const YV12_BUFFER_CONFIG *src,
 // hierarchical integer search (+-24 step-4 coarse search on 2x2-subsampled
 // blocks followed by +-3 step-1 refinement and zero-MV comparison).
 // Returns 1 on success and populates:
-// - out_mc_p50: median 16x16 MC MSE across sampled blocks,
-// - out_mc_nz:  mean 16x16 MC MSE over non-flat blocks,
-// - out_mc_acr: ratio of non-flat MC MSE sum to non-flat AC variance sum.
+// - out_mc_p50:    median 16x16 MC MSE across sampled blocks,
+// - out_mc_nz:     mean 16x16 MC MSE over non-flat blocks,
+// - out_mc_acr:    ratio of non-flat MC MSE sum to non-flat AC variance sum,
+// - out_mc_p50_nz: (optional) median 16x16 MC MSE over non-flat blocks.
 static int compute_pair_mc_stats(const YV12_BUFFER_CONFIG *cur,
                                  const YV12_BUFFER_CONFIG *prv, int orig_w,
                                  int orig_h, avm_bit_depth_t bit_depth,
                                  double *out_mc_p50, double *out_mc_nz,
-                                 double *out_mc_acr) {
+                                 double *out_mc_acr, double *out_mc_p50_nz) {
   if (cur == NULL || prv == NULL || cur->y_buffer == NULL ||
       prv->y_buffer == NULL || cur->y_crop_width != orig_w ||
       cur->y_crop_height != orig_h || prv->y_crop_width != orig_w ||
@@ -455,6 +488,14 @@ static int compute_pair_mc_stats(const YV12_BUFFER_CONFIG *cur,
   double *const mc_arr =
       (double *)avm_malloc((size_t)max_blocks * sizeof(*mc_arr));
   if (mc_arr == NULL) return 0;
+  double *const nz_mc_arr =
+      (out_mc_p50_nz != NULL)
+          ? (double *)avm_malloc((size_t)max_blocks * sizeof(*nz_mc_arr))
+          : NULL;
+  if (out_mc_p50_nz != NULL && nz_mc_arr == NULL) {
+    avm_free(mc_arr);
+    return 0;
+  }
 
   int count = 0;
   int nz_count = 0;
@@ -545,6 +586,7 @@ static int compute_pair_mc_stats(const YV12_BUFFER_CONFIG *cur,
       mc_arr[count++] = mc_mse;
       sum_all += mc_mse;
       if (block_ac > min_block_var) {
+        if (nz_mc_arr != NULL) nz_mc_arr[nz_count] = mc_mse;
         sum_nz_mc += mc_mse;
         sum_nz_ac += block_ac;
         ++nz_count;
@@ -554,6 +596,7 @@ static int compute_pair_mc_stats(const YV12_BUFFER_CONFIG *cur,
 
   if (count <= 0) {
     avm_free(mc_arr);
+    avm_free(nz_mc_arr);
     return 0;
   }
   qsort(mc_arr, (size_t)count, sizeof(*mc_arr), cmp_double);
@@ -565,7 +608,16 @@ static int compute_pair_mc_stats(const YV12_BUFFER_CONFIG *cur,
       (nz_count > 0) ? (sum_nz_mc / (double)nz_count) : (sum_all / count);
   *out_mc_acr = (nz_count > 0 && sum_nz_ac > bds2) ? (sum_nz_mc / sum_nz_ac)
                                                    : (mc_p60 / min_block_var);
+  if (out_mc_p50_nz != NULL) {
+    if (nz_count > 0) {
+      qsort(nz_mc_arr, (size_t)nz_count, sizeof(*nz_mc_arr), cmp_double);
+      *out_mc_p50_nz = nz_mc_arr[(int)(0.50 * (double)(nz_count - 1))];
+    } else {
+      *out_mc_p50_nz = *out_mc_p50;
+    }
+  }
   avm_free(mc_arr);
+  avm_free(nz_mc_arr);
   return 1;
 }
 
@@ -772,7 +824,8 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
   if (!is_intra) {
     double mc_p50 = 0.0, mc_nz = 0.0, mc_acr = 0.0;
     if (compute_pair_mc_stats(unscaled, cpi->unscaled_last_source, orig_w,
-                              orig_h, bit_depth, &mc_p50, &mc_nz, &mc_acr)) {
+                              orig_h, bit_depth, &mc_p50, &mc_nz, &mc_acr,
+                              NULL)) {
       mc_eff = compute_mc_effective_energy(
           mc_p50, mc_nz, mc_acr, qstep_base * qstep_base, pel_ratio,
           RESIZE_DYNAMIC_MC_GRAIN_WEIGHT, /*linear_uni=*/0,
@@ -1111,7 +1164,7 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
       double p50 = 0.0, nz = 0.0, acr = 0.0;
       if (e0 != NULL && e1 != NULL &&
           compute_pair_mc_stats(&e1->img, &e0->img, orig_w, orig_h, bit_depth,
-                                &p50, &nz, &acr)) {
+                                &p50, &nz, &acr, NULL)) {
         sum_mc_p50 += p50;
         sum_mc_nz += nz;
         sum_mc_acr += acr;
@@ -1125,7 +1178,7 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
         av2_lookahead_peek(cpi->lookahead, la_base, cpi->compressor_stage);
     double p50 = 0.0, nz = 0.0, acr = 0.0;
     if (e0 != NULL && compute_pair_mc_stats(&e0->img, unscaled, orig_w, orig_h,
-                                            bit_depth, &p50, &nz, &acr)) {
+                                            bit_depth, &p50, &nz, &acr, NULL)) {
       sum_mc_p50 += p50;
       sum_mc_nz += nz;
       sum_mc_acr += acr;
@@ -1135,7 +1188,7 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
   if (num_mc_pairs == 0 && !from_keyframe) {
     double p50 = 0.0, nz = 0.0, acr = 0.0;
     if (compute_pair_mc_stats(unscaled, cpi->unscaled_last_source, orig_w,
-                              orig_h, bit_depth, &p50, &nz, &acr)) {
+                              orig_h, bit_depth, &p50, &nz, &acr, NULL)) {
       sum_mc_p50 += p50;
       sum_mc_nz += nz;
       sum_mc_acr += acr;
@@ -1512,13 +1565,13 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
 // Averages consecutive-pair MC statistics while trimming isolated hard
 // scene-cut residual spikes when at least 3 pairs are sampled, preventing a
 // single cross-shot boundary pair from inflating within-shot MC energy.
-static void average_trimmed_mc_pairs(const double *p50_arr,
-                                     const double *nz_arr,
-                                     const double *acr_arr, int num_pairs,
-                                     double bds2, double *out_p50,
-                                     double *out_nz, double *out_acr) {
+static void average_trimmed_mc_pairs(
+    const double *p50_arr, const double *p50_nz_arr, const double *nz_arr,
+    const double *acr_arr, int num_pairs, double bds2, double *out_p50,
+    double *out_p50_nz, double *out_nz, double *out_acr) {
   if (num_pairs <= 0) {
     *out_p50 = 0.0;
+    *out_p50_nz = 0.0;
     *out_nz = 0.0;
     *out_acr = 0.0;
     return;
@@ -1533,7 +1586,7 @@ static void average_trimmed_mc_pairs(const double *p50_arr,
   }
   const double cut_nz_thresh = AVMMAX(RESIZE_DYNAMIC_CUT_NZ_RATIO * med_nz,
                                       RESIZE_DYNAMIC_CUT_NZ_MIN * bds2);
-  double sum_p50 = 0.0, sum_nz = 0.0, sum_acr = 0.0;
+  double sum_p50 = 0.0, sum_p50_nz = 0.0, sum_nz = 0.0, sum_acr = 0.0;
   int kept = 0;
   for (int i = 0; i < num_pairs; ++i) {
     if (num_pairs >= 3 && nz_arr[i] > cut_nz_thresh &&
@@ -1541,6 +1594,7 @@ static void average_trimmed_mc_pairs(const double *p50_arr,
       continue;
     }
     sum_p50 += p50_arr[i];
+    sum_p50_nz += p50_nz_arr[i];
     sum_nz += nz_arr[i];
     sum_acr += acr_arr[i];
     ++kept;
@@ -1548,12 +1602,14 @@ static void average_trimmed_mc_pairs(const double *p50_arr,
   if (kept == 0) {
     for (int i = 0; i < num_pairs; ++i) {
       sum_p50 += p50_arr[i];
+      sum_p50_nz += p50_nz_arr[i];
       sum_nz += nz_arr[i];
       sum_acr += acr_arr[i];
     }
     kept = num_pairs;
   }
   *out_p50 = sum_p50 / (double)kept;
+  *out_p50_nz = sum_p50_nz / (double)kept;
   *out_nz = sum_nz / (double)kept;
   *out_acr = sum_acr / (double)kept;
 }
@@ -1563,12 +1619,12 @@ static void average_trimmed_mc_pairs(const double *p50_arr,
 static int sample_lookahead_mc_range(const AV2_COMP *cpi, int la_start,
                                      int la_end, int orig_w, int orig_h,
                                      avm_bit_depth_t bit_depth, double bds2,
-                                     double *out_p50, double *out_nz,
-                                     double *out_acr) {
+                                     double *out_p50, double *out_p50_nz,
+                                     double *out_nz, double *out_acr) {
   const int span = la_end - la_start;
   if (span < 1 || cpi->lookahead == NULL) return 0;
   const int target_pairs = AVMMIN(4, span);
-  double p50_arr[4], nz_arr[4], acr_arr[4];
+  double p50_arr[4], p50_nz_arr[4], nz_arr[4], acr_arr[4];
   int num_pairs = 0;
   int prev_idx = -1;
   for (int p = 0; p < target_pairs; ++p) {
@@ -1580,19 +1636,20 @@ static int sample_lookahead_mc_range(const AV2_COMP *cpi, int la_start,
         cpi->lookahead, la_start + idx, cpi->compressor_stage);
     const struct lookahead_entry *const e1 = av2_lookahead_peek(
         cpi->lookahead, la_start + idx + 1, cpi->compressor_stage);
-    double p50 = 0.0, nz = 0.0, acr = 0.0;
+    double p50 = 0.0, p50_nz = 0.0, nz = 0.0, acr = 0.0;
     if (e0 != NULL && e1 != NULL &&
         compute_pair_mc_stats(&e1->img, &e0->img, orig_w, orig_h, bit_depth,
-                              &p50, &nz, &acr)) {
+                              &p50, &nz, &acr, &p50_nz)) {
       p50_arr[num_pairs] = p50;
+      p50_nz_arr[num_pairs] = p50_nz;
       nz_arr[num_pairs] = nz;
       acr_arr[num_pairs] = acr;
       ++num_pairs;
     }
   }
   if (num_pairs == 0) return 0;
-  average_trimmed_mc_pairs(p50_arr, nz_arr, acr_arr, num_pairs, bds2, out_p50,
-                           out_nz, out_acr);
+  average_trimmed_mc_pairs(p50_arr, p50_nz_arr, nz_arr, acr_arr, num_pairs,
+                           bds2, out_p50, out_p50_nz, out_nz, out_acr);
   return 1;
 }
 
@@ -1602,10 +1659,10 @@ static int sample_lookahead_mc_range(const AV2_COMP *cpi, int la_start,
 static uint8_t evaluate_calibrated_resize_segment(
     const double *avg_dist_arr, const double *avg_ratio_arr,
     const double *avg_ac_arr, int max_eval_d, int max_qindex, int have_mc,
-    double mc_p50, double mc_nz, double mc_acr, int orig_w, int orig_h,
-    avm_bit_depth_t bit_depth, uint8_t prev_denom,
+    double mc_p50, double mc_p50_nz, double mc_nz, double mc_acr, int orig_w,
+    int orig_h, avm_bit_depth_t bit_depth, uint8_t prev_denom,
     int *out_allow_highres_coscale, int *out_is_uniform_noise,
-    int *out_allow_synergy, double *out_base_thresh) {
+    double *out_kf_q_thresh) {
   const size_t pel_count = (size_t)orig_w * (size_t)orig_h;
   const double pel_ratio = get_resize_pel_ratio(orig_w, orig_h);
   const double lin_scale = (pel_ratio > 1.0) ? sqrt(pel_ratio) : 1.0;
@@ -1618,6 +1675,16 @@ static uint8_t evaluate_calibrated_resize_segment(
   const double qstep_ref = av2_convert_qindex_to_q(max_qindex, bit_depth) * bds;
   const double mc_uni =
       have_mc ? AVMMIN(mc_p50 / AVMMAX(mc_nz, bds2), 1.0) : 0.0;
+  // Optical spectral rolloff between d=10 and d=12: soft/band-limited optics
+  // have gentle distortion growth (< 2.42), whereas sharp lenses have a steep
+  // cliff (>= 2.50).
+  const double rolloff =
+      (max_eval_d >= SCALE_NUMERATOR + 4 &&
+       avg_dist_arr[SCALE_NUMERATOR + 2] > 1e-6 &&
+       avg_dist_arr[SCALE_NUMERATOR + 4] > avg_dist_arr[SCALE_NUMERATOR + 2])
+          ? (avg_dist_arr[SCALE_NUMERATOR + 4] /
+             avg_dist_arr[SCALE_NUMERATOR + 2])
+          : 3.0;
 
   const int is_highres_pan =
       have_mc && pel_ratio > 1.0 &&
@@ -1670,17 +1737,39 @@ static uint8_t evaluate_calibrated_resize_segment(
           : (RESIZE_DYNAMIC_SUBGOP_HYST_KEEP +
              RESIZE_DYNAMIC_SUBGOP_HYST_KEEP_COARSE_ADD * coarse_keep_ramp);
 
+  // Detect Full-HD scenes dominated by flat regions (collapsing all-block
+  // mc_p50 / mc_uni) whose non-flat textured blocks nevertheless exhibit strong
+  // distributed temporal motion (high mc_p50_nz and mc_nz).
+  const double flat_bg_acr_min =
+      (prev_denom >= RESIZE_DYN_SYNERGY_HOLD_MIN_DENOM)
+          ? RESIZE_DYN_FLAT_BG_HOLD_ACR_MIN
+          : RESIZE_DYN_FLAT_BG_ACR_MIN;
+  const double flat_bg_nz_min =
+      (prev_denom >= RESIZE_DYN_SYNERGY_HOLD_MIN_DENOM)
+          ? RESIZE_DYN_FLAT_BG_HOLD_NZ_MIN
+          : RESIZE_DYN_FLAT_BG_NZ_MIN;
+  const int is_flat_bg_active =
+      have_mc && (double)pel_count >= RESIZE_DYNAMIC_REF_PELS &&
+      pel_ratio <= 1.0 && !is_uniform_noise &&
+      mc_uni < RESIZE_DYN_FLAT_BG_UNI_MAX &&
+      mc_p50_nz > RESIZE_DYN_FLAT_BG_NZ_P50_MIN * bds2 &&
+      mc_nz > flat_bg_nz_min * bds2 && mc_acr > flat_bg_acr_min &&
+      rolloff < RESIZE_DYN_FLAT_BG_ROLLOFF_MAX;
+
+  int high_acr_smooth = 0;
+  int hr_high_acr = 0;
   if (is_uniform_noise) {
     seg_thresh *= RESIZE_DYN_UNIFORM_NOISE_THRESH_BOOST;
     seg_mc_thresh = AVMMIN(seg_mc_thresh * RESIZE_DYN_UNIFORM_NOISE_MC_BOOST,
                            RESIZE_DYNAMIC_MC_RATIO_MAX);
   } else if (have_mc && pel_ratio <= 1.0) {
     if (mc_acr < RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MAX &&
-        mc_uni > RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MIN_UNI) {
+        mc_uni > RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MIN_UNI && !is_flat_bg_active) {
       const double acr_scale = mc_acr / RESIZE_DYNAMIC_SUBGOP_LOW_ACR_REF;
       seg_mc_thresh *= acr_scale * acr_scale * acr_scale;
     } else if (mc_acr < RESIZE_DYNAMIC_SUBGOP_STATIC_BG_ACR_MAX &&
-               mc_uni <= RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MIN_UNI) {
+               mc_uni <= RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MIN_UNI &&
+               !is_flat_bg_active) {
       const double acr_scale = mc_acr / RESIZE_DYNAMIC_SUBGOP_STATIC_BG_ACR_REF;
       seg_mc_thresh *= acr_scale * acr_scale * acr_scale;
     } else if (mc_acr > RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_MIN) {
@@ -1690,23 +1779,45 @@ static uint8_t evaluate_calibrated_resize_segment(
                  (mc_acr > 0.70 && mc_uni > 0.04)) {
         hyst_step = RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_HYST_STEP;
         hyst_keep = RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_HYST_KEEP;
-        const double max_q_boost =
-            (mc_uni > 0.34 && mc_acr > 0.50)
-                ? RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_MAX_HIGH
-                : RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_MAX_MOD;
-        const double q_boost =
-            (qstep_ratio_sq > 15.0)
-                ? max_q_boost
-                : AVMMIN(1.0 + RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_SLOPE *
-                                   qstep_ratio_sq,
-                         max_q_boost);
-        seg_thresh *= q_boost;
+        if ((double)pel_count >= RESIZE_DYNAMIC_REF_PELS &&
+            rolloff < RESIZE_DYN_SMOOTH_ROLLOFF_MAX &&
+            mc_p50 > RESIZE_DYN_HIGH_ACR_SMOOTH_P50_MIN * bds2) {
+          // Under high temporal unpredictability on band-limited 1080p optics,
+          // marginal rate savings from decimation are large across q185..q235.
+          high_acr_smooth = 1;
+          seg_mc_thresh =
+              AVMMIN(seg_mc_thresh * RESIZE_DYN_HIGH_ACR_SMOOTH_MC_BOOST,
+                     RESIZE_DYNAMIC_MC_RATIO_MAX);
+          const double q_boost =
+              (qstep_ratio_sq > RESIZE_DYNAMIC_SUBGOP_SYNERGY_HIGH_QRAT_SQ)
+                  ? RESIZE_DYN_HIGH_ACR_SMOOTH_Q_BOOST_COARSE
+                  : RESIZE_DYN_HIGH_ACR_SMOOTH_Q_BOOST_MID;
+          seg_thresh *= q_boost;
+        } else {
+          const double max_q_boost =
+              (mc_uni > 0.34 && mc_acr > 0.50)
+                  ? RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_MAX_HIGH
+                  : RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_MAX_MOD;
+          const double q_boost =
+              (qstep_ratio_sq > 15.0)
+                  ? max_q_boost
+                  : AVMMIN(1.0 + RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_SLOPE *
+                                     qstep_ratio_sq,
+                           max_q_boost);
+          seg_thresh *= q_boost;
+        }
       }
     }
+  } else if (have_mc && pel_ratio > 1.0 &&
+             mc_acr > RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_MIN) {
+    // High-ACR >1080p content (still guarded by background-safe bg_ratio < 1):
+    // relax quantization distortion budget for temporally unpredictable action.
+    hr_high_acr = 1;
+    seg_thresh *= RESIZE_DYN_HIGHRES_HIGH_ACR_Q_BOOST;
   }
 
-  // Regime 2: Full-HD spatial-smoothness / MC synergy (d <= 12) with Schmitt
-  // hysteresis on mc_acr when holding prev_denom >= 10.
+  // Regime 2: Full-HD spatial-smoothness / MC synergy with Schmitt hysteresis
+  // on mc_acr when holding prev_denom >= 10.
   const double syn_low_acr = (prev_denom >= RESIZE_DYN_SYNERGY_HOLD_MIN_DENOM)
                                  ? RESIZE_DYN_SYNERGY_HOLD_LOW_ACR
                                  : RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MAX;
@@ -1717,11 +1828,12 @@ static uint8_t evaluate_calibrated_resize_segment(
       have_mc && (double)pel_count >= RESIZE_DYNAMIC_REF_PELS &&
       pel_ratio <= 1.0 && !is_uniform_noise &&
       qstep_ratio_sq > RESIZE_DYN_SYNERGY_MIN_QRAT_SQ &&
-      ((mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID &&
-        mc_acr > syn_low_acr &&
-        mc_nz < RESIZE_DYNAMIC_SUBGOP_SYNERGY_LOW_ACR_MAX_NZ * bds2) ||
-       (mc_acr > syn_mid_acr &&
-        mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MIN));
+      (((mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID &&
+         mc_acr > syn_low_acr &&
+         mc_nz < RESIZE_DYNAMIC_SUBGOP_SYNERGY_LOW_ACR_MAX_NZ * bds2) ||
+        (mc_acr > syn_mid_acr &&
+         mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MIN)) ||
+       is_flat_bg_active);
   if (prev_denom >= RESIZE_DYN_SYNERGY_HOLD_MIN_DENOM && pel_ratio <= 1.0 &&
       (allow_synergy ||
        (have_mc && mc_acr > RESIZE_DYN_SYNERGY_HOLD_ACR_MIN))) {
@@ -1738,17 +1850,57 @@ static uint8_t evaluate_calibrated_resize_segment(
       have_mc ? seg_mc_thresh : ac_thresh_fallback;
   const int is_very_coarse_qp =
       (qstep_ratio_sq > RESIZE_DYNAMIC_SUBGOP_SYNERGY_HIGH_QRAT_SQ);
-  const double syn_q_cap =
-      is_very_coarse_qp ? ((mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID)
-                               ? RESIZE_DYN_SYNERGY_QCAP_HIGH_UNI
-                               : RESIZE_DYN_SYNERGY_QCAP_HIGH_LOW_UNI)
-                        : ((mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID)
-                               ? RESIZE_DYN_SYNERGY_QCAP_MID_UNI
-                               : RESIZE_DYN_SYNERGY_QCAP_MID_LOW_UNI);
-  const double syn_q_ref = is_very_coarse_qp ? RESIZE_DYN_SYNERGY_QREF_HIGH
-                                             : RESIZE_DYN_SYNERGY_QREF_MID;
-  const double syn_max = is_very_coarse_qp ? RESIZE_DYN_SYNERGY_MAX_HIGH
-                                           : RESIZE_DYN_SYNERGY_MAX_MID;
+  const int has_mid_uni =
+      (mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID || is_flat_bg_active);
+  double syn_q_cap = is_very_coarse_qp
+                         ? (has_mid_uni ? RESIZE_DYN_SYNERGY_QCAP_HIGH_UNI
+                                        : RESIZE_DYN_SYNERGY_QCAP_HIGH_LOW_UNI)
+                         : (has_mid_uni ? RESIZE_DYN_SYNERGY_QCAP_MID_UNI
+                                        : RESIZE_DYN_SYNERGY_QCAP_MID_LOW_UNI);
+  double syn_q_ref = is_very_coarse_qp ? RESIZE_DYN_SYNERGY_QREF_HIGH
+                                       : RESIZE_DYN_SYNERGY_QREF_MID;
+  double syn_max = is_very_coarse_qp ? RESIZE_DYN_SYNERGY_MAX_HIGH
+                                     : RESIZE_DYN_SYNERGY_MAX_MID;
+  int syn_max_denom = RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_DENOM;
+
+  // On band-limited 1080p optics (gentle d12/d10 rolloff) or flat-dominated
+  // active-foreground 1080p scenes, extend synergy depth and Q budget cleanly
+  // while keeping steep-rolloff sharp-lens scenes untouched.
+  const int is_smooth_1080_syn =
+      allow_synergy && !high_acr_smooth &&
+      ((mc_uni > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID &&
+        mc_nz < RESIZE_DYNAMIC_SUBGOP_SYNERGY_LOW_ACR_MAX_NZ * bds2 &&
+        rolloff < RESIZE_DYN_SMOOTH_ROLLOFF_MAX) ||
+       is_flat_bg_active);
+  if (is_smooth_1080_syn) {
+    if (is_very_coarse_qp) {
+      if (is_flat_bg_active) {
+        syn_max_denom = RESIZE_DYN_SMOOTH_SYN_MAX_DENOM_COARSE;
+        seg_thresh *= RESIZE_DYN_FLAT_BG_Q_BOOST_COARSE;
+        syn_q_cap = RESIZE_DYN_FLAT_BG_QCAP_COARSE;
+        syn_q_ref = RESIZE_DYN_FLAT_BG_QREF_COARSE;
+        syn_max = RESIZE_DYN_FLAT_BG_MAX_COARSE;
+      } else if (rolloff < RESIZE_DYN_VERY_SMOOTH_ROLLOFF_MAX) {
+        syn_max_denom = RESIZE_DYN_SMOOTH_SYN_MAX_DENOM_COARSE;
+        syn_q_cap = RESIZE_DYN_SMOOTH_SYN_QCAP_COARSE;
+        syn_q_ref = RESIZE_DYN_SMOOTH_SYN_QREF_COARSE;
+        syn_max = RESIZE_DYN_SMOOTH_SYN_MAX_COARSE;
+      }
+    } else {
+      if (is_flat_bg_active) {
+        seg_thresh *= RESIZE_DYN_FLAT_BG_Q_BOOST_MID;
+        syn_max_denom = RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_DENOM;
+        syn_q_cap = RESIZE_DYN_FLAT_BG_QCAP_MID;
+        syn_q_ref = RESIZE_DYN_FLAT_BG_QREF_MID;
+      } else {
+        seg_thresh *= RESIZE_DYN_SMOOTH_SYN_Q_BOOST_MID;
+        syn_max_denom = RESIZE_DYN_SMOOTH_SYN_MAX_DENOM_MID;
+        syn_q_cap = RESIZE_DYN_SMOOTH_SYN_QCAP_MID;
+        syn_q_ref = RESIZE_DYN_SMOOTH_SYN_QREF_MID;
+      }
+      syn_max = RESIZE_DYN_SMOOTH_SYN_MAX_MID;
+    }
+  }
 
   double content_ratio_arr[SCALE_NUMERATOR * 2 + 1] = { 0.0 };
   double bg_ratio_arr[SCALE_NUMERATOR * 2 + 1] = { 0.0 };
@@ -1758,8 +1910,7 @@ static uint8_t evaluate_calibrated_resize_segment(
   uint8_t raw_best = SCALE_NUMERATOR;
 
   for (int d = SCALE_NUMERATOR + 1; d <= max_eval_d; ++d) {
-    const int use_syn_d =
-        allow_synergy && d <= RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_DENOM;
+    const int use_syn_d = allow_synergy && d <= syn_max_denom;
     const double dec_frac =
         1.0 - (double)(SCALE_NUMERATOR * SCALE_NUMERATOR) / (double)(d * d);
     const double avg_dist = avg_dist_arr[d];
@@ -1790,7 +1941,7 @@ static uint8_t evaluate_calibrated_resize_segment(
 
     const double syn_q_cap_d =
         (prev_denom >= RESIZE_DYN_SYNERGY_HOLD_MIN_DENOM &&
-         d <= (int)prev_denom)
+         d <= (int)prev_denom && !is_smooth_1080_syn)
             ? AVMMIN(syn_q_cap * RESIZE_DYN_SYNERGY_HOLD_QCAP_MULT, 0.98)
             : syn_q_cap;
     const double eff_content_thresh =
@@ -1854,15 +2005,34 @@ static uint8_t evaluate_calibrated_resize_segment(
   }
 
   const int allow_highres_coscale =
-      is_highres_pan || (have_mc && pel_ratio > 1.0 &&
-                         (mc_p50 > RESIZE_DYN_HIGHRES_COSCALE_P50_MIN * bds2 ||
-                          mc_acr > RESIZE_DYN_HIGHRES_COSCALE_ACR_MIN));
+      is_highres_pan ||
+      (have_mc && pel_ratio > 1.0 &&
+       (mc_p50 > RESIZE_DYN_HIGHRES_COSCALE_P50_MIN * bds2 ||
+        mc_acr > RESIZE_DYN_HIGHRES_COSCALE_ACR_MIN)) ||
+      (pel_ratio > 1.0 && best_denom >= RESIZE_DYNAMIC_KF_COSCALE_MIN_DENOM &&
+       best_denom <= max_eval_d &&
+       avg_ratio_arr[best_denom] <
+           RESIZE_DYN_HIGHRES_LOWQ_KF_MAX_Q_NORM * base_thresh);
+  double kf_q_thresh = ((pel_ratio <= 1.0 && allow_synergy && have_mc &&
+                         mc_acr < RESIZE_DYNAMIC_MC_FLAT_NOISE_ACR_MAX &&
+                         best_denom <= syn_max_denom)
+                            ? RESIZE_DYN_SYNERGY_KF_MAX_Q_NORM
+                            : RESIZE_DYNAMIC_KF_COSCALE_MAX_Q_NORM) *
+                       base_thresh;
+  if (hr_high_acr && allow_highres_coscale &&
+      mc_acr > RESIZE_DYN_HIGHRES_COSCALE_ACR_MIN &&
+      max_qindex >= base_qref_qp) {
+    kf_q_thresh = RESIZE_DYN_HIGHRES_HIGH_ACR_KF_MAX_Q_NORM * seg_thresh;
+  } else if (is_smooth_1080_syn) {
+    kf_q_thresh = RESIZE_DYN_SYNERGY_KF_MAX_Q_NORM * seg_thresh;
+  } else if (high_acr_smooth && (is_very_coarse_qp || mc_uni < 0.30)) {
+    kf_q_thresh = RESIZE_DYN_SYNERGY_KF_MAX_Q_NORM * seg_thresh;
+  }
   if (out_allow_highres_coscale != NULL) {
     *out_allow_highres_coscale = allow_highres_coscale;
   }
   if (out_is_uniform_noise != NULL) *out_is_uniform_noise = is_uniform_noise;
-  if (out_allow_synergy != NULL) *out_allow_synergy = allow_synergy;
-  if (out_base_thresh != NULL) *out_base_thresh = base_thresh;
+  if (out_kf_q_thresh != NULL) *out_kf_q_thresh = kf_q_thresh;
   return best_denom;
 }
 
@@ -2107,22 +2277,22 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
   const int la_base = (from_keyframe && min_la_idx < INT_MAX && min_la_idx > 0)
                           ? min_la_idx
                           : 0;
-  double mc_p50 = 0.0, mc_nz = 0.0, mc_acr = 0.0;
-  int have_mc =
-      sample_lookahead_mc_range(cpi, la_base, max_la_idx, orig_w, orig_h,
-                                bit_depth, bds2, &mc_p50, &mc_nz, &mc_acr);
+  double mc_p50 = 0.0, mc_p50_nz = 0.0, mc_nz = 0.0, mc_acr = 0.0;
+  int have_mc = sample_lookahead_mc_range(cpi, la_base, max_la_idx, orig_w,
+                                          orig_h, bit_depth, bds2, &mc_p50,
+                                          &mc_p50_nz, &mc_nz, &mc_acr);
   if (!have_mc && cm->immediate_output_picture != 0 && max_la_idx >= 0) {
     const struct lookahead_entry *const e0 =
         av2_lookahead_peek(cpi->lookahead, la_base, cpi->compressor_stage);
     if (e0 != NULL &&
         compute_pair_mc_stats(&e0->img, unscaled, orig_w, orig_h, bit_depth,
-                              &mc_p50, &mc_nz, &mc_acr)) {
+                              &mc_p50, &mc_nz, &mc_acr, &mc_p50_nz)) {
       have_mc = 1;
     }
   }
   if (!have_mc && !from_keyframe &&
       compute_pair_mc_stats(unscaled, cpi->unscaled_last_source, orig_w, orig_h,
-                            bit_depth, &mc_p50, &mc_nz, &mc_acr)) {
+                            bit_depth, &mc_p50, &mc_nz, &mc_acr, &mc_p50_nz)) {
     have_mc = 1;
   }
 
@@ -2181,15 +2351,23 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
                    : RESIZE_DYN_SYNERGY_HOLD_HYST_KEEP)
             : 1.0;
     double q_mult_ub = 1.0;
-    if (pel_ratio <= 1.0) {
+    if (pel_ratio > 1.0) {
+      if (have_mc && mc_acr > RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_MIN) {
+        q_mult_ub = RESIZE_DYN_HIGHRES_HIGH_ACR_Q_BOOST;
+      }
+    } else {
       if (could_be_uniform_noise) {
         q_mult_ub = RESIZE_DYN_UNIFORM_NOISE_THRESH_BOOST;
+      } else if (have_mc && mc_acr > RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_MIN) {
+        q_mult_ub = AVMMAX(RESIZE_DYN_EXTREME_MC_D9_STRONG_MULT,
+                           RESIZE_DYN_HIGH_ACR_SMOOTH_Q_BOOST_MID);
       } else if (d == SCALE_NUMERATOR + 1) {
         q_mult_ub = RESIZE_DYN_EXTREME_MC_D9_STRONG_MULT;
       } else if (d == SCALE_NUMERATOR + 2) {
         q_mult_ub = RESIZE_DYN_EXTREME_MC_D10_MULT;
       } else {
-        q_mult_ub = RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_MAX_HIGH;
+        q_mult_ub = AVMMAX(RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_MAX_HIGH,
+                           RESIZE_DYN_SMOOTH_SYN_Q_BOOST_MID);
       }
     }
     const double ub_q_thresh_d = hyst_mult_ub * q_mult_ub * base_thresh_pre;
@@ -2241,11 +2419,10 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
             }
           }
           if (right_exceeds) {
-            avg_dist_arr[d] =
-                (probe_luma_l + probe_luma_r) / (double)total_valid_frames;
+            avg_dist_arr[d] = 0.0;
             avg_ratio_arr[d] = ub_q_thresh_d + 1.0;
-            avg_dist_L[d] = probe_luma_l / (double)half_n;
-            avg_dist_R[d] = probe_luma_r / (double)right_n;
+            avg_dist_L[d] = 0.0;
+            avg_dist_R[d] = 0.0;
             both_pruned = 1;
           }
         }
@@ -2265,7 +2442,7 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
           probe_luma += cached_luma[k];
           if ((probe_luma * inv_q2_lb) / (double)total_valid_frames >=
               ub_q_thresh_d) {
-            avg_dist_arr[d] = probe_luma / (double)total_valid_frames;
+            avg_dist_arr[d] = 0.0;
             avg_ratio_arr[d] = ub_q_thresh_d + 1.0;
             both_pruned = 1;
             break;
@@ -2351,12 +2528,12 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
 
   int allow_highres_coscale = 0;
   int is_uniform_noise = 0;
-  int allow_synergy = 0;
-  double base_thresh = RESIZE_DYNAMIC_SUBGOP_THRESH * pel_ratio;
+  double kf_q_thresh = RESIZE_DYNAMIC_KF_COSCALE_MAX_Q_NORM *
+                       RESIZE_DYNAMIC_SUBGOP_THRESH * pel_ratio;
   const uint8_t d_full = evaluate_calibrated_resize_segment(
       avg_dist_arr, avg_ratio_arr, avg_ac_arr, max_eval_d, max_grp_qindex,
-      have_mc, mc_p50, mc_nz, mc_acr, orig_w, orig_h, bit_depth, prev_denom,
-      &allow_highres_coscale, &is_uniform_noise, &allow_synergy, &base_thresh);
+      have_mc, mc_p50, mc_p50_nz, mc_nz, mc_acr, orig_w, orig_h, bit_depth,
+      prev_denom, &allow_highres_coscale, &is_uniform_noise, &kf_q_thresh);
 
   uint8_t chosen_L = d_full;
   uint8_t chosen_R = d_full;
@@ -2380,41 +2557,54 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
       const int la_mid = la_base + (max_la_idx - la_base) / 2;
       const int la_right_start =
           (max_la_idx >= la_mid + 2) ? (la_mid + 1) : la_mid;
-      double p50_l = mc_p50, nz_l = mc_nz, acr_l = mc_acr;
-      double p50_r = mc_p50, nz_r = mc_nz, acr_r = mc_acr;
+      double p50_l = mc_p50, p50_nz_l = mc_p50_nz, nz_l = mc_nz, acr_l = mc_acr;
+      double p50_r = mc_p50, p50_nz_r = mc_p50_nz, nz_r = mc_nz, acr_r = mc_acr;
       int have_mc_l = have_mc, have_mc_r = have_mc;
       if (la_mid > la_base &&
           sample_lookahead_mc_range(cpi, la_base, la_mid, orig_w, orig_h,
-                                    bit_depth, bds2, &p50_l, &nz_l, &acr_l)) {
+                                    bit_depth, bds2, &p50_l, &p50_nz_l, &nz_l,
+                                    &acr_l)) {
         have_mc_l = 1;
       }
       if (max_la_idx > la_right_start &&
           sample_lookahead_mc_range(cpi, la_right_start, max_la_idx, orig_w,
-                                    orig_h, bit_depth, bds2, &p50_r, &nz_r,
-                                    &acr_r)) {
+                                    orig_h, bit_depth, bds2, &p50_r, &p50_nz_r,
+                                    &nz_r, &acr_r)) {
         have_mc_r = 1;
       }
+      int allow_hr_l = allow_highres_coscale;
+      int is_un_l = is_uniform_noise;
+      double kf_q_thresh_l = kf_q_thresh;
       const uint8_t d_L = evaluate_calibrated_resize_segment(
           avg_dist_L, qrat_L, avg_ac_L, max_eval_d, max_grp_qindex, have_mc_l,
-          p50_l, nz_l, acr_l, orig_w, orig_h, bit_depth, prev_denom, NULL, NULL,
-          NULL, NULL);
+          p50_l, p50_nz_l, nz_l, acr_l, orig_w, orig_h, bit_depth, prev_denom,
+          &allow_hr_l, &is_un_l, &kf_q_thresh_l);
       const uint8_t d_R = evaluate_calibrated_resize_segment(
           avg_dist_R, qrat_R, avg_ac_R, max_eval_d, max_grp_qindex, have_mc_r,
-          p50_r, nz_r, acr_r, orig_w, orig_h, bit_depth, d_L, NULL, NULL, NULL,
-          NULL);
+          p50_r, p50_nz_r, nz_r, acr_r, orig_w, orig_h, bit_depth, d_L, NULL,
+          NULL, NULL);
       if (abs((int)d_L - (int)d_R) >= RESIZE_DYNAMIC_HALF_SPLIT_MIN_STEP) {
         chosen_L = d_L;
         chosen_R = d_R;
+        allow_highres_coscale = allow_hr_l;
+        is_uniform_noise = is_un_l;
+        kf_q_thresh = kf_q_thresh_l;
         first_seg_ratio_at_chosen =
             (d_L > SCALE_NUMERATOR && d_L <= max_eval_d) ? qrat_L[d_L] : 0.0;
       }
     }
   }
 
+  // On split subgops, align the midpoint internal ARF (ord[half_n - 1], disp=8)
+  // with the right-half scale chosen_R so all right-half frames (disp=9..15)
+  // retain same-resolution bi-prediction between ARF2 and ARF, and ARF2 shares
+  // scale with its forward ARF anchor.
+  const int left_end_k =
+      (can_split_halves && chosen_L != chosen_R) ? (half_n - 1) : half_n;
   for (int k = 0; k < total_valid_frames; ++k) {
     const int f = ord[k];
     cpi->resize_dyn_gf_denom[grp_gf_idx[f]] =
-        (can_split_halves && k < half_n) ? chosen_L : chosen_R;
+        (can_split_halves && k < left_end_k) ? chosen_L : chosen_R;
   }
   // Propagate matching scales onto any overlay entries in gf_group.
   for (int gf_idx = start_gf_idx;
@@ -2439,16 +2629,10 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
   cpi->resize_dyn_prev_denom = chosen_R;
   if (out_first_denom != NULL) *out_first_denom = chosen_L;
   if (out_coscale_kf != NULL) {
-    const double max_kf_qnorm =
-        (pel_ratio <= 1.0 && allow_synergy && have_mc &&
-         mc_acr < RESIZE_DYNAMIC_MC_FLAT_NOISE_ACR_MAX &&
-         chosen_L <= RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_DENOM)
-            ? RESIZE_DYN_SYNERGY_KF_MAX_Q_NORM
-            : RESIZE_DYNAMIC_KF_COSCALE_MAX_Q_NORM;
-    *out_coscale_kf = (chosen_L >= RESIZE_DYNAMIC_KF_COSCALE_MIN_DENOM &&
-                       (pel_ratio <= 1.0 || allow_highres_coscale) &&
-                       (is_uniform_noise || first_seg_ratio_at_chosen <
-                                                max_kf_qnorm * base_thresh));
+    *out_coscale_kf =
+        (chosen_L >= RESIZE_DYNAMIC_KF_COSCALE_MIN_DENOM &&
+         (pel_ratio <= 1.0 || allow_highres_coscale) &&
+         (is_uniform_noise || first_seg_ratio_at_chosen < kf_q_thresh));
   }
 
   avm_free(downscaled_buf);
@@ -2589,7 +2773,7 @@ static uint8_t calculate_dynamic_causal_frame_scale(AV2_COMP *cpi) {
   avm_clear_system_state();
   const double bds = (double)(1 << ((int)bit_depth - AVM_BITS_8));
   const double bds2 = bds * bds;
-  double cur_p50 = 0.0, cur_nz = 0.0, cur_acr = 0.0;
+  double cur_p50 = 0.0, cur_p50_nz = 0.0, cur_nz = 0.0, cur_acr = 0.0;
   const YV12_BUFFER_CONFIG *ref_src = cpi->unscaled_last_source;
   if (ref_src == NULL && cpi->lookahead != NULL) {
     const struct lookahead_entry *const e_prev =
@@ -2597,8 +2781,9 @@ static uint8_t calculate_dynamic_causal_frame_scale(AV2_COMP *cpi) {
     if (e_prev != NULL) ref_src = &e_prev->img;
   }
   int is_cut = 0;
-  int have_mc = compute_pair_mc_stats(unscaled, ref_src, orig_w, orig_h,
-                                      bit_depth, &cur_p50, &cur_nz, &cur_acr);
+  int have_mc =
+      compute_pair_mc_stats(unscaled, ref_src, orig_w, orig_h, bit_depth,
+                            &cur_p50, &cur_nz, &cur_acr, &cur_p50_nz);
   if (have_mc) {
     is_cut =
         cpi->resize_dyn_have_ema_mc &&
@@ -2607,6 +2792,7 @@ static uint8_t calculate_dynamic_causal_frame_scale(AV2_COMP *cpi) {
         cur_acr > RESIZE_DYNAMIC_CUT_ACR_MIN;
     if (!cpi->resize_dyn_have_ema_mc || is_cut) {
       cpi->resize_dyn_ema_p50 = cur_p50;
+      cpi->resize_dyn_ema_p50_nz = cur_p50_nz;
       cpi->resize_dyn_ema_nz = cur_nz;
       cpi->resize_dyn_ema_acr = cur_acr;
       cpi->resize_dyn_have_ema_mc = 1;
@@ -2616,6 +2802,8 @@ static uint8_t calculate_dynamic_causal_frame_scale(AV2_COMP *cpi) {
       }
     } else {
       cpi->resize_dyn_ema_p50 = 0.5 * cur_p50 + 0.5 * cpi->resize_dyn_ema_p50;
+      cpi->resize_dyn_ema_p50_nz =
+          0.5 * cur_p50_nz + 0.5 * cpi->resize_dyn_ema_p50_nz;
       cpi->resize_dyn_ema_nz = 0.5 * cur_nz + 0.5 * cpi->resize_dyn_ema_nz;
       cpi->resize_dyn_ema_acr = 0.5 * cur_acr + 0.5 * cpi->resize_dyn_ema_acr;
     }
@@ -2624,6 +2812,7 @@ static uint8_t calculate_dynamic_causal_frame_scale(AV2_COMP *cpi) {
   }
 
   const double mc_p50 = have_mc ? cpi->resize_dyn_ema_p50 : 0.0;
+  const double mc_p50_nz = have_mc ? cpi->resize_dyn_ema_p50_nz : 0.0;
   const double mc_nz = have_mc ? cpi->resize_dyn_ema_nz : 0.0;
   const double mc_acr = have_mc ? cpi->resize_dyn_ema_acr : 0.0;
 
@@ -2718,8 +2907,8 @@ static uint8_t calculate_dynamic_causal_frame_scale(AV2_COMP *cpi) {
   const uint8_t prev_denom = cpi->resize_dyn_prev_denom;
   uint8_t best_denom = evaluate_calibrated_resize_segment(
       avg_dist_arr, avg_ratio_arr, avg_ac_arr, max_eval_d, max_gf_qindex,
-      have_mc, mc_p50, mc_nz, mc_acr, orig_w, orig_h, bit_depth, prev_denom,
-      NULL, NULL, NULL, NULL);
+      have_mc, mc_p50, mc_p50_nz, mc_nz, mc_acr, orig_w, orig_h, bit_depth,
+      prev_denom, NULL, NULL, NULL);
   if (best_denom == SCALE_NUMERATOR + 1) {
     best_denom = SCALE_NUMERATOR;
   }
