@@ -1128,6 +1128,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   cpi->resize_dyn_causal_boost_qindex = 0;
   cpi->resize_dyn_causal_leaf_qindex = 0;
   cpi->resize_dyn_ema_p50 = 0.0;
+  cpi->resize_dyn_ema_p50_nz = 0.0;
   cpi->resize_dyn_ema_nz = 0.0;
   cpi->resize_dyn_ema_acr = 0.0;
   memset(cpi->resize_dyn_ema_dist, 0, sizeof(cpi->resize_dyn_ema_dist));

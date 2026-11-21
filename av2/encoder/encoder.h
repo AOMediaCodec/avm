@@ -2979,6 +2979,12 @@ typedef struct AV2_COMP {
   double resize_dyn_ema_p50;
 
   /*!
+   * Exponentially smoothed causal non-flat-block median 16x16 MC MSE for
+   * zero-lag / single-frame RESIZE_DYNAMIC evaluation.
+   */
+  double resize_dyn_ema_p50_nz;
+
+  /*!
    * Exponentially smoothed causal active-block 16x16 motion-compensated MSE for
    * zero-lag / single-frame RESIZE_DYNAMIC evaluation.
    */
