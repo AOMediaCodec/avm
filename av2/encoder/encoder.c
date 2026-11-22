@@ -3215,6 +3215,29 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
   int64_t *(*flg_pic_error)[GDF_RDO_QP_NUM] = errors.flg_pic_error;
   const int64_t rdmult =
       av2_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
+  int64_t rdmult_frame = rdmult;
+  int64_t rdmult_block = rdmult;
+  // On spatially downscaled RESIZE_DYNAMIC frames, account for upscaled
+  // pixel-area weighting in GDF RDO without inflating per-block mode-2 flag
+  // bitrate on small coded frames:
+  // - At >= 720p coded area, apply two factors of s_q12 (~(8/d)^1.0) uniformly.
+  // - Below 720p coded area, scale only the ~6-bit frame header by full
+  //   Parseval s_q12^3 (~(8/d)^1.5) while keeping per-block flags at baseline.
+  if (cpi->oxcf.resize_cfg.resize_mode == RESIZE_DYNAMIC &&
+      cpi->resize_scale_denom > SCALE_NUMERATOR &&
+      (cm->width < cpi->oxcf.frm_dim_cfg.width ||
+       cm->height < cpi->oxcf.frm_dim_cfg.height)) {
+    const int s_q12 = av2_get_resize_rdmult_q12(cpi->resize_scale_denom);
+    const int64_t rm1 = AVMMAX(ROUND_POWER_OF_TWO_64(rdmult * s_q12, 12), 1);
+    const int64_t rm2 = AVMMAX(ROUND_POWER_OF_TWO_64(rm1 * s_q12, 12), 1);
+    if ((int64_t)rec_width * rec_height >= 1280 * 720) {
+      rdmult_frame = rm2;
+      rdmult_block = rm2;
+    } else {
+      rdmult_frame = AVMMAX(ROUND_POWER_OF_TWO_64(rm2 * s_q12, 12), 1);
+      rdmult_block = rdmult;
+    }
+  }
 
   int *const block_ids = rdo_bufs->block_ids;
   int ctx_idx = 0, sb_size = cm->mib_size << MI_SIZE_LOG2;
@@ -3261,7 +3284,7 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
     slice_error += rec_pic_error[blk_idx];
   }
   double best_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      rdmult, (double)slice_rate / 16, slice_error, bit_depth);
+      rdmult_frame, (double)slice_rate / 16, slice_error, bit_depth);
   cm->gdf_info.gdf_mode = 0;
 
   int *const block_flags = rdo_bufs->block_flags;
@@ -3273,9 +3296,10 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
        gdf_mode++) {
     for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
       for (int qp_idx = qp_idx_start; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
-        slice_rate = (1 + gdf_block_enable_bit + GDF_RDO_QP_NUM_LOG2 +
-                      GDF_RDO_SCALE_NUM_LOG2)
-                     << AV2_PROB_COST_SHIFT;
+        const int header_rate = (1 + gdf_block_enable_bit +
+                                 GDF_RDO_QP_NUM_LOG2 + GDF_RDO_SCALE_NUM_LOG2)
+                                << AV2_PROB_COST_SHIFT;
+        int blocks_rate = 0;
         slice_error = 0;
         av2_copy(gdf_cdf, cm->fc->gdf_cdf);
         for (int ci = 0; ci < cm->gdf_info.gdf_block_num; ci++) {
@@ -3298,7 +3322,8 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
                                  ? rec_pic_error[blk_idx]
                                  : flg_pic_error[scale_idx][qp_idx][blk_idx];
               double block_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-                  rdmult, (double)block_rate / 16, block_error, bit_depth);
+                  rdmult_block, (double)block_rate / 16, block_error,
+                  bit_depth);
               if (block_cost < best_block_cost) {
                 block_flags[blk_idx] = block_flag;
                 best_block_rate = block_rate;
@@ -3306,13 +3331,21 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
                 best_block_cost = block_cost;
               }
             }
-            slice_rate += best_block_rate;
+            blocks_rate += best_block_rate;
             slice_error += best_block_error;
             update_cdf(gdf_cdf, block_flags[blk_idx], 2);
           }
         }
-        double slice_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            rdmult, (double)slice_rate / 16, slice_error, bit_depth);
+        double slice_cost =
+            (rdmult_frame == rdmult_block)
+                ? RDCOST_DBL_WITH_NATIVE_BD_DIST(
+                      rdmult_frame, (double)(header_rate + blocks_rate) / 16,
+                      slice_error, bit_depth)
+                : (RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult_frame,
+                                                  (double)header_rate / 16,
+                                                  slice_error, bit_depth) +
+                   RDCOST_DBL_WITH_NATIVE_BD_DIST(
+                       rdmult_block, (double)blocks_rate / 16, 0, bit_depth));
 
         if (slice_cost < best_cost) {
           cm->gdf_info.gdf_mode = gdf_mode;
