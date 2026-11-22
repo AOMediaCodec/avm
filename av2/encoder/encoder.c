@@ -1135,6 +1135,13 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   cpi->resize_dyn_ema_acr = 0.0;
   memset(cpi->resize_dyn_ema_dist, 0, sizeof(cpi->resize_dyn_ema_dist));
   memset(cpi->resize_dyn_ema_ac, 0, sizeof(cpi->resize_dyn_ema_ac));
+  cpi->resize_dyn_downscaled_buf = NULL;
+  cpi->resize_dyn_upscaled_y = NULL;
+  cpi->resize_dyn_upscaled_uv = NULL;
+  cpi->resize_dyn_scratch_pels = 0;
+  cpi->resize_dyn_sharp_mse = NULL;
+  cpi->resize_dyn_sharp_ac = NULL;
+  cpi->resize_dyn_sharp_blocks = 0;
 
   // Setup identity scale factor
   av2_setup_scale_factors_for_frame(&cm->sf_identity, 1, 1, 1, 1);

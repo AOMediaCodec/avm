@@ -2484,6 +2484,9 @@ typedef struct {
 /*!\brief Frees the GDF rate-distortion search buffers */
 void av2_gdf_rdo_buffers_free(GdfRdoBuffers *bufs);
 
+/*!\brief Frees reusable dynamic resize probing scratch buffers */
+void av2_free_resize_dyn_scratch_bufs(struct AV2_COMP *cpi);
+
 /*!
  * \brief Top level encoder structure.
  */
@@ -3023,6 +3026,47 @@ typedef struct AV2_COMP {
    * ratio per candidate scale denominator in RESIZE_DYNAMIC mode.
    */
   double resize_dyn_ema_ac[SCALE_NUMERATOR * 2 + 1];
+
+  /*!
+   * Reusable downscaled-plane scratch buffer for dynamic resize round-trip
+   * probing, allocated on demand and freed in av2_remove_compressor().
+   */
+  uint16_t *resize_dyn_downscaled_buf;
+
+  /*!
+   * Reusable upscaled luma-plane scratch buffer for dynamic resize round-trip
+   * probing, allocated on demand and freed in av2_remove_compressor().
+   */
+  uint16_t *resize_dyn_upscaled_y;
+
+  /*!
+   * Reusable upscaled chroma-plane scratch buffer for dynamic resize round-trip
+   * probing, allocated on demand and freed in av2_remove_compressor().
+   */
+  uint16_t *resize_dyn_upscaled_uv;
+
+  /*!
+   * Allocated pixel capacity of resize_dyn_downscaled_buf,
+   * resize_dyn_upscaled_y, and resize_dyn_upscaled_uv.
+   */
+  size_t resize_dyn_scratch_pels;
+
+  /*!
+   * Reusable per-block sharpness-weighted MSE scratch array for dynamic resize
+   * percentile selection.
+   */
+  double *resize_dyn_sharp_mse;
+
+  /*!
+   * Reusable per-block sharpness-weighted AC scratch array for dynamic resize
+   * percentile selection.
+   */
+  double *resize_dyn_sharp_ac;
+
+  /*!
+   * Allocated block capacity of resize_dyn_sharp_mse and resize_dyn_sharp_ac.
+   */
+  int resize_dyn_sharp_blocks;
 
   /*!
    * Pointer to struct holding adaptive data/contexts/models for the tile during

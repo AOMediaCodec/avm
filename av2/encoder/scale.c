@@ -239,21 +239,135 @@ static int cmp_double(const void *a, const void *b) {
   return (da > db) - (da < db);
 }
 
-// Computes the 75th-percentile sharpness-weighted round-trip Luma resampling
-// MSE and 75th-percentile sharpness-weighted (MSE / 16x16 block AC energy)
-// over non-flat 16x16 blocks whose block variance exceeds
-// RESIZE_DYNAMIC_MIN_BLOCK_VAR * 2^(2 * (bit_depth - 8)). Each non-flat
-// block's resampling distortion is weighted by a dimensionless,
-// contrast-invariant spatial sharpness factor combining edge kurtosis
-// (peak-to-mean 1st-order gradient energy) and high-frequency Laplacian-to-
-// gradient energy ratio. Falls back to the average over all 16x16 blocks if no
-// block exceeds the minimum variance.
-static void compute_nonflat_resample_mse_and_ac(const YV12_BUFFER_CONFIG *src,
-                                                const uint16_t *upscaled_y,
-                                                int orig_w, int orig_h,
-                                                avm_bit_depth_t bit_depth,
-                                                double *out_mse,
-                                                double *out_ac_ratio) {
+// Selects the k-th smallest element in arr[0..n-1] in O(n) average time using
+// median-of-three Hoare quickselect (100% identical result to qsort + arr[k]).
+static double select_kth_double(double *arr, int n, int k) {
+  int left = 0;
+  int right = n - 1;
+  while (right - left > 16) {
+    const int mid = left + ((right - left) >> 1);
+    if (arr[mid] < arr[left]) {
+      const double t = arr[left];
+      arr[left] = arr[mid];
+      arr[mid] = t;
+    }
+    if (arr[right] < arr[left]) {
+      const double t = arr[left];
+      arr[left] = arr[right];
+      arr[right] = t;
+    }
+    if (arr[right] < arr[mid]) {
+      const double t = arr[mid];
+      arr[mid] = arr[right];
+      arr[right] = t;
+    }
+    const double pivot = arr[mid];
+    int i = left;
+    int j = right;
+    for (;;) {
+      while (arr[i] < pivot) ++i;
+      while (arr[j] > pivot) --j;
+      if (i >= j) break;
+      const double t = arr[i];
+      arr[i] = arr[j];
+      arr[j] = t;
+      ++i;
+      --j;
+    }
+    if (k <= j) {
+      right = j;
+    } else {
+      left = j + 1;
+    }
+  }
+  for (int i = left + 1; i <= right; ++i) {
+    const double key = arr[i];
+    int j = i - 1;
+    while (j >= left && arr[j] > key) {
+      arr[j + 1] = arr[j];
+      --j;
+    }
+    arr[j + 1] = key;
+  }
+  return arr[k];
+}
+
+void av2_free_resize_dyn_scratch_bufs(AV2_COMP *cpi) {
+  avm_free(cpi->resize_dyn_downscaled_buf);
+  avm_free(cpi->resize_dyn_upscaled_y);
+  avm_free(cpi->resize_dyn_upscaled_uv);
+  avm_free(cpi->resize_dyn_sharp_mse);
+  avm_free(cpi->resize_dyn_sharp_ac);
+  cpi->resize_dyn_downscaled_buf = NULL;
+  cpi->resize_dyn_upscaled_y = NULL;
+  cpi->resize_dyn_upscaled_uv = NULL;
+  cpi->resize_dyn_scratch_pels = 0;
+  cpi->resize_dyn_sharp_mse = NULL;
+  cpi->resize_dyn_sharp_ac = NULL;
+  cpi->resize_dyn_sharp_blocks = 0;
+}
+
+static void ensure_resize_dyn_scratch_bufs(AV2_COMP *cpi, size_t pel_count,
+                                           int max_blocks) {
+  AV2_COMMON *const cm = &cpi->common;
+  if (pel_count > cpi->resize_dyn_scratch_pels) {
+    avm_free(cpi->resize_dyn_downscaled_buf);
+    avm_free(cpi->resize_dyn_upscaled_y);
+    avm_free(cpi->resize_dyn_upscaled_uv);
+    cpi->resize_dyn_downscaled_buf = (uint16_t *)avm_malloc(
+        pel_count * sizeof(*cpi->resize_dyn_downscaled_buf));
+    cpi->resize_dyn_upscaled_y =
+        (uint16_t *)avm_malloc(pel_count * sizeof(*cpi->resize_dyn_upscaled_y));
+    cpi->resize_dyn_upscaled_uv = (uint16_t *)avm_malloc(
+        pel_count * sizeof(*cpi->resize_dyn_upscaled_uv));
+    if (cpi->resize_dyn_downscaled_buf == NULL ||
+        cpi->resize_dyn_upscaled_y == NULL ||
+        cpi->resize_dyn_upscaled_uv == NULL) {
+      av2_free_resize_dyn_scratch_bufs(cpi);
+      avm_internal_error(
+          &cm->error, AVM_CODEC_MEM_ERROR,
+          "Failed to allocate scratch buffers for dynamic resize");
+    }
+    cpi->resize_dyn_scratch_pels = pel_count;
+  }
+  if (max_blocks > cpi->resize_dyn_sharp_blocks) {
+    avm_free(cpi->resize_dyn_sharp_mse);
+    avm_free(cpi->resize_dyn_sharp_ac);
+    cpi->resize_dyn_sharp_mse = (double *)avm_malloc(
+        (size_t)max_blocks * sizeof(*cpi->resize_dyn_sharp_mse));
+    cpi->resize_dyn_sharp_ac = (double *)avm_malloc(
+        (size_t)max_blocks * sizeof(*cpi->resize_dyn_sharp_ac));
+    if (cpi->resize_dyn_sharp_mse == NULL || cpi->resize_dyn_sharp_ac == NULL) {
+      av2_free_resize_dyn_scratch_bufs(cpi);
+      avm_internal_error(
+          &cm->error, AVM_CODEC_MEM_ERROR,
+          "Failed to allocate sharpness buffers for dynamic resize");
+    }
+    cpi->resize_dyn_sharp_blocks = max_blocks;
+  }
+}
+
+// Per-frame source-only 16x16 AC variance and spatial sharpness weights,
+// computed once per frame and reused across candidate denominators d = 9..16.
+typedef struct {
+  int valid;
+  int num_blocks;
+  int nz_count;
+  double all_ac_sum;
+  double *block_ac;
+  double *block_sharp;
+} ResizeFrameSharpCache;
+
+static void free_frame_sharp_cache(ResizeFrameSharpCache *cache) {
+  avm_free(cache->block_ac);
+  avm_free(cache->block_sharp);
+  memset(cache, 0, sizeof(*cache));
+}
+
+static void populate_frame_sharp_cache(const YV12_BUFFER_CONFIG *src,
+                                       int orig_w, int orig_h,
+                                       avm_bit_depth_t bit_depth,
+                                       ResizeFrameSharpCache *cache) {
   const int bsize = 16;
   const int num_pels = bsize * bsize;
   const double inner_pels = (double)((bsize - 2) * (bsize - 2));
@@ -263,114 +377,185 @@ static void compute_nonflat_resample_mse_and_ac(const YV12_BUFFER_CONFIG *src,
       RESIZE_DYNAMIC_MIN_BLOCK_VAR * bit_depth_scale_sq;
   const uint16_t *const src_y = src->y_buffer;
   const int src_stride = src->y_stride;
-
   const int max_blocks = (orig_h / bsize) * (orig_w / bsize);
-  double *sharp_mse_arr = NULL;
-  double *sharp_ac_ratio_arr = NULL;
+
+  cache->num_blocks = max_blocks;
+  cache->nz_count = 0;
+  cache->all_ac_sum = 0.0;
+  cache->block_ac = NULL;
+  cache->block_sharp = NULL;
   if (max_blocks > 0) {
-    sharp_mse_arr =
-        (double *)avm_malloc((size_t)max_blocks * sizeof(*sharp_mse_arr));
-    sharp_ac_ratio_arr =
-        (double *)avm_malloc((size_t)max_blocks * sizeof(*sharp_ac_ratio_arr));
+    cache->block_ac =
+        (double *)avm_malloc((size_t)max_blocks * sizeof(*cache->block_ac));
+    cache->block_sharp =
+        (double *)avm_malloc((size_t)max_blocks * sizeof(*cache->block_sharp));
+    if (cache->block_ac == NULL || cache->block_sharp == NULL) {
+      free_frame_sharp_cache(cache);
+      return;
+    }
   }
 
-  double all_mse_sum = 0.0;
-  double all_ac_sum = 0.0;
-  int all_count = 0;
-  double nz_mse_sum = 0.0;
-  double nz_ac_sum = 0.0;
+  int blk_idx = 0;
   int nz_count = 0;
-
+  double all_ac_sum = 0.0;
   for (int r = 0; r + bsize <= orig_h; r += bsize) {
     for (int c = 0; c + bsize <= orig_w; c += bsize) {
       uint64_t sum = 0;
       uint64_t sum_sq = 0;
-      uint64_t sse = 0;
       for (int br = 0; br < bsize; ++br) {
         const uint16_t *const s_row = src_y + (r + br) * src_stride + c;
-        const uint16_t *const u_row = upscaled_y + (r + br) * orig_w + c;
+        uint32_t row_sum = 0;
+        uint32_t row_sum_sq = 0;
         for (int bc = 0; bc < bsize; ++bc) {
-          const uint64_t v = s_row[bc];
-          const int64_t diff = (int64_t)v - (int64_t)u_row[bc];
-          sum += v;
-          sum_sq += v * v;
-          sse += (uint64_t)(diff * diff);
+          const uint32_t v = s_row[bc];
+          row_sum += v;
+          row_sum_sq += v * v;
         }
+        sum += row_sum;
+        sum_sq += row_sum_sq;
       }
       const double block_ac =
           ((double)sum_sq - ((double)sum * (double)sum) / (double)num_pels) /
           (double)num_pels;
-      const double block_mse = (double)sse / (double)num_pels;
-      all_mse_sum += block_mse;
       all_ac_sum += block_ac;
-      ++all_count;
+      cache->block_ac[blk_idx] = block_ac;
       if (block_ac > min_block_var) {
-        double ge = 0.0;
-        double le = 0.0;
-        double max_g2 = 0.0;
+        uint64_t ge = 0;
+        uint64_t le = 0;
+        uint32_t max_g2 = 0;
         for (int br = 1; br < bsize - 1; ++br) {
           const uint16_t *const s_prev = src_y + (r + br - 1) * src_stride + c;
           const uint16_t *const s_curr = src_y + (r + br) * src_stride + c;
           const uint16_t *const s_next = src_y + (r + br + 1) * src_stride + c;
           for (int bc = 1; bc < bsize - 1; ++bc) {
-            const double v = (double)s_curr[bc];
-            const double vl = (double)s_curr[bc - 1];
-            const double vr = (double)s_curr[bc + 1];
-            const double vu = (double)s_prev[bc];
-            const double vd = (double)s_next[bc];
-            const double gx = vr - vl;
-            const double gy = vd - vu;
-            const double lx = 2.0 * v - vl - vr;
-            const double ly = 2.0 * v - vu - vd;
-            const double g2 = gx * gx + gy * gy;
+            const int32_t v = s_curr[bc];
+            const int32_t vl = s_curr[bc - 1];
+            const int32_t vr = s_curr[bc + 1];
+            const int32_t vu = s_prev[bc];
+            const int32_t vd = s_next[bc];
+            const int32_t gx = vr - vl;
+            const int32_t gy = vd - vu;
+            const int32_t lx = 2 * v - vl - vr;
+            const int32_t ly = 2 * v - vu - vd;
+            const uint32_t g2 = (uint32_t)(gx * gx + gy * gy);
             if (g2 > max_g2) max_g2 = g2;
             ge += g2;
-            le += lx * lx + ly * ly;
+            le += (uint64_t)(lx * lx + ly * ly);
           }
         }
-        const double mean_g2 = AVMMAX(ge / inner_pels, bit_depth_scale_sq);
-        const double mean_l2 = le / inner_pels;
-        const double kurt = max_g2 / mean_g2;
+        const double mean_g2 =
+            AVMMAX((double)ge / inner_pels, bit_depth_scale_sq);
+        const double mean_l2 = (double)le / inner_pels;
+        const double kurt = (double)max_g2 / mean_g2;
         const double lap_grad = mean_l2 / mean_g2;
-        const double block_sharpness = (kurt / 8.0) * (1.0 + lap_grad);
-        const double sharp_mse = block_mse * block_sharpness;
-        const double sharp_ac_ratio = (block_mse / block_ac) * block_sharpness;
-
-        nz_mse_sum += sharp_mse;
-        nz_ac_sum += sharp_ac_ratio;
-        if (sharp_mse_arr != NULL && sharp_ac_ratio_arr != NULL) {
-          sharp_mse_arr[nz_count] = sharp_mse;
-          sharp_ac_ratio_arr[nz_count] = sharp_ac_ratio;
-        }
+        cache->block_sharp[blk_idx] = (kurt / 8.0) * (1.0 + lap_grad);
         ++nz_count;
+      } else {
+        cache->block_sharp[blk_idx] = -1.0;
+      }
+      ++blk_idx;
+    }
+  }
+  cache->nz_count = nz_count;
+  cache->all_ac_sum = all_ac_sum;
+  cache->valid = 1;
+}
+
+// Computes the 75th-percentile sharpness-weighted round-trip Luma resampling
+// MSE and 75th-percentile sharpness-weighted (MSE / 16x16 block AC energy)
+// over non-flat 16x16 blocks, reusing precomputed per-frame source sharpness
+// weights and reusable scratch arrays when provided.
+static void compute_nonflat_resample_mse_and_ac_cached(
+    const YV12_BUFFER_CONFIG *src, const uint16_t *upscaled_y, int orig_w,
+    int orig_h, avm_bit_depth_t bit_depth, ResizeFrameSharpCache *cache,
+    double *scratch_mse, double *scratch_ac, double *out_mse,
+    double *out_ac_ratio) {
+  const int bsize = 16;
+  const int num_pels = bsize * bsize;
+  const uint16_t *const src_y = src->y_buffer;
+  const int src_stride = src->y_stride;
+  const int max_blocks = (orig_h / bsize) * (orig_w / bsize);
+
+  if (!cache->valid) {
+    populate_frame_sharp_cache(src, orig_w, orig_h, bit_depth, cache);
+  }
+
+  double *sharp_mse_arr = scratch_mse;
+  double *sharp_ac_ratio_arr = scratch_ac;
+  int own_scratch = 0;
+  if (max_blocks > 0 && (sharp_mse_arr == NULL || sharp_ac_ratio_arr == NULL)) {
+    sharp_mse_arr =
+        (double *)avm_malloc((size_t)max_blocks * sizeof(*sharp_mse_arr));
+    sharp_ac_ratio_arr =
+        (double *)avm_malloc((size_t)max_blocks * sizeof(*sharp_ac_ratio_arr));
+    own_scratch = 1;
+  }
+
+  double all_mse_sum = 0.0;
+  int all_count = 0;
+  double nz_mse_sum = 0.0;
+  double nz_ac_sum = 0.0;
+  int nz_count = 0;
+  int blk_idx = 0;
+
+  if (cache->valid && cache->block_ac != NULL && cache->block_sharp != NULL) {
+    for (int r = 0; r + bsize <= orig_h; r += bsize) {
+      for (int c = 0; c + bsize <= orig_w; c += bsize) {
+        uint64_t sse = 0;
+        for (int br = 0; br < bsize; ++br) {
+          const uint16_t *const s_row = src_y + (r + br) * src_stride + c;
+          const uint16_t *const u_row = upscaled_y + (r + br) * orig_w + c;
+          uint32_t row_sse = 0;
+          for (int bc = 0; bc < bsize; ++bc) {
+            const int32_t diff = (int32_t)s_row[bc] - (int32_t)u_row[bc];
+            row_sse += (uint32_t)(diff * diff);
+          }
+          sse += row_sse;
+        }
+        const double block_mse = (double)sse / (double)num_pels;
+        all_mse_sum += block_mse;
+        ++all_count;
+        const double block_sharpness = cache->block_sharp[blk_idx];
+        if (block_sharpness >= 0.0) {
+          const double block_ac = cache->block_ac[blk_idx];
+          const double sharp_mse = block_mse * block_sharpness;
+          const double sharp_ac_ratio =
+              (block_mse / block_ac) * block_sharpness;
+          nz_mse_sum += sharp_mse;
+          nz_ac_sum += sharp_ac_ratio;
+          if (sharp_mse_arr != NULL && sharp_ac_ratio_arr != NULL) {
+            sharp_mse_arr[nz_count] = sharp_mse;
+            sharp_ac_ratio_arr[nz_count] = sharp_ac_ratio;
+          }
+          ++nz_count;
+        }
+        ++blk_idx;
       }
     }
   }
 
   if (nz_count > 0) {
     if (sharp_mse_arr != NULL && sharp_ac_ratio_arr != NULL) {
-      qsort(sharp_mse_arr, (size_t)nz_count, sizeof(*sharp_mse_arr),
-            cmp_double);
-      qsort(sharp_ac_ratio_arr, (size_t)nz_count, sizeof(*sharp_ac_ratio_arr),
-            cmp_double);
       const int pct_idx =
           (int)(RESIZE_DYNAMIC_BLOCK_PERCENTILE * (double)(nz_count - 1));
-      *out_mse = sharp_mse_arr[pct_idx];
-      *out_ac_ratio = sharp_ac_ratio_arr[pct_idx];
+      *out_mse = select_kth_double(sharp_mse_arr, nz_count, pct_idx);
+      *out_ac_ratio = select_kth_double(sharp_ac_ratio_arr, nz_count, pct_idx);
     } else {
       *out_mse = nz_mse_sum / (double)nz_count;
       *out_ac_ratio = nz_ac_sum / (double)nz_count;
     }
   } else if (all_count > 0) {
     *out_mse = all_mse_sum / (double)all_count;
-    *out_ac_ratio = all_mse_sum / AVMMAX(all_ac_sum, 1.0);
+    *out_ac_ratio = all_mse_sum / AVMMAX(cache->all_ac_sum, 1.0);
   } else {
     *out_mse = 0.0;
     *out_ac_ratio = 0.0;
   }
 
-  avm_free(sharp_mse_arr);
-  avm_free(sharp_ac_ratio_arr);
+  if (own_scratch) {
+    avm_free(sharp_mse_arr);
+    avm_free(sharp_ac_ratio_arr);
+  }
 }
 
 // Performs an 8/d downscale followed by a d/8 upscale on a single plane using
@@ -443,8 +628,8 @@ static double compute_resample_chroma_mse(const YV12_BUFFER_CONFIG *src,
       const uint16_t *const s_row = plane_src + r * src->uv_stride;
       const uint16_t *const u_row = scratch_up + r * uv_w;
       for (int c = 0; c < uv_w; ++c) {
-        const int64_t diff = (int64_t)s_row[c] - (int64_t)u_row[c];
-        uv_sse += (uint64_t)(diff * diff);
+        const int32_t diff = (int32_t)s_row[c] - (int32_t)u_row[c];
+        uv_sse += (uint32_t)(diff * diff);
       }
     }
   }
@@ -508,38 +693,61 @@ static int compute_pair_mc_stats(const YV12_BUFFER_CONFIG *cur,
       uint64_t sum = 0;
       uint64_t sum_sq = 0;
       uint64_t zero_sse = 0;
+      uint16_t cur_sub[64];
+      uint32_t zero_sub_sse = 0;
       for (int y = 0; y < bsize; ++y) {
         const uint16_t *const cr = cur_y + (r + y) * cur_stride + c;
         const uint16_t *const pr = prv_y + (r + y) * prv_stride + c;
+        uint32_t row_sum = 0;
+        uint32_t row_sum_sq = 0;
+        uint32_t row_zsse = 0;
         for (int x = 0; x < bsize; ++x) {
-          const uint64_t v = cr[x];
-          const int64_t df = (int64_t)v - (int64_t)pr[x];
-          sum += v;
-          sum_sq += v * v;
-          zero_sse += (uint64_t)(df * df);
+          const uint32_t v = cr[x];
+          const int32_t df = (int32_t)v - (int32_t)pr[x];
+          row_sum += v;
+          row_sum_sq += v * v;
+          row_zsse += (uint32_t)(df * df);
+        }
+        sum += row_sum;
+        sum_sq += row_sum_sq;
+        zero_sse += row_zsse;
+        if ((y & 1) == 0) {
+          uint16_t *const cs_row = cur_sub + ((y >> 1) << 3);
+          for (int xi = 0; xi < 8; ++xi) {
+            const uint16_t v = cr[xi << 1];
+            cs_row[xi] = v;
+            const int32_t df = (int32_t)v - (int32_t)pr[xi << 1];
+            zero_sub_sse += (uint32_t)(df * df);
+          }
         }
       }
       const double block_ac =
           ((double)sum_sq - ((double)sum * (double)sum) / 256.0) / 256.0;
 
+      // Seed coarse search with (0, 0) so early-exit pruning on cs >=
+      // best_coarse preserves the exact (0, 0) tie-breaker bit-for-bit.
       int best_dy = 0;
       int best_dx = 0;
-      uint64_t best_coarse = UINT64_MAX;
+      uint32_t best_coarse = zero_sub_sse;
       for (int dy = -sr; dy <= sr; dy += 4) {
         if (r + dy < 0 || r + dy + bsize > orig_h) continue;
         for (int dx = -sr; dx <= sr; dx += 4) {
-          if (c + dx < 0 || c + dx + bsize > orig_w) continue;
-          uint64_t cs = 0;
-          for (int y = 0; y < bsize; y += 2) {
-            const uint16_t *const cr = cur_y + (r + y) * cur_stride + c;
-            const uint16_t *const pr =
-                prv_y + (r + dy + y) * prv_stride + (c + dx);
-            for (int x = 0; x < bsize; x += 2) {
-              const int64_t df = (int64_t)cr[x] - (int64_t)pr[x];
-              cs += (uint64_t)(df * df);
-            }
+          if ((dy == 0 && dx == 0) || c + dx < 0 || c + dx + bsize > orig_w) {
+            continue;
           }
-          if (cs < best_coarse || (cs == best_coarse && dy == 0 && dx == 0)) {
+          uint32_t cs = 0;
+          const uint16_t *pr = prv_y + (r + dy) * prv_stride + (c + dx);
+          const int prv_stride2 = prv_stride << 1;
+          for (int yi = 0; yi < 8; ++yi) {
+            const uint16_t *const cr_sub = cur_sub + (yi << 3);
+            for (int xi = 0; xi < 8; ++xi) {
+              const int32_t df = (int32_t)cr_sub[xi] - (int32_t)pr[xi << 1];
+              cs += (uint32_t)(df * df);
+            }
+            if (cs >= best_coarse) break;
+            pr += prv_stride2;
+          }
+          if (cs < best_coarse) {
             best_coarse = cs;
             best_dy = dy;
             best_dx = dx;
@@ -553,15 +761,17 @@ static int compute_pair_mc_stats(const YV12_BUFFER_CONFIG *cur,
         if (r + dy < 0 || r + dy + bsize > orig_h) continue;
         for (int dx = center_dx - 3; dx <= center_dx + 3; ++dx) {
           if (c + dx < 0 || c + dx + bsize > orig_w) continue;
-          uint64_t cs = 0;
-          for (int y = 0; y < bsize; y += 2) {
-            const uint16_t *const cr = cur_y + (r + y) * cur_stride + c;
-            const uint16_t *const pr =
-                prv_y + (r + dy + y) * prv_stride + (c + dx);
-            for (int x = 0; x < bsize; x += 2) {
-              const int64_t df = (int64_t)cr[x] - (int64_t)pr[x];
-              cs += (uint64_t)(df * df);
+          uint32_t cs = 0;
+          const uint16_t *pr = prv_y + (r + dy) * prv_stride + (c + dx);
+          const int prv_stride2 = prv_stride << 1;
+          for (int yi = 0; yi < 8; ++yi) {
+            const uint16_t *const cr_sub = cur_sub + (yi << 3);
+            for (int xi = 0; xi < 8; ++xi) {
+              const int32_t df = (int32_t)cr_sub[xi] - (int32_t)pr[xi << 1];
+              cs += (uint32_t)(df * df);
             }
+            if (cs >= best_coarse) break;
+            pr += prv_stride2;
           }
           if (cs < best_coarse) {
             best_coarse = cs;
@@ -571,17 +781,23 @@ static int compute_pair_mc_stats(const YV12_BUFFER_CONFIG *cur,
         }
       }
 
-      uint64_t full_sse = 0;
-      for (int y = 0; y < bsize; ++y) {
-        const uint16_t *const cr = cur_y + (r + y) * cur_stride + c;
-        const uint16_t *const pr =
-            prv_y + (r + best_dy + y) * prv_stride + (c + best_dx);
-        for (int x = 0; x < bsize; ++x) {
-          const int64_t df = (int64_t)cr[x] - (int64_t)pr[x];
-          full_sse += (uint64_t)(df * df);
+      uint64_t full_sse = zero_sse;
+      if (best_dy != 0 || best_dx != 0) {
+        uint64_t mv_sse = 0;
+        for (int y = 0; y < bsize; ++y) {
+          const uint16_t *const cr = cur_y + (r + y) * cur_stride + c;
+          const uint16_t *const pr =
+              prv_y + (r + best_dy + y) * prv_stride + (c + best_dx);
+          uint32_t row_sse = 0;
+          for (int x = 0; x < bsize; ++x) {
+            const int32_t df = (int32_t)cr[x] - (int32_t)pr[x];
+            row_sse += (uint32_t)(df * df);
+          }
+          mv_sse += row_sse;
+          if (mv_sse >= full_sse) break;
         }
+        if (mv_sse < full_sse) full_sse = mv_sse;
       }
-      if (zero_sse < full_sse) full_sse = zero_sse;
       const double mc_mse = (double)full_sse / 256.0;
       mc_arr[count++] = mc_mse;
       sum_all += mc_mse;
@@ -599,19 +815,21 @@ static int compute_pair_mc_stats(const YV12_BUFFER_CONFIG *cur,
     avm_free(nz_mc_arr);
     return 0;
   }
-  qsort(mc_arr, (size_t)count, sizeof(*mc_arr), cmp_double);
   const int p50_idx = (int)(0.50 * (double)(count - 1));
   const int p60_idx = (int)(0.60 * (double)(count - 1));
-  *out_mc_p50 = mc_arr[p50_idx];
-  const double mc_p60 = mc_arr[p60_idx];
+  *out_mc_p50 = select_kth_double(mc_arr, count, p50_idx);
+  const double mc_p60 =
+      (p60_idx > p50_idx) ? select_kth_double(mc_arr + p50_idx, count - p50_idx,
+                                              p60_idx - p50_idx)
+                          : *out_mc_p50;
   *out_mc_nz =
       (nz_count > 0) ? (sum_nz_mc / (double)nz_count) : (sum_all / count);
   *out_mc_acr = (nz_count > 0 && sum_nz_ac > bds2) ? (sum_nz_mc / sum_nz_ac)
                                                    : (mc_p60 / min_block_var);
   if (out_mc_p50_nz != NULL) {
     if (nz_count > 0) {
-      qsort(nz_mc_arr, (size_t)nz_count, sizeof(*nz_mc_arr), cmp_double);
-      *out_mc_p50_nz = nz_mc_arr[(int)(0.50 * (double)(nz_count - 1))];
+      *out_mc_p50_nz = select_kth_double(nz_mc_arr, nz_count,
+                                         (int)(0.50 * (double)(nz_count - 1)));
     } else {
       *out_mc_p50_nz = *out_mc_p50;
     }
@@ -782,19 +1000,13 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
   const int orig_w = unscaled->y_crop_width;
   const int orig_h = unscaled->y_crop_height;
   const size_t pel_count = (size_t)orig_w * (size_t)orig_h;
-  uint16_t *const downscaled_buf =
-      (uint16_t *)avm_malloc(pel_count * sizeof(*downscaled_buf));
-  uint16_t *const upscaled_y =
-      (uint16_t *)avm_malloc(pel_count * sizeof(*upscaled_y));
-  uint16_t *const upscaled_uv =
-      (uint16_t *)avm_malloc(pel_count * sizeof(*upscaled_uv));
-  if (downscaled_buf == NULL || upscaled_y == NULL || upscaled_uv == NULL) {
-    avm_free(downscaled_buf);
-    avm_free(upscaled_y);
-    avm_free(upscaled_uv);
-    avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
-                       "Failed to allocate buffers for dynamic resize");
-  }
+  const int max_blocks = (orig_h / 16) * (orig_w / 16);
+  ensure_resize_dyn_scratch_bufs(cpi, pel_count, max_blocks);
+  uint16_t *const downscaled_buf = cpi->resize_dyn_downscaled_buf;
+  uint16_t *const upscaled_y = cpi->resize_dyn_upscaled_y;
+  uint16_t *const upscaled_uv = cpi->resize_dyn_upscaled_uv;
+  ResizeFrameSharpCache sharp_cache;
+  memset(&sharp_cache, 0, sizeof(sharp_cache));
 
   avm_clear_system_state();
   const double bds = (double)(1 << ((int)bit_depth - AVM_BITS_8));
@@ -859,8 +1071,10 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
     avm_clear_system_state();
     double luma_mse = 0.0;
     double ac_ratio = 0.0;
-    compute_nonflat_resample_mse_and_ac(unscaled, upscaled_y, orig_w, orig_h,
-                                        bit_depth, &luma_mse, &ac_ratio);
+    compute_nonflat_resample_mse_and_ac_cached(
+        unscaled, upscaled_y, orig_w, orig_h, bit_depth, &sharp_cache,
+        cpi->resize_dyn_sharp_mse, cpi->resize_dyn_sharp_ac, &luma_mse,
+        &ac_ratio);
     const int luma_content_ok =
         have_mc ? (luma_mse / mc_eff < mc_thresh) : (ac_ratio < ac_thresh_kf);
     const int luma_bg_ok =
@@ -889,9 +1103,7 @@ static uint8_t calculate_dynamic_resize_scale(AV2_COMP *cpi) {
     best_denom = SCALE_NUMERATOR;
   }
 
-  avm_free(downscaled_buf);
-  avm_free(upscaled_y);
-  avm_free(upscaled_uv);
+  free_frame_sharp_cache(&sharp_cache);
   return best_denom;
 }
 
@@ -1115,19 +1327,13 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
   const int orig_w = unscaled->y_crop_width;
   const int orig_h = unscaled->y_crop_height;
   const size_t pel_count = (size_t)orig_w * (size_t)orig_h;
-  uint16_t *const downscaled_buf =
-      (uint16_t *)avm_malloc(pel_count * sizeof(*downscaled_buf));
-  uint16_t *const upscaled_y =
-      (uint16_t *)avm_malloc(pel_count * sizeof(*upscaled_y));
-  uint16_t *const upscaled_uv =
-      (uint16_t *)avm_malloc(pel_count * sizeof(*upscaled_uv));
-  if (downscaled_buf == NULL || upscaled_y == NULL || upscaled_uv == NULL) {
-    avm_free(downscaled_buf);
-    avm_free(upscaled_y);
-    avm_free(upscaled_uv);
-    avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
-                       "Failed to allocate buffers for dynamic subgop resize");
-  }
+  const int max_blocks = (orig_h / 16) * (orig_w / 16);
+  ensure_resize_dyn_scratch_bufs(cpi, pel_count, max_blocks);
+  uint16_t *const downscaled_buf = cpi->resize_dyn_downscaled_buf;
+  uint16_t *const upscaled_y = cpi->resize_dyn_upscaled_y;
+  uint16_t *const upscaled_uv = cpi->resize_dyn_upscaled_uv;
+  ResizeFrameSharpCache sharp_caches[MAX_STATIC_GF_GROUP_LENGTH];
+  memset(sharp_caches, 0, sizeof(sharp_caches));
 
   avm_clear_system_state();
   const double pel_ratio = get_resize_pel_ratio(orig_w, orig_h);
@@ -1389,8 +1595,10 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
       avm_clear_system_state();
       double luma_mse = 0.0;
       double ac_ratio = 0.0;
-      compute_nonflat_resample_mse_and_ac(src, upscaled_y, orig_w, orig_h,
-                                          bit_depth, &luma_mse, &ac_ratio);
+      compute_nonflat_resample_mse_and_ac_cached(
+          src, upscaled_y, orig_w, orig_h, bit_depth, &sharp_caches[f],
+          cpi->resize_dyn_sharp_mse, cpi->resize_dyn_sharp_ac, &luma_mse,
+          &ac_ratio);
       const int qindex_d =
           clamp(subgop_qindex[f] + av2_get_resize_qp_offset(d), 1, max_qp);
       const double qstep = av2_convert_qindex_to_q(qindex_d, bit_depth) * bds;
@@ -1556,9 +1764,9 @@ static uint8_t calculate_dynamic_subgop_resize_scale(AV2_COMP *cpi,
               RESIZE_DYNAMIC_KF_COSCALE_MAX_Q_NORM * base_subgop_thresh));
   }
 
-  avm_free(downscaled_buf);
-  avm_free(upscaled_y);
-  avm_free(upscaled_uv);
+  for (int f = 0; f < num_subgop_frames; ++f) {
+    free_frame_sharp_cache(&sharp_caches[f]);
+  }
   return best_denom;
 }
 
@@ -2257,19 +2465,13 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
   }
 
   const size_t pel_count = (size_t)orig_w * (size_t)orig_h;
-  uint16_t *const downscaled_buf =
-      (uint16_t *)avm_malloc(pel_count * sizeof(*downscaled_buf));
-  uint16_t *const upscaled_y =
-      (uint16_t *)avm_malloc(pel_count * sizeof(*upscaled_y));
-  uint16_t *const upscaled_uv =
-      (uint16_t *)avm_malloc(pel_count * sizeof(*upscaled_uv));
-  if (downscaled_buf == NULL || upscaled_y == NULL || upscaled_uv == NULL) {
-    avm_free(downscaled_buf);
-    avm_free(upscaled_y);
-    avm_free(upscaled_uv);
-    avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
-                       "Failed to allocate buffers for dynamic GF resize");
-  }
+  const int max_blocks = (orig_h / 16) * (orig_w / 16);
+  ensure_resize_dyn_scratch_bufs(cpi, pel_count, max_blocks);
+  uint16_t *const downscaled_buf = cpi->resize_dyn_downscaled_buf;
+  uint16_t *const upscaled_y = cpi->resize_dyn_upscaled_y;
+  uint16_t *const upscaled_uv = cpi->resize_dyn_upscaled_uv;
+  ResizeFrameSharpCache sharp_caches[MAX_STATIC_GF_GROUP_LENGTH];
+  memset(sharp_caches, 0, sizeof(sharp_caches));
 
   avm_clear_system_state();
   const double bds = (double)(1 << ((int)bit_depth - AVM_BITS_8));
@@ -2312,9 +2514,150 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
   int max_eval_d = SCALE_NUMERATOR;
 
   const double pel_ratio = get_resize_pel_ratio(orig_w, orig_h);
+  const double lin_scale_pre = (pel_ratio > 1.0) ? sqrt(pel_ratio) : 1.0;
   const double base_thresh_pre = RESIZE_DYNAMIC_SUBGOP_THRESH * pel_ratio;
   const double mc_uni_pre =
       have_mc ? AVMMIN(mc_p50 / AVMMAX(mc_nz, bds2), 1.0) : 0.0;
+  const int qp_offset_pre = ((int)bit_depth - AVM_BITS_8) * MAXQ_OFFSET;
+  const int base_qref_qp_pre = RESIZE_DYNAMIC_QREF + qp_offset_pre;
+  const double qstep_ref_pre =
+      av2_convert_qindex_to_q(max_grp_qindex, bit_depth) * bds;
+  const int is_highres_pan_pre =
+      have_mc && pel_ratio > 1.0 &&
+      mc_p50 > RESIZE_DYNAMIC_HIGHRES_PAN_P50_MIN * bds2 &&
+      (mc_uni_pre + 2.0 * mc_acr > RESIZE_DYNAMIC_HIGHRES_PAN_MOTION_MIN ||
+       mc_p50 > RESIZE_DYNAMIC_HIGHRES_PAN_P50_STRONG * bds2);
+  const int qref_qp_pre =
+      is_highres_pan_pre ? (RESIZE_DYNAMIC_HIGHRES_PAN_QREF + qp_offset_pre)
+                         : base_qref_qp_pre;
+  const double qstep_min_pre =
+      AVMMAX(av2_convert_qindex_to_q(qref_qp_pre, bit_depth) * bds, 1e-6);
+  const double qstep_ratio_pre = qstep_ref_pre / qstep_min_pre;
+  const double qstep_ratio_sq_pre = qstep_ratio_pre * qstep_ratio_pre;
+  const double mc_q_scale_pre =
+      (pel_ratio > 1.0)
+          ? (lin_scale_pre * pow(qstep_ratio_pre, 2.0 * lin_scale_pre))
+          : qstep_ratio_sq_pre;
+  double seg_mc_thresh_ub =
+      AVMMIN(RESIZE_DYNAMIC_SUBGOP_MC_THRESH * mc_q_scale_pre,
+             RESIZE_DYNAMIC_MC_RATIO_MAX);
+  const int is_uniform_noise_pre =
+      have_mc && pel_ratio <= 1.0 &&
+      mc_uni_pre > RESIZE_DYNAMIC_MC_UNIFORM_NOISE_UNI_MIN &&
+      mc_acr < RESIZE_DYNAMIC_MC_FLAT_NOISE_ACR_MAX &&
+      mc_p50 > RESIZE_DYNAMIC_MC_UNIFORM_NOISE_P50_MIN * bds2 &&
+      qstep_ratio_sq_pre > RESIZE_DYN_UNIFORM_NOISE_MIN_QRAT_SQ;
+  const double grain_weight_pre =
+      is_highres_pan_pre
+          ? RESIZE_DYNAMIC_MC_PAN_GRAIN_WEIGHT
+          : (is_uniform_noise_pre ? RESIZE_DYN_UNIFORM_NOISE_GRAIN_WEIGHT
+                                  : RESIZE_DYNAMIC_MC_GRAIN_WEIGHT);
+  const double mc_eff_pre =
+      have_mc
+          ? compute_mc_effective_energy(
+                mc_p50, mc_nz, mc_acr, qstep_ref_pre * qstep_ref_pre, pel_ratio,
+                grain_weight_pre, is_highres_pan_pre || is_uniform_noise_pre,
+                is_uniform_noise_pre, bit_depth)
+          : 1.0;
+  const double mc_bg_pre =
+      have_mc ? compute_mc_bg_energy(mc_p50, mc_nz, mc_acr) : 1.0;
+
+  // Conservative upper bounds across all possible optical-rolloff branches in
+  // evaluate_calibrated_resize_segment() for bit-exact MC/background pruning.
+  const double flat_bg_acr_min_pre =
+      (prev_denom >= RESIZE_DYN_SYNERGY_HOLD_MIN_DENOM)
+          ? RESIZE_DYN_FLAT_BG_HOLD_ACR_MIN
+          : RESIZE_DYN_FLAT_BG_ACR_MIN;
+  const double flat_bg_nz_min_pre =
+      (prev_denom >= RESIZE_DYN_SYNERGY_HOLD_MIN_DENOM)
+          ? RESIZE_DYN_FLAT_BG_HOLD_NZ_MIN
+          : RESIZE_DYN_FLAT_BG_NZ_MIN;
+  const int is_flat_bg_possible =
+      have_mc && (double)pel_count >= RESIZE_DYNAMIC_REF_PELS &&
+      pel_ratio <= 1.0 && !is_uniform_noise_pre &&
+      mc_uni_pre < RESIZE_DYN_FLAT_BG_UNI_MAX &&
+      mc_p50_nz > RESIZE_DYN_FLAT_BG_NZ_P50_MIN * bds2 &&
+      mc_nz > flat_bg_nz_min_pre * bds2 && mc_acr > flat_bg_acr_min_pre;
+  if (is_uniform_noise_pre) {
+    seg_mc_thresh_ub =
+        AVMMIN(seg_mc_thresh_ub * RESIZE_DYN_UNIFORM_NOISE_MC_BOOST,
+               RESIZE_DYNAMIC_MC_RATIO_MAX);
+  } else if (have_mc && pel_ratio <= 1.0) {
+    if (mc_acr < RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MAX &&
+        mc_uni_pre > RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MIN_UNI &&
+        !is_flat_bg_possible) {
+      const double acr_scale = mc_acr / RESIZE_DYNAMIC_SUBGOP_LOW_ACR_REF;
+      seg_mc_thresh_ub *= acr_scale * acr_scale * acr_scale;
+    } else if (mc_acr < RESIZE_DYNAMIC_SUBGOP_STATIC_BG_ACR_MAX &&
+               mc_uni_pre <= RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MIN_UNI &&
+               !is_flat_bg_possible) {
+      const double acr_scale = mc_acr / RESIZE_DYNAMIC_SUBGOP_STATIC_BG_ACR_REF;
+      seg_mc_thresh_ub *= acr_scale * acr_scale * acr_scale;
+    } else if (mc_acr > RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_MIN &&
+               !(mc_acr > 1.0 && mc_uni_pre > 0.35) &&
+               ((mc_uni_pre > 0.20 && mc_uni_pre < 0.48) ||
+                (mc_acr > 0.70 && mc_uni_pre > 0.04)) &&
+               (double)pel_count >= RESIZE_DYNAMIC_REF_PELS &&
+               mc_p50 > RESIZE_DYN_HIGH_ACR_SMOOTH_P50_MIN * bds2) {
+      seg_mc_thresh_ub =
+          AVMMIN(seg_mc_thresh_ub * RESIZE_DYN_HIGH_ACR_SMOOTH_MC_BOOST,
+                 RESIZE_DYNAMIC_MC_RATIO_MAX);
+    }
+  }
+  const double syn_low_acr_pre =
+      (prev_denom >= RESIZE_DYN_SYNERGY_HOLD_MIN_DENOM)
+          ? RESIZE_DYN_SYNERGY_HOLD_LOW_ACR
+          : RESIZE_DYNAMIC_SUBGOP_LOW_ACR_MAX;
+  const double syn_mid_acr_pre =
+      (prev_denom >= RESIZE_DYN_SYNERGY_HOLD_MIN_DENOM)
+          ? RESIZE_DYN_SYNERGY_HOLD_MID_ACR
+          : RESIZE_DYNAMIC_SUBGOP_SYNERGY_ACR_MID;
+  const int allow_synergy_possible =
+      have_mc && (double)pel_count >= RESIZE_DYNAMIC_REF_PELS &&
+      pel_ratio <= 1.0 && !is_uniform_noise_pre &&
+      qstep_ratio_sq_pre > RESIZE_DYN_SYNERGY_MIN_QRAT_SQ &&
+      (((mc_uni_pre > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID &&
+         mc_acr > syn_low_acr_pre &&
+         mc_nz < RESIZE_DYNAMIC_SUBGOP_SYNERGY_LOW_ACR_MAX_NZ * bds2) ||
+        (mc_acr > syn_mid_acr_pre &&
+         mc_uni_pre > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MIN)) ||
+       is_flat_bg_possible);
+  const int is_extreme_mc_pre = have_mc && pel_ratio <= 1.0 &&
+                                mc_acr > RESIZE_DYN_EXTREME_MC_ACR_MIN &&
+                                mc_p50 > RESIZE_DYN_EXTREME_MC_P50_MIN * bds2;
+  const int is_very_coarse_qp_pre =
+      (qstep_ratio_sq_pre > RESIZE_DYNAMIC_SUBGOP_SYNERGY_HIGH_QRAT_SQ);
+  const int is_smooth_1080_possible =
+      allow_synergy_possible &&
+      ((mc_uni_pre > RESIZE_DYNAMIC_SUBGOP_SYNERGY_UNI_MID &&
+        mc_nz < RESIZE_DYNAMIC_SUBGOP_SYNERGY_LOW_ACR_MAX_NZ * bds2) ||
+       is_flat_bg_possible);
+  const int syn_max_denom_ub =
+      is_smooth_1080_possible
+          ? (is_very_coarse_qp_pre ? RESIZE_DYN_SMOOTH_SYN_MAX_DENOM_COARSE
+                                   : RESIZE_DYN_SMOOTH_SYN_MAX_DENOM_MID)
+          : RESIZE_DYNAMIC_SUBGOP_SYNERGY_MAX_DENOM;
+  const double syn_q_cap_ub =
+      is_very_coarse_qp_pre ? AVMMAX(AVMMAX(RESIZE_DYN_SYNERGY_QCAP_HIGH_UNI,
+                                            RESIZE_DYN_SMOOTH_SYN_QCAP_COARSE),
+                                     RESIZE_DYN_FLAT_BG_QCAP_COARSE)
+                            : AVMMAX(AVMMAX(RESIZE_DYN_SYNERGY_QCAP_MID_UNI,
+                                            RESIZE_DYN_SMOOTH_SYN_QCAP_MID),
+                                     RESIZE_DYN_FLAT_BG_QCAP_MID);
+  const double syn_q_ref_ub =
+      is_very_coarse_qp_pre ? AVMMAX(AVMMAX(RESIZE_DYN_SYNERGY_QREF_HIGH,
+                                            RESIZE_DYN_SMOOTH_SYN_QREF_COARSE),
+                                     RESIZE_DYN_FLAT_BG_QREF_COARSE)
+                            : AVMMAX(AVMMAX(RESIZE_DYN_SYNERGY_QREF_MID,
+                                            RESIZE_DYN_SMOOTH_SYN_QREF_MID),
+                                     RESIZE_DYN_FLAT_BG_QREF_MID);
+  const double syn_max_ub =
+      is_very_coarse_qp_pre
+          ? AVMMAX(AVMMAX(RESIZE_DYN_SYNERGY_MAX_HIGH,
+                          RESIZE_DYN_SMOOTH_SYN_MAX_COARSE),
+                   RESIZE_DYN_FLAT_BG_MAX_COARSE)
+          : AVMMAX(RESIZE_DYN_SYNERGY_MAX_MID, RESIZE_DYN_SMOOTH_SYN_MAX_MID);
+
   const int could_be_uniform_noise = have_mc && pel_ratio <= 1.0 &&
                                      mc_uni_pre > 0.40 && mc_acr < 0.45 &&
                                      mc_p50 > 10.0 * bds2;
@@ -2361,23 +2704,33 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
       } else if (have_mc && mc_acr > RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_MIN) {
         q_mult_ub = AVMMAX(RESIZE_DYN_EXTREME_MC_D9_STRONG_MULT,
                            RESIZE_DYN_HIGH_ACR_SMOOTH_Q_BOOST_MID);
-      } else if (d == SCALE_NUMERATOR + 1) {
-        q_mult_ub = RESIZE_DYN_EXTREME_MC_D9_STRONG_MULT;
-      } else if (d == SCALE_NUMERATOR + 2) {
-        q_mult_ub = RESIZE_DYN_EXTREME_MC_D10_MULT;
       } else {
-        q_mult_ub = AVMMAX(RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_Q_MAX_HIGH,
-                           RESIZE_DYN_SMOOTH_SYN_Q_BOOST_MID);
+        q_mult_ub = AVMMAX(RESIZE_DYN_SMOOTH_SYN_Q_BOOST_MID,
+                           RESIZE_DYN_FLAT_BG_Q_BOOST_MID);
       }
     }
     const double ub_q_thresh_d = hyst_mult_ub * q_mult_ub * base_thresh_pre;
+    const double dec_frac_d =
+        1.0 - (double)(SCALE_NUMERATOR * SCALE_NUMERATOR) / (double)(d * d);
+    const double ub_dist_bg_d = hyst_mult_ub * dec_frac_d * mc_bg_pre;
+    double base_mc_thresh_d_ub = seg_mc_thresh_ub;
+    if (is_extreme_mc_pre && d <= RESIZE_DYN_EXTREME_MC_MAX_DENOM) {
+      base_mc_thresh_d_ub = AVMMAX(
+          base_mc_thresh_d_ub,
+          RESIZE_DYN_EXTREME_MC_THRESH_FLOOR *
+              AVMMAX(qstep_ratio_sq_pre, RESIZE_DYN_EXTREME_MC_QRAT_FLOOR));
+    }
+
+    const int need_rolloff_d =
+        (pel_ratio <= 1.0 && (double)pel_count >= RESIZE_DYNAMIC_REF_PELS &&
+         d > SCALE_NUMERATOR + 1 && d <= SCALE_NUMERATOR + 4);
 
     double cached_luma[MAX_STATIC_GF_GROUP_LENGTH] = { 0.0 };
     double cached_ac[MAX_STATIC_GF_GROUP_LENGTH] = { 0.0 };
     uint8_t luma_done[MAX_STATIC_GF_GROUP_LENGTH] = { 0 };
     int both_pruned = 0;
 
-    if (!check_half_split) {
+    if (!check_half_split && !need_rolloff_d) {
       if (can_split_halves) {
         double probe_luma_l = 0.0;
         int left_exceeds = 0;
@@ -2388,9 +2741,10 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
                                    upscaled_y, /*subx=*/0, /*suby=*/0, d,
                                    bit_depth, /*is_uv=*/0);
           avm_clear_system_state();
-          compute_nonflat_resample_mse_and_ac(src, upscaled_y, orig_w, orig_h,
-                                              bit_depth, &cached_luma[k],
-                                              &cached_ac[k]);
+          compute_nonflat_resample_mse_and_ac_cached(
+              src, upscaled_y, orig_w, orig_h, bit_depth, &sharp_caches[k],
+              cpi->resize_dyn_sharp_mse, cpi->resize_dyn_sharp_ac,
+              &cached_luma[k], &cached_ac[k]);
           luma_done[k] = 1;
           probe_luma_l += cached_luma[k];
           if ((probe_luma_l * inv_q2_lb) / (double)half_n >= ub_q_thresh_d) {
@@ -2408,9 +2762,10 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
                                      scaled_w, upscaled_y, /*subx=*/0,
                                      /*suby=*/0, d, bit_depth, /*is_uv=*/0);
             avm_clear_system_state();
-            compute_nonflat_resample_mse_and_ac(src, upscaled_y, orig_w, orig_h,
-                                                bit_depth, &cached_luma[k],
-                                                &cached_ac[k]);
+            compute_nonflat_resample_mse_and_ac_cached(
+                src, upscaled_y, orig_w, orig_h, bit_depth, &sharp_caches[k],
+                cpi->resize_dyn_sharp_mse, cpi->resize_dyn_sharp_ac,
+                &cached_luma[k], &cached_ac[k]);
             luma_done[k] = 1;
             probe_luma_r += cached_luma[k];
             if ((probe_luma_r * inv_q2_lb) / (double)right_n >= ub_q_thresh_d) {
@@ -2435,9 +2790,10 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
                                    upscaled_y, /*subx=*/0, /*suby=*/0, d,
                                    bit_depth, /*is_uv=*/0);
           avm_clear_system_state();
-          compute_nonflat_resample_mse_and_ac(src, upscaled_y, orig_w, orig_h,
-                                              bit_depth, &cached_luma[k],
-                                              &cached_ac[k]);
+          compute_nonflat_resample_mse_and_ac_cached(
+              src, upscaled_y, orig_w, orig_h, bit_depth, &sharp_caches[k],
+              cpi->resize_dyn_sharp_mse, cpi->resize_dyn_sharp_ac,
+              &cached_luma[k], &cached_ac[k]);
           luma_done[k] = 1;
           probe_luma += cached_luma[k];
           if ((probe_luma * inv_q2_lb) / (double)total_valid_frames >=
@@ -2459,36 +2815,91 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
       continue;
     }
 
+    // Complete Luma evaluation across all frames before Chroma so we can prune
+    // Chroma and larger denominators whenever Luma alone already strictly fails
+    // the full-segment background or MC content thresholds.
+    double sum_luma_all = 0.0, sum_luma_l = 0.0, sum_luma_r = 0.0;
+    double sum_luma_ratio = 0.0;
+    double frame_qstep_sq[MAX_STATIC_GF_GROUP_LENGTH];
+    for (int k = 0; k < total_valid_frames; ++k) {
+      const int f = ord[k];
+      const YV12_BUFFER_CONFIG *const src = grp_srcs[f];
+      if (!luma_done[k]) {
+        resample_plane_roundtrip(src->y_buffer, orig_h, orig_w, src->y_stride,
+                                 downscaled_buf, scaled_h, scaled_w, upscaled_y,
+                                 /*subx=*/0, /*suby=*/0, d, bit_depth,
+                                 /*is_uv=*/0);
+        avm_clear_system_state();
+        compute_nonflat_resample_mse_and_ac_cached(
+            src, upscaled_y, orig_w, orig_h, bit_depth, &sharp_caches[k],
+            cpi->resize_dyn_sharp_mse, cpi->resize_dyn_sharp_ac,
+            &cached_luma[k], &cached_ac[k]);
+        luma_done[k] = 1;
+      }
+      const int qindex_d =
+          clamp(grp_qindex[f] + av2_get_resize_qp_offset(d), 1, max_qp);
+      const double qstep = av2_convert_qindex_to_q(qindex_d, bit_depth) * bds;
+      frame_qstep_sq[k] = qstep * qstep;
+      sum_luma_all += cached_luma[k];
+      sum_luma_ratio += cached_luma[k] / frame_qstep_sq[k];
+      if (k < half_n) {
+        sum_luma_l += cached_luma[k];
+      } else {
+        sum_luma_r += cached_luma[k];
+      }
+    }
+
+    const double avg_luma_all = sum_luma_all / (double)total_valid_frames;
+    const double avg_luma_ratio = sum_luma_ratio / (double)total_valid_frames;
+    const double luma_asym = can_split_halves
+                                 ? (AVMMAX(sum_luma_l / (double)half_n,
+                                           sum_luma_r / (double)right_n) /
+                                    AVMMAX(AVMMIN(sum_luma_l / (double)half_n,
+                                                  sum_luma_r / (double)right_n),
+                                           1e-6))
+                                 : 1.0;
+    if (have_mc && !check_half_split && !need_rolloff_d &&
+        (!can_split_halves || luma_asym < 1.65) &&
+        (prev_denom <= SCALE_NUMERATOR || d >= (int)prev_denom)) {
+      const double syn_q_cap_d_ub =
+          (prev_denom >= RESIZE_DYN_SYNERGY_HOLD_MIN_DENOM &&
+           d <= (int)prev_denom)
+              ? AVMMAX(syn_q_cap_ub,
+                       AVMMIN(syn_q_cap_ub * RESIZE_DYN_SYNERGY_HOLD_QCAP_MULT,
+                              0.98))
+              : syn_q_cap_ub;
+      const double eff_mc_thresh_ub =
+          (allow_synergy_possible && d <= syn_max_denom_ub)
+              ? compute_subgop_synergy_content_thresh(
+                    base_mc_thresh_d_ub, avg_luma_ratio, base_thresh_pre,
+                    syn_q_cap_d_ub, syn_q_ref_ub, syn_max_ub)
+              : base_mc_thresh_d_ub;
+      const double ub_dist_mc_d = hyst_mult_ub * eff_mc_thresh_ub * mc_eff_pre;
+      if ((pel_ratio > 1.0 && avg_luma_all >= ub_dist_bg_d) ||
+          avg_luma_all >= ub_dist_mc_d) {
+        avg_dist_arr[d] = 0.0;
+        avg_ratio_arr[d] = ub_q_thresh_d + 1.0;
+        avg_dist_L[d] = 0.0;
+        avg_dist_R[d] = 0.0;
+        max_eval_d = d;
+        break;
+      }
+    }
+
     double sum_ratio = 0.0, sum_dist = 0.0, sum_ac = 0.0;
     double sum_dist_l = 0.0, sum_dist_r = 0.0;
     double sum_ac_l = 0.0, sum_ac_r = 0.0;
     for (int k = 0; k < total_valid_frames; ++k) {
       const int f = ord[k];
       const YV12_BUFFER_CONFIG *const src = grp_srcs[f];
-      double luma_mse = 0.0, ac_ratio = 0.0;
-      if (luma_done[k]) {
-        luma_mse = cached_luma[k];
-        ac_ratio = cached_ac[k];
-      } else {
-        resample_plane_roundtrip(src->y_buffer, orig_h, orig_w, src->y_stride,
-                                 downscaled_buf, scaled_h, scaled_w, upscaled_y,
-                                 /*subx=*/0, /*suby=*/0, d, bit_depth,
-                                 /*is_uv=*/0);
-        avm_clear_system_state();
-        compute_nonflat_resample_mse_and_ac(src, upscaled_y, orig_w, orig_h,
-                                            bit_depth, &luma_mse, &ac_ratio);
-      }
-      const int qindex_d =
-          clamp(grp_qindex[f] + av2_get_resize_qp_offset(d), 1, max_qp);
-      const double qstep = av2_convert_qindex_to_q(qindex_d, bit_depth) * bds;
-      const double qstep_sq = qstep * qstep;
-
+      const double luma_mse = cached_luma[k];
+      const double ac_ratio = cached_ac[k];
       const double uv_mse = compute_resample_chroma_mse(
           src, orig_w, orig_h, scaled_w, scaled_h, d, bit_depth, downscaled_buf,
           upscaled_uv);
       avm_clear_system_state();
       const double dist = luma_mse + RESIZE_DYNAMIC_CHROMA_WEIGHT * uv_mse;
-      sum_ratio += dist / qstep_sq;
+      sum_ratio += dist / frame_qstep_sq[k];
       sum_dist += dist;
       sum_ac += ac_ratio;
       if (k < half_n) {
@@ -2517,7 +2928,7 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
       }
     }
     max_eval_d = d;
-    if (!check_half_split &&
+    if (!check_half_split && !need_rolloff_d &&
         (prev_denom <= SCALE_NUMERATOR || d >= (int)prev_denom) &&
         avg_dist_L[d] * inv_q2_lb >= ub_q_thresh_d &&
         avg_dist_R[d] * inv_q2_lb >= ub_q_thresh_d &&
@@ -2635,9 +3046,9 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
          (is_uniform_noise || first_seg_ratio_at_chosen < kf_q_thresh));
   }
 
-  avm_free(downscaled_buf);
-  avm_free(upscaled_y);
-  avm_free(upscaled_uv);
+  for (int k = 0; k < total_valid_frames; ++k) {
+    free_frame_sharp_cache(&sharp_caches[k]);
+  }
 }
 
 // Causal per-frame dynamic resize evaluation for zero-lag / Low-Delay /
@@ -2756,19 +3167,13 @@ static uint8_t calculate_dynamic_causal_frame_scale(AV2_COMP *cpi) {
   const int orig_w = unscaled->y_crop_width;
   const int orig_h = unscaled->y_crop_height;
   const size_t pel_count = (size_t)orig_w * (size_t)orig_h;
-  uint16_t *const downscaled_buf =
-      (uint16_t *)avm_malloc(pel_count * sizeof(*downscaled_buf));
-  uint16_t *const upscaled_y =
-      (uint16_t *)avm_malloc(pel_count * sizeof(*upscaled_y));
-  uint16_t *const upscaled_uv =
-      (uint16_t *)avm_malloc(pel_count * sizeof(*upscaled_uv));
-  if (downscaled_buf == NULL || upscaled_y == NULL || upscaled_uv == NULL) {
-    avm_free(downscaled_buf);
-    avm_free(upscaled_y);
-    avm_free(upscaled_uv);
-    avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
-                       "Failed to allocate buffers for causal dynamic resize");
-  }
+  const int max_blocks = (orig_h / 16) * (orig_w / 16);
+  ensure_resize_dyn_scratch_bufs(cpi, pel_count, max_blocks);
+  uint16_t *const downscaled_buf = cpi->resize_dyn_downscaled_buf;
+  uint16_t *const upscaled_y = cpi->resize_dyn_upscaled_y;
+  uint16_t *const upscaled_uv = cpi->resize_dyn_upscaled_uv;
+  ResizeFrameSharpCache sharp_cache;
+  memset(&sharp_cache, 0, sizeof(sharp_cache));
 
   avm_clear_system_state();
   const double bds = (double)(1 << ((int)bit_depth - AVM_BITS_8));
@@ -2858,8 +3263,10 @@ static uint8_t calculate_dynamic_causal_frame_scale(AV2_COMP *cpi) {
                              bit_depth, /*is_uv=*/0);
     avm_clear_system_state();
     double luma_mse = 0.0, ac_ratio = 0.0;
-    compute_nonflat_resample_mse_and_ac(unscaled, upscaled_y, orig_w, orig_h,
-                                        bit_depth, &luma_mse, &ac_ratio);
+    compute_nonflat_resample_mse_and_ac_cached(
+        unscaled, upscaled_y, orig_w, orig_h, bit_depth, &sharp_cache,
+        cpi->resize_dyn_sharp_mse, cpi->resize_dyn_sharp_ac, &luma_mse,
+        &ac_ratio);
     const double uv_mse = compute_resample_chroma_mse(
         unscaled, orig_w, orig_h, scaled_w, scaled_h, d, bit_depth,
         downscaled_buf, upscaled_uv);
@@ -2929,9 +3336,7 @@ static uint8_t calculate_dynamic_causal_frame_scale(AV2_COMP *cpi) {
   }
   cpi->resize_dyn_prev_denom = best_denom;
 
-  avm_free(downscaled_buf);
-  avm_free(upscaled_y);
-  avm_free(upscaled_uv);
+  free_frame_sharp_cache(&sharp_cache);
   return best_denom;
 }
 
