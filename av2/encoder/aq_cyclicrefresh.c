@@ -94,8 +94,10 @@ static int compute_deltaq(const AV2_COMP *cpi, int q, double rate_factor) {
   // In AV2's logarithmic qindex scale (step size doubles every +24 qindex),
   // taper deltaq by max_qdelta_perc at low q_base and cap the maximum boost
   // in fixed qindex units at mid/high q_base.
-  const int max_deltaq = AVMMIN(cr->max_qdelta_perc * q_base / 100,
-                                (cr->max_qdelta_perc * 3) >> 2);
+  const int cap_q = (cpi->oxcf.tune_cfg.content != AVM_CONTENT_SCREEN)
+                        ? 24
+                        : ((cr->max_qdelta_perc * 3) >> 2);
+  const int max_deltaq = AVMMIN(cr->max_qdelta_perc * q_base / 100, cap_q);
   if ((-deltaq) > max_deltaq) {
     deltaq = -max_deltaq;
   }
@@ -297,6 +299,12 @@ void av2_cyclic_refresh_update_segment(const AV2_COMP *cpi, MACROBLOCK *const x,
   }
 
   av2_init_plane_quantizers(cpi, x, mbmi->segment_id);
+  if (cpi->oxcf.tune_cfg.content != AVM_CONTENT_SCREEN &&
+      cyclic_refresh_segment_id_boosted(mbmi->segment_id)) {
+    const int q_rd = clamp(x->qindex + cm->quant_params.y_dc_delta_q, 0,
+                           MAXQ_FOR_GIVEN_BIT_DEPTH(cm->seq_params.bit_depth));
+    x->rdmult = av2_compute_rd_mult(cpi, q_rd);
+  }
 }
 
 void av2_cyclic_refresh_postencode(AV2_COMP *const cpi) {
@@ -436,8 +444,8 @@ static void cyclic_refresh_update_map(AV2_COMP *const cpi) {
     ymis = AVMMIN(mi_params->mi_rows - mi_row, cm->mib_size);
     const int is_screen_content =
         (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
-    const int min_sc_frames = is_screen_content ? 0 : 30;
-    const int min_kf_frames = is_screen_content ? 1 : 30;
+    const int min_sc_frames = 0;
+    const int min_kf_frames = 1;
     if (cr->use_block_sad_scene_det &&
         cpi->rc.frames_since_key > min_kf_frames &&
         cr->counter_encode_maxq_scene_change > min_sc_frames &&
@@ -543,7 +551,7 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
   int qp_thresh = AVMMAX(63 + bd_offset, rc->best_quality + 4);
   if (is_screen_content)
     qp_thresh = AVMMAX(84 + bd_offset, rc->best_quality + 4);
-  int qp_max_thresh = 211 + bd_offset;
+  const int qp_max_thresh = (is_screen_content ? 211 : 240) + bd_offset;
   const int scene_change_detected = is_scene_change_detected(cpi);
 
   // Cases to reset the cyclic refresh adjustment parameters.
@@ -604,7 +612,7 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
           ? 1
           : 0;
   cr->motion_thresh = 32;
-  cr->rate_boost_fac = is_screen_content ? 10 : 15;
+  cr->rate_boost_fac = 10;
 
   // Use larger delta-qp (increase rate_ratio_qdelta) for first few (~4)
   // periods of the refresh cycle after a key frame or scene change.
@@ -638,7 +646,7 @@ void av2_cyclic_refresh_update_parameters(AV2_COMP *const cpi,
   if (cm->width * cm->height <= 352 * 288) {
     if (rc->avg_frame_bandwidth < 3000) {
       cr->motion_thresh = 16;
-      cr->rate_boost_fac = 13;
+      cr->rate_boost_fac = is_screen_content ? 13 : 10;
     } else {
       cr->max_qdelta_perc = 50;
       cr->rate_ratio_qdelta = AVMMAX(cr->rate_ratio_qdelta, 2.0);
