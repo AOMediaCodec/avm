@@ -1692,15 +1692,13 @@ typedef struct macroblock {
    * fast encoding stage for screen content tool detemination.
    */
   int palette_pixels;
-  /*! \brief Whether to prune current transform partition search. */
+  /*! \brief Whether to prune intra transform partition search using prior
+   * unsplit RD costs. */
   int prune_tx_partition;
-  /*! \brief Keep records of top rdcosts of transform partition search. */
-  int64_t top_tx_part_rd[TOP_TX_PART_COUNT];
-  /*! \brief Keep records of top rdcosts of transform partition search, which
-   * are used for pruning transform partition type evaluation in inter mode
-   * evaluation. */
-  int64_t top_tx_part_rd_inter[MAX_TX_BLOCKS_IN_MAX_SB]
-                              [TOP_INTER_TX_PART_COUNT];
+  /*! \brief Sorted best unsplit transform-partition RD costs across candidate
+   * modes (slot 0 for intra mode search; per-transform-block slots for inter
+   * mode search). */
+  int64_t top_tx_part_rd[MAX_TX_BLOCKS_IN_MAX_SB][TOP_INTER_TX_PART_COUNT];
   /*! \brief Keep records of top estimated rdcosts of compound type search,
    * which are used for pruning compound modes in inter mode
    * evaluation. */

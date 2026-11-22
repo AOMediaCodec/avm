@@ -229,6 +229,13 @@ static AVM_INLINE int skip_cctx_eval_based_on_eob(int plane, int is_inter,
   return 0;
 }
 
+static AVM_INLINE void av2_init_top_tx_part_rd(int64_t *top_rds, int cnt) {
+  assert(cnt >= 0 && cnt <= TOP_INTER_TX_PART_COUNT);
+  for (int i = 0; i < cnt; ++i) {
+    top_rds[i] = INT64_MAX;
+  }
+}
+
 /*!\brief Transform type search for luma macroblock with fixed transform size.
  *
  * \ingroup transform_search

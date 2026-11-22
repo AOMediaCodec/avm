@@ -9488,9 +9488,7 @@ static INLINE void init_top_tx_part_rd_for_inter_modes(
   if (!prune_inter_tx_part_rd_eval) return;
 
   for (int i = 0; i < MAX_TX_BLOCKS_IN_MAX_SB; i++) {
-    for (int j = 0; j < TOP_INTER_TX_PART_COUNT; j++) {
-      x->top_tx_part_rd_inter[i][j] = INT64_MAX;
-    }
+    av2_init_top_tx_part_rd(x->top_tx_part_rd[i], TOP_INTER_TX_PART_COUNT);
   }
 }
 
