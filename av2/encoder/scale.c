@@ -2244,6 +2244,357 @@ static uint8_t evaluate_calibrated_resize_segment(
   return best_denom;
 }
 
+// Maximum number of evenly spaced probe frames evaluated per GF group in
+// populate_dynamic_gf_resize_scales() (3 from the left temporal half and 3
+// from the right temporal half), weighted by the exact full-group mean 1/Q^2.
+#define RESIZE_DYNAMIC_GF_MAX_PROBES 6
+
+typedef struct {
+  int total_valid_frames;
+  int half_n;
+  int right_n;
+  int can_split_halves;
+  int num_probes;
+  int probe_half_n;
+  int probe_right_n;
+  int is_subsampled;
+  int orig_w;
+  int orig_h;
+  int max_qp;
+  int max_grp_qindex;
+  int have_mc;
+  int is_extreme_mc_pre;
+  int allow_synergy_possible;
+  int could_be_uniform_noise;
+  int syn_max_denom_ub;
+  uint8_t prev_denom;
+  avm_bit_depth_t bit_depth;
+  double bds;
+  double pel_ratio;
+  double base_thresh_pre;
+  double qstep_ratio_sq_pre;
+  double seg_mc_thresh_ub;
+  double mc_eff_pre;
+  double mc_bg_pre;
+  double mc_acr;
+  double syn_q_cap_ub;
+  double syn_q_ref_ub;
+  double syn_max_ub;
+  const YV12_BUFFER_CONFIG *const *grp_srcs;
+  const int *grp_qindex;
+  const int *ord;
+  const int *probe_idx;
+  ResizeFrameSharpCache *sharp_caches;
+  uint16_t *downscaled_buf;
+  uint16_t *upscaled_y;
+  uint16_t *upscaled_uv;
+  double *sharp_mse;
+  double *sharp_ac;
+  double *inv_q2_mean;
+  double *avg_dist_arr;
+  double *avg_ratio_arr;
+  double *avg_ac_arr;
+  double *avg_dist_L;
+  double *avg_dist_R;
+  double *avg_ac_L;
+  double *avg_ac_R;
+  int *check_half_split;
+} ResizeSubgopEvalCtx;
+
+// Evaluates candidate denominator d for a GF group. Returns:
+//   0 = evaluated normally (not pruned)
+//   1 = pruned (can stop scanning higher d if prev_denom satisfied)
+//  -1 = invalid scaled dimension (must stop scanning higher d)
+static int eval_subgop_candidate_denom(const ResizeSubgopEvalCtx *ctx, int d,
+                                       int allow_prune) {
+  const int orig_w = ctx->orig_w;
+  const int orig_h = ctx->orig_h;
+  int scaled_w = orig_w;
+  int scaled_h = orig_h;
+  av2_calculate_scaled_size(&scaled_w, &scaled_h, d);
+  if (!dimension_is_ok(orig_w, scaled_w, SCALE_NUMERATOR) ||
+      !dimension_is_ok(orig_h, scaled_h, SCALE_NUMERATOR)) {
+    return -1;
+  }
+
+  const int total_valid_frames = ctx->total_valid_frames;
+  const int num_probes = ctx->num_probes;
+  const int probe_half_n = ctx->probe_half_n;
+  const int probe_right_n = ctx->probe_right_n;
+  const int can_split_halves = ctx->can_split_halves;
+  const avm_bit_depth_t bit_depth = ctx->bit_depth;
+  const double bds = ctx->bds;
+  const double pel_ratio = ctx->pel_ratio;
+  const size_t pel_count = (size_t)orig_w * (size_t)orig_h;
+
+  double sum_inv_q2 = 0.0;
+  for (int k = 0; k < total_valid_frames; ++k) {
+    const int f = ctx->ord[k];
+    const int qindex_d =
+        clamp(ctx->grp_qindex[f] + av2_get_resize_qp_offset(d), 1, ctx->max_qp);
+    const double qstep = av2_convert_qindex_to_q(qindex_d, bit_depth) * bds;
+    sum_inv_q2 += 1.0 / (qstep * qstep);
+  }
+  ctx->inv_q2_mean[d] = sum_inv_q2 / (double)total_valid_frames;
+
+  const int max_qindex_d =
+      clamp(ctx->max_grp_qindex + av2_get_resize_qp_offset(d), 1, ctx->max_qp);
+  const double max_qstep_d =
+      av2_convert_qindex_to_q(max_qindex_d, bit_depth) * bds;
+  const double inv_q2_lb = 1.0 / (max_qstep_d * max_qstep_d);
+  const double hyst_mult_ub =
+      (ctx->prev_denom > SCALE_NUMERATOR && d <= (int)ctx->prev_denom)
+          ? ((pel_ratio > 1.0) ? pow(RESIZE_DYNAMIC_SUBGOP_HYST_KEEP, pel_ratio)
+                               : RESIZE_DYN_SYNERGY_HOLD_HYST_KEEP)
+          : 1.0;
+  double q_mult_ub = 1.0;
+  if (pel_ratio > 1.0) {
+    if (ctx->have_mc && ctx->mc_acr > RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_MIN) {
+      q_mult_ub = RESIZE_DYN_HIGHRES_HIGH_ACR_Q_BOOST;
+    }
+  } else {
+    if (ctx->could_be_uniform_noise) {
+      q_mult_ub = RESIZE_DYN_UNIFORM_NOISE_THRESH_BOOST;
+    } else if (ctx->have_mc &&
+               ctx->mc_acr > RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_MIN) {
+      q_mult_ub = AVMMAX(RESIZE_DYN_EXTREME_MC_D9_STRONG_MULT,
+                         RESIZE_DYN_HIGH_ACR_SMOOTH_Q_BOOST_MID);
+    } else {
+      q_mult_ub = AVMMAX(RESIZE_DYN_SMOOTH_SYN_Q_BOOST_MID,
+                         RESIZE_DYN_FLAT_BG_Q_BOOST_MID);
+    }
+  }
+  const double ub_q_thresh_d = hyst_mult_ub * q_mult_ub * ctx->base_thresh_pre;
+  const double dec_frac_d =
+      1.0 - (double)(SCALE_NUMERATOR * SCALE_NUMERATOR) / (double)(d * d);
+  const double ub_dist_bg_d = hyst_mult_ub * dec_frac_d * ctx->mc_bg_pre;
+  double base_mc_thresh_d_ub = ctx->seg_mc_thresh_ub;
+  if (ctx->is_extreme_mc_pre && d <= RESIZE_DYN_EXTREME_MC_MAX_DENOM) {
+    base_mc_thresh_d_ub = AVMMAX(
+        base_mc_thresh_d_ub,
+        RESIZE_DYN_EXTREME_MC_THRESH_FLOOR *
+            AVMMAX(ctx->qstep_ratio_sq_pre, RESIZE_DYN_EXTREME_MC_QRAT_FLOOR));
+  }
+
+  const int need_rolloff_d =
+      (pel_ratio <= 1.0 && (double)pel_count >= RESIZE_DYNAMIC_REF_PELS &&
+       d > SCALE_NUMERATOR + 1 && d <= SCALE_NUMERATOR + 4);
+
+  double cached_luma[MAX_STATIC_GF_GROUP_LENGTH] = { 0.0 };
+  double cached_ac[MAX_STATIC_GF_GROUP_LENGTH] = { 0.0 };
+  uint8_t luma_done[MAX_STATIC_GF_GROUP_LENGTH] = { 0 };
+  int both_pruned = 0;
+
+  if (allow_prune && !(*ctx->check_half_split) && !need_rolloff_d) {
+    if (can_split_halves) {
+      double probe_luma_l = 0.0;
+      int left_exceeds = 0;
+      for (int p = 0; p < probe_half_n; ++p) {
+        const int k = ctx->probe_idx[p];
+        const YV12_BUFFER_CONFIG *const src = ctx->grp_srcs[ctx->ord[k]];
+        resample_plane_roundtrip(src->y_buffer, orig_h, orig_w, src->y_stride,
+                                 ctx->downscaled_buf, scaled_h, scaled_w,
+                                 ctx->upscaled_y, /*subx=*/0, /*suby=*/0, d,
+                                 bit_depth, /*is_uv=*/0);
+        avm_clear_system_state();
+        compute_nonflat_resample_mse_and_ac_cached(
+            src, ctx->upscaled_y, orig_w, orig_h, bit_depth,
+            &ctx->sharp_caches[k], ctx->sharp_mse, ctx->sharp_ac,
+            &cached_luma[p], &cached_ac[p]);
+        luma_done[p] = 1;
+        probe_luma_l += cached_luma[p];
+        if ((probe_luma_l * inv_q2_lb) / (double)probe_half_n >=
+            ub_q_thresh_d) {
+          left_exceeds = 1;
+          break;
+        }
+      }
+      if (left_exceeds) {
+        double probe_luma_r = 0.0;
+        int right_exceeds = 0;
+        for (int p = probe_half_n; p < num_probes; ++p) {
+          const int k = ctx->probe_idx[p];
+          const YV12_BUFFER_CONFIG *const src = ctx->grp_srcs[ctx->ord[k]];
+          resample_plane_roundtrip(src->y_buffer, orig_h, orig_w, src->y_stride,
+                                   ctx->downscaled_buf, scaled_h, scaled_w,
+                                   ctx->upscaled_y, /*subx=*/0, /*suby=*/0, d,
+                                   bit_depth, /*is_uv=*/0);
+          avm_clear_system_state();
+          compute_nonflat_resample_mse_and_ac_cached(
+              src, ctx->upscaled_y, orig_w, orig_h, bit_depth,
+              &ctx->sharp_caches[k], ctx->sharp_mse, ctx->sharp_ac,
+              &cached_luma[p], &cached_ac[p]);
+          luma_done[p] = 1;
+          probe_luma_r += cached_luma[p];
+          if ((probe_luma_r * inv_q2_lb) / (double)probe_right_n >=
+              ub_q_thresh_d) {
+            right_exceeds = 1;
+            break;
+          }
+        }
+        if (right_exceeds) {
+          ctx->avg_dist_arr[d] = 0.0;
+          ctx->avg_ratio_arr[d] = ub_q_thresh_d + 1.0;
+          ctx->avg_dist_L[d] = 0.0;
+          ctx->avg_dist_R[d] = 0.0;
+          both_pruned = 1;
+        }
+      }
+    } else {
+      double probe_luma = 0.0;
+      for (int p = 0; p < num_probes; ++p) {
+        const int k = ctx->probe_idx[p];
+        const YV12_BUFFER_CONFIG *const src = ctx->grp_srcs[ctx->ord[k]];
+        resample_plane_roundtrip(src->y_buffer, orig_h, orig_w, src->y_stride,
+                                 ctx->downscaled_buf, scaled_h, scaled_w,
+                                 ctx->upscaled_y, /*subx=*/0, /*suby=*/0, d,
+                                 bit_depth, /*is_uv=*/0);
+        avm_clear_system_state();
+        compute_nonflat_resample_mse_and_ac_cached(
+            src, ctx->upscaled_y, orig_w, orig_h, bit_depth,
+            &ctx->sharp_caches[k], ctx->sharp_mse, ctx->sharp_ac,
+            &cached_luma[p], &cached_ac[p]);
+        luma_done[p] = 1;
+        probe_luma += cached_luma[p];
+        if ((probe_luma * inv_q2_lb) / (double)num_probes >= ub_q_thresh_d) {
+          ctx->avg_dist_arr[d] = 0.0;
+          ctx->avg_ratio_arr[d] = ub_q_thresh_d + 1.0;
+          both_pruned = 1;
+          break;
+        }
+      }
+    }
+  }
+
+  if (both_pruned) return 1;
+
+  double sum_luma_all = 0.0, sum_luma_l = 0.0, sum_luma_r = 0.0;
+  double sum_luma_ratio = 0.0;
+  double frame_qstep_sq[MAX_STATIC_GF_GROUP_LENGTH];
+  for (int p = 0; p < num_probes; ++p) {
+    const int k = ctx->probe_idx[p];
+    const int f = ctx->ord[k];
+    const YV12_BUFFER_CONFIG *const src = ctx->grp_srcs[f];
+    if (!luma_done[p]) {
+      resample_plane_roundtrip(src->y_buffer, orig_h, orig_w, src->y_stride,
+                               ctx->downscaled_buf, scaled_h, scaled_w,
+                               ctx->upscaled_y, /*subx=*/0, /*suby=*/0, d,
+                               bit_depth, /*is_uv=*/0);
+      avm_clear_system_state();
+      compute_nonflat_resample_mse_and_ac_cached(
+          src, ctx->upscaled_y, orig_w, orig_h, bit_depth,
+          &ctx->sharp_caches[k], ctx->sharp_mse, ctx->sharp_ac, &cached_luma[p],
+          &cached_ac[p]);
+      luma_done[p] = 1;
+    }
+    const int qindex_d =
+        clamp(ctx->grp_qindex[f] + av2_get_resize_qp_offset(d), 1, ctx->max_qp);
+    const double qstep = av2_convert_qindex_to_q(qindex_d, bit_depth) * bds;
+    frame_qstep_sq[p] = qstep * qstep;
+    sum_luma_all += cached_luma[p];
+    sum_luma_ratio += cached_luma[p] / frame_qstep_sq[p];
+    if (p < probe_half_n) {
+      sum_luma_l += cached_luma[p];
+    } else {
+      sum_luma_r += cached_luma[p];
+    }
+  }
+
+  const double avg_luma_all = sum_luma_all / (double)num_probes;
+  const double avg_luma_ratio = ctx->is_subsampled
+                                    ? (avg_luma_all * ctx->inv_q2_mean[d])
+                                    : (sum_luma_ratio / (double)num_probes);
+  const double luma_asym =
+      can_split_halves ? (AVMMAX(sum_luma_l / (double)probe_half_n,
+                                 sum_luma_r / (double)probe_right_n) /
+                          AVMMAX(AVMMIN(sum_luma_l / (double)probe_half_n,
+                                        sum_luma_r / (double)probe_right_n),
+                                 1e-6))
+                       : 1.0;
+  if (allow_prune && ctx->have_mc && !(*ctx->check_half_split) &&
+      !need_rolloff_d && (!can_split_halves || luma_asym < 1.65) &&
+      (ctx->prev_denom <= SCALE_NUMERATOR || d >= (int)ctx->prev_denom)) {
+    const double syn_q_cap_d_ub =
+        (ctx->prev_denom >= RESIZE_DYN_SYNERGY_HOLD_MIN_DENOM &&
+         d <= (int)ctx->prev_denom)
+            ? AVMMAX(
+                  ctx->syn_q_cap_ub,
+                  AVMMIN(ctx->syn_q_cap_ub * RESIZE_DYN_SYNERGY_HOLD_QCAP_MULT,
+                         0.98))
+            : ctx->syn_q_cap_ub;
+    const double eff_mc_thresh_ub =
+        (ctx->allow_synergy_possible && d <= ctx->syn_max_denom_ub)
+            ? compute_subgop_synergy_content_thresh(
+                  base_mc_thresh_d_ub, avg_luma_ratio, ctx->base_thresh_pre,
+                  syn_q_cap_d_ub, ctx->syn_q_ref_ub, ctx->syn_max_ub)
+            : base_mc_thresh_d_ub;
+    const double ub_dist_mc_d =
+        hyst_mult_ub * eff_mc_thresh_ub * ctx->mc_eff_pre;
+    if ((pel_ratio > 1.0 && avg_luma_all >= ub_dist_bg_d) ||
+        avg_luma_all >= ub_dist_mc_d) {
+      ctx->avg_dist_arr[d] = 0.0;
+      ctx->avg_ratio_arr[d] = ub_q_thresh_d + 1.0;
+      ctx->avg_dist_L[d] = 0.0;
+      ctx->avg_dist_R[d] = 0.0;
+      return 1;
+    }
+  }
+
+  double sum_ratio = 0.0, sum_dist = 0.0, sum_ac = 0.0;
+  double sum_dist_l = 0.0, sum_dist_r = 0.0;
+  double sum_ac_l = 0.0, sum_ac_r = 0.0;
+  for (int p = 0; p < num_probes; ++p) {
+    const int k = ctx->probe_idx[p];
+    const int f = ctx->ord[k];
+    const YV12_BUFFER_CONFIG *const src = ctx->grp_srcs[f];
+    const double luma_mse = cached_luma[p];
+    const double ac_ratio = cached_ac[p];
+    const double uv_mse = compute_resample_chroma_mse(
+        src, orig_w, orig_h, scaled_w, scaled_h, d, bit_depth,
+        ctx->downscaled_buf, ctx->upscaled_uv);
+    avm_clear_system_state();
+    const double dist = luma_mse + RESIZE_DYNAMIC_CHROMA_WEIGHT * uv_mse;
+    sum_ratio += dist / frame_qstep_sq[p];
+    sum_dist += dist;
+    sum_ac += ac_ratio;
+    if (p < probe_half_n) {
+      sum_dist_l += dist;
+      sum_ac_l += ac_ratio;
+    } else {
+      sum_dist_r += dist;
+      sum_ac_r += ac_ratio;
+    }
+  }
+
+  ctx->avg_dist_arr[d] = sum_dist / (double)num_probes;
+  ctx->avg_ratio_arr[d] = ctx->is_subsampled
+                              ? (ctx->avg_dist_arr[d] * ctx->inv_q2_mean[d])
+                              : (sum_ratio / (double)num_probes);
+  ctx->avg_ac_arr[d] = sum_ac / (double)num_probes;
+  if (can_split_halves) {
+    ctx->avg_dist_L[d] = sum_dist_l / (double)probe_half_n;
+    ctx->avg_dist_R[d] = sum_dist_r / (double)probe_right_n;
+    ctx->avg_ac_L[d] = sum_ac_l / (double)probe_half_n;
+    ctx->avg_ac_R[d] = sum_ac_r / (double)probe_right_n;
+    if (d <= SCALE_NUMERATOR + 2) {
+      const double asym =
+          AVMMAX(ctx->avg_dist_L[d], ctx->avg_dist_R[d]) /
+          AVMMAX(AVMMIN(ctx->avg_dist_L[d], ctx->avg_dist_R[d]), 1e-6);
+      if (asym >= RESIZE_DYNAMIC_HALF_SPLIT_PRECHECK_RATIO) {
+        *ctx->check_half_split = 1;
+      }
+    }
+  }
+  if (allow_prune && !(*ctx->check_half_split) && !need_rolloff_d &&
+      (ctx->prev_denom <= SCALE_NUMERATOR || d >= (int)ctx->prev_denom) &&
+      ctx->avg_dist_L[d] * inv_q2_lb >= ub_q_thresh_d &&
+      ctx->avg_dist_R[d] * inv_q2_lb >= ub_q_thresh_d &&
+      ctx->avg_ratio_arr[d] >= ub_q_thresh_d) {
+    return 1;
+  }
+  return 0;
+}
+
 // Populates per-frame dynamic resize denominators across a lookahead GF group
 // in RESIZE_DYNAMIC mode. Preserves pyramid scale coherence across stationary
 // subgops (keeping same-resolution OPFL, BAWP, TIP, WARP, GLOBALMV, and MFMV
@@ -2663,15 +3014,107 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
                                      mc_p50 > 10.0 * bds2;
   const int right_n = total_valid_frames - half_n;
 
-  for (int d = SCALE_NUMERATOR + 1; d <= SCALE_NUMERATOR * 2; ++d) {
-    int scaled_w = orig_w;
-    int scaled_h = orig_h;
-    av2_calculate_scaled_size(&scaled_w, &scaled_h, d);
-    if (!dimension_is_ok(orig_w, scaled_w, SCALE_NUMERATOR) ||
-        !dimension_is_ok(orig_h, scaled_h, SCALE_NUMERATOR)) {
+  int probe_idx[MAX_STATIC_GF_GROUP_LENGTH];
+  int num_probes = 0;
+  int probe_half_n = half_n;
+  int probe_right_n = right_n;
+  int is_subsampled = 0;
+  if (total_valid_frames > RESIZE_DYNAMIC_GF_MAX_PROBES) {
+    is_subsampled = 1;
+    if (can_split_halves) {
+      probe_half_n = RESIZE_DYNAMIC_GF_MAX_PROBES / 2;
+      probe_right_n = RESIZE_DYNAMIC_GF_MAX_PROBES - probe_half_n;
+      for (int i = 0; i < probe_half_n; ++i) {
+        probe_idx[num_probes++] = ((2 * i + 1) * half_n) / (2 * probe_half_n);
+      }
+      for (int i = 0; i < probe_right_n; ++i) {
+        probe_idx[num_probes++] =
+            half_n + ((2 * i + 1) * right_n) / (2 * probe_right_n);
+      }
+    } else {
+      num_probes = RESIZE_DYNAMIC_GF_MAX_PROBES;
+      probe_half_n = 0;
+      probe_right_n = 0;
+      for (int i = 0; i < num_probes; ++i) {
+        probe_idx[i] = ((2 * i + 1) * total_valid_frames) / (2 * num_probes);
+      }
+    }
+  } else {
+    num_probes = total_valid_frames;
+    for (int k = 0; k < total_valid_frames; ++k) probe_idx[k] = k;
+  }
+
+  ResizeSubgopEvalCtx eval_ctx;
+  eval_ctx.total_valid_frames = total_valid_frames;
+  eval_ctx.half_n = half_n;
+  eval_ctx.right_n = right_n;
+  eval_ctx.can_split_halves = can_split_halves;
+  eval_ctx.num_probes = num_probes;
+  eval_ctx.probe_half_n = probe_half_n;
+  eval_ctx.probe_right_n = probe_right_n;
+  eval_ctx.is_subsampled = is_subsampled;
+  eval_ctx.orig_w = orig_w;
+  eval_ctx.orig_h = orig_h;
+  eval_ctx.max_qp = max_qp;
+  eval_ctx.max_grp_qindex = max_grp_qindex;
+  eval_ctx.have_mc = have_mc;
+  eval_ctx.is_extreme_mc_pre = is_extreme_mc_pre;
+  eval_ctx.allow_synergy_possible = allow_synergy_possible;
+  eval_ctx.could_be_uniform_noise = could_be_uniform_noise;
+  eval_ctx.syn_max_denom_ub = syn_max_denom_ub;
+  eval_ctx.prev_denom = prev_denom;
+  eval_ctx.bit_depth = bit_depth;
+  eval_ctx.bds = bds;
+  eval_ctx.pel_ratio = pel_ratio;
+  eval_ctx.base_thresh_pre = base_thresh_pre;
+  eval_ctx.qstep_ratio_sq_pre = qstep_ratio_sq_pre;
+  eval_ctx.seg_mc_thresh_ub = seg_mc_thresh_ub;
+  eval_ctx.mc_eff_pre = mc_eff_pre;
+  eval_ctx.mc_bg_pre = mc_bg_pre;
+  eval_ctx.mc_acr = mc_acr;
+  eval_ctx.syn_q_cap_ub = syn_q_cap_ub;
+  eval_ctx.syn_q_ref_ub = syn_q_ref_ub;
+  eval_ctx.syn_max_ub = syn_max_ub;
+  eval_ctx.grp_srcs = grp_srcs;
+  eval_ctx.grp_qindex = grp_qindex;
+  eval_ctx.ord = ord;
+  eval_ctx.probe_idx = probe_idx;
+  eval_ctx.sharp_caches = sharp_caches;
+  eval_ctx.downscaled_buf = downscaled_buf;
+  eval_ctx.upscaled_y = upscaled_y;
+  eval_ctx.upscaled_uv = upscaled_uv;
+  eval_ctx.sharp_mse = cpi->resize_dyn_sharp_mse;
+  eval_ctx.sharp_ac = cpi->resize_dyn_sharp_ac;
+  eval_ctx.inv_q2_mean = inv_q2_mean;
+  eval_ctx.avg_dist_arr = avg_dist_arr;
+  eval_ctx.avg_ratio_arr = avg_ratio_arr;
+  eval_ctx.avg_ac_arr = avg_ac_arr;
+  eval_ctx.avg_dist_L = avg_dist_L;
+  eval_ctx.avg_dist_R = avg_dist_R;
+  eval_ctx.avg_ac_L = avg_ac_L;
+  eval_ctx.avg_ac_R = avg_ac_R;
+  eval_ctx.check_half_split = &check_half_split;
+
+  // Coarse-to-fine denominator probing: evaluate d=9 first (fast inactive
+  // exit), then even denominators {10, 12, 14, 16}, then refine only the
+  // boundary odd denominator(s) needed for exact selection and hysteresis.
+  static const int kCoarseDenoms[] = { 9, 10, 12, 14, 16 };
+  uint8_t d_eval[SCALE_NUMERATOR * 2 + 1] = { 0 };
+  uint8_t d_pruned[SCALE_NUMERATOR * 2 + 1] = { 0 };
+  for (int i = 0; i < 5; ++i) {
+    const int d = kCoarseDenoms[i];
+    const int st = eval_subgop_candidate_denom(&eval_ctx, d, /*allow_prune=*/1);
+    if (st < 0) break;
+    d_eval[d] = 1;
+    d_pruned[d] = (st > 0) ? 1 : 0;
+    max_eval_d = d;
+    if (st > 0 && (prev_denom <= SCALE_NUMERATOR || d >= (int)prev_denom)) {
       break;
     }
-
+  }
+  uint8_t need_odd[SCALE_NUMERATOR * 2 + 1] = { 0 };
+  for (int d = SCALE_NUMERATOR + 3; d < max_eval_d; d += 2) {
+    if (d_eval[d]) continue;
     double sum_inv_q2 = 0.0;
     for (int k = 0; k < total_valid_frames; ++k) {
       const int f = ord[k];
@@ -2681,259 +3124,38 @@ static void populate_dynamic_gf_resize_scales(AV2_COMP *cpi, int from_keyframe,
       sum_inv_q2 += 1.0 / (qstep * qstep);
     }
     inv_q2_mean[d] = sum_inv_q2 / (double)total_valid_frames;
-
-    const int max_qindex_d =
-        clamp(max_grp_qindex + av2_get_resize_qp_offset(d), 1, max_qp);
-    const double max_qstep_d =
-        av2_convert_qindex_to_q(max_qindex_d, bit_depth) * bds;
-    const double inv_q2_lb = 1.0 / (max_qstep_d * max_qstep_d);
-    const double hyst_mult_ub =
-        (prev_denom > SCALE_NUMERATOR && d <= (int)prev_denom)
-            ? ((pel_ratio > 1.0)
-                   ? pow(RESIZE_DYNAMIC_SUBGOP_HYST_KEEP, pel_ratio)
-                   : RESIZE_DYN_SYNERGY_HOLD_HYST_KEEP)
-            : 1.0;
-    double q_mult_ub = 1.0;
-    if (pel_ratio > 1.0) {
-      if (have_mc && mc_acr > RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_MIN) {
-        q_mult_ub = RESIZE_DYN_HIGHRES_HIGH_ACR_Q_BOOST;
-      }
+    if (d_pruned[d + 1] || check_half_split) {
+      need_odd[d] = 1;
+      avg_ratio_arr[d] = 1e9;
     } else {
-      if (could_be_uniform_noise) {
-        q_mult_ub = RESIZE_DYN_UNIFORM_NOISE_THRESH_BOOST;
-      } else if (have_mc && mc_acr > RESIZE_DYNAMIC_SUBGOP_HIGH_ACR_MIN) {
-        q_mult_ub = AVMMAX(RESIZE_DYN_EXTREME_MC_D9_STRONG_MULT,
-                           RESIZE_DYN_HIGH_ACR_SMOOTH_Q_BOOST_MID);
-      } else {
-        q_mult_ub = AVMMAX(RESIZE_DYN_SMOOTH_SYN_Q_BOOST_MID,
-                           RESIZE_DYN_FLAT_BG_Q_BOOST_MID);
+      avg_dist_arr[d] = 0.5 * (avg_dist_arr[d - 1] + avg_dist_arr[d + 1]);
+      avg_ratio_arr[d] = avg_dist_arr[d] * inv_q2_mean[d];
+      avg_ac_arr[d] = 0.5 * (avg_ac_arr[d - 1] + avg_ac_arr[d + 1]);
+      avg_dist_L[d] = 0.5 * (avg_dist_L[d - 1] + avg_dist_L[d + 1]);
+      avg_dist_R[d] = 0.5 * (avg_dist_R[d - 1] + avg_dist_R[d + 1]);
+      avg_ac_L[d] = 0.5 * (avg_ac_L[d - 1] + avg_ac_L[d + 1]);
+      avg_ac_R[d] = 0.5 * (avg_ac_R[d - 1] + avg_ac_R[d + 1]);
+    }
+  }
+  if (max_eval_d >= SCALE_NUMERATOR + 4 && !check_half_split) {
+    const uint8_t d_prov = evaluate_calibrated_resize_segment(
+        avg_dist_arr, avg_ratio_arr, avg_ac_arr, max_eval_d, max_grp_qindex,
+        have_mc, mc_p50, mc_p50_nz, mc_nz, mc_acr, orig_w, orig_h, bit_depth,
+        prev_denom, NULL, NULL, NULL);
+    const int cands[4] = { (int)d_prov, (int)d_prov + 1, (int)prev_denom,
+                           (int)prev_denom + 1 };
+    for (int c = 0; c < 4; ++c) {
+      const int cd = cands[c];
+      if (cd >= SCALE_NUMERATOR + 3 && cd < max_eval_d && (cd & 1) &&
+          !d_eval[cd]) {
+        need_odd[cd] = 1;
       }
     }
-    const double ub_q_thresh_d = hyst_mult_ub * q_mult_ub * base_thresh_pre;
-    const double dec_frac_d =
-        1.0 - (double)(SCALE_NUMERATOR * SCALE_NUMERATOR) / (double)(d * d);
-    const double ub_dist_bg_d = hyst_mult_ub * dec_frac_d * mc_bg_pre;
-    double base_mc_thresh_d_ub = seg_mc_thresh_ub;
-    if (is_extreme_mc_pre && d <= RESIZE_DYN_EXTREME_MC_MAX_DENOM) {
-      base_mc_thresh_d_ub = AVMMAX(
-          base_mc_thresh_d_ub,
-          RESIZE_DYN_EXTREME_MC_THRESH_FLOOR *
-              AVMMAX(qstep_ratio_sq_pre, RESIZE_DYN_EXTREME_MC_QRAT_FLOOR));
-    }
-
-    const int need_rolloff_d =
-        (pel_ratio <= 1.0 && (double)pel_count >= RESIZE_DYNAMIC_REF_PELS &&
-         d > SCALE_NUMERATOR + 1 && d <= SCALE_NUMERATOR + 4);
-
-    double cached_luma[MAX_STATIC_GF_GROUP_LENGTH] = { 0.0 };
-    double cached_ac[MAX_STATIC_GF_GROUP_LENGTH] = { 0.0 };
-    uint8_t luma_done[MAX_STATIC_GF_GROUP_LENGTH] = { 0 };
-    int both_pruned = 0;
-
-    if (!check_half_split && !need_rolloff_d) {
-      if (can_split_halves) {
-        double probe_luma_l = 0.0;
-        int left_exceeds = 0;
-        for (int k = 0; k < half_n; ++k) {
-          const YV12_BUFFER_CONFIG *const src = grp_srcs[ord[k]];
-          resample_plane_roundtrip(src->y_buffer, orig_h, orig_w, src->y_stride,
-                                   downscaled_buf, scaled_h, scaled_w,
-                                   upscaled_y, /*subx=*/0, /*suby=*/0, d,
-                                   bit_depth, /*is_uv=*/0);
-          avm_clear_system_state();
-          compute_nonflat_resample_mse_and_ac_cached(
-              src, upscaled_y, orig_w, orig_h, bit_depth, &sharp_caches[k],
-              cpi->resize_dyn_sharp_mse, cpi->resize_dyn_sharp_ac,
-              &cached_luma[k], &cached_ac[k]);
-          luma_done[k] = 1;
-          probe_luma_l += cached_luma[k];
-          if ((probe_luma_l * inv_q2_lb) / (double)half_n >= ub_q_thresh_d) {
-            left_exceeds = 1;
-            break;
-          }
-        }
-        if (left_exceeds) {
-          double probe_luma_r = 0.0;
-          int right_exceeds = 0;
-          for (int k = half_n; k < total_valid_frames; ++k) {
-            const YV12_BUFFER_CONFIG *const src = grp_srcs[ord[k]];
-            resample_plane_roundtrip(src->y_buffer, orig_h, orig_w,
-                                     src->y_stride, downscaled_buf, scaled_h,
-                                     scaled_w, upscaled_y, /*subx=*/0,
-                                     /*suby=*/0, d, bit_depth, /*is_uv=*/0);
-            avm_clear_system_state();
-            compute_nonflat_resample_mse_and_ac_cached(
-                src, upscaled_y, orig_w, orig_h, bit_depth, &sharp_caches[k],
-                cpi->resize_dyn_sharp_mse, cpi->resize_dyn_sharp_ac,
-                &cached_luma[k], &cached_ac[k]);
-            luma_done[k] = 1;
-            probe_luma_r += cached_luma[k];
-            if ((probe_luma_r * inv_q2_lb) / (double)right_n >= ub_q_thresh_d) {
-              right_exceeds = 1;
-              break;
-            }
-          }
-          if (right_exceeds) {
-            avg_dist_arr[d] = 0.0;
-            avg_ratio_arr[d] = ub_q_thresh_d + 1.0;
-            avg_dist_L[d] = 0.0;
-            avg_dist_R[d] = 0.0;
-            both_pruned = 1;
-          }
-        }
-      } else {
-        double probe_luma = 0.0;
-        for (int k = 0; k < total_valid_frames; ++k) {
-          const YV12_BUFFER_CONFIG *const src = grp_srcs[ord[k]];
-          resample_plane_roundtrip(src->y_buffer, orig_h, orig_w, src->y_stride,
-                                   downscaled_buf, scaled_h, scaled_w,
-                                   upscaled_y, /*subx=*/0, /*suby=*/0, d,
-                                   bit_depth, /*is_uv=*/0);
-          avm_clear_system_state();
-          compute_nonflat_resample_mse_and_ac_cached(
-              src, upscaled_y, orig_w, orig_h, bit_depth, &sharp_caches[k],
-              cpi->resize_dyn_sharp_mse, cpi->resize_dyn_sharp_ac,
-              &cached_luma[k], &cached_ac[k]);
-          luma_done[k] = 1;
-          probe_luma += cached_luma[k];
-          if ((probe_luma * inv_q2_lb) / (double)total_valid_frames >=
-              ub_q_thresh_d) {
-            avg_dist_arr[d] = 0.0;
-            avg_ratio_arr[d] = ub_q_thresh_d + 1.0;
-            both_pruned = 1;
-            break;
-          }
-        }
-      }
-    }
-
-    if (both_pruned) {
-      max_eval_d = d;
-      if (prev_denom <= SCALE_NUMERATOR || d >= (int)prev_denom) {
-        break;
-      }
-      continue;
-    }
-
-    // Complete Luma evaluation across all frames before Chroma so we can prune
-    // Chroma and larger denominators whenever Luma alone already strictly fails
-    // the full-segment background or MC content thresholds.
-    double sum_luma_all = 0.0, sum_luma_l = 0.0, sum_luma_r = 0.0;
-    double sum_luma_ratio = 0.0;
-    double frame_qstep_sq[MAX_STATIC_GF_GROUP_LENGTH];
-    for (int k = 0; k < total_valid_frames; ++k) {
-      const int f = ord[k];
-      const YV12_BUFFER_CONFIG *const src = grp_srcs[f];
-      if (!luma_done[k]) {
-        resample_plane_roundtrip(src->y_buffer, orig_h, orig_w, src->y_stride,
-                                 downscaled_buf, scaled_h, scaled_w, upscaled_y,
-                                 /*subx=*/0, /*suby=*/0, d, bit_depth,
-                                 /*is_uv=*/0);
-        avm_clear_system_state();
-        compute_nonflat_resample_mse_and_ac_cached(
-            src, upscaled_y, orig_w, orig_h, bit_depth, &sharp_caches[k],
-            cpi->resize_dyn_sharp_mse, cpi->resize_dyn_sharp_ac,
-            &cached_luma[k], &cached_ac[k]);
-        luma_done[k] = 1;
-      }
-      const int qindex_d =
-          clamp(grp_qindex[f] + av2_get_resize_qp_offset(d), 1, max_qp);
-      const double qstep = av2_convert_qindex_to_q(qindex_d, bit_depth) * bds;
-      frame_qstep_sq[k] = qstep * qstep;
-      sum_luma_all += cached_luma[k];
-      sum_luma_ratio += cached_luma[k] / frame_qstep_sq[k];
-      if (k < half_n) {
-        sum_luma_l += cached_luma[k];
-      } else {
-        sum_luma_r += cached_luma[k];
-      }
-    }
-
-    const double avg_luma_all = sum_luma_all / (double)total_valid_frames;
-    const double avg_luma_ratio = sum_luma_ratio / (double)total_valid_frames;
-    const double luma_asym = can_split_halves
-                                 ? (AVMMAX(sum_luma_l / (double)half_n,
-                                           sum_luma_r / (double)right_n) /
-                                    AVMMAX(AVMMIN(sum_luma_l / (double)half_n,
-                                                  sum_luma_r / (double)right_n),
-                                           1e-6))
-                                 : 1.0;
-    if (have_mc && !check_half_split && !need_rolloff_d &&
-        (!can_split_halves || luma_asym < 1.65) &&
-        (prev_denom <= SCALE_NUMERATOR || d >= (int)prev_denom)) {
-      const double syn_q_cap_d_ub =
-          (prev_denom >= RESIZE_DYN_SYNERGY_HOLD_MIN_DENOM &&
-           d <= (int)prev_denom)
-              ? AVMMAX(syn_q_cap_ub,
-                       AVMMIN(syn_q_cap_ub * RESIZE_DYN_SYNERGY_HOLD_QCAP_MULT,
-                              0.98))
-              : syn_q_cap_ub;
-      const double eff_mc_thresh_ub =
-          (allow_synergy_possible && d <= syn_max_denom_ub)
-              ? compute_subgop_synergy_content_thresh(
-                    base_mc_thresh_d_ub, avg_luma_ratio, base_thresh_pre,
-                    syn_q_cap_d_ub, syn_q_ref_ub, syn_max_ub)
-              : base_mc_thresh_d_ub;
-      const double ub_dist_mc_d = hyst_mult_ub * eff_mc_thresh_ub * mc_eff_pre;
-      if ((pel_ratio > 1.0 && avg_luma_all >= ub_dist_bg_d) ||
-          avg_luma_all >= ub_dist_mc_d) {
-        avg_dist_arr[d] = 0.0;
-        avg_ratio_arr[d] = ub_q_thresh_d + 1.0;
-        avg_dist_L[d] = 0.0;
-        avg_dist_R[d] = 0.0;
-        max_eval_d = d;
-        break;
-      }
-    }
-
-    double sum_ratio = 0.0, sum_dist = 0.0, sum_ac = 0.0;
-    double sum_dist_l = 0.0, sum_dist_r = 0.0;
-    double sum_ac_l = 0.0, sum_ac_r = 0.0;
-    for (int k = 0; k < total_valid_frames; ++k) {
-      const int f = ord[k];
-      const YV12_BUFFER_CONFIG *const src = grp_srcs[f];
-      const double luma_mse = cached_luma[k];
-      const double ac_ratio = cached_ac[k];
-      const double uv_mse = compute_resample_chroma_mse(
-          src, orig_w, orig_h, scaled_w, scaled_h, d, bit_depth, downscaled_buf,
-          upscaled_uv);
-      avm_clear_system_state();
-      const double dist = luma_mse + RESIZE_DYNAMIC_CHROMA_WEIGHT * uv_mse;
-      sum_ratio += dist / frame_qstep_sq[k];
-      sum_dist += dist;
-      sum_ac += ac_ratio;
-      if (k < half_n) {
-        sum_dist_l += dist;
-        sum_ac_l += ac_ratio;
-      } else {
-        sum_dist_r += dist;
-        sum_ac_r += ac_ratio;
-      }
-    }
-
-    avg_dist_arr[d] = sum_dist / (double)total_valid_frames;
-    avg_ratio_arr[d] = sum_ratio / (double)total_valid_frames;
-    avg_ac_arr[d] = sum_ac / (double)total_valid_frames;
-    if (can_split_halves) {
-      avg_dist_L[d] = sum_dist_l / (double)half_n;
-      avg_dist_R[d] = sum_dist_r / (double)right_n;
-      avg_ac_L[d] = sum_ac_l / (double)half_n;
-      avg_ac_R[d] = sum_ac_r / (double)right_n;
-      if (d <= SCALE_NUMERATOR + 2) {
-        const double asym = AVMMAX(avg_dist_L[d], avg_dist_R[d]) /
-                            AVMMAX(AVMMIN(avg_dist_L[d], avg_dist_R[d]), 1e-6);
-        if (asym >= RESIZE_DYNAMIC_HALF_SPLIT_PRECHECK_RATIO) {
-          check_half_split = 1;
-        }
-      }
-    }
-    max_eval_d = d;
-    if (!check_half_split && !need_rolloff_d &&
-        (prev_denom <= SCALE_NUMERATOR || d >= (int)prev_denom) &&
-        avg_dist_L[d] * inv_q2_lb >= ub_q_thresh_d &&
-        avg_dist_R[d] * inv_q2_lb >= ub_q_thresh_d &&
-        avg_ratio_arr[d] >= ub_q_thresh_d) {
-      break;
+  }
+  for (int d = SCALE_NUMERATOR + 3; d < max_eval_d; d += 2) {
+    if (need_odd[d] && !d_eval[d]) {
+      eval_subgop_candidate_denom(&eval_ctx, d, /*allow_prune=*/0);
+      d_eval[d] = 1;
     }
   }
 
@@ -3393,8 +3615,19 @@ static uint8_t calculate_dynamic_mode_resize_scale(AV2_COMP *cpi) {
         }
         return first_denom;
       }
-      cpi->resize_dyn_gf_ready = 0;
-      cpi->resize_dyn_prev_denom = 0;
+      const uint8_t kf_denom = calculate_dynamic_resize_scale(cpi);
+      if (has_group && first_denom == SCALE_NUMERATOR &&
+          cpi->resize_dyn_prev_denom == SCALE_NUMERATOR &&
+          kf_denom == SCALE_NUMERATOR && oxcf->rc_cfg.mode == AVM_Q &&
+          !gf_group->has_overlay_for_key_frame) {
+        // First inter subgop already settled at native resolution; reuse those
+        // scales in AVM_Q mode without duplicating the subgop probe at ARF.
+        cpi->resize_dyn_gf_ready = 1;
+      } else {
+        cpi->resize_dyn_gf_ready = 0;
+        cpi->resize_dyn_prev_denom = 0;
+      }
+      return kf_denom;
     }
     return calculate_dynamic_resize_scale(cpi);
   }
