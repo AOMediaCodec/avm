@@ -432,8 +432,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->flexmv_sf.prune_non_one_pel_mv_using_best_mv_prec = 1;
     sf->inter_sf.selective_ref_frame = 2;
-    sf->inter_sf.prune_newmv_modes_using_prior_rd = 1;
-    sf->inter_sf.share_motion_mode_prune_pool = 1;
     sf->inter_sf.prune_compound_using_single_ref = 1;
     sf->inter_sf.skip_amvd_new_near_near_new_modes = 1;
     // TODO (Yeqing Wu): need to be tuned for speed > 1.
@@ -442,7 +440,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.reduce_comp_refs = 2;
     sf->inter_sf.prune_refinemv_by_ref_idx = 1;
     sf->inter_sf.prune_interintra_by_ref_idx = 1;
-    sf->inter_sf.prune_warp_delta_by_ref_idx = 1;
     sf->intra_sf.intra_pruning_with_mlp = 1;
     if (cpi->oxcf.mode == GOOD) sf->intra_sf.skip_intra_in_interframe = 2;
     sf->intra_sf.intra_mode_prune_top = 4;
@@ -457,7 +454,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
     sf->tx_sf.skip_pixel_dist_calc_using_tx_dist = true;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
-    sf->tx_sf.enable_adaptive_tx_search_level = true;
 
     sf->tx_sf.prune_intra_ist_stx_by_zero_eob = true;
 
@@ -551,6 +547,10 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 2) {
+    sf->inter_sf.prune_newmv_modes_using_prior_rd = 1;
+    sf->inter_sf.share_motion_mode_prune_pool = 1;
+    sf->inter_sf.prune_warp_delta_by_ref_idx = 1;
+    sf->tx_sf.enable_adaptive_tx_search_level = true;
     sf->mv_sf.warp_search_method_sec_ref = WARP_SEARCH_DIAMOND;
     sf->mv_sf.warp_mv_refine_early_term = boosted ? false : true;
     sf->part_sf.prune_rect_split_by_rd = 2;
@@ -1769,6 +1769,9 @@ static AVM_INLINE void set_erp_speed_features_framesize_dependent(
 #if CONFIG_ML_PART_SPLIT
     sf->part_sf.remove_qp_restriction_with_ml = 1;
 #endif  // CONFIG_ML_PART_SPLIT
+  }
+
+  if (cpi->speed >= 2) {
     if (is_270p_or_lesser) {
       // For small resolutions, this speed feature has a large coding loss.
       sf->part_sf.prune_part_with_neighbor_boundaries = 0;
@@ -1893,10 +1896,10 @@ static AVM_INLINE void set_erp_speed_features(AV2_COMP *cpi) {
 
   if (cpi->speed >= 1) {
     sf->part_sf.ml_early_term_after_part_split_level = 2;
-    sf->part_sf.prune_part_with_neighbor_boundaries = 1;
   }
 
   if (cpi->speed >= 2) {
+    sf->part_sf.prune_part_with_neighbor_boundaries = 1;
     sf->part_sf.ext_recur_depth_level =
         cm->current_frame.pyramid_level > 3 ? 1 : 0;
     if (frame_is_intra_only(cm) || av2_wants_two_pass_partition(&cpi->oxcf)) {
@@ -2416,7 +2419,11 @@ static AVM_INLINE void set_speed3_like_features(AV2_COMP *cpi) {
   sf->intra_sf.intra_mode_prune_top = 3;
 
   sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
-  if (min_side >= 480) sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
+  // This helper also runs at speed 1, on the frames the faster
+  // pass selects, and prune_tx_type_using_stats first applies at
+  // speed 2.
+  if (cpi->oxcf.speed >= 2 && min_side >= 480)
+    sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
   sf->tx_sf.prune_tx_search_by_pre_rd = 1;
 
   sf->rd_sf.perform_coeff_opt = is_arf2 ? 3 : 4;
@@ -2460,7 +2467,6 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
 
     sf->inter_sf.disable_interinter_wedge_newmv_search = 1;
     sf->inter_sf.prune_comp_type_by_model_rd = 1;
-    sf->inter_sf.prune_motion_mode_level = 2;
     if (min_side >= 1080 && !allow_screen_content_tools) {
       sf->inter_sf.prune_warp_delta_modes =
           prune_warp_delta_modes_level(2, min_side >= 2160);
@@ -2497,9 +2503,6 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
         sf->part_sf.prune_ext_part_with_part_none = 2;
       if (sf->part_sf.prune_ext_part_with_part_rect)
         sf->part_sf.prune_ext_part_with_part_rect = 2;
-      if (sf->part_sf.prune_part_h_with_partition_boundary)
-        sf->part_sf.prune_part_h_with_partition_boundary = 2;
-      sf->part_sf.ext_part_h_subblock_rd_early_term = 1;
       if (min_side >= 1080) sf->part_sf.prune_rect_with_split_depth = 2;
       sf->part_sf.ml_post_none_early_term_thresh = 3;
 #if CONFIG_ML_PART_SPLIT
@@ -2514,7 +2517,6 @@ static void set_faster_speed_features(AV2_COMP *cpi, int speed) {
       // Below 2160p, speed 2 uses 128x128 superblocks if the encoder selects
       // the superblock size and does not resize the frames.
       if (min_side >= 2160) {
-        sf->part_sf.two_pass_partition_search = TWO_PASS_PART_FAST;
         sf->part_sf.ext_recur_depth_level = 2;
       } else if (cm->seq_params.sb_size == BLOCK_256X256 &&
                  cpi->oxcf.tool_cfg.superblock_size ==
