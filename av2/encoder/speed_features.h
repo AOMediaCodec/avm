@@ -1559,6 +1559,10 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // evaluates for every edge offset pass. The band offset passes are not
   // affected.
   int ccso_eo_band_mask;
+
+  // If set, the CCSO search computes the distortion of every filter unit from
+  // the class statistics instead of filtering the plane.
+  int ccso_dist_from_stats;
 } LOOP_FILTER_SPEED_FEATURES;
 
 typedef struct REALTIME_SPEED_FEATURES {

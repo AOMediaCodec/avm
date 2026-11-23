@@ -1669,6 +1669,7 @@ static AVM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->ccso_terminate_search_luma_pass_count = 0;
   lpf_sf->ccso_terminate_search_chroma_pass_count = 0;
   lpf_sf->ccso_eo_band_mask = 15;
+  lpf_sf->ccso_dist_from_stats = 1;
 }
 
 static void av2_disable_ml_based_transform_sf(TX_SPEED_FEATURES *const tx_sf) {

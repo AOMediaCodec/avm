@@ -53,6 +53,7 @@ typedef struct {
   int num_ref_frames;
   int reuse_bo_class_stats;
   int eo_band_mask;
+  int dist_from_stats;
 } CcsoCtxCommon;
 
 typedef struct {
@@ -121,6 +122,11 @@ typedef struct {
   // the search (ccso_run_rows). Set for every frame by derive_ccso_filter.
   AVxWorker *workers;
   int num_workers;
+
+  // First pixel column of the filter units that the trial filters and
+  // compute_distortion() visit; 0 except while dist_from_class_stats()
+  // filters the last column of filter units.
+  int filter_x_start;
 
   // Persistent fields — survive across frames; ccso_ctx_reset zeros everything
   // above this boundary via offsetof(CcsoCtx, class_err_slab).
