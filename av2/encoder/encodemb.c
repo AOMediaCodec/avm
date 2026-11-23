@@ -498,7 +498,8 @@ void av2_dropout_qcoeff(MACROBLOCK *mb, int plane, int block, TX_SIZE tx_size,
       CLIP(base_size, DROPOUT_AFTER_BASE_MIN, DROPOUT_AFTER_BASE_MAX);
 
   // Early return if there are not enough non-zero coefficients.
-  if (p->eobs[block] == 0 || p->eobs[block] <= dropout_num_before) {
+  if (p->eobs[block] == 0 || p->eobs[block] <= dropout_num_before ||
+      max_eob <= dropout_num_before + dropout_num_after) {
     return;
   }
 
@@ -513,7 +514,7 @@ void av2_dropout_qcoeff(MACROBLOCK *mb, int plane, int block, TX_SIZE tx_size,
 
   for (int i = 0; i < p->eobs[block]; ++i) {
     const int scan_idx = scan_order->scan[i];
-    if (qcoeff[scan_idx] > DROPOUT_COEFF_MAX) {  // Keep large coefficients.
+    if (abs(qcoeff[scan_idx]) > DROPOUT_COEFF_MAX) {  // Keep large coeffs.
       count_zeros_before = 0;
       count_zeros_after = 0;
       idx = -1;
@@ -538,6 +539,7 @@ void av2_dropout_qcoeff(MACROBLOCK *mb, int plane, int block, TX_SIZE tx_size,
     if (count_nonzeros > DROPOUT_CONTINUITY_MAX) {
       count_zeros_before = 0;
       count_zeros_after = 0;
+      count_nonzeros = 0;
       idx = -1;
       eob = i + 1;
     }
