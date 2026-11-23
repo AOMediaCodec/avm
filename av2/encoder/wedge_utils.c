@@ -12,6 +12,8 @@
 
 #include <assert.h>
 
+#include "config/av2_rtcd.h"
+
 #include "avm/avm_integer.h"
 
 #include "avm_ports/mem.h"
@@ -123,4 +125,26 @@ void av2_wedge_compute_delta_squares_c(int16_t *d, const int16_t *a,
 
   for (i = 0; i < N; i++)
     d[i] = clamp(a[i] * a[i] - b[i] * b[i], INT16_MIN, INT16_MAX);
+}
+
+/**
+ * Precompute bit-depth-scaled (r0^2 - r1^2) values and return their block sum.
+ *
+ * Using d = r0 - r1, r0^2 - r1^2 = d * (2 * r1 + d) is right-shifted by
+ * 2 * (bd - 8) + 1 so 8-, 10-, and 12-bit differences fit in int16_t without
+ * saturation. The returned sum scales into the sign-selection threshold.
+ */
+int64_t av2_wedge_init_delta_squares_c(int16_t *ds, const int16_t *r1,
+                                       const int16_t *d, int N, int bd) {
+  // Shift guarantees ((r1 + d)^2 - r1^2) >> shift fits cleanly in int16_t
+  // without saturation for all valid 8/10/12-bit residuals.
+  const int shift = 2 * (bd - 8) + 1;
+  int64_t ds_sum = 0;
+  for (int i = 0; i < N; ++i) {
+    const int32_t sum_r = 2 * (int32_t)r1[i] + d[i];
+    const int16_t v = (int16_t)(((int32_t)d[i] * sum_r) >> shift);
+    ds[i] = v;
+    ds_sum += v;
+  }
+  return ds_sum;
 }

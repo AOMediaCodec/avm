@@ -14,6 +14,8 @@
 #include <immintrin.h>
 #include <smmintrin.h>
 
+#include "config/av2_rtcd.h"
+
 #include "avm_dsp/x86/synonyms.h"
 #include "avm_dsp/x86/synonyms_avx2.h"
 #include "avm/avm_integer.h"
@@ -231,4 +233,49 @@ void av2_wedge_compute_delta_squares_avx2(int16_t *d, const int16_t *a,
     d += 64;
     N -= 64;
   } while (N);
+}
+
+int64_t av2_wedge_init_delta_squares_avx2(int16_t *ds, const int16_t *r1,
+                                          const int16_t *d, int N, int bd) {
+  const int shift = 2 * (bd - 8) + 1;
+  const __m256i v_ones = _mm256_set1_epi16(1);
+  __m256i v_acc_d = _mm256_setzero_si256();
+
+  assert(N % 64 == 0);
+
+  do {
+    for (int k = 0; k < 64; k += 16) {
+      const __m256i v_r1 = _mm256_lddqu_si256((const __m256i *)(r1 + k));
+      const __m256i v_d = _mm256_lddqu_si256((const __m256i *)(d + k));
+      const __m256i v_sum = _mm256_add_epi16(_mm256_slli_epi16(v_r1, 1), v_d);
+      const __m256i v_lo = _mm256_mullo_epi16(v_d, v_sum);
+      const __m256i v_hi = _mm256_mulhi_epi16(v_d, v_sum);
+      const __m256i v_p0 =
+          _mm256_srai_epi32(_mm256_unpacklo_epi16(v_lo, v_hi), shift);
+      const __m256i v_p1 =
+          _mm256_srai_epi32(_mm256_unpackhi_epi16(v_lo, v_hi), shift);
+      const __m256i v_ds = _mm256_packs_epi32(v_p0, v_p1);
+      _mm256_storeu_si256((__m256i *)(ds + k), v_ds);
+      v_acc_d = _mm256_add_epi32(v_acc_d, _mm256_madd_epi16(v_ds, v_ones));
+    }
+    ds += 64;
+    r1 += 64;
+    d += 64;
+    N -= 64;
+  } while (N);
+
+  const __m256i v_sign = _mm256_srai_epi32(v_acc_d, 31);
+  const __m256i v_q0 = _mm256_unpacklo_epi32(v_acc_d, v_sign);
+  const __m256i v_q1 = _mm256_unpackhi_epi32(v_acc_d, v_sign);
+  __m256i v_acc_q = _mm256_add_epi64(v_q0, v_q1);
+  v_acc_q = _mm256_add_epi64(v_acc_q, _mm256_srli_si256(v_acc_q, 8));
+  const __m128i v_sum_q = _mm_add_epi64(_mm256_castsi256_si128(v_acc_q),
+                                        _mm256_extracti128_si256(v_acc_q, 1));
+#if ARCH_X86_64
+  return (int64_t)_mm_extract_epi64(v_sum_q, 0);
+#else
+  int64_t ds_sum;
+  xx_storel_64(&ds_sum, v_sum_q);
+  return ds_sum;
+#endif
 }

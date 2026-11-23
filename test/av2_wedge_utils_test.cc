@@ -358,6 +358,55 @@ INSTANTIATE_TEST_SUITE_P(
     AVX2, WedgeUtilsDeltaSquaresOptTest,
     ::testing::Values(TestFuncsFDS(av2_wedge_compute_delta_squares_sse2,
                                    av2_wedge_compute_delta_squares_avx2)));
+
+typedef int64_t (*FInitDS)(int16_t *ds, const int16_t *r1, const int16_t *d,
+                           int N, int bd);
+
+class WedgeUtilsInitDeltaSquaresTest
+    : public testing::TestWithParam<libavm_test::FuncParam<FInitDS>> {
+ protected:
+  ACMRandom rng_{ ACMRandom::DeterministicSeed() };
+};
+
+TEST_P(WedgeUtilsInitDeltaSquaresTest, RandomAndExtremeValues) {
+  DECLARE_ALIGNED(32, int16_t, r1[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, int16_t, d[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, int16_t, ds_ref[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, int16_t, ds_tst[MAX_SB_SQUARE]);
+  const int bds[3] = { 8, 10, 12 };
+  const auto params = GetParam();
+  for (int bd : bds) {
+    const int max_res = (1 << bd) - 1;
+    for (int iter = 0; iter < 500; ++iter) {
+      for (int i = 0; i < MAX_SB_SQUARE; ++i) {
+        int r0v, r1v;
+        if (iter == 0) {
+          r0v = max_res;
+          r1v = -max_res;
+        } else if (iter == 1) {
+          r0v = -max_res;
+          r1v = max_res;
+        } else {
+          r0v = rng_(2 * max_res + 1) - max_res;
+          r1v = rng_(2 * max_res + 1) - max_res;
+        }
+        r1[i] = static_cast<int16_t>(r1v);
+        d[i] = static_cast<int16_t>(r0v - r1v);
+      }
+      const int N = 64 * (rng_(MAX_SB_SQUARE / 64) + 1);
+      const int64_t sum_ref = params.ref_func(ds_ref, r1, d, N, bd);
+      int64_t sum_tst;
+      ASM_REGISTER_STATE_CHECK(sum_tst = params.tst_func(ds_tst, r1, d, N, bd));
+      ASSERT_EQ(sum_ref, sum_tst) << "bd=" << bd << " N=" << N;
+      for (int i = 0; i < N; ++i) ASSERT_EQ(ds_ref[i], ds_tst[i]);
+    }
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(AVX2, WedgeUtilsInitDeltaSquaresTest,
+                         ::testing::Values(libavm_test::FuncParam<FInitDS>(
+                             av2_wedge_init_delta_squares_c,
+                             av2_wedge_init_delta_squares_avx2)));
 #endif  // HAVE_AVX2
 
 #if HAVE_NEON
