@@ -1093,8 +1093,11 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
       const BLOCK_SIZE min_partition_size = x->sb_enc.min_partition_size;
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                         mi_col, 1, 0);
+      const bool use_nonrd_part =
+          cpi->sf.rt_sf.use_nonrd_partition &&
+          !(cpi->sf.rt_sf.use_nonrd_pickmode && total_loop_num > 1);
       PC_TREE *pc_root;
-      if (cpi->sf.rt_sf.use_nonrd_partition) {
+      if (use_nonrd_part) {
         if (!td->pc_root) {
           td->pc_root = av2_alloc_pc_tree_node(
               xd->tree_type, mi_row, mi_col, cm->sb_size, sb_size, NULL,
@@ -1118,7 +1121,7 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
           (intra_sdp_enabled && xd->tree_type == CHROMA_PART) ? tp_chroma : tp;
       PARTITION_TREE *const ptree_luma =
           (xd->tree_type == CHROMA_PART) ? xd->sbi->ptree_root[0] : NULL;
-      if (cpi->sf.rt_sf.use_nonrd_partition) {
+      if (use_nonrd_part) {
         av2_nonrd_use_partition(
             cpi, td, tile_data, mi, tp_start, mi_row, mi_col, sb_size,
             xd->sbi->ptree_root[av2_get_sdp_idx(xd->tree_type)], pc_root,
@@ -1620,6 +1623,7 @@ static AVM_INLINE void encode_sb_row(AV2_COMP *cpi, ThreadData *td,
     x->source_variance = UINT_MAX;
     x->source_sad = UINT_MAX;
     x->source_sad_level = kMedSad;
+    x->force_zeromv_skip_for_sb = 0;
     td->mb.cb_coef_buff = av2_get_cb_coeff_buffer(cpi, mi_row, mi_col);
 
     av2_reset_refmv_bank(cm, xd, tile_info, mi_row, mi_col);
@@ -2334,7 +2338,12 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
   const DELTAQ_MODE deltaq_mode = oxcf->q_cfg.deltaq_mode;
   int i;
 
-  mi_params->setup_mi(mi_params);
+  // Whole-frame BRU skip frames emit no tile payload and run no in-loop
+  // filters; skip the full-frame mode-info and tx_skip memset in non-RD mode.
+  if (!(cpi->sf.rt_sf.use_nonrd_pickmode && cm->bru.enabled &&
+        cm->bru.frame_inactive_flag)) {
+    mi_params->setup_mi(mi_params);
+  }
 
   set_mi_offsets(mi_params, xd, 0, 0, 0, 0);
 
@@ -2445,7 +2454,10 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
   av2_initialize_rd_consts(cpi);
   av2_set_sad_per_bit(cpi, &x->mv_costs, quant_params->base_qindex);
 
-  av2_reset_txk_skip_array(cm);
+  if (!(cpi->sf.rt_sf.use_nonrd_pickmode && cm->bru.enabled &&
+        cm->bru.frame_inactive_flag)) {
+    av2_reset_txk_skip_array(cm);
+  }
 
   init_encode_frame_mb_context(cpi);
   set_default_interp_skip_flags(cm, &cpi->interp_search_flags);
@@ -2556,12 +2568,15 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
     // and the hash search looks up square blocks only, so the table needs no
     // entries above 32x32.
     const int min_alloc_size = block_size_wide[mi_params->mi_alloc_bsize];
-    const int max_hash_size =
+    int max_hash_size =
         ((frame_is_intra_only(cm) && cpi->sf.rt_sf.prune_intrabc_on_keyframe) ||
          (!frame_is_intra_only(cm) &&
           cpi->sf.inter_sf.skip_eval_intrabc_in_inter_frame == 2))
             ? block_size_wide[BLOCK_16X16]
             : AVMMIN(1 << (cm->mib_size_log2 + MI_SIZE_LOG2), 32);
+    if (cpi->sf.rt_sf.rt_prune_intrabc_nonrd) {
+      max_hash_size = AVMMIN(max_hash_size, block_size_wide[BLOCK_8X8]);
+    }
     int src_idx = 0;
     for (int size = 4; size <= max_hash_size; size *= 2, src_idx = !src_idx) {
       const int dst_idx = !src_idx;

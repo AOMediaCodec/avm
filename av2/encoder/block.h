@@ -1707,6 +1707,16 @@ typedef struct macroblock {
   //! Reference frame selected as predictor for the superblock in
   //! variance-based partitioning.
   MV_REFERENCE_FRAME vbp_ref_frame;
+  //! Superblock-level chroma sensitivity per U/V plane (0: off, 1: active,
+  //! 2: borderline, refined per coding block in non-RD pickmode).
+  uint8_t color_sensitivity_sb[2];
+  //! Superblock-level chroma sensitivity per secondary reference frame.
+  uint8_t color_sensitivity_sb_alt[INTER_REFS_PER_FRAME][2];
+  //! Coding-block-level chroma sensitivity per U/V plane in non-RD pickmode.
+  uint8_t color_sensitivity[2];
+  //! Superblock-level zero-MV skip hint set in variance-based partitioning
+  //! (0: off, 1: static low-SAD candidate, 2: exact zero-SAD YUV match).
+  int force_zeromv_skip_for_sb;
   //! SSE of the current predictor.
   unsigned int pred_sse[SINGLE_REF_FRAMES];
   /*! Simple motion search buffers. */

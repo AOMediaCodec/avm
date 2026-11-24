@@ -96,13 +96,15 @@ static AVM_INLINE void enc_free_mi(CommonModeInfoParams *mi_params) {
   av2_dealloc_class_id_array(mi_params);
 }
 
-// The smallest block the encoder's partition search may produce: 8x8 at 4k,
-// and at 1080p from speed 1 on non-screen content; 4x4 otherwise. Shared by
-// enc_set_mb_mi(), which sizes the mode-info grid (passing is_scc=true since
-// screen content is detected per-frame), and
+// The smallest block the encoder's partition search may produce: 8x8 at
+// realtime speed >= 7 (where VAR_BASED_PARTITION and FIXED_PARTITION never
+// partition below 8x8), at 4k, and at 1080p from speed 1 on non-screen
+// content; 4x4 otherwise. Shared by enc_set_mb_mi(), which sizes the mode-info
+// grid (passing is_scc=true since screen content is detected per-frame), and
 // set_good_speed_feature_framesize_dependent().
 static AVM_INLINE BLOCK_SIZE av2_enc_partition_floor(int speed, int width,
                                                      int height, bool is_scc) {
+  if (speed >= 7) return BLOCK_8X8;
   const int min_dim = AVMMIN(width, height);
   if (min_dim >= 2160) return BLOCK_8X8;
   if (min_dim >= 1080 && speed >= 1 && !is_scc) return BLOCK_8X8;

@@ -10,6 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 #include <algorithm>
+#include <cfloat>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -56,11 +57,13 @@ class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
 
   virtual void BeginPassHook(unsigned int /*pass*/) {
     psnr_ = 0.0;
+    min_psnr_ = DBL_MAX;
     nframes_ = 0;
   }
 
   virtual void PSNRPktHook(const avm_codec_cx_pkt_t *pkt) {
     psnr_ += pkt->data.psnr.psnr[0];
+    min_psnr_ = std::min(min_psnr_, pkt->data.psnr.psnr[0]);
     ++nframes_;
   }
 
@@ -70,7 +73,10 @@ class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
                                   ::libavm_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AV2E_SET_TUNE_CONTENT, tune_content_);
-      encoder->Control(AVME_SET_CPUUSED, 6);
+      encoder->Control(AVME_SET_CPUUSED, cpu_used_);
+      if (lossless_) {
+        encoder->Control(AV2E_SET_LOSSLESS, 1);
+      }
       if (enable_screen_tools_) {
         encoder->Control(AV2E_SET_ENABLE_PALETTE, 1);
         encoder->Control(AV2E_SET_ENABLE_INTRABC, 1);
@@ -78,10 +84,26 @@ class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
       if (dpb_size_ > 0) {
         encoder->SetOption("dpb-size", std::to_string(dpb_size_).c_str());
       }
+      if (enable_sdp_ >= 0) {
+        encoder->SetOption("enable-sdp", std::to_string(enable_sdp_).c_str());
+      }
+      if (enable_cfl_intra_ >= 0) {
+        encoder->Control(AV2E_SET_ENABLE_CFL_INTRA, enable_cfl_intra_);
+      }
       encoder->Control(AV2E_SET_MAX_REFERENCE_FRAMES, max_reference_frames_);
       encoder->Control(AV2E_SET_ENABLE_EXPLICIT_REF_FRAME_MAP,
                        explicit_ref_frame_map_);
       encoder->Control(AV2E_SET_AQ_MODE, aq_mode_);
+      if (reconfig_on_frame0_) {
+        encoder->Config(&cfg_);
+      }
+    }
+  }
+
+  virtual void FramePktHook(const avm_codec_cx_pkt_t *pkt,
+                            ::libavm_test::DxDataIterator * /*dec_iter*/) {
+    if (pkt->kind == AVM_CODEC_CX_FRAME_PKT) {
+      total_bytes_ += pkt->data.frame.sz;
     }
   }
 
@@ -92,13 +114,20 @@ class RtcTest : public ::libavm_test::CodecTestWithParam<int>,
   }
 
   int tune_content_;
+  int cpu_used_ = 6;
   int aq_mode_ = 0;
   int max_reference_frames_ = 1;
   int dpb_size_ = 0;
+  int enable_sdp_ = -1;
+  int enable_cfl_intra_ = -1;
+  bool reconfig_on_frame0_ = false;
   int explicit_ref_frame_map_ = 1;
   bool enable_screen_tools_ = false;
+  bool lossless_ = false;
   double psnr_ = 0.0;
+  double min_psnr_ = DBL_MAX;
   int nframes_ = 0;
+  size_t total_bytes_ = 0;
 };
 
 TEST_P(RtcTest, RtcTest) {
@@ -165,6 +194,118 @@ TEST_P(RtcTest, RtcScreenCyclicRefreshTest) {
   const double psnr_aq3 = psnr_ / nframes_;
 
   EXPECT_GT(psnr_aq3, psnr_aq0 + 2.0);
+}
+
+TEST_P(RtcTest, RtcSpeed7NonRdTest) {
+  cpu_used_ = 7;
+  init_flags_ = AVM_CODEC_USE_PSNR;
+  max_reference_frames_ = 3;
+  dpb_size_ = 3;
+  explicit_ref_frame_map_ = 0;
+  // Periodic keyframes exercise both hybrid non-RD keyframe intra search and
+  // inter-frame non-RD pickmode across AQ modes.
+  cfg_.kf_max_dist = 12;
+  cfg_.rc_end_usage = AVM_CBR;
+  cfg_.rc_min_quantizer = 20;
+  cfg_.rc_max_quantizer = 200;
+  cfg_.rc_target_bitrate = 400;
+
+  if (tune_content_ == AVM_CONTENT_SCREEN) {
+    enable_screen_tools_ = true;
+    cfg_.g_w = 640;
+    cfg_.g_h = 480;
+    for (int aq_mode : { 0, 3 }) {
+      aq_mode_ = aq_mode;
+      ::libavm_test::Y4mVideoSource video_sc("screendata.y4m", 0, 25);
+      ASSERT_NO_FATAL_FAILURE(RunLoop(&video_sc));
+      ASSERT_EQ(nframes_, 25);
+      EXPECT_GT(psnr_ / nframes_, 22.0);
+    }
+    lossless_ = true;
+    aq_mode_ = 0;
+    cfg_.rc_end_usage = AVM_Q;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 0;
+    ::libavm_test::Y4mVideoSource video_lossless("screendata.y4m", 0, 5);
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video_lossless));
+    ASSERT_EQ(nframes_, 5);
+    EXPECT_EQ(min_psnr_,
+              get_lossless_psnr(cfg_.g_w, cfg_.g_h, cfg_.g_bit_depth, false));
+  } else {
+    cfg_.g_w = 1280;
+    cfg_.g_h = 720;
+    for (int aq_mode : { 0, 3 }) {
+      aq_mode_ = aq_mode;
+      ::libavm_test::Y4mVideoSource video_nonsc("niklas_1280_720_30.y4m", 0,
+                                                30);
+      ASSERT_NO_FATAL_FAILURE(RunLoop(&video_nonsc));
+      ASSERT_EQ(nframes_, 30);
+      EXPECT_GT(psnr_ / nframes_, 27.0);
+    }
+    lossless_ = true;
+    aq_mode_ = 0;
+    cfg_.rc_end_usage = AVM_Q;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 0;
+    ::libavm_test::Y4mVideoSource video_lossless("niklas_1280_720_30.y4m", 0,
+                                                 4);
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video_lossless));
+    ASSERT_EQ(nframes_, 4);
+    EXPECT_EQ(min_psnr_,
+              get_lossless_psnr(cfg_.g_w, cfg_.g_h, cfg_.g_bit_depth, false));
+  }
+}
+
+TEST_P(RtcTest, RtcSpeed7SdpAndCflConfigTest) {
+  init_flags_ = AVM_CODEC_USE_PSNR;
+  cfg_.rc_end_usage = AVM_CBR;
+  cfg_.rc_min_quantizer = 20;
+  cfg_.rc_max_quantizer = 200;
+  cfg_.rc_target_bitrate = 400;
+
+  // 1. Verify --enable-sdp=1 at Speed 7 does not corrupt CHROMA_PART contexts.
+  cpu_used_ = 7;
+  enable_sdp_ = 1;
+  if (tune_content_ == AVM_CONTENT_SCREEN) {
+    enable_screen_tools_ = true;
+    cfg_.g_w = 640;
+    cfg_.g_h = 480;
+    ::libavm_test::Y4mVideoSource video_sdp("screendata.y4m", 0, 5);
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video_sdp));
+  } else {
+    cfg_.g_w = 1280;
+    cfg_.g_h = 720;
+    ::libavm_test::Y4mVideoSource video_sdp("niklas_1280_720_30.y4m", 0, 4);
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video_sdp));
+  }
+
+  // 2. Verify AV2E_SET_ENABLE_CFL_INTRA survives avm_codec_enc_config_set().
+  enable_sdp_ = 0;
+  reconfig_on_frame0_ = true;
+  for (int speed : { 6, 7 }) {
+    cpu_used_ = speed;
+    enable_cfl_intra_ = 0;
+    total_bytes_ = 0;
+    if (tune_content_ == AVM_CONTENT_SCREEN) {
+      ::libavm_test::Y4mVideoSource v0("screendata.y4m", 0, 3);
+      ASSERT_NO_FATAL_FAILURE(RunLoop(&v0));
+    } else {
+      ::libavm_test::Y4mVideoSource v0("niklas_1280_720_30.y4m", 0, 3);
+      ASSERT_NO_FATAL_FAILURE(RunLoop(&v0));
+    }
+    const size_t bytes_cfl0 = total_bytes_;
+
+    enable_cfl_intra_ = 1;
+    total_bytes_ = 0;
+    if (tune_content_ == AVM_CONTENT_SCREEN) {
+      ::libavm_test::Y4mVideoSource v1("screendata.y4m", 0, 3);
+      ASSERT_NO_FATAL_FAILURE(RunLoop(&v1));
+    } else {
+      ::libavm_test::Y4mVideoSource v1("niklas_1280_720_30.y4m", 0, 3);
+      ASSERT_NO_FATAL_FAILURE(RunLoop(&v1));
+    }
+    EXPECT_NE(total_bytes_, bytes_cfl0) << "speed=" << speed;
+  }
 }
 
 AV2_INSTANTIATE_TEST_SUITE(RtcTest, ::testing::Range(0, 2));
@@ -480,6 +621,39 @@ TEST_P(RtcCbrBruTest, FrameDrop) {
   EXPECT_GT(pkt_sizes_.size(), 10u);
   EXPECT_LT(pkt_sizes_.size(), 65u);
   EXPECT_LE(*std::min_element(pkt_sizes_.begin() + 1, pkt_sizes_.end()), 14u);
+}
+
+TEST_P(RtcCbrBruTest, Speed7NonRdBruAndScreenTools) {
+  cpu_used_ = 7;
+  cfg_.rc_target_bitrate = 350;
+  cfg_.g_threads = 2;
+  tile_columns_ = 2;
+  aq_mode_ = 3;
+  explicit_ref_frame_map_ = 0;
+  // Exercises Speed 7 non-RD pickmode, color_sensitivity (chroma-only highlight
+  // frames 16..19), slide transitions (frame 20), non-RD CfL, static/boundary
+  // zero-MV skip shortcuts, and BRU skip convergence.
+  RunScreenTest(
+      656, 392, 58,
+      SyntheticScreenVideoSource::PatternMode::kActiveRegionsAndSlideChange);
+  EXPECT_EQ(seq_enable_bru_, 1);
+  ASSERT_EQ(pkt_sizes_.size(), 58u);
+  ASSERT_EQ(frame_psnr_.size(), 58u);
+  EXPECT_GT(frame_psnr_.back(), frame_psnr_[20] + 1.5);
+  EXPECT_LE(*std::min_element(pkt_sizes_.begin() + 45, pkt_sizes_.end()), 14u);
+
+  // Also verify non-BRU static interior and right/bottom border zero-MV skip
+  // across both cyclic refresh (aq=3) and no-AQ (aq=0).
+  enable_bru_ = 0;
+  for (int aq : { 3, 0 }) {
+    aq_mode_ = aq;
+    RunScreenTest(
+        656, 392, 30,
+        SyntheticScreenVideoSource::PatternMode::kActiveRegionsAndSlideChange);
+    EXPECT_EQ(seq_enable_bru_, 0);
+    ASSERT_EQ(pkt_sizes_.size(), 30u);
+    EXPECT_GT(frame_psnr_.back(), 25.0);
+  }
 }
 
 AV2_INSTANTIATE_TEST_SUITE(RtcCbrBruTest, ::testing::Range(0, 2));

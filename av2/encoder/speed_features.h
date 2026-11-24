@@ -94,6 +94,10 @@ typedef enum {
   CDEF_FAST_SEARCH_LVL2, /**< Search reduced subset of filters than Level 1. */
   CDEF_FAST_SEARCH_LVL3, /**< Search reduced subset of secondary filters than
                               Level 2. */
+  CDEF_FAST_SEARCH_LVL4, /**< Search reduced subset of primary filters than
+                              Level 3. */
+  CDEF_FAST_SEARCH_LVL5, /**< Search reduced subset of primary and secondary
+                              filters than Level 4. */
   CDEF_PICK_FROM_Q,      /**< Estimate filter strength based on quantizer. */
   CDEF_PICK_METHODS
 } CDEF_PICK_METHOD;
@@ -1602,6 +1606,112 @@ typedef struct REALTIME_SPEED_FEATURES {
   // 0: Disabled
   // 1: Enabled
   int rtc_use_lt_ref;
+
+  // Use non-RD mode decision (av2_nonrd_pick_inter_mode_sb and
+  // av2_nonrd_pick_intra_mode):
+  // 0: Disabled (use full RD pickmode)
+  // 1: Enabled
+  int use_nonrd_pickmode;
+
+  // Hybrid intra mode search on intra frames when use_nonrd_pickmode is set:
+  // 0: Always use av2_nonrd_pick_intra_mode
+  // 1..3: Use full RD intra search on < 16x16 blocks with source_variance above
+  //       threshold {0, 101, 201}, and non-RD intra search otherwise.
+  int hybrid_intra_pickmode;
+
+  // Prune palette search in non-RD pickmode:
+  // 0: Disabled
+  // 1: Restrict non-RD palette search to <= 16x16 blocks with source_variance
+  //    above threshold
+  int prune_palette_search_nonrd;
+
+  // Prune non-RD IntraBC evaluation on intra frames unless luma palette won,
+  // and restrict IntraBC hash table generation/lookup to <= 8x8 blocks:
+  // 0: Disabled
+  // 1: Enabled
+  int rt_prune_intrabc_nonrd;
+
+  // Behavior when IntraBC hash lookup misses in non-RD IntraBC search:
+  // 0: Run full-pixel motion search
+  // 1: Evaluate start_mv only
+  // 2: Evaluate start_mv plus 12 local full-pel neighbor offsets
+  int rt_intrabc_miss_mode;
+
+  // Check intra prediction modes on inter frames in non-RD pickmode:
+  // 0: Disabled
+  // 1: Enabled
+  int check_intra_pred_nonrd;
+
+  // Perform sub-pixel motion search in non-RD pickmode:
+  // 0: Disabled
+  // 1: Enabled, capping >= 16x16 blocks at QUARTER_PEL
+  // 2: Enabled, capping >= 32x32 blocks at QUARTER_PEL (keeping EIGHTH_PEL on
+  //    <= 16x16 blocks)
+  int use_nonrd_subpel_search;
+
+  // Perform interpolation filter search in non-RD pickmode:
+  // 0: Disabled (use EIGHTTAP_REGULAR)
+  // 1: Enabled
+  int use_nonrd_filter_search;
+
+  // Skip NEWMV evaluation in non-RD pickmode when zero-MV / NEARMV is strong:
+  // 0: Disabled
+  // 1: Skip based on RD/SSE and MV thresholds
+  int nonrd_prune_ref_frame_search;
+
+  // Preserve zero-motion-search secondary and long-term reference candidates
+  // (NEARMV/GLOBALMV on vbp_ref_frame and cyclic-refresh secondary/LTR refs)
+  // and tighten kZeroSad early-termination bounds in non-RD inter mode search:
+  // 0: Disabled
+  // 1: Enabled
+  int nonrd_preserve_sec_ref_zeromv;
+
+  // Aggressively skip intra-in-inter evaluation in non-RD pickmode when the
+  // best inter mode has low residual variance or zero MV:
+  // 0: Disabled
+  // 1: Enabled
+  int nonrd_aggressive_skip_intra;
+
+  // Enable simple compound averaging (COMPOUND_AVERAGE with CWP_EQUAL) in
+  // non-RD pickmode when a second active reference is available:
+  // 0: Disabled
+  // 1: Enabled
+  int use_comp_ref_nonrd;
+
+  // Gate per-candidate chroma predictor construction and RD modeling in
+  // non-RD pickmode using superblock and coding-block U/V SAD sensitivity:
+  // 0: Disabled (evaluate U/V on every candidate)
+  // 1: Standard sensitivity gating (recheck unchecked U/V on whole-block skip)
+  // 2: Apply 4:2:0 luma-to-chroma SAD scaling across all camera variance/motion
+  //    regimes and populate unchecked U/V RD stats on non-skipped winning inter
+  //    modes before intra comparison
+  int use_color_sensitivity;
+
+  // Select smaller inter transform partitions (TX_16X16 / TX_8X8) in non-RD
+  // pickmode based on residual AC variance relative to quantizer step size and
+  // cyclic-refresh segment boost:
+  // 0: Disabled (only split 64-length transforms into 32-length)
+  // 1: Enabled
+  int tx_size_level_based_on_qstep;
+
+  // Early-exit variance-based partitioning (including static tile/frame-border
+  // superblocks) and short-circuit non-RD inter mode search to zero-MV skip on
+  // stationary superblocks matching the VBP reference:
+  // 0: Disabled
+  // 1: Enabled
+  int part_early_exit_zeromv;
+
+  // Skip NEWMV motion search on stationary or spatially flat screen-content
+  // blocks in non-RD inter mode search:
+  // 0: Disabled
+  // 1: Enabled
+  int skip_newmv_flat_blocks_screen;
+
+  // Evaluate Chroma-from-Luma (UV_CFL_PRED with derived and closed-form
+  // least-squares explicit alphas) on the winning non-RD intra luma mode:
+  // 0: Disabled
+  // 1: Enabled
+  int use_cfl_nonrd;
 } REALTIME_SPEED_FEATURES;
 
 typedef struct LC_DEC_SPEED_FEATURES {

@@ -36,6 +36,7 @@
 #include "av2/encoder/encodeframe_utils.h"
 #include "av2/encoder/encodemv.h"
 #include "av2/encoder/motion_search_facade.h"
+#include "av2/encoder/nonrd_opt.h"
 #include "av2/encoder/partition_search.h"
 #include "av2/encoder/partition_strategy.h"
 #include "av2/encoder/reconinter_enc.h"
@@ -748,8 +749,16 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
   // Reset skip mode flag.
   mbmi->skip_mode = 0;
 
-  x->source_variance =
-      av2_high_get_sby_perpixel_variance(cpi, &x->plane[0].src, bsize, xd->bd);
+  if (!cpi->sf.rt_sf.use_nonrd_pickmode || bsize != cm->sb_size ||
+      x->source_variance == UINT_MAX) {
+    if (cpi->sf.rt_sf.use_nonrd_pickmode && !frame_is_intra_only(cm) &&
+        mbmi->region_type != INTRA_REGION && x->force_zeromv_skip_for_sb == 2) {
+      x->source_variance = UINT_MAX;
+    } else {
+      x->source_variance = av2_high_get_sby_perpixel_variance(
+          cpi, &x->plane[0].src, bsize, xd->bd);
+    }
+  }
 
   // Initialize default mode evaluation params
   set_mode_eval_params(cpi, x, DEFAULT_EVAL);
@@ -782,7 +791,21 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, av2_rd_pick_intra_mode_sb_time);
 #endif
-    av2_rd_pick_intra_mode_sb(cpi, td, x, rd_cost, bsize, ctx, best_rd.rdcost);
+    if (cpi->sf.rt_sf.use_nonrd_pickmode && xd->tree_type == SHARED_PART) {
+      const int hybrid_intra = cpi->sf.rt_sf.hybrid_intra_pickmode;
+      static const unsigned int kHybridIntraVarThresh[3] = { 0, 101, 201 };
+      assert(hybrid_intra >= 0 && hybrid_intra <= 3);
+      if (hybrid_intra > 0 && bsize < BLOCK_16X16 &&
+          x->source_variance >= kHybridIntraVarThresh[hybrid_intra - 1]) {
+        av2_rd_pick_intra_mode_sb(cpi, td, x, rd_cost, bsize, ctx,
+                                  best_rd.rdcost);
+      } else {
+        av2_nonrd_pick_intra_mode(cpi, x, rd_cost, bsize, ctx);
+      }
+    } else {
+      av2_rd_pick_intra_mode_sb(cpi, td, x, rd_cost, bsize, ctx,
+                                best_rd.rdcost);
+    }
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, av2_rd_pick_intra_mode_sb_time);
 #endif
@@ -791,9 +814,17 @@ static void pick_sb_modes(AV2_COMP *const cpi, ThreadData *td,
     start_timing(cpi, av2_rd_pick_inter_mode_sb_time);
 #endif
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
-      // SEG_LVL_SKIP blocks bypass the dry-pass shortcuts by design.
-      av2_rd_pick_inter_mode_sb_seg_skip(cpi, tile_data, x, mi_row, mi_col,
-                                         rd_cost, bsize, ctx, best_rd.rdcost);
+      if (cpi->sf.rt_sf.use_nonrd_pickmode && xd->tree_type == SHARED_PART) {
+        av2_nonrd_pick_inter_mode_sb_seg_skip(cpi, tile_data, x, rd_cost, bsize,
+                                              ctx);
+      } else {
+        // SEG_LVL_SKIP blocks bypass the dry-pass shortcuts by design.
+        av2_rd_pick_inter_mode_sb_seg_skip(cpi, tile_data, x, mi_row, mi_col,
+                                           rd_cost, bsize, ctx, best_rd.rdcost);
+      }
+    } else if (cpi->sf.rt_sf.use_nonrd_pickmode &&
+               xd->tree_type == SHARED_PART) {
+      av2_nonrd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx);
     } else {
       // Wet pass: start from the dry pass's rd for this block plus a margin, so
       // pruning bites from the first candidate. The bound can be violated

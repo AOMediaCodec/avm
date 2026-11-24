@@ -245,6 +245,7 @@ struct av2_extracfg {
   int multi_layers_lag_test;
   int force_deferred_frames_for_ras_test;
   unsigned int enable_low_complexity_decode;
+  int cfl_intra_explicit;  // 1 if enable_cfl_intra was explicitly configured
 };
 
 // Example subgop configs. Currently not used by default.
@@ -573,6 +574,7 @@ static struct av2_extracfg default_extra_cfg = {
   0,      // multi_layers_test for nozero lag
   0,      // force_deferred_frames_for_ras_test
   0,      // enable_low_complexity_decode
+  0,      // cfl_intra_explicit
 };
 
 static struct av2_extracfg default_extra_cfg_rt = {
@@ -772,6 +774,7 @@ static struct av2_extracfg default_extra_cfg_rt = {
   .multi_layers_lag_test = 0,
   .force_deferred_frames_for_ras_test = 0,
   .enable_low_complexity_decode = 0,
+  .cfl_intra_explicit = 0,
 };
 // clang-format on
 
@@ -1399,6 +1402,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_smooth_intra = cfg->enable_smooth_intra;
   extra_cfg->enable_paeth_intra = cfg->enable_paeth_intra;
   extra_cfg->enable_cfl_intra = cfg->enable_cfl_intra;
+  extra_cfg->cfl_intra_explicit = 1;
   extra_cfg->enable_mhccp = cfg->enable_mhccp;
   extra_cfg->enable_palette = cfg->enable_palette;
   extra_cfg->enable_intrabc = cfg->enable_intrabc;
@@ -1962,7 +1966,11 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   intra_mode_cfg->enable_intra_dip = extra_cfg->enable_intra_dip;
   intra_mode_cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
   intra_mode_cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
-  intra_mode_cfg->enable_cfl_intra = extra_cfg->enable_cfl_intra;
+  intra_mode_cfg->enable_cfl_intra =
+      (!extra_cfg->cfl_intra_explicit && cfg->g_usage == AVM_USAGE_REALTIME &&
+       extra_cfg->cpu_used >= 7)
+          ? 1
+          : extra_cfg->enable_cfl_intra;
   intra_mode_cfg->enable_mhccp = extra_cfg->enable_mhccp;
   intra_mode_cfg->enable_mrls = extra_cfg->enable_mrls;
   intra_mode_cfg->enable_fsc = extra_cfg->enable_fsc;
@@ -2056,6 +2064,9 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   return AVM_CODEC_OK;
 }
 
+static void clamp_cpu_used(const avm_codec_enc_cfg_t *cfg,
+                           struct av2_extracfg *extra_cfg);
+
 static avm_codec_err_t encoder_set_config(avm_codec_alg_priv_t *ctx,
                                           const avm_codec_enc_cfg_t *cfg) {
   InitialDimensions *const initial_dimensions = &ctx->cpi->initial_dimensions;
@@ -2084,10 +2095,13 @@ static avm_codec_err_t encoder_set_config(avm_codec_alg_priv_t *ctx,
       ctx->num_lap_buffers > 0)
     ERROR("Cannot change lag_in_frames if LAP is enabled");
 
-  res = validate_config(ctx, cfg, &ctx->extra_cfg);
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
+  clamp_cpu_used(cfg, &extra_cfg);
+  res = validate_config(ctx, cfg, &extra_cfg);
 
   if (res == AVM_CODEC_OK) {
     ctx->cfg = *cfg;
+    ctx->extra_cfg = extra_cfg;
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg, 0);
     // On profile change, request a key frame
     force_key |=
@@ -2723,6 +2737,7 @@ static avm_codec_err_t ctrl_set_enable_cfl_intra(avm_codec_alg_priv_t *ctx,
                                                  va_list args) {
   struct av2_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_cfl_intra = CAST(AV2E_SET_ENABLE_CFL_INTRA, args);
+  extra_cfg.cfl_intra_explicit = 1;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4713,6 +4728,7 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
   } else if (avm_arg_match_helper(&arg, &g_av2_codec_arg_defs.enable_cfl_intra,
                                   argv, err_string)) {
     extra_cfg.enable_cfl_intra = avm_arg_parse_int_helper(&arg, err_string);
+    extra_cfg.cfl_intra_explicit = 1;
   } else if (avm_arg_match_helper(&arg, &g_av2_codec_arg_defs.enable_mhccp,
                                   argv, err_string)) {
     extra_cfg.enable_mhccp = avm_arg_parse_int_helper(&arg, err_string);

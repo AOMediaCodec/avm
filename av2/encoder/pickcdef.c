@@ -27,6 +27,9 @@
 #define REDUCED_PRI_STRENGTHS_LVL1 8
 #define REDUCED_PRI_STRENGTHS_LVL2 5
 #define REDUCED_SEC_STRENGTHS_LVL3 2
+#define REDUCED_PRI_STRENGTHS_LVL4 3
+#define REDUCED_PRI_STRENGTHS_LVL5 2
+#define REDUCED_SEC_STRENGTHS_LVL5 1
 
 #define REDUCED_TOTAL_STRENGTHS_LVL1 \
   (REDUCED_PRI_STRENGTHS_LVL1 * CDEF_SEC_STRENGTHS)
@@ -34,15 +37,27 @@
   (REDUCED_PRI_STRENGTHS_LVL2 * CDEF_SEC_STRENGTHS)
 #define REDUCED_TOTAL_STRENGTHS_LVL3 \
   (REDUCED_PRI_STRENGTHS_LVL2 * REDUCED_SEC_STRENGTHS_LVL3)
+#define REDUCED_TOTAL_STRENGTHS_LVL4 \
+  (REDUCED_PRI_STRENGTHS_LVL4 * REDUCED_SEC_STRENGTHS_LVL3)
+#define REDUCED_TOTAL_STRENGTHS_LVL5 \
+  (REDUCED_PRI_STRENGTHS_LVL5 * REDUCED_SEC_STRENGTHS_LVL5)
 #define TOTAL_STRENGTHS (CDEF_PRI_STRENGTHS * CDEF_SEC_STRENGTHS)
 
 static const int priconv_lvl1[REDUCED_PRI_STRENGTHS_LVL1] = { 0, 1, 2,  3,
                                                               5, 7, 10, 13 };
 static const int priconv_lvl2[REDUCED_PRI_STRENGTHS_LVL2] = { 0, 2, 4, 8, 14 };
+static const int priconv_lvl4[REDUCED_PRI_STRENGTHS_LVL4] = { 0, 3, 10 };
+static const int priconv_lvl5[REDUCED_PRI_STRENGTHS_LVL5] = { 0, 5 };
 static const int secconv_lvl3[REDUCED_SEC_STRENGTHS_LVL3] = { 0, 2 };
+static const int secconv_lvl5[REDUCED_SEC_STRENGTHS_LVL5] = { 0 };
 static const int nb_cdef_strengths[CDEF_PICK_METHODS] = {
-  TOTAL_STRENGTHS, REDUCED_TOTAL_STRENGTHS_LVL1, REDUCED_TOTAL_STRENGTHS_LVL2,
-  REDUCED_TOTAL_STRENGTHS_LVL3, TOTAL_STRENGTHS
+  TOTAL_STRENGTHS,
+  REDUCED_TOTAL_STRENGTHS_LVL1,
+  REDUCED_TOTAL_STRENGTHS_LVL2,
+  REDUCED_TOTAL_STRENGTHS_LVL3,
+  REDUCED_TOTAL_STRENGTHS_LVL4,
+  REDUCED_TOTAL_STRENGTHS_LVL5,
+  TOTAL_STRENGTHS
 };
 
 // Get primary and secondary filter strength for the given strength index and
@@ -51,9 +66,11 @@ static INLINE void get_cdef_filter_strengths(CDEF_PICK_METHOD pick_method,
                                              int *pri_strength,
                                              int *sec_strength,
                                              int strength_idx) {
-  const int tot_sec_filter = (pick_method == CDEF_FAST_SEARCH_LVL3)
-                                 ? REDUCED_SEC_STRENGTHS_LVL3
-                                 : CDEF_SEC_STRENGTHS;
+  const int tot_sec_filter =
+      (pick_method == CDEF_FAST_SEARCH_LVL5)
+          ? REDUCED_SEC_STRENGTHS_LVL5
+          : ((pick_method >= CDEF_FAST_SEARCH_LVL3) ? REDUCED_SEC_STRENGTHS_LVL3
+                                                    : CDEF_SEC_STRENGTHS);
   const int pri_idx = strength_idx / tot_sec_filter;
   const int sec_idx = strength_idx % tot_sec_filter;
   *pri_strength = pri_idx;
@@ -66,6 +83,14 @@ static INLINE void get_cdef_filter_strengths(CDEF_PICK_METHOD pick_method,
     case CDEF_FAST_SEARCH_LVL3:
       *pri_strength = priconv_lvl2[pri_idx];
       *sec_strength = secconv_lvl3[sec_idx];
+      break;
+    case CDEF_FAST_SEARCH_LVL4:
+      *pri_strength = priconv_lvl4[pri_idx];
+      *sec_strength = secconv_lvl3[sec_idx];
+      break;
+    case CDEF_FAST_SEARCH_LVL5:
+      *pri_strength = priconv_lvl5[pri_idx];
+      *sec_strength = secconv_lvl5[sec_idx];
       break;
     default: assert(0 && "Invalid CDEF search method");
   }
@@ -172,7 +197,7 @@ static uint64_t joint_strength_search(int *best_lev, int nb_strengths,
                                       CDEF_PICK_METHOD pick_method) {
   uint64_t best_tot_mse;
   int fast = (pick_method >= CDEF_FAST_SEARCH_LVL1 &&
-              pick_method <= CDEF_FAST_SEARCH_LVL3);
+              pick_method <= CDEF_FAST_SEARCH_LVL5);
   int i;
   best_tot_mse = (uint64_t)1 << 63;
   /* Greedy search: add one strength options at a time. */
@@ -593,7 +618,7 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
       6;
   const int damping = AVMMIN(3 + damping_offset, 6);
   const int fast = (pick_method >= CDEF_FAST_SEARCH_LVL1 &&
-                    pick_method <= CDEF_FAST_SEARCH_LVL3);
+                    pick_method <= CDEF_FAST_SEARCH_LVL5);
   const int total_strengths = nb_cdef_strengths[pick_method];
   const int num_planes = av2_num_planes(cm);
   av2_setup_dst_planes(xd->plane, frame, 0, 0, 0, num_planes, NULL);
@@ -755,7 +780,8 @@ void av2_cdef_search(const YV12_BUFFER_CONFIG *frame,
   uint64_t best_rd = UINT64_MAX;
   CdefInfo *const cdef_info = &cm->cdef_info;
   int best_cdef_on = 0;
-  for (int nb_strengths = 1; nb_strengths <= 8; nb_strengths++) {
+  const int max_nb_strengths = AVMMIN(8, total_strengths);
+  for (int nb_strengths = 1; nb_strengths <= max_nb_strengths; nb_strengths++) {
     int best_lev0[CDEF_MAX_STRENGTHS];
     int best_lev1[CDEF_MAX_STRENGTHS] = { 0 };
     uint64_t tot_mse;

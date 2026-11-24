@@ -1177,6 +1177,239 @@ static inline bool is_chroma_var_high(const AV2_COMP *cpi, const MACROBLOCK *x,
   return false;
 }
 
+// Assigns the largest square coding blocks (>= BLOCK_8X8) that fit inside the
+// active tile/frame boundary for a static superblock, avoiding full
+// variance-tree construction on right/bottom border superblocks.
+static void set_static_sb_partitioning(AV2_COMP *cpi,
+                                       const TileInfo *const tile, int mi_row,
+                                       int mi_col, BLOCK_SIZE bsize) {
+  if (mi_row >= tile->mi_row_end || mi_col >= tile->mi_col_end) return;
+  const int bw = mi_size_wide[bsize];
+  const int bh = mi_size_high[bsize];
+  if ((mi_col + bw <= tile->mi_col_end && mi_row + bh <= tile->mi_row_end) ||
+      bsize <= BLOCK_8X8) {
+    set_block_size(cpi, mi_row, mi_col, bsize);
+    return;
+  }
+  const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
+  if (subsize >= BLOCK_SIZES_ALL) return;
+  const int hbs_w = bw >> 1;
+  const int hbs_h = bh >> 1;
+  set_static_sb_partitioning(cpi, tile, mi_row, mi_col, subsize);
+  set_static_sb_partitioning(cpi, tile, mi_row, mi_col + hbs_w, subsize);
+  set_static_sb_partitioning(cpi, tile, mi_row + hbs_h, mi_col, subsize);
+  set_static_sb_partitioning(cpi, tile, mi_row + hbs_h, mi_col + hbs_w,
+                             subsize);
+}
+
+// Accumulates zero-MV Y/U/V SAD across the visible fitting square sub-blocks
+// of a right/bottom boundary superblock without reading out-of-frame padding.
+static void compute_visible_sb_zero_mv_sad(
+    const AV2_COMP *cpi, const MACROBLOCK *x, const TileInfo *const tile,
+    int mi_row, int mi_col, int y_mi_off, int x_mi_off, BLOCK_SIZE bsize,
+    unsigned int *vis_y_sad, unsigned int vis_uv_sad[2], int *vis_mi_area,
+    bool *fully_inside_crop) {
+  if (!*fully_inside_crop) return;
+  const int cur_mi_row = mi_row + y_mi_off;
+  const int cur_mi_col = mi_col + x_mi_off;
+  if (cur_mi_row >= tile->mi_row_end || cur_mi_col >= tile->mi_col_end) return;
+
+  const AV2_COMMON *const cm = &cpi->common;
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const int bw = mi_size_wide[bsize];
+  const int bh = mi_size_high[bsize];
+  if ((cur_mi_col + bw <= tile->mi_col_end &&
+       cur_mi_row + bh <= tile->mi_row_end) ||
+      bsize <= BLOCK_8X8) {
+    if ((cur_mi_col + bw) * MI_SIZE > cm->width ||
+        (cur_mi_row + bh) * MI_SIZE > cm->height) {
+      *fully_inside_crop = false;
+      return;
+    }
+    const int y_px_off = y_mi_off << MI_SIZE_LOG2;
+    const int x_px_off = x_mi_off << MI_SIZE_LOG2;
+    const struct macroblock_plane *const py = &x->plane[AVM_PLANE_Y];
+    const struct macroblockd_plane *const pdy = &xd->plane[AVM_PLANE_Y];
+    *vis_y_sad += cpi->fn_ptr[bsize].sdf(
+        py->src.buf + y_px_off * py->src.stride + x_px_off, py->src.stride,
+        pdy->pre[0].buf + y_px_off * pdy->pre[0].stride + x_px_off,
+        pdy->pre[0].stride);
+    *vis_mi_area += bw * bh;
+
+    const int num_planes = av2_num_planes(cm);
+    for (int plane = AVM_PLANE_U; plane < num_planes; ++plane) {
+      const struct macroblock_plane *const p = &x->plane[plane];
+      const struct macroblockd_plane *const pd = &xd->plane[plane];
+      const BLOCK_SIZE bs =
+          get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+      if (bs >= BLOCK_SIZES_ALL) {
+        *fully_inside_crop = false;
+        return;
+      }
+      const int uv_y = y_px_off >> pd->subsampling_y;
+      const int uv_x = x_px_off >> pd->subsampling_x;
+      vis_uv_sad[plane - AVM_PLANE_U] += cpi->fn_ptr[bs].sdf(
+          p->src.buf + uv_y * p->src.stride + uv_x, p->src.stride,
+          pd->pre[0].buf + uv_y * pd->pre[0].stride + uv_x, pd->pre[0].stride);
+    }
+    return;
+  }
+
+  const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
+  if (subsize >= BLOCK_SIZES_ALL) return;
+  const int hbs_w = bw >> 1;
+  const int hbs_h = bh >> 1;
+  compute_visible_sb_zero_mv_sad(cpi, x, tile, mi_row, mi_col, y_mi_off,
+                                 x_mi_off, subsize, vis_y_sad, vis_uv_sad,
+                                 vis_mi_area, fully_inside_crop);
+  compute_visible_sb_zero_mv_sad(cpi, x, tile, mi_row, mi_col, y_mi_off,
+                                 x_mi_off + hbs_w, subsize, vis_y_sad,
+                                 vis_uv_sad, vis_mi_area, fully_inside_crop);
+  compute_visible_sb_zero_mv_sad(cpi, x, tile, mi_row, mi_col, y_mi_off + hbs_h,
+                                 x_mi_off, subsize, vis_y_sad, vis_uv_sad,
+                                 vis_mi_area, fully_inside_crop);
+  compute_visible_sb_zero_mv_sad(cpi, x, tile, mi_row, mi_col, y_mi_off + hbs_h,
+                                 x_mi_off + hbs_w, subsize, vis_y_sad,
+                                 vis_uv_sad, vis_mi_area, fully_inside_crop);
+}
+
+// Computes superblock-level chroma sensitivity flags (0: off, 1: active,
+// 2: borderline to refine per coding block) on U and V planes for non-RD
+// inter mode search, ported from AV1's chroma_check().
+static void set_color_sensitivity_sb(AV2_COMP *cpi, MACROBLOCK *x,
+                                     BLOCK_SIZE bsize, int mi_row, int mi_col,
+                                     unsigned int y_sad, FULLPEL_MV full_mv,
+                                     unsigned int uv_sad_out[2],
+                                     bool *uv_sad_valid_out) {
+  const AV2_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  const int num_planes = av2_num_planes(cm);
+  memset(x->color_sensitivity_sb, 0, sizeof(x->color_sensitivity_sb));
+  memset(x->color_sensitivity_sb_alt, 0, sizeof(x->color_sensitivity_sb_alt));
+  uv_sad_out[0] = 0;
+  uv_sad_out[1] = 0;
+  *uv_sad_valid_out = (num_planes <= 1);
+  if (num_planes <= 1 || y_sad == UINT_MAX) return;
+
+  const SOURCE_SAD source_sad_level = x->source_sad_level;
+  const bool is_screen = (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN);
+  int shift_upper_limit = 1;
+  int shift_lower_limit = 3;
+  int fac_uv = 6;
+
+  if (!is_screen) {
+    fac_uv = (cm->width * cm->height >= RESOLUTION_1080P) ? 3 : 5;
+  }
+  if (is_screen && cpi->rc.high_source_sad) {
+    shift_lower_limit = 7;
+  } else if (is_screen && cpi->rc.frame_source_sad > 10000 &&
+             source_sad_level > kLowSad) {
+    shift_lower_limit = 8;
+    shift_upper_limit = 3;
+  } else if (!is_screen && cpi->sf.rt_sf.use_color_sensitivity >= 2) {
+    shift_upper_limit = 2;
+    shift_lower_limit = (source_sad_level > kMedSad) ? 5 : 4;
+  } else if (source_sad_level >= kMedSad && x->source_variance != UINT_MAX &&
+             x->source_variance > 500 && cm->width * cm->height >= 640 * 360) {
+    shift_upper_limit = 2;
+    shift_lower_limit = (source_sad_level > kMedSad) ? 5 : 4;
+  } else if (!is_screen) {
+    shift_lower_limit = 4;
+  }
+
+  bool all_uv_valid = true;
+  for (int plane = AVM_PLANE_U; plane < num_planes; ++plane) {
+    const struct macroblock_plane *const p = &x->plane[plane];
+    const struct macroblockd_plane *const pd = &xd->plane[plane];
+    const BLOCK_SIZE bs =
+        get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+    if (bs >= BLOCK_SIZES_ALL) {
+      all_uv_valid = false;
+      continue;
+    }
+
+    const int uv_mv_row = full_mv.row >> pd->subsampling_y;
+    const int uv_mv_col = full_mv.col >> pd->subsampling_x;
+    const uint16_t *const ref_uv =
+        pd->pre[0].buf + uv_mv_row * pd->pre[0].stride + uv_mv_col;
+    const unsigned int uv_sad = cpi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
+                                                    ref_uv, pd->pre[0].stride);
+    uv_sad_out[plane - 1] = uv_sad;
+
+    if (uv_sad == 0) {
+      x->color_sensitivity_sb[plane - 1] = 0;
+    } else if (uv_sad > (y_sad >> shift_upper_limit)) {
+      x->color_sensitivity_sb[plane - 1] = 1;
+    } else if (uv_sad < (y_sad >> shift_lower_limit)) {
+      x->color_sensitivity_sb[plane - 1] = 0;
+    } else {
+      x->color_sensitivity_sb[plane - 1] = 2;
+    }
+  }
+  *uv_sad_valid_out = all_uv_valid;
+
+  // Skip secondary-reference chroma SAD checks when the VBP reference already
+  // has an exact zero-MV match across all Y, U, and V planes; mark secondary
+  // references as borderline (2) so block-level refinement runs lazily if
+  // mode search ever falls through to a secondary reference.
+  if (y_sad == 0 && all_uv_valid && uv_sad_out[0] == 0 && uv_sad_out[1] == 0 &&
+      full_mv.row == 0 && full_mv.col == 0) {
+    memset(x->color_sensitivity_sb_alt, 2, sizeof(x->color_sensitivity_sb_alt));
+    return;
+  }
+
+  // Evaluate zero-MV chroma sensitivity on all usable secondary DPB references
+  // (including pure-chroma changes where luma source_sad_level == kZeroSad).
+  for (MV_REFERENCE_FRAME rf = 0;
+       rf < cm->ref_frames_info.num_total_refs && rf < INTER_REFS_PER_FRAME;
+       ++rf) {
+    if (rf == x->vbp_ref_frame || !is_vbp_ref_enabled(cm, rf)) continue;
+    if (cm->bru.enabled && rf == cm->bru.update_ref_idx) continue;
+    if (cm->cur_frame && cm->cur_frame->refs_restricted_status[rf]) continue;
+
+    const YV12_BUFFER_CONFIG *yv12_ref = get_ref_frame_yv12_buf(cm, rf);
+    bool scaled_ref = false;
+    if (yv12_ref != NULL && (yv12_ref->y_crop_height != cm->height ||
+                             yv12_ref->y_crop_width != cm->width)) {
+      yv12_ref = av2_get_scaled_ref_frame(cpi, rf);
+      scaled_ref = true;
+    }
+    if (yv12_ref == NULL) continue;
+
+    const struct scale_factors *const ref_sf =
+        scaled_ref ? NULL : get_ref_scale_factors_const(cm, rf);
+    struct buf_2d ref_y_pre;
+    const struct macroblockd_plane *const pd_y = &xd->plane[AVM_PLANE_Y];
+    setup_pred_plane(&ref_y_pre, yv12_ref->buffers[AVM_PLANE_Y],
+                     yv12_ref->widths[0], yv12_ref->heights[0],
+                     yv12_ref->crop_widths[0], yv12_ref->crop_heights[0],
+                     yv12_ref->strides[0], mi_row, mi_col, ref_sf,
+                     pd_y->subsampling_x, pd_y->subsampling_y, NULL);
+    const unsigned int ref_y_sad = cpi->fn_ptr[bsize].sdf(
+        x->plane[AVM_PLANE_Y].src.buf, x->plane[AVM_PLANE_Y].src.stride,
+        ref_y_pre.buf, ref_y_pre.stride);
+
+    for (int plane = AVM_PLANE_U; plane < num_planes; ++plane) {
+      const struct macroblock_plane *const p = &x->plane[plane];
+      const struct macroblockd_plane *const pd = &xd->plane[plane];
+      const BLOCK_SIZE bs =
+          get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+      if (bs >= BLOCK_SIZES_ALL) continue;
+
+      struct buf_2d ref_uv_pre;
+      setup_pred_plane(&ref_uv_pre, yv12_ref->buffers[plane],
+                       yv12_ref->widths[1], yv12_ref->heights[1],
+                       yv12_ref->crop_widths[1], yv12_ref->crop_heights[1],
+                       yv12_ref->strides[1], mi_row, mi_col, ref_sf,
+                       pd->subsampling_x, pd->subsampling_y, NULL);
+      const unsigned int ref_uv_sad = cpi->fn_ptr[bs].sdf(
+          p->src.buf, p->src.stride, ref_uv_pre.buf, ref_uv_pre.stride);
+      x->color_sensitivity_sb_alt[rf][plane - 1] =
+          (uint64_t)ref_uv_sad * fac_uv > ref_y_sad;
+    }
+  }
+}
+
 void av2_choose_var_based_partitioning(AV2_COMP *cpi,
                                        const TileInfo *const tile,
                                        ThreadData *td, MACROBLOCK *x,
@@ -1217,6 +1450,11 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
   x->sb_me_partition = 0;
   x->sb_me_mv.as_int = 0;
   x->vbp_ref_frame = NONE_FRAME;
+  x->force_zeromv_skip_for_sb = 0;
+  if (cpi->sf.rt_sf.use_nonrd_pickmode && cpi->sf.rt_sf.use_color_sensitivity) {
+    memset(x->color_sensitivity_sb, 0, sizeof(x->color_sensitivity_sb));
+    memset(x->color_sensitivity_sb_alt, 0, sizeof(x->color_sensitivity_sb_alt));
+  }
 
   int64_t thresholds[6];
   const uint8_t *const map =
@@ -1270,6 +1508,13 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
     dst_stride = xd->plane[AVM_PLANE_Y].pre[0].stride;
     dst_buf = xd->plane[AVM_PLANE_Y].pre[0].buf + full_mv.row * dst_stride +
               full_mv.col;
+    unsigned int uv_sad[2] = { 0, 0 };
+    bool uv_sad_valid = false;
+    if (cpi->sf.rt_sf.use_nonrd_pickmode &&
+        cpi->sf.rt_sf.use_color_sensitivity) {
+      set_color_sensitivity_sb(cpi, x, cm->seq_params.sb_size, mi_row, mi_col,
+                               y_sad, full_mv, uv_sad, &uv_sad_valid);
+    }
 
     const int block_width = mi_size_wide[cm->seq_params.sb_size];
     const int block_height = mi_size_high[cm->seq_params.sb_size];
@@ -1291,15 +1536,59 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
       }
     }
 
-    if ((source_sad == 0 || used_lt_ref) &&
-        mi_col + block_width <= tile->mi_col_end &&
-        mi_row + block_height <= tile->mi_row_end) {
-      if (y_sad == 0 ||
-          (is_screen && !is_segment_id_boosted &&
-           y_sad < (unsigned int)(block_width * block_height * 2))) {
-        if (!is_chroma_var_high(cpi, x, xd, cm->seq_params.sb_size, 0, 0,
-                                full_mv, thresholds[1])) {
-          set_block_size(cpi, mi_row, mi_col, cm->seq_params.sb_size);
+    const bool can_force_zmv_skip =
+        cpi->sf.rt_sf.use_nonrd_pickmode &&
+        cpi->sf.rt_sf.part_early_exit_zeromv && !xd->lossless[segment_id] &&
+        !scaled_ref_last && full_mv.row == 0 && full_mv.col == 0 &&
+        is_inter_ref_frame(x->vbp_ref_frame);
+
+    if (source_sad == 0 || used_lt_ref) {
+      // Without BRU or cyclic refresh, non-RD mode search lacks recursive
+      // sub-block transform partitioning inside a whole 128x128 superblock, so
+      // require y_sad == 0 so variance-based partitioning splits and cleans up
+      // post-transition text residuals once before converging to exact zero-MV
+      // skip on subsequent static frames.
+      const bool allow_scr_nonzero_ysad =
+          !(cpi->sf.rt_sf.use_nonrd_pickmode && !cm->bru.enabled &&
+            cpi->oxcf.q_cfg.aq_mode == NO_AQ);
+      if (mi_col + block_width <= tile->mi_col_end &&
+          mi_row + block_height <= tile->mi_row_end) {
+        if (y_sad == 0 ||
+            (is_screen && allow_scr_nonzero_ysad && !is_segment_id_boosted &&
+             y_sad < (unsigned int)(block_width * block_height * 2))) {
+          const bool exact_zero_yuv =
+              y_sad == 0 && uv_sad_valid && uv_sad[0] == 0 && uv_sad[1] == 0;
+          if (exact_zero_yuv ||
+              !is_chroma_var_high(cpi, x, xd, cm->seq_params.sb_size, 0, 0,
+                                  full_mv, thresholds[1])) {
+            set_block_size(cpi, mi_row, mi_col, cm->seq_params.sb_size);
+            if (can_force_zmv_skip) {
+              if (exact_zero_yuv) {
+                x->force_zeromv_skip_for_sb = 2;
+              } else if (source_sad == 0 && y_sad == 0 &&
+                         !is_segment_id_boosted &&
+                         (is_screen || cpi->rc.frames_since_key > 30)) {
+                x->force_zeromv_skip_for_sb = 1;
+              }
+            }
+            return;
+          }
+        }
+      } else if (can_force_zmv_skip) {
+        unsigned int vis_y_sad = 0;
+        unsigned int vis_uv_sad[2] = { 0, 0 };
+        int vis_mi_area = 0;
+        bool fully_inside_crop = true;
+        compute_visible_sb_zero_mv_sad(
+            cpi, x, tile, mi_row, mi_col, 0, 0, cm->seq_params.sb_size,
+            &vis_y_sad, vis_uv_sad, &vis_mi_area, &fully_inside_crop);
+        if (fully_inside_crop && vis_mi_area > 0 && vis_y_sad == 0 &&
+            vis_uv_sad[0] == 0 && vis_uv_sad[1] == 0) {
+          x->color_sensitivity_sb[0] = 0;
+          x->color_sensitivity_sb[1] = 0;
+          set_static_sb_partitioning(cpi, tile, mi_row, mi_col,
+                                     cm->seq_params.sb_size);
+          x->force_zeromv_skip_for_sb = 2;
           return;
         }
       }

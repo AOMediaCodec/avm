@@ -177,7 +177,8 @@ static AVM_INLINE void av2_set_two_pass_flags(
     x->inter_mode_prune_top = 2;
   } else if (is_wet_pass_reuse) {
     const bool is_intra_only = frame_is_intra_only(&cpi->common);
-    const int full_intra_prune_top = cpi->sf.intra_sf.intra_pruning_with_mlp
+    const int full_intra_prune_top = (cpi->sf.intra_sf.intra_pruning_with_mlp ||
+                                      cpi->sf.rt_sf.use_nonrd_pickmode)
                                          ? cpi->sf.intra_sf.intra_mode_prune_top
                                          : TOP_INTRA_MODEL_COUNT;
     // Wet pass reusing the dry-pass shape.
@@ -185,7 +186,8 @@ static AVM_INLINE void av2_set_two_pass_flags(
     x->inter_mode_prune_top = 4;
   } else {
     // Full pool.
-    x->intra_mode_prune_top = cpi->sf.intra_sf.intra_pruning_with_mlp
+    x->intra_mode_prune_top = (cpi->sf.intra_sf.intra_pruning_with_mlp ||
+                               cpi->sf.rt_sf.use_nonrd_pickmode)
                                   ? cpi->sf.intra_sf.intra_mode_prune_top
                                   : TOP_INTRA_MODEL_COUNT;
     const int full_pool_top = cpi->sf.inter_sf.full_pool_inter_mode_prune_top;
