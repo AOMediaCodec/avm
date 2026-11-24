@@ -431,32 +431,37 @@ static INLINE void pack_8x2_pixels_6t(const uint16_t *src, ptrdiff_t stride,
   x[5] = _mm256_alignr_epi8(r1, r0, 10);
 }
 
-static INLINE void pack_16x1_pixels(const uint16_t *src, __m256i *x) {
-  __m256i s0, s1;
-  s0 = _mm256_loadu_si256((const __m256i *)src);
-  s1 = _mm256_loadu_si256((const __m256i *)(src + 8));
-  pack_16_pixels(&s0, &s1, x);
+static INLINE void pack_16x1_pixels_8t(const uint16_t *src, __m256i *x) {
+  // Even pixels
+  x[0] = _mm256_loadu_si256((const __m256i *)(src + 0));
+  x[1] = _mm256_loadu_si256((const __m256i *)(src + 2));
+  x[2] = _mm256_loadu_si256((const __m256i *)(src + 4));
+  x[3] = _mm256_loadu_si256((const __m256i *)(src + 6));
+  // Odd pixels
+  x[4] = _mm256_loadu_si256((const __m256i *)(src + 1));
+  x[5] = _mm256_loadu_si256((const __m256i *)(src + 3));
+  x[6] = _mm256_loadu_si256((const __m256i *)(src + 5));
+  x[7] = _mm256_loadu_si256((const __m256i *)(src + 7));
 }
 
 static INLINE void pack_16x1_pixels_6t(const uint16_t *src, __m256i *x) {
-  // a0 ... a15
-  const __m256i s0 = _mm256_loadu_si256((const __m256i *)src);
-  // a8 ... a23
-  const __m256i s1 = _mm256_loadu_si256((const __m256i *)(src + 8));
+  // Even pixels
+  x[0] = _mm256_loadu_si256((const __m256i *)(src + 0));
+  x[1] = _mm256_loadu_si256((const __m256i *)(src + 2));
+  x[2] = _mm256_loadu_si256((const __m256i *)(src + 4));
+  // Odd pixels
+  x[3] = _mm256_loadu_si256((const __m256i *)(src + 1));
+  x[4] = _mm256_loadu_si256((const __m256i *)(src + 3));
+  x[5] = _mm256_loadu_si256((const __m256i *)(src + 5));
+}
 
-  // a0 a1 .. a6 a7 | a8 a9 .. a14 a15
-  x[0] = s0;
-  // a2 a3 .. a8 a9 | a10 a11 .. a16 a17
-  x[1] = _mm256_alignr_epi8(s1, s0, 4);
-  // a4 a5 .. a10 a11 | a12 a13 .. a18 a19
-  x[2] = _mm256_alignr_epi8(s1, s0, 8);
-
-  // a1 a2 .. a7 a8  | a9 a10 .. a15 a16
-  x[3] = _mm256_alignr_epi8(s1, s0, 2);
-  // a3 a4 .. a9 a10 |  a11 a12.. a17 a18
-  x[4] = _mm256_alignr_epi8(s1, s0, 6);
-  // a5 a6 ..  a11 a12 | a13 a14.. a19 a20
-  x[5] = _mm256_alignr_epi8(s1, s0, 10);
+static INLINE void pack_16x1_pixels_4t(const uint16_t *src, __m256i *x) {
+  // Even pixels
+  x[0] = _mm256_loadu_si256((const __m256i *)(src + 0));
+  x[1] = _mm256_loadu_si256((const __m256i *)(src + 2));
+  // Odd pixels
+  x[2] = _mm256_loadu_si256((const __m256i *)(src + 1));
+  x[3] = _mm256_loadu_si256((const __m256i *)(src + 3));
 }
 
 // Note:
@@ -472,6 +477,15 @@ static INLINE void pack_filters(const int16_t *filter, __m256i *f /*f[4]*/) {
   f[1] = _mm256_shuffle_epi8(hh, p1);
   f[2] = _mm256_shuffle_epi8(hh, p2);
   f[3] = _mm256_shuffle_epi8(hh, p3);
+}
+
+static INLINE void pack_filters_8t(const int16_t *filter, __m256i *f /*f[4]*/) {
+  const __m128i coeff_8 = _mm_loadu_si128((const __m128i *)filter);
+  const __m256i coeff = _mm256_broadcastsi128_si256(coeff_8);
+  f[0] = _mm256_shuffle_epi32(coeff, 0x00);
+  f[1] = _mm256_shuffle_epi32(coeff, 0x55);
+  f[2] = _mm256_shuffle_epi32(coeff, 0xaa);
+  f[3] = _mm256_shuffle_epi32(coeff, 0xff);
 }
 
 static INLINE void pack_filters_6t(const int16_t *filter, __m256i *f /*f[4]*/) {
@@ -523,10 +537,26 @@ static INLINE void filter_8x1_pixels(const __m256i *sig /*sig[4]*/,
   }
 }
 
-static INLINE void filter_8x1_pixels_6t(const __m256i *sig /*sig[3]*/,
-                                        const __m256i *fil /*fil[3]*/,
+static INLINE void filter_8x1_pixels_8t(const __m256i *sig /*sig[4]*/,
+                                        const __m256i *filter /*filter[4]*/,
                                         __m256i *y, const __m256i rounding) {
-  __m256i a = convolve_6tap(sig, fil);
+  __m256i a = convolve(sig, filter);
+  a = _mm256_add_epi32(a, rounding);
+  *y = _mm256_srai_epi32(a, CONV8_ROUNDING_BITS);
+}
+
+static INLINE void filter_8x1_pixels_6t(const __m256i *sig /*sig[3]*/,
+                                        const __m256i *filter /*filter[3]*/,
+                                        __m256i *y, const __m256i rounding) {
+  __m256i a = convolve_6tap(sig, filter);
+  a = _mm256_add_epi32(a, rounding);
+  *y = _mm256_srai_epi32(a, CONV8_ROUNDING_BITS);
+}
+
+static INLINE void filter_8x1_pixels_4t(const __m256i *sig /*sig[2]*/,
+                                        const __m256i *filter /*filter[2]*/,
+                                        __m256i *y, const __m256i rounding) {
+  __m256i a = convolve_4tap(sig, filter);
   a = _mm256_add_epi32(a, rounding);
   *y = _mm256_srai_epi32(a, CONV8_ROUNDING_BITS);
 }
@@ -569,13 +599,18 @@ static INLINE void store_16x1_pixels(const __m256i y0, const __m256i y1,
   _mm256_storeu_si256((__m256i *)dst, a);
 }
 
+DECLARE_ALIGNED(32, static const uint8_t, even_odd_shuffle_16b[32]) = {
+  0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15,
+  0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15
+};
+
 static INLINE void unpack_and_store_16x1_pixels(const __m256i y0,
                                                 const __m256i y1,
                                                 const __m256i mask,
+                                                const __m256i interleave_mask,
                                                 uint16_t *dst) {
-  const __m256i even = _mm256_packus_epi32(y0, y0);
-  const __m256i odd = _mm256_packus_epi32(y1, y1);
-  __m256i res = _mm256_unpacklo_epi16(even, odd);
+  __m256i res = _mm256_packus_epi32(y0, y1);
+  res = _mm256_shuffle_epi8(res, interleave_mask);
   res = _mm256_min_epi16(res, mask);
   _mm256_storeu_si256((__m256i *)dst, res);
 }
@@ -648,11 +683,12 @@ static void avm_highbd_filter_block1d8_h8_avx2(
 static void avm_highbd_filter_block1d16_h6_avx2(
     const uint16_t *src_ptr, ptrdiff_t src_pitch, uint16_t *dst_ptr,
     ptrdiff_t dst_pitch, uint32_t height, const int16_t *filter, int bd) {
-  __m256i signal[6], res0, res1;
+  __m256i signal[6], res0, res1, ff[3];
   const __m256i max = _mm256_set1_epi16((1 << bd) - 1);
   const __m256i round = _mm256_set1_epi32(1 << (CONV8_ROUNDING_BITS - 1));
+  const __m256i interleave_mask =
+      _mm256_loadu_si256((const __m256i *)even_odd_shuffle_16b);
 
-  __m256i ff[3];
   pack_filters_6t(filter, ff);
 
   src_ptr -= 2;
@@ -662,7 +698,7 @@ static void avm_highbd_filter_block1d16_h6_avx2(
     filter_8x1_pixels_6t(signal, ff, &res0, round);
     // odd pixels
     filter_8x1_pixels_6t(&signal[3], ff, &res1, round);
-    unpack_and_store_16x1_pixels(res0, res1, max, dst_ptr);
+    unpack_and_store_16x1_pixels(res0, res1, max, interleave_mask, dst_ptr);
     height -= 1;
     src_ptr += src_pitch;
     dst_ptr += dst_pitch;
@@ -680,18 +716,22 @@ static void avm_highbd_filter_block1d16_h8_avx2(
     return;
   }
 
-  __m256i signal[8], res0, res1;
+  __m256i signal[8], res0, res1, ff[4];
   const __m256i max = _mm256_set1_epi16((1 << bd) - 1);
+  const __m256i round = _mm256_set1_epi32(1 << (CONV8_ROUNDING_BITS - 1));
+  const __m256i interleave_mask =
+      _mm256_loadu_si256((const __m256i *)even_odd_shuffle_16b);
 
-  __m256i ff[4];
-  pack_filters(filter, ff);
+  pack_filters_8t(filter, ff);
 
   src_ptr -= 3;
   do {
-    pack_16x1_pixels(src_ptr, signal);
-    filter_8x1_pixels(signal, ff, &res0);
-    filter_8x1_pixels(&signal[4], ff, &res1);
-    store_16x1_pixels(res0, res1, max, dst_ptr);
+    pack_16x1_pixels_8t(src_ptr, signal);
+    // even pixels
+    filter_8x1_pixels_8t(signal, ff, &res0, round);
+    // odd pixels
+    filter_8x1_pixels_8t(&signal[4], ff, &res1, round);
+    unpack_and_store_16x1_pixels(res0, res1, max, interleave_mask, dst_ptr);
     height -= 1;
     src_ptr += src_pitch;
     dst_ptr += dst_pitch;
@@ -862,10 +902,26 @@ static void avm_highbd_filter_block1d8_h4_avx2(
 static void avm_highbd_filter_block1d16_h4_avx2(
     const uint16_t *src_ptr, ptrdiff_t src_pitch, uint16_t *dst_ptr,
     ptrdiff_t dst_pitch, uint32_t height, const int16_t *filter, int bd) {
-  avm_highbd_filter_block1d8_h4_avx2(src_ptr, src_pitch, dst_ptr, dst_pitch,
-                                     height, filter, bd);
-  avm_highbd_filter_block1d8_h4_avx2(src_ptr + 8, src_pitch, dst_ptr + 8,
-                                     dst_pitch, height, filter, bd);
+  __m256i signal[4], res0, res1, ff[2];
+  const __m256i max = _mm256_set1_epi16((1 << bd) - 1);
+  const __m256i round = _mm256_set1_epi32(1 << (CONV8_ROUNDING_BITS - 1));
+  const __m256i interleave_mask =
+      _mm256_loadu_si256((const __m256i *)even_odd_shuffle_16b);
+
+  pack_filters_4tap(filter, ff);
+
+  src_ptr -= 1;
+  do {
+    pack_16x1_pixels_4t(src_ptr, signal);
+    // even pixels
+    filter_8x1_pixels_4t(signal, ff, &res0, round);
+    // odd pixels
+    filter_8x1_pixels_4t(&signal[2], ff, &res1, round);
+    unpack_and_store_16x1_pixels(res0, res1, max, interleave_mask, dst_ptr);
+    height -= 1;
+    src_ptr += src_pitch;
+    dst_ptr += dst_pitch;
+  } while (height > 0);
 }
 
 // -----------------------------------------------------------------------------
@@ -1509,14 +1565,74 @@ static void avm_highbd_filter_block1d8_v4_avx2(
   }
 }
 
+static INLINE void pack_16x5_init(const uint16_t *src, ptrdiff_t pitch,
+                                  __m256i *sig) {
+  const __m256i s0 = _mm256_loadu_si256((const __m256i *)src);
+  const __m256i s1 = _mm256_loadu_si256((const __m256i *)(src + pitch));
+  const __m256i s2 = _mm256_loadu_si256((const __m256i *)(src + 2 * pitch));
+
+  sig[0] = _mm256_unpacklo_epi16(s0, s1);
+  sig[4] = _mm256_unpackhi_epi16(s0, s1);
+
+  sig[2] = _mm256_unpacklo_epi16(s1, s2);
+  sig[6] = _mm256_unpackhi_epi16(s1, s2);
+
+  sig[8] = s2;
+}
+
+static INLINE void pack_16x5_pixels(const uint16_t *src, ptrdiff_t pitch,
+                                    __m256i *sig) {
+  const __m256i s3 = _mm256_loadu_si256((const __m256i *)(src + 3 * pitch));
+  const __m256i s4 = _mm256_loadu_si256((const __m256i *)(src + 4 * pitch));
+
+  sig[1] = _mm256_unpacklo_epi16(sig[8], s3);
+  sig[5] = _mm256_unpackhi_epi16(sig[8], s3);
+
+  sig[3] = _mm256_unpacklo_epi16(s3, s4);
+  sig[7] = _mm256_unpackhi_epi16(s3, s4);
+
+  sig[8] = s4;
+}
+
+static INLINE void filter_16x5_pixels(const __m256i *sig, const __m256i *f,
+                                      __m256i *y0, __m256i *y1,
+                                      const __m256i rounding) {
+  __m256i res[4];
+  for (int i = 0; i < 4; ++i) {
+    filter_8x1_pixels_4t(&sig[i * 2], f, &res[i], rounding);
+  }
+  *y0 = _mm256_packus_epi32(res[0], res[2]);
+  *y1 = _mm256_packus_epi32(res[1], res[3]);
+}
+
+static INLINE void update_16x5_pixels(__m256i *sig) {
+  sig[0] = sig[1];
+  sig[2] = sig[3];
+  sig[4] = sig[5];
+  sig[6] = sig[7];
+}
+
 static void avm_highbd_filter_block1d16_v4_avx2(
     const uint16_t *src_ptr, ptrdiff_t src_pitch, uint16_t *dst_ptr,
     ptrdiff_t dst_pitch, uint32_t height, const int16_t *filter, int bd) {
-  avm_highbd_filter_block1d8_v4_avx2(src_ptr, src_pitch, dst_ptr, dst_pitch,
-                                     height, filter, bd);
+  __m256i signal[9], res0, res1, ff[2];
+  const __m256i max = _mm256_set1_epi16((1 << bd) - 1);
+  const __m256i round = _mm256_set1_epi32(1 << (CONV8_ROUNDING_BITS - 1));
 
-  avm_highbd_filter_block1d8_v4_avx2(src_ptr + 8, src_pitch, dst_ptr + 8,
-                                     dst_pitch, height, filter, bd);
+  pack_filters_4tap(filter, ff);
+  src_ptr += 2 * src_pitch;
+  pack_16x5_init(src_ptr, src_pitch, signal);
+
+  do {
+    pack_16x5_pixels(src_ptr, src_pitch, signal);
+    filter_16x5_pixels(signal, ff, &res0, &res1, round);
+    store_16x2_pixels(res0, res1, max, dst_ptr, dst_pitch);
+    update_16x5_pixels(signal);
+
+    src_ptr += src_pitch << 1;
+    dst_ptr += dst_pitch << 1;
+    height -= 2;
+  } while (height > 0);
 }
 
 // -----------------------------------------------------------------------------
