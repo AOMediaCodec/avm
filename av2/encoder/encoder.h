@@ -2257,12 +2257,6 @@ typedef struct {
   unsigned int coeff_opt_satd_threshold[MODE_EVAL_TYPES];
 
   /*!
-   * Determines the tx size search method during rdopt.
-   * Corresponds to enable_winner_mode_for_tx_size_srch speed feature.
-   */
-  TX_SIZE_SEARCH_METHOD tx_size_search_methods[MODE_EVAL_TYPES];
-
-  /*!
    * Controls how often we should approximate prediction error with tx
    * coefficients. If it's 0, then never. If 1, then it's during the tx_type
    * search only. If 2, then always.

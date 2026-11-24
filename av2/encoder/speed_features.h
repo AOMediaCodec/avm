@@ -1284,9 +1284,15 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
 typedef struct TX_SPEED_FEATURES {
   TX_TYPE_SEARCH tx_type_search;
 
-  // Skip split transform block partition when the collocated bigger block
-  // is selected as all zero coefficients.
-  int txb_split_cap;
+  // Transform size search method:
+  // - USE_FULL_RD: Search transform partitions using the full allowed
+  //   transform-type set (TX_MODE_SELECT).
+  // - USE_FAST_RD: Search transform partitions with a relaxed RD breakout
+  //   threshold on inter blocks and restrict luma transform types to DCT_DCT,
+  //   H_DCT, and V_DCT (TX_MODE_SELECT).
+  // - USE_LARGESTALL: Use only the largest transform size for each block
+  //   without partition search (TX_MODE_LARGEST).
+  TX_SIZE_SEARCH_METHOD tx_size_search_method;
 
   // Prune transform type evaluation when target rdcost is low as
   // compared to best rdcost and based on eob.
@@ -1430,17 +1436,6 @@ typedef struct WINNER_MODE_SPEED_FEATURES {
   // 3: same as 2, but intra blocks evaluate only TX_PARTITION_NONE in rough
   //    mode
   int disable_multiway_tx_part_in_rough_mode;
-
-  // Flag used to control the winner mode processing for transform size
-  // search method
-  int enable_winner_mode_for_tx_size_srch;
-
-  // Control transform size search level
-  // Eval type: Default       Mode        Winner
-  // Level 0  : FULL RD     LARGEST ALL   FULL RD
-  // Level 1  : FAST RD     LARGEST ALL   FULL RD
-  // Level 2  : LARGEST ALL LARGEST ALL   FULL RD
-  int tx_size_search_level;
 
   // Flag used to control the winner mode processing for use transform
   // domain distortion

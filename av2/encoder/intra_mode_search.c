@@ -1953,9 +1953,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
       top_intra_model_rd[i] = INT64_MAX;
     }
     x->prune_tx_partition = 1;
-    for (int i = 0; i < TOP_TX_PART_COUNT; ++i) {
-      x->top_tx_part_rd[i] = INT64_MAX;
-    }
+    av2_init_top_tx_part_rd(x->top_tx_part_rd[0], TOP_TX_PART_COUNT);
 
     const uint8_t enable_mrls_flag = cm->seq_params.enable_mrls;
     int mrl_loop_num;

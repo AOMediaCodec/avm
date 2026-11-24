@@ -2644,13 +2644,7 @@ static AVM_INLINE void encode_frame_internal(AV2_COMP *cpi) {
   }
 
   // Set the transform size appropriately before bitstream creation
-  const MODE_EVAL_TYPE eval_type =
-      cpi->sf.winner_mode_sf.enable_winner_mode_for_tx_size_srch
-          ? WINNER_MODE_EVAL
-          : DEFAULT_EVAL;
-  const TX_SIZE_SEARCH_METHOD tx_search_type =
-      cpi->winner_mode_params.tx_size_search_methods[eval_type];
-  features->tx_mode = select_tx_mode(cm, tx_search_type);
+  features->tx_mode = select_tx_mode(cm, cpi->sf.tx_sf.tx_size_search_method);
 
   if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
     const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);

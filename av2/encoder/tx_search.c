@@ -2177,6 +2177,17 @@ static AVM_INLINE bool winner_mode_tx_partition_preselected(
          get_tx_part_rough_mode_level(cpi, mbmi, tree_type) == 1;
 }
 
+// True when winner-mode evaluation runs the deferred full intra tx-partition
+// search for rough-mode levels 2 and 3 (where rough mode capped intra splits
+// and winner mode discards TX_PARTITION_NONE if no split improves on it).
+static AVM_INLINE bool winner_mode_defers_intra_tx_splits(
+    const TxfmSearchParams *txfm_params, const MB_MODE_INFO *mbmi,
+    int tree_type, const AV2_COMP *cpi) {
+  return txfm_params->eval_mode_type == WINNER_MODE_EVAL &&
+         mbmi->region_type == MIXED_INTER_INTRA_REGION &&
+         get_tx_part_rough_mode_level(cpi, mbmi, tree_type) >= 2;
+}
+
 // Margin added to the IST input energy bound to cover the rounding of the
 // secondary transform kernels, as a right shift of the energy.
 #define IST_INPUT_ENERGY_MARGIN_SHIFT 5
@@ -3194,73 +3205,114 @@ static AVM_INLINE void try_tx_block_no_split(
 }
 
 // Store the NONE transform partition RD
-static INLINE void push_inter_block_none_tx_part_rd(
-    MACROBLOCK *const x, MB_MODE_INFO *const mbmi, int64_t tmp_rd, int blk_idx,
-    TX_PARTITION_TYPE type, bool prune_inter_tx_part_rd_eval) {
-  assert(blk_idx < MAX_TX_BLOCKS_IN_MAX_SB);
-  if (!prune_inter_tx_part_rd_eval || type != TX_PARTITION_NONE) return;
-
-  // Do not store for skip and intraBC modes
-  if (mbmi->skip_mode != 0 || !is_inter_ref_frame(mbmi->ref_frame[0])) return;
-
-  // Insert the RD Cost in sorted order
-  for (int i = 0; i < TOP_INTER_TX_PART_COUNT; i++) {
-    if (tmp_rd < x->top_tx_part_rd_inter[blk_idx][i]) {
-      for (int j = TOP_INTER_TX_PART_COUNT - 1; j > i; j--) {
-        x->top_tx_part_rd_inter[blk_idx][j] =
-            x->top_tx_part_rd_inter[blk_idx][j - 1];
+static AVM_INLINE void push_top_tx_part_none_rd(int64_t *top_rds, int cnt,
+                                                int64_t rd) {
+  assert(cnt > 0 && cnt <= TOP_INTER_TX_PART_COUNT);
+  for (int i = 0; i < cnt; ++i) {
+    if (rd < top_rds[i]) {
+      for (int j = cnt - 1; j > i; --j) {
+        top_rds[j] = top_rds[j - 1];
       }
-      x->top_tx_part_rd_inter[blk_idx][i] = tmp_rd;
+      top_rds[i] = rd;
       break;
     }
   }
 }
 
-// Prune the evaluation of transform partitions other than NONE tx partition
-static INLINE bool prune_tx_part_eval_using_none_rd(
-    MACROBLOCK *const x, MB_MODE_INFO *const mbmi, int64_t tmp_rd, int blk_idx,
-    TX_PARTITION_TYPE type, bool prune_inter_tx_part_rd_eval) {
-  if (!prune_inter_tx_part_rd_eval || type != TX_PARTITION_NONE) return false;
+static AVM_INLINE bool prune_by_top_tx_part_none_rd(const int64_t *top_rds,
+                                                    int cnt, int64_t rd) {
+  assert(cnt > 0 && cnt <= TOP_INTER_TX_PART_COUNT);
+  return top_rds[cnt - 1] != INT64_MAX && rd > top_rds[cnt - 1];
+}
 
-  // Do not prune for skip and intraBC modes
-  if (mbmi->skip_mode != 0 || !is_inter_ref_frame(mbmi->ref_frame[0]))
-    return false;
+static AVM_INLINE int get_active_inter_top_tx_part_cnt(
+    const MB_MODE_INFO *mbmi, TX_PARTITION_TYPE type,
+    bool prune_inter_tx_part_rd_eval) {
+  if (!prune_inter_tx_part_rd_eval || type != TX_PARTITION_NONE ||
+      mbmi->skip_mode != 0 || !is_inter_ref_frame(mbmi->ref_frame[0])) {
+    return 0;
+  }
+  return TOP_INTER_TX_PART_COUNT;
+}
 
-  // Do not prune if there is no valid top RD Cost for comparison
-  if (x->top_tx_part_rd_inter[blk_idx][TOP_INTER_TX_PART_COUNT - 1] ==
-      INT64_MAX)
-    return false;
-
-  if (tmp_rd > x->top_tx_part_rd_inter[blk_idx][TOP_INTER_TX_PART_COUNT - 1])
+// Prune directional/multi-way transform partitions based on the winning
+// partition so far and `restrict_tx_partition_type_search` (levels 0..3).
+static AVM_INLINE bool prune_tx_partition_type(TX_PARTITION_TYPE type,
+                                               TX_PARTITION_TYPE best_type,
+                                               bool is_rect, int restrict_level,
+                                               bool is_inter) {
+  if ((type == TX_PARTITION_HORZ4 && best_type == TX_PARTITION_VERT) ||
+      (type == TX_PARTITION_VERT4 && best_type == TX_PARTITION_HORZ)) {
     return true;
+  }
+  if (restrict_level <= 0 || type < TX_PARTITION_HORZ) return false;
+  if (restrict_level >= 3) return true;
+  if (type < TX_PARTITION_HORZ4) return false;
+  if (!is_rect) return true;
 
+  if ((type == TX_PARTITION_HORZ4 && best_type != TX_PARTITION_HORZ) ||
+      (type == TX_PARTITION_VERT4 && best_type != TX_PARTITION_VERT)) {
+    return true;
+  }
+
+  if (!is_inter || restrict_level >= 2) {
+    if ((type == TX_PARTITION_HORZ5 && best_type != TX_PARTITION_HORZ &&
+         best_type != TX_PARTITION_HORZ4) ||
+        (type == TX_PARTITION_VERT5 && best_type != TX_PARTITION_VERT &&
+         best_type != TX_PARTITION_VERT4)) {
+      return true;
+    }
+  }
   return false;
 }
 
-static AVM_INLINE int skip_tx_partition_by_eval_type(
-    TX_PARTITION_TYPE type, int eval_mode_type, REGION_TYPE region_type,
-    int disable_multiway_tx_part_in_rough_mode) {
-  if (!disable_multiway_tx_part_in_rough_mode) return 0;
+// Compute the half-open [first_type, end_type) interval of TX_PARTITION_TYPE
+// candidates allowed by sequence flags, dry-pass shortcuts, rough/winner
+// evaluation stage, and quad-split-only restriction caps.
+static AVM_INLINE void get_tx_partition_search_range(
+    const AV2_COMP *cpi, const MACROBLOCK *x,
+    const TxfmSearchParams *txfm_params, bool tx_partition_preselected,
+    int *first_type, int *end_type) {
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  int first = TX_PARTITION_NONE;
+  int end = TX_PARTITION_TYPES;
 
-  if (disable_multiway_tx_part_in_rough_mode >= 2) {
-    const TX_PARTITION_TYPE max_rough_type =
-        disable_multiway_tx_part_in_rough_mode == 2 ? TX_PARTITION_SPLIT
-                                                    : TX_PARTITION_NONE;
-    if (eval_mode_type == MODE_EVAL &&
-        region_type == MIXED_INTER_INTRA_REGION && type > max_rough_type)
-      return 1;
-    return 0;
+  if (cpi->oxcf.txfm_cfg.reduced_tx_part_set) {
+    end = AVMMIN(end, TX_PARTITION_VERT + 1);
+  }
+  // Fast dry pass ranks shapes only; cap to NONE + SPLIT (NONE alone
+  // under-ranks blocks that want a split). Skip the cap when the caller has
+  // pre-selected a multiway partition via WINNER_MODE_EVAL, so we do not
+  // silently discard it.
+  if (dry_pass_caps_tx_part(x, cpi) && !tx_partition_preselected) {
+    end = AVMMIN(end, DRY_PASS_ALLOWED_MAX_TX_PARTITION_TYPES);
+  }
+  if (!cpi->sf.tx_sf.enable_tx_partition) {
+    end = AVMMIN(end, TX_PARTITION_NONE + 1);
+  }
+  if (cpi->sf.tx_sf.restrict_tx_partition_type_search >= 3) {
+    end = AVMMIN(end, TX_PARTITION_SPLIT + 1);
   }
 
-  if (eval_mode_type == MODE_EVAL && region_type == MIXED_INTER_INTRA_REGION &&
-      type > TX_PARTITION_VERT)
-    return 1;
+  const int rough_level =
+      get_tx_part_rough_mode_level(cpi, mbmi, xd->tree_type);
+  if (rough_level > 0 && mbmi->region_type == MIXED_INTER_INTRA_REGION) {
+    if (rough_level >= 2) {
+      if (txfm_params->eval_mode_type == MODE_EVAL) {
+        const int max_rough =
+            (rough_level == 2) ? TX_PARTITION_SPLIT : TX_PARTITION_NONE;
+        end = AVMMIN(end, max_rough + 1);
+      }
+    } else if (txfm_params->eval_mode_type == MODE_EVAL) {
+      end = AVMMIN(end, TX_PARTITION_VERT + 1);
+    } else if (txfm_params->eval_mode_type == WINNER_MODE_EVAL) {
+      first = TX_PARTITION_HORZ4;
+    }
+  }
 
-  if (eval_mode_type == WINNER_MODE_EVAL &&
-      region_type == MIXED_INTER_INTRA_REGION && type <= TX_PARTITION_VERT)
-    return 1;
-
-  return 0;
+  *first_type = first;
+  *end_type = end;
 }
 
 // Search for the best tx partition type for a given luma block.
@@ -3420,35 +3472,15 @@ static void select_tx_partition_type(
   int stationary_cols = 0;
   int stationarity_valid = 0;
 
-  // Fast dry pass ranks shapes only; cap to NONE + SPLIT (NONE alone
-  // under-ranks blocks that want a split). Skip the cap when the caller has
-  // pre-selected a multiway partition via WINNER_MODE_EVAL, so we do not
-  // silently discard it.
-  const int max_tx_part_type =
-      (dry_pass_caps_tx_part(x, cpi) && !tx_partition_preselected)
-          ? DRY_PASS_ALLOWED_MAX_TX_PARTITION_TYPES
-          : TX_PARTITION_TYPES;
+  int first_type, end_type;
+  get_tx_partition_search_range(cpi, x, txfm_params, tx_partition_preselected,
+                                &first_type, &end_type);
 
-  for (TX_PARTITION_TYPE type = 0; type < max_tx_part_type; ++type) {
-    if (cpi->oxcf.txfm_cfg.reduced_tx_part_set && type > TX_PARTITION_VERT) {
-      break;
-    }
-
-    if (skip_tx_partition_by_eval_type(
-            type, txfm_params->eval_mode_type, mbmi->region_type,
-            get_tx_part_rough_mode_level(cpi, mbmi, xd->tree_type)))
-      continue;
+  for (int type_idx = first_type; type_idx < end_type; ++type_idx) {
+    const TX_PARTITION_TYPE type = (TX_PARTITION_TYPE)type_idx;
 
     // Skip any illegal partitions for this block size
     if (!use_tx_partition(type, plane_bsize, max_tx_size)) continue;
-    if (cpi->sf.tx_sf.enable_tx_partition == false && type) continue;
-
-    if ((type == TX_PARTITION_HORZ4 &&
-         best_tx_partition == TX_PARTITION_VERT) ||
-        (type == TX_PARTITION_VERT4 &&
-         best_tx_partition == TX_PARTITION_HORZ)) {
-      continue;
-    }
 
     if (cpi->sf.tx_sf.prune_tx_part_stationarity && type != TX_PARTITION_NONE) {
       if (!stationarity_valid) {
@@ -3466,33 +3498,10 @@ static void select_tx_partition_type(
       }
     }
 
-    if (cpi->sf.tx_sf.restrict_tx_partition_type_search) {
-      if ((type == TX_PARTITION_HORZ4 &&
-           best_tx_partition != TX_PARTITION_HORZ) ||
-          (type == TX_PARTITION_VERT4 &&
-           best_tx_partition != TX_PARTITION_VERT)) {
-        continue;
-      }
-
-      if (cpi->sf.tx_sf.restrict_tx_partition_type_search > 1) {
-        if ((type == TX_PARTITION_HORZ5 &&
-             best_tx_partition != TX_PARTITION_HORZ &&
-             best_tx_partition != TX_PARTITION_HORZ4) ||
-            (type == TX_PARTITION_VERT5 &&
-             best_tx_partition != TX_PARTITION_VERT &&
-             best_tx_partition != TX_PARTITION_VERT4)) {
-          continue;
-        }
-      }
-
-      if (type >= TX_PARTITION_HORZ4 && !is_rect) {
-        continue;
-      }
-
-      if (cpi->sf.tx_sf.restrict_tx_partition_type_search >= 3 &&
-          type >= TX_PARTITION_HORZ) {
-        continue;
-      }
+    if (prune_tx_partition_type(type, best_tx_partition, is_rect,
+                                cpi->sf.tx_sf.restrict_tx_partition_type_search,
+                                true)) {
+      continue;
     }
 
     RD_STATS partition_rd_stats;
@@ -3570,8 +3579,13 @@ static void select_tx_partition_type(
       cur_block += sub_step;
     }
 
-    push_inter_block_none_tx_part_rd(x, mbmi, tmp_rd, blk_idx, type,
-                                     cpi->sf.tx_sf.prune_inter_tx_part_rd_eval);
+    const int inter_top_cnt = get_active_inter_top_tx_part_cnt(
+        mbmi, type, cpi->sf.tx_sf.prune_inter_tx_part_rd_eval);
+    if (inter_top_cnt > 0) {
+      assert(blk_idx < MAX_TX_BLOCKS_IN_MAX_SB);
+      push_top_tx_part_none_rd(x->top_tx_part_rd[blk_idx], inter_top_cnt,
+                               tmp_rd);
+    }
 
     if (all_zero_blk == true && type != TX_PARTITION_NONE) continue;
 
@@ -3590,9 +3604,7 @@ static void select_tx_partition_type(
 
     // Early termination based on rd of NONE mode
     if (type == TX_PARTITION_NONE && tmp_rd != INT64_MAX) {
-      if (cpi->sf.tx_sf.txb_split_cap) {
-        if (p->eobs[block] == 0) break;
-      }
+      if (p->eobs[block] == 0) break;
 
       const int search_level =
           tx_partition_prune_level[max_txw_txh == 64]
@@ -3604,10 +3616,11 @@ static void select_tx_partition_type(
       }
     }
 
-    if (prune_tx_part_eval_using_none_rd(
-            x, mbmi, tmp_rd, blk_idx, type,
-            cpi->sf.tx_sf.prune_inter_tx_part_rd_eval))
+    if (inter_top_cnt > 0 &&
+        prune_by_top_tx_part_none_rd(x->top_tx_part_rd[blk_idx], inter_top_cnt,
+                                     tmp_rd)) {
       break;
+    }
   }
 
   if (best_rd == INT64_MAX) *is_cost_valid = 0;
@@ -3776,25 +3789,14 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
   x->rd_model = FULL_TXFM_RD;
   int64_t cur_rd = INT64_MAX;
   const bool is_rect = is_rect_tx(max_tx_size);
-  // Same NONE+SPLIT cap (and WINNER_MODE_EVAL escape) as in
-  // select_tx_partition_type().
-  const int max_tx_part_type =
-      (dry_pass_caps_tx_part(x, cpi) && !tx_partition_preselected)
-          ? DRY_PASS_ALLOWED_MAX_TX_PARTITION_TYPES
-          : TX_PARTITION_TYPES;
-  for (TX_PARTITION_TYPE type = 0; type < max_tx_part_type; ++type) {
-    if (cpi->oxcf.txfm_cfg.reduced_tx_part_set && type > TX_PARTITION_VERT) {
-      break;
-    }
-
-    if (skip_tx_partition_by_eval_type(
-            type, txfm_params->eval_mode_type, mbmi->region_type,
-            get_tx_part_rough_mode_level(cpi, mbmi, xd->tree_type)))
-      continue;
+  int first_type, end_type;
+  get_tx_partition_search_range(cpi, x, txfm_params, tx_partition_preselected,
+                                &first_type, &end_type);
+  for (int type_idx = first_type; type_idx < end_type; ++type_idx) {
+    const TX_PARTITION_TYPE type = (TX_PARTITION_TYPE)type_idx;
 
     // Skip any illegal partitions for this block size
     if (!use_tx_partition(type, bs, max_tx_size)) continue;
-    if (cpi->sf.tx_sf.enable_tx_partition == false && type) continue;
 
     mbmi->tx_partition_type[0] = type;
     get_tx_partition_sizes(type, max_tx_size, &mbmi->txb_pos, mbmi->sub_txs,
@@ -3808,38 +3810,10 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
     }
 #endif
 
-    if ((type == TX_PARTITION_HORZ4 &&
-         best_tx_partition_type == TX_PARTITION_VERT) ||
-        (type == TX_PARTITION_VERT4 &&
-         best_tx_partition_type == TX_PARTITION_HORZ)) {
+    if (prune_tx_partition_type(type, best_tx_partition_type, is_rect,
+                                cpi->sf.tx_sf.restrict_tx_partition_type_search,
+                                false)) {
       continue;
-    }
-
-    if (cpi->sf.tx_sf.restrict_tx_partition_type_search) {
-      if ((type == TX_PARTITION_HORZ4 &&
-           best_tx_partition_type != TX_PARTITION_HORZ) ||
-          (type == TX_PARTITION_VERT4 &&
-           best_tx_partition_type != TX_PARTITION_VERT)) {
-        continue;
-      }
-
-      if ((type == TX_PARTITION_HORZ5 &&
-           best_tx_partition_type != TX_PARTITION_HORZ &&
-           best_tx_partition_type != TX_PARTITION_HORZ4) ||
-          (type == TX_PARTITION_VERT5 &&
-           best_tx_partition_type != TX_PARTITION_VERT &&
-           best_tx_partition_type != TX_PARTITION_VERT4)) {
-        continue;
-      }
-
-      if (type >= TX_PARTITION_HORZ4 && !is_rect) {
-        continue;
-      }
-
-      if (cpi->sf.tx_sf.restrict_tx_partition_type_search >= 3 &&
-          type >= TX_PARTITION_HORZ) {
-        continue;
-      }
     }
 
     RD_STATS this_rd_stats;
@@ -3859,28 +3833,20 @@ static void choose_tx_size_type_from_rd(const AV2_COMP *const cpi,
       *rd_stats = this_rd_stats;
     }
     if (cur_tx_size == TX_4X4) break;
-    if (x->prune_tx_partition && type == 0) {
-      for (int i = 0; i < TOP_TX_PART_COUNT; i++) {
-        if (cur_rd < x->top_tx_part_rd[i]) {
-          for (int j = TOP_TX_PART_COUNT - 1; j > i; j--) {
-            x->top_tx_part_rd[j] = x->top_tx_part_rd[j - 1];
-          }
-          x->top_tx_part_rd[i] = cur_rd;
-          break;
-        }
-      }
-      if (x->top_tx_part_rd[TOP_TX_PART_COUNT - 1] != INT64_MAX &&
-          cur_rd > x->top_tx_part_rd[TOP_TX_PART_COUNT - 1])
+    if (x->prune_tx_partition && type == TX_PARTITION_NONE) {
+      push_top_tx_part_none_rd(x->top_tx_part_rd[0], TOP_TX_PART_COUNT, cur_rd);
+      if (prune_by_top_tx_part_none_rd(x->top_tx_part_rd[0], TOP_TX_PART_COUNT,
+                                       cur_rd)) {
         break;
+      }
     }
   }
 
   // With intra splits deferred to winner mode, a winner that still picks
   // TX_PARTITION_NONE gains little over its rough-mode result: return invalid
   // stats so the caller keeps the rough-mode result.
-  if (txfm_params->eval_mode_type == WINNER_MODE_EVAL &&
-      mbmi->region_type == MIXED_INTER_INTRA_REGION &&
-      get_tx_part_rough_mode_level(cpi, mbmi, xd->tree_type) >= 2 &&
+  if (winner_mode_defers_intra_tx_splits(txfm_params, mbmi, xd->tree_type,
+                                         cpi) &&
       best_tx_partition_type == TX_PARTITION_NONE) {
     av2_invalid_rd_stats(rd_stats);
     return;
