@@ -130,7 +130,6 @@ enum {
 
 typedef struct {
   TX_TYPE_PRUNE_MODE prune_2d_txfm_mode;
-  int fast_inter_tx_type_search;
 
   // prune two least frequently chosen transforms for each intra mode
   int use_reduced_intra_txset;
@@ -1076,11 +1075,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 1: search only the top weight, and no CWP weights (CWP_EQUAL only) for
   //    JOINT_NEWMV modes or for candidates with a non-zero ref_mv_idx.
   int prune_cwp_search;
-  // Reuse compound type rd decision when exact match is found
-  // 0: No reuse
-  // 1: Reuse the compound type rd data
-  // 2: Reuse the compound type decision
-  int reuse_compound_type_data;
 
   // Enable/disable masked compound.
   int disable_masked_comp;

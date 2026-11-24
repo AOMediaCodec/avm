@@ -7818,8 +7818,7 @@ static AVM_INLINE void refine_winner_mode_tx(
   int64_t best_rd;
   const int num_planes = av2_num_planes(cm);
 
-  if (!is_winner_mode_processing_enabled(cpi, best_mbmode, best_mbmode->mode))
-    return;
+  if (!is_winner_mode_processing_enabled(cpi, best_mbmode)) return;
 
   // Dry pass ranks partition shapes only, so winner-mode TX refinement is
   // wasted precision: the dry-pass overrides would re-collapse the search
@@ -7848,8 +7847,7 @@ static AVM_INLINE void refine_winner_mode_tx(
 
     if (xd->lossless[winner_mbmi->segment_id] == 0 &&
         winner_mode != MODE_INVALID &&
-        is_winner_mode_processing_enabled(cpi, winner_mbmi,
-                                          winner_mbmi->mode)) {
+        is_winner_mode_processing_enabled(cpi, winner_mbmi)) {
       RD_STATS rd_stats = *winner_rd_stats;
       int skip_blk = 0;
       RD_STATS rd_stats_y, rd_stats_uv;
@@ -8267,8 +8265,6 @@ static AVM_INLINE void set_params_rd_pick_inter_mode(
 
   // Set params for mode evaluation
   set_mode_eval_params(cpi, x, MODE_EVAL);
-
-  x->comp_rd_stats_idx = 0;
 }
 
 static AVM_INLINE void init_intra_mode_search_state(
@@ -10990,95 +10986,4 @@ void av2_rd_pick_inter_mode_sb_seg_skip(const AV2_COMP *cpi, MACROBLOCK *x,
   av2_zero(best_pred_diff);
 
   store_coding_context(x, ctx, best_pred_diff, 0);
-}
-
-/* Use standard 3x3 Sobel matrix. Macro so it can be used for either high or
-   low bit-depth arrays. */
-#define SOBEL_X(src, stride, i, j)                        \
-  ((src)[((i) - 1) + (stride) * ((j) - 1)] -              \
-   (src)[((i) + 1) + (stride) * ((j) - 1)] + /* NOLINT */ \
-   2 * (src)[((i) - 1) + (stride) * (j)] -   /* NOLINT */ \
-   2 * (src)[((i) + 1) + (stride) * (j)] +   /* NOLINT */ \
-   (src)[((i) - 1) + (stride) * ((j) + 1)] - /* NOLINT */ \
-   (src)[((i) + 1) + (stride) * ((j) + 1)])  /* NOLINT */
-#define SOBEL_Y(src, stride, i, j)                        \
-  ((src)[((i) - 1) + (stride) * ((j) - 1)] +              \
-   2 * (src)[(i) + (stride) * ((j) - 1)] +   /* NOLINT */ \
-   (src)[((i) + 1) + (stride) * ((j) - 1)] - /* NOLINT */ \
-   (src)[((i) - 1) + (stride) * ((j) + 1)] - /* NOLINT */ \
-   2 * (src)[(i) + (stride) * ((j) + 1)] -   /* NOLINT */ \
-   (src)[((i) + 1) + (stride) * ((j) + 1)])  /* NOLINT */
-
-sobel_xy av2_sobel(const uint16_t *src, int stride, int i, int j) {
-  int16_t s_x;
-  int16_t s_y;
-  s_x = SOBEL_X(src, stride, i, j);
-  s_y = SOBEL_Y(src, stride, i, j);
-  sobel_xy r = { .x = s_x, .y = s_y };
-  return r;
-}
-
-// 8-tap Gaussian convolution filter with sigma = 1.3, sums to 128,
-// all co-efficients must be even.
-DECLARE_ALIGNED(16, static const int16_t, gauss_filter[8]) = { 2,  12, 30, 40,
-                                                               30, 12, 2,  0 };
-
-void av2_gaussian_blur(const uint16_t *src, int src_stride, int w, int h,
-                       uint16_t *dst, int bd) {
-  ConvolveParams conv_params = get_conv_params(0, 0, bd);
-  InterpFilterParams filter = { .filter_ptr = gauss_filter,
-                                .taps = 8,
-                                .interp_filter = EIGHTTAP_REGULAR };
-  // Requirements from the vector-optimized implementations.
-  assert(h % 4 == 0);
-  assert(w % 8 == 0);
-  // Because we use an eight tap filter, the stride should be at least 7 + w.
-  assert(src_stride >= w + 7);
-  av2_highbd_convolve_2d_sr(src, src_stride, dst, w, w, h, &filter, &filter, 0,
-                            0, &conv_params, bd);
-}
-
-static EdgeInfo edge_probability(const uint16_t *input, int w, int h, int bd) {
-  assert(bd == 8 || bd == 10 || bd == 12);
-  // The probability of an edge in the whole image is the same as the highest
-  // probability of an edge for any individual pixel. Use Sobel as the metric
-  // for finding an edge.
-  uint16_t highest = 0;
-  uint16_t highest_x = 0;
-  uint16_t highest_y = 0;
-  // Ignore the 1 pixel border around the image for the computation.
-  for (int j = 1; j < h - 1; ++j) {
-    for (int i = 1; i < w - 1; ++i) {
-      sobel_xy g = av2_sobel(input, w, i, j);
-      // Scale down to 8-bit to get same output regardless of bit depth.
-      int16_t g_x = g.x >> (bd - 8);
-      int16_t g_y = g.y >> (bd - 8);
-      uint16_t magnitude = (uint16_t)sqrt(g_x * g_x + g_y * g_y);
-      highest = AVMMAX(highest, magnitude);
-      highest_x = AVMMAX(highest_x, g_x);
-      highest_y = AVMMAX(highest_y, g_y);
-    }
-  }
-  EdgeInfo ei = { .magnitude = highest, .x = highest_x, .y = highest_y };
-  return ei;
-}
-
-/* Uses most of the Canny edge detection algorithm to find if there are any
- * edges in the image.
- */
-EdgeInfo av2_edge_exists(const uint16_t *src, int src_stride, int w, int h,
-                         int bd) {
-  if (w < 3 || h < 3) {
-    EdgeInfo n = { .magnitude = 0, .x = 0, .y = 0 };
-    return n;
-  }
-  uint16_t *blurred = avm_memalign(32, sizeof(uint16_t) * w * h);
-  av2_gaussian_blur(src, src_stride, w, h, blurred, bd);
-  // Skip the non-maximum suppression step in Canny edge detection. We just
-  // want a probability of an edge existing in the buffer, which is determined
-  // by the strongest edge in it -- we don't need to eliminate the weaker
-  // edges. Use Sobel for the edge detection.
-  EdgeInfo prob = edge_probability(blurred, w, h, bd);
-  avm_free(blurred);
-  return prob;
 }

@@ -25,75 +25,6 @@ typedef int64_t (*pick_interinter_mask_type)(
     const int16_t *const residual1, const int16_t *const diff10,
     uint64_t *best_sse);
 
-// Initializes CompTypeRdStats array with default values.
-static AVM_INLINE void init_comp_type_rd_stats(CompTypeRdStats *comp_stats) {
-  for (COMPOUND_TYPE cmp_idx = 0; cmp_idx < COMPOUND_TYPES; ++cmp_idx) {
-    comp_stats[cmp_idx].dist = INT64_MAX;
-    comp_stats[cmp_idx].model_dist = INT64_MAX;
-    comp_stats[cmp_idx].rate = INT32_MAX;
-    comp_stats[cmp_idx].model_rate = INT32_MAX;
-    comp_stats[cmp_idx].comp_type_rate = INT32_MAX;
-  }
-}
-
-// Checks if characteristics of search match.
-static AVM_INLINE int is_comp_rd_match(const AV2_COMP *const cpi,
-                                       const MACROBLOCK *const x,
-                                       const COMP_RD_STATS *st,
-                                       const MB_MODE_INFO *const mi,
-                                       CompTypeRdStats *comp_stats) {
-  // TODO(ranjit): Ensure that compound type search use regular filter always
-  // and check if following check can be removed.
-  // Check if interp filter matches with previous case.
-  if (st->interp_fltr != mi->interp_fltr) return 0;
-
-  if (st->cwp_idx != mi->cwp_idx) return 0;
-
-  const MACROBLOCKD *const xd = &x->e_mbd;
-  // Match MV and reference indices.
-  for (int i = 0; i < 2; ++i) {
-    if ((st->ref_frames[i] != mi->ref_frame[i]) ||
-        (st->mv[i].as_int != mi->mv[i].as_int)) {
-      return 0;
-    }
-    const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[i]];
-    if (is_global_mv_block(mi, wm->wmtype) != st->is_global[i]) return 0;
-  }
-
-  // TODO(any): Consider tools like OPFL, SMVR in the match criteria.
-
-  // Store the stats for COMPOUND_AVERAGE.
-  comp_stats[COMPOUND_AVERAGE] = st->rd_stats[COMPOUND_AVERAGE];
-
-  // For compound wedge/segment, reuse data only if NEWMV is not present in
-  // either of the directions.
-  if ((!have_newmv_in_inter_mode(mi->mode) &&
-       !have_newmv_in_inter_mode(st->mode)) ||
-      (cpi->sf.inter_sf.disable_interinter_wedge_newmv_search)) {
-    comp_stats[COMPOUND_WEDGE] = st->rd_stats[COMPOUND_WEDGE];
-    comp_stats[COMPOUND_DIFFWTD] = st->rd_stats[COMPOUND_DIFFWTD];
-  }
-  return 1;
-}
-
-// Checks if similar compound type search case is accounted earlier and returns
-// relevant rd data if found.
-static AVM_INLINE int find_comp_rd_in_stats(const AV2_COMP *const cpi,
-                                            const MACROBLOCK *x,
-                                            const MB_MODE_INFO *const mbmi,
-                                            CompTypeRdStats *comp_stats,
-                                            int *match_index) {
-  if (mbmi->cwp_idx != CWP_EQUAL) return 0;
-
-  for (int j = 0; j < x->comp_rd_stats_idx; ++j) {
-    if (is_comp_rd_match(cpi, x, &x->comp_rd_stats[j], mbmi, comp_stats)) {
-      *match_index = j;
-      return 1;
-    }
-  }
-  return 0;  // no match result found
-}
-
 static AVM_INLINE bool enable_wedge_search(MACROBLOCK *const x,
                                            const AV2_COMP *const cpi) {
   // Enable wedge search if source variance is above the threshold.
@@ -853,29 +784,6 @@ static AVM_INLINE void update_mbmi_for_compound_type(MB_MODE_INFO *mbmi,
   mbmi->cwp_idx = (cur_type == COMPOUND_AVERAGE) ? mbmi->cwp_idx : CWP_EQUAL;
 }
 
-// When match is found, populate the compound type data and calculate the rd
-// cost using the stored stats and update the mbmi appropriately.
-static AVM_INLINE int populate_reuse_comp_type_data(
-    const MACROBLOCK *x, MB_MODE_INFO *mbmi,
-    BEST_COMP_TYPE_STATS *best_type_stats, int_mv *cur_mv,
-    const CompTypeRdStats *comp_stats, int *rate_mv, int64_t *rd,
-    int match_index) {
-  const int winner_comp_type =
-      x->comp_rd_stats[match_index].interinter_comp.type;
-  const CompTypeRdStats *const winner_stats = &comp_stats[winner_comp_type];
-  if (winner_stats->rate == INT32_MAX)
-    return best_type_stats->best_compmode_interinter_cost;
-
-  update_mbmi_for_compound_type(mbmi, winner_comp_type);
-  mbmi->interinter_comp = x->comp_rd_stats[match_index].interinter_comp;
-  *rd = RDCOST(x->rdmult,
-               winner_stats->comp_type_rate + *rate_mv + winner_stats->rate,
-               winner_stats->dist);
-  mbmi->mv[0].as_int = cur_mv[0].as_int;
-  mbmi->mv[1].as_int = cur_mv[1].as_int;
-  return winner_stats->comp_type_rate;
-}
-
 // Updates rd cost and relevant compound type data for the best compound type.
 static AVM_INLINE void update_best_info(const MB_MODE_INFO *const mbmi,
                                         int64_t *rd,
@@ -888,31 +796,6 @@ static AVM_INLINE void update_best_info(const MB_MODE_INFO *const mbmi,
   best_type_stats->best_compound_data = mbmi->interinter_comp;
   best_type_stats->best_compmode_interinter_cost = comp_type_rate;
   best_type_stats->cwp_idx = mbmi->cwp_idx;
-}
-
-static AVM_INLINE void save_comp_rd_search_stat(
-    MACROBLOCK *x, const MB_MODE_INFO *const mbmi,
-    const CompTypeRdStats *comp_stats, const int_mv *cur_mv) {
-  if (mbmi->cwp_idx != CWP_EQUAL) return;
-  const int offset = x->comp_rd_stats_idx;
-  if (offset < MAX_COMP_RD_STATS) {
-    COMP_RD_STATS *const rd_stats = x->comp_rd_stats + offset;
-    av2_copy_array(rd_stats->rd_stats, comp_stats, COMPOUND_TYPES);
-    av2_copy_array(rd_stats->mv, cur_mv, 2);
-    av2_copy(rd_stats->ref_frames, mbmi->ref_frame);
-    rd_stats->mode = mbmi->mode;
-    rd_stats->interp_fltr = mbmi->interp_fltr;
-    av2_copy(rd_stats->ref_mv_idx, mbmi->ref_mv_idx);
-    rd_stats->cwp_idx = mbmi->cwp_idx;
-    const MACROBLOCKD *const xd = &x->e_mbd;
-    for (int i = 0; i < 2; ++i) {
-      const WarpedMotionParams *const wm =
-          &xd->global_motion[mbmi->ref_frame[i]];
-      rd_stats->is_global[i] = is_global_mv_block(mbmi, wm->wmtype);
-    }
-    rd_stats->interinter_comp = mbmi->interinter_comp;
-    ++x->comp_rd_stats_idx;
-  }
 }
 
 static AVM_INLINE int get_interinter_compound_mask_rate(
@@ -930,26 +813,14 @@ static AVM_INLINE int get_interinter_compound_mask_rate(
   }
 }
 
-// Takes a backup of rate, distortion and model_rd for future reuse.
-static AVM_INLINE void backup_stats(COMPOUND_TYPE cur_type,
-                                    CompTypeRdStats *comp_stats, int rate_sum,
-                                    int64_t dist_sum, const RD_STATS *rd_stats,
-                                    int comp_type_rate) {
-  comp_stats[cur_type].rate = rd_stats->rate;
-  comp_stats[cur_type].dist = rd_stats->dist;
-  comp_stats[cur_type].model_rate = rate_sum;
-  comp_stats[cur_type].model_dist = dist_sum;
-  comp_stats[cur_type].comp_type_rate = comp_type_rate;
-}
-
 static int64_t masked_compound_type_rd(
     const AV2_COMP *const cpi, MACROBLOCK *x, const int_mv *const cur_mv,
     const BLOCK_SIZE bsize, int *comp_type_rate, int rate_mv,
     const BUFFER_SET *ctx, int *out_rate_mv,
     const CompoundTypeRdBuffers *buffers, int mode_rate, int64_t rd_thresh,
-    int *calc_pred_masked_compound, CompTypeRdStats *comp_stats,
-    const int64_t comp_best_model_rd, int64_t *const comp_model_rd_cur,
-    int64_t ref_skip_rd, bool *is_newmv_searched) {
+    int *calc_pred_masked_compound, const int64_t comp_best_model_rd,
+    int64_t *const comp_model_rd_cur, int64_t ref_skip_rd,
+    bool *is_newmv_searched) {
   const AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -1022,84 +893,59 @@ static int64_t masked_compound_type_rd(
     }
   }
 
-  // Compute cost if matching record not found, else, reuse data.
-  if (comp_stats[compound_type].rate == INT32_MAX) {
-    // Check whether new MV search for wedge is to be done
-    int wedge_newmv_search =
-        have_newmv_in_inter_mode(this_mode) &&
-        (compound_type == COMPOUND_WEDGE) &&
-        (!cpi->sf.inter_sf.disable_interinter_wedge_newmv_search);
+  // Check whether new MV search for wedge is to be done
+  int wedge_newmv_search =
+      have_newmv_in_inter_mode(this_mode) &&
+      (compound_type == COMPOUND_WEDGE) &&
+      (!cpi->sf.inter_sf.disable_interinter_wedge_newmv_search);
 
-    // Search for new MV if needed and build predictor.
-    if (wedge_newmv_search) {
-      *out_rate_mv = av2_interinter_compound_motion_search(cpi, x, cur_mv,
-                                                           bsize, this_mode);
-      const int mi_row = xd->mi_row;
-      const int mi_col = xd->mi_col;
-      av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, ctx, bsize,
-                                    AVM_PLANE_Y, AVM_PLANE_Y,
-                                    x->tip_unit_hooks);
-    } else {
+  // Search for new MV if needed and build predictor.
+  if (wedge_newmv_search) {
+    *out_rate_mv =
+        av2_interinter_compound_motion_search(cpi, x, cur_mv, bsize, this_mode);
+    const int mi_row = xd->mi_row;
+    const int mi_col = xd->mi_col;
+    av2_enc_build_inter_predictor(cm, xd, mi_row, mi_col, ctx, bsize,
+                                  AVM_PLANE_Y, AVM_PLANE_Y, x->tip_unit_hooks);
+  } else {
+    *out_rate_mv = rate_mv;
+    av2_build_wedge_inter_predictor_from_buf_y(xd, bsize, pred0, stride, pred1,
+                                               stride);
+  }
+  // Get the RD cost from model RD.
+  model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
+      cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum, &tmp_skip_txfm_sb,
+      &tmp_skip_sse_sb, NULL, NULL, NULL);
+  rd = RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv + rate_sum, dist_sum);
+  *comp_model_rd_cur = rd;
+  // Override with best if current is worse than best for new MV.
+  if (wedge_newmv_search) {
+    if (rd >= best_rd_cur) {
+      mbmi->mv[0].as_int = cur_mv[0].as_int;
+      mbmi->mv[1].as_int = cur_mv[1].as_int;
       *out_rate_mv = rate_mv;
       av2_build_wedge_inter_predictor_from_buf_y(xd, bsize, pred0, stride,
                                                  pred1, stride);
+      *comp_model_rd_cur = best_rd_cur;
+    } else {
+      *is_newmv_searched = true;
     }
-    // Get the RD cost from model RD.
-    model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
-        cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum, &tmp_skip_txfm_sb,
-        &tmp_skip_sse_sb, NULL, NULL, NULL);
-    rd = RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv + rate_sum, dist_sum);
-    *comp_model_rd_cur = rd;
-    // Override with best if current is worse than best for new MV.
-    if (wedge_newmv_search) {
-      if (rd >= best_rd_cur) {
-        mbmi->mv[0].as_int = cur_mv[0].as_int;
-        mbmi->mv[1].as_int = cur_mv[1].as_int;
-        *out_rate_mv = rate_mv;
-        av2_build_wedge_inter_predictor_from_buf_y(xd, bsize, pred0, stride,
-                                                   pred1, stride);
-        *comp_model_rd_cur = best_rd_cur;
-      } else {
-        *is_newmv_searched = true;
-      }
-    }
-    if (cpi->sf.inter_sf.prune_comp_type_by_model_rd &&
-        (*comp_model_rd_cur > comp_best_model_rd) &&
-        comp_best_model_rd != INT64_MAX) {
-      *comp_model_rd_cur = INT64_MAX;
-      return INT64_MAX;
-    }
-    // Compute RD cost for the current type.
-    RD_STATS rd_stats;
-    const int64_t tmp_mode_rd =
-        RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv, 0);
-    const int64_t tmp_rd_thresh = rd_thresh - tmp_mode_rd;
-    rd = estimate_yrd_for_sb(cpi, bsize, x, tmp_rd_thresh, &rd_stats);
-    if (rd != INT64_MAX) {
-      rd = RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv + rd_stats.rate,
-                  rd_stats.dist);
-      // Backup rate and distortion for future reuse.
-      backup_stats(compound_type, comp_stats, rate_sum, dist_sum, &rd_stats,
-                   *comp_type_rate);
-    }
-  } else {
-    // Reuse data as matching record is found.
-    const CompTypeRdStats *const cur_stats = &comp_stats[compound_type];
-    assert(cur_stats->dist != INT64_MAX);
-    // When disable_interinter_wedge_newmv_search is set, motion refinement is
-    // disabled. Hence rate and distortion can be reused in this case as well.
-    assert(IMPLIES(have_newmv_in_inter_mode(this_mode),
-                   cpi->sf.inter_sf.disable_interinter_wedge_newmv_search));
-    assert(mbmi->mv[0].as_int == cur_mv[0].as_int);
-    assert(mbmi->mv[1].as_int == cur_mv[1].as_int);
-    *out_rate_mv = rate_mv;
-    // Calculate RD cost based on stored stats.
-    rd = RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv + cur_stats->rate,
-                cur_stats->dist);
-    // Recalculate model rdcost with the updated rate.
-    *comp_model_rd_cur = RDCOST(
-        x->rdmult, *comp_type_rate + *out_rate_mv + cur_stats->model_rate,
-        cur_stats->model_dist);
+  }
+  if (cpi->sf.inter_sf.prune_comp_type_by_model_rd &&
+      (*comp_model_rd_cur > comp_best_model_rd) &&
+      comp_best_model_rd != INT64_MAX) {
+    *comp_model_rd_cur = INT64_MAX;
+    return INT64_MAX;
+  }
+  // Compute RD cost for the current type.
+  RD_STATS rd_stats;
+  const int64_t tmp_mode_rd =
+      RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv, 0);
+  const int64_t tmp_rd_thresh = rd_thresh - tmp_mode_rd;
+  rd = estimate_yrd_for_sb(cpi, bsize, x, tmp_rd_thresh, &rd_stats);
+  if (rd != INT64_MAX) {
+    rd = RDCOST(x->rdmult, *comp_type_rate + *out_rate_mv + rd_stats.rate,
+                rd_stats.dist);
   }
   return rd;
 }
@@ -1130,27 +976,9 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
   best_type_stats.comp_best_model_rd = INT64_MAX;
   best_type_stats.cwp_idx = CWP_EQUAL;
 
-  // Local struct array for stored stats.
-  CompTypeRdStats comp_stats[COMPOUND_TYPES];
-  init_comp_type_rd_stats(comp_stats);
-  int match_index = 0;
-
-  const int reuse_compound_type_data = inter_sf->reuse_compound_type_data;
-  const int match_found =
-      reuse_compound_type_data
-          ? find_comp_rd_in_stats(cpi, x, mbmi, comp_stats, &match_index)
-          : 0;
-
   const bool is_refinemv_mode =
       this_mode >= NEAR_NEARMV_OPTFLOW ||
       (mbmi->refinemv_flag && switchable_refinemv_flag(cm, mbmi));
-
-  // If the match is found, calculate the rd cost using the
-  // stored stats and update the mbmi appropriately.
-  if (match_found && !is_refinemv_mode && reuse_compound_type_data >= 2) {
-    return populate_reuse_comp_type_data(x, mbmi, &best_type_stats, cur_mv,
-                                         comp_stats, rate_mv, rd, match_index);
-  }
 
   // Determine the number of valid compound types to be
   // evaluated and populate the same in the local array valid_comp_types[].
@@ -1203,59 +1031,41 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
     int tmp_rate_mv = *rate_mv;
 
     if (cur_type == COMPOUND_AVERAGE) {
-      // Reuse data if matching record is found.
-      const CompTypeRdStats *const cur_stats = &comp_stats[cur_type];
-      if (cur_stats->rate == INT32_MAX) {
-        av2_enc_build_inter_predictor(cm, xd, xd->mi_row, xd->mi_col, orig_dst,
-                                      bsize, AVM_PLANE_Y, AVM_PLANE_Y,
-                                      x->tip_unit_hooks);
-        *is_luma_interp_done = 1;
+      av2_enc_build_inter_predictor(cm, xd, xd->mi_row, xd->mi_col, orig_dst,
+                                    bsize, AVM_PLANE_Y, AVM_PLANE_Y,
+                                    x->tip_unit_hooks);
+      *is_luma_interp_done = 1;
 
-        // Compute RD cost.
-        RD_STATS est_rd_stats;
-        const int64_t tmp_rd_thresh = AVMMIN(*rd, rd_thresh) - mode_rd;
-        int64_t est_rd = INT64_MAX;
-        int eval_txfm = 1;
-        int rate_sum, tmp_skip_txfm_sb;
-        int64_t dist_sum, tmp_skip_sse_sb;
-        // Check if the mode is good enough based on skip rd.
-        if (inter_sf->txfm_rd_gate_level) {
-          int64_t sse_y = compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize);
-          int64_t skip_rd =
-              RDCOST(x->rdmult, comp_type_rate + *rate_mv, (sse_y << 4));
-          eval_txfm = check_txfm_eval(x, bsize, ref_skip_rd, skip_rd,
-                                      inter_sf->txfm_rd_gate_level, 1);
-        }
-        // Evaluate further if skip rd is low enough.
-        if (eval_txfm) {
-          est_rd =
-              estimate_yrd_for_sb(cpi, bsize, x, tmp_rd_thresh, &est_rd_stats);
-        }
+      // Compute RD cost.
+      RD_STATS est_rd_stats;
+      const int64_t tmp_rd_thresh = AVMMIN(*rd, rd_thresh) - mode_rd;
+      int64_t est_rd = INT64_MAX;
+      int eval_txfm = 1;
+      int rate_sum, tmp_skip_txfm_sb;
+      int64_t dist_sum, tmp_skip_sse_sb;
+      // Check if the mode is good enough based on skip rd.
+      if (inter_sf->txfm_rd_gate_level) {
+        int64_t sse_y = compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize);
+        int64_t skip_rd =
+            RDCOST(x->rdmult, comp_type_rate + *rate_mv, (sse_y << 4));
+        eval_txfm = check_txfm_eval(x, bsize, ref_skip_rd, skip_rd,
+                                    inter_sf->txfm_rd_gate_level, 1);
+      }
+      // Evaluate further if skip rd is low enough.
+      if (eval_txfm) {
+        est_rd =
+            estimate_yrd_for_sb(cpi, bsize, x, tmp_rd_thresh, &est_rd_stats);
+      }
 
-        if (est_rd != INT64_MAX) {
-          best_rd_cur =
-              RDCOST(x->rdmult, comp_type_rate + *rate_mv + est_rd_stats.rate,
-                     est_rd_stats.dist);
-          model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
-              cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum, &tmp_skip_txfm_sb,
-              &tmp_skip_sse_sb, NULL, NULL, NULL);
-          comp_model_rd_cur =
-              RDCOST(x->rdmult, comp_type_rate + *rate_mv + rate_sum, dist_sum);
-
-          // Backup rate and distortion for future reuse.
-          backup_stats(cur_type, comp_stats, rate_sum, dist_sum, &est_rd_stats,
-                       comp_type_rate);
-        }
-      } else {
-        // Calculate RD cost based on stored stats.
-        assert(cur_stats->dist != INT64_MAX);
+      if (est_rd != INT64_MAX) {
         best_rd_cur =
-            RDCOST(x->rdmult, comp_type_rate + *rate_mv + cur_stats->rate,
-                   cur_stats->dist);
-        // Recalculate model rdcost with the updated rate.
+            RDCOST(x->rdmult, comp_type_rate + *rate_mv + est_rd_stats.rate,
+                   est_rd_stats.dist);
+        model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
+            cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum, &tmp_skip_txfm_sb,
+            &tmp_skip_sse_sb, NULL, NULL, NULL);
         comp_model_rd_cur =
-            RDCOST(x->rdmult, comp_type_rate + *rate_mv + cur_stats->model_rate,
-                   cur_stats->model_dist);
+            RDCOST(x->rdmult, comp_type_rate + *rate_mv + rate_sum, dist_sum);
       }
       // Use spare buffer for other compound types.
       restore_dst_buf(xd, *tmp_dst, 1);
@@ -1270,9 +1080,8 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
         best_rd_cur = masked_compound_type_rd(
             cpi, x, cur_mv, bsize, &comp_type_rate, *rate_mv, orig_dst,
             &tmp_rate_mv, buffers, rd_stats->rate, tmp_rd_thresh,
-            &calc_pred_masked_compound, comp_stats,
-            best_type_stats.comp_best_model_rd, &comp_model_rd_cur, ref_skip_rd,
-            &is_newmv_searched);
+            &calc_pred_masked_compound, best_type_stats.comp_best_model_rd,
+            &comp_model_rd_cur, ref_skip_rd, &is_newmv_searched);
       }
     }
     // Update stats for best compound type.
@@ -1307,7 +1116,5 @@ int av2_compound_type_rd(const AV2_COMP *const cpi, MACROBLOCK *x,
   }
 
   restore_dst_buf(xd, *orig_dst, 1);
-  if (!match_found && reuse_compound_type_data)
-    save_comp_rd_search_stat(x, mbmi, comp_stats, cur_mv);
   return best_type_stats.best_compmode_interinter_cost;
 }

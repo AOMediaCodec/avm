@@ -390,47 +390,6 @@ typedef struct {
   CRC32C crc_calculator;
 } MB_RD_RECORD;
 
-//! Number of compound rd stats
-#define MAX_COMP_RD_STATS 64
-
-/*! \brief Rate-distortion statistics for a compound type.
- */
-typedef struct {
-  //! Distortion of the compound mode.
-  int64_t dist;
-  //! Estimated distortion of the compound mode.
-  int64_t model_dist;
-  //! Rate of the compound mode.
-  int rate;
-  //! Estimated rate of the compound mode.
-  int model_rate;
-  //! Rate required to signal the compound type.
-  int comp_type_rate;
-} CompTypeRdStats;
-
-/*! \brief Stats in compound mode.
- */
-typedef struct {
-  //! Rdcost stats for compound types.
-  CompTypeRdStats rd_stats[COMPOUND_TYPES];
-  //! Motion vector for each predictor.
-  int_mv mv[2];
-  //! Ref frame for each predictor.
-  MV_REFERENCE_FRAME ref_frames[2];
-  //! Current prediction mode.
-  PREDICTION_MODE mode;
-  //! Current interpolation filter.
-  InterpFilter interp_fltr;
-  //! Refmv index in the drl.
-  int ref_mv_idx[2];
-  //! Whether the predictors are GLOBALMV.
-  int is_global[2];
-  //! Current parameters for interinter mode.
-  INTERINTER_COMPOUND_DATA interinter_comp;
-  //! Index for compound weighted prediction parameters.
-  int cwp_idx;
-} COMP_RD_STATS;
-
 /*! \brief Contains color maps used in palette mode.
  */
 typedef struct {
@@ -1621,11 +1580,6 @@ typedef struct macroblock {
   // TODO(any): try to consolidate this speed feature with winner mode
   // processing.
   struct inter_modes_info *inter_modes_info;
-
-  //! A caches of results of compound type search so they can be reused later.
-  COMP_RD_STATS comp_rd_stats[MAX_COMP_RD_STATS];
-  //! The idx for the latest compound mode in the cache \ref comp_rd_stats.
-  int comp_rd_stats_idx;
 
   /*! \brief Whether to recompute the luma prediction.
    *

@@ -227,7 +227,6 @@ if(NOT BUILD_SHARED_LIBS)
     "${AVM_ROOT}/test/comp_mask_variance_test.cc"
     "${AVM_ROOT}/test/comp_weigh_pred_test.cc"
     "${AVM_ROOT}/test/comp_weigh_pred_test.h"
-    "${AVM_ROOT}/test/edge_detect_test.cc"
     "${AVM_ROOT}/test/encodetxb_test.cc"
     "${AVM_ROOT}/test/error_block_test.cc"
     "${AVM_ROOT}/test/fft_test.cc"
