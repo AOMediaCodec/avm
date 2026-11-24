@@ -3069,6 +3069,24 @@ typedef struct AV2_COMP {
   int resize_dyn_sharp_blocks;
 
   /*!
+   * Non-zero if the current keyframe's RESIZE_DYNAMIC denominator was
+   * pre-decided prior to temporal filtering and cached in resize_dyn_kf_denom.
+   */
+  uint8_t resize_dyn_kf_predecided;
+
+  /*!
+   * Cached RESIZE_DYNAMIC denominator pre-decided for the current keyframe
+   * prior to temporal filtering.
+   */
+  uint8_t resize_dyn_kf_denom;
+
+  /*!
+   * Reusable resized frame buffers for running temporal filtering at the
+   * target resized resolution in RESIZE_DYNAMIC mode.
+   */
+  YV12_BUFFER_CONFIG resize_dyn_tf_bufs[MAX_LAG_BUFFERS];
+
+  /*!
    * Pointer to struct holding adaptive data/contexts/models for the tile during
    * encoding.
    */
@@ -3679,6 +3697,11 @@ void av2_set_downsample_filter_options(AV2_COMP *cpi);
 // content tools is employed later. See av2_determine_sc_tools_with_encoding().
 void av2_set_screen_content_options(struct AV2_COMP *cpi,
                                     FeatureFlags *features);
+
+/*!\brief Read-only sharp screen/UI content check on cpi->unfiltered_source for
+ * RESIZE_DYNAMIC temporal-filtering scale pre-decision.
+ */
+int av2_is_unfiltered_source_resize_dyn_sc(struct AV2_COMP *cpi);
 
 // av2 uses 10,000,000 ticks/second as time stamp
 #define TICKS_PER_SEC 10000000LL

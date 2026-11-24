@@ -1142,6 +1142,9 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   cpi->resize_dyn_sharp_mse = NULL;
   cpi->resize_dyn_sharp_ac = NULL;
   cpi->resize_dyn_sharp_blocks = 0;
+  cpi->resize_dyn_kf_predecided = 0;
+  cpi->resize_dyn_kf_denom = SCALE_NUMERATOR;
+  memset(cpi->resize_dyn_tf_bufs, 0, sizeof(cpi->resize_dyn_tf_bufs));
 
   // Setup identity scale factor
   av2_setup_scale_factors_for_frame(&cm->sf_identity, 1, 1, 1, 1);
@@ -2608,6 +2611,51 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
     set_hole_fill_decision(cpi, width, height, blk_w, blk_h, counts_1,
                            counts_2);
   }
+}
+
+int av2_is_unfiltered_source_resize_dyn_sc(AV2_COMP *cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
+  if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN ||
+      cm->seq_params.force_screen_content_tools == 1) {
+    return 1;
+  }
+  if (cpi->oxcf.mode == REALTIME) return 0;
+  if (cpi->unfiltered_source == NULL ||
+      cpi->unfiltered_source->y_buffer == NULL) {
+    return 0;
+  }
+  const uint16_t *const src = cpi->unfiltered_source->y_buffer;
+  const int stride = cpi->unfiltered_source->y_stride;
+  const int width = cpi->unfiltered_source->y_width;
+  const int height = cpi->unfiltered_source->y_height;
+  const int bd = cm->seq_params.bit_depth;
+  const int blk_w = 16;
+  const int blk_h = 16;
+  const int color_thresh = 4;
+  const unsigned int sharp_var_thresh = 8;
+  const int64_t area = (int64_t)width * (int64_t)height;
+  int counts_sharp = 0;
+  for (int r = 0; r + blk_h <= height; r += blk_h) {
+    for (int c = 0; c + blk_w <= width; c += blk_w) {
+      int count_buf[1 << 8];
+      const uint16_t *const this_src = src + r * stride + c;
+      int n_colors;
+      av2_count_colors_highbd(this_src, stride, blk_w, blk_h, bd, NULL,
+                              count_buf, &n_colors, NULL);
+      if (n_colors > 1 && n_colors <= color_thresh) {
+        struct buf_2d buf;
+        buf.stride = stride;
+        buf.buf = (uint16_t *)this_src;
+        const unsigned int var =
+            av2_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_16X16, bd);
+        if (var >= sharp_var_thresh) {
+          ++counts_sharp;
+          if ((int64_t)counts_sharp * blk_h * blk_w * 128 > area) return 1;
+        }
+      }
+    }
+  }
+  return 0;
 }
 
 // Function pointer to search site config initialization

@@ -305,6 +305,9 @@ void av2_free_resize_dyn_scratch_bufs(AV2_COMP *cpi) {
   cpi->resize_dyn_sharp_mse = NULL;
   cpi->resize_dyn_sharp_ac = NULL;
   cpi->resize_dyn_sharp_blocks = 0;
+  for (int i = 0; i < MAX_LAG_BUFFERS; ++i) {
+    avm_free_frame_buffer(&cpi->resize_dyn_tf_bufs[i]);
+  }
 }
 
 static void ensure_resize_dyn_scratch_bufs(AV2_COMP *cpi, size_t pel_count,
@@ -3587,10 +3590,15 @@ static uint8_t calculate_dynamic_mode_resize_scale(AV2_COMP *cpi) {
     cpi->resize_dyn_have_ema_dist = 0;
     cpi->resize_dyn_causal_hold = 0;
     cpi->resize_dyn_gop_coscaled = 0;
+    cpi->resize_dyn_kf_predecided = 0;
     return SCALE_NUMERATOR;
   }
 
   if (cm->current_frame.frame_type == KEY_FRAME) {
+    if (cpi->resize_dyn_kf_predecided) {
+      cpi->resize_dyn_kf_predecided = 0;
+      return cpi->resize_dyn_kf_denom;
+    }
     cpi->resize_dyn_gf_ready = 0;
     cpi->resize_dyn_prev_denom = 0;
     cpi->resize_dyn_have_ema_mc = 0;
@@ -3661,6 +3669,116 @@ static uint8_t calculate_dynamic_mode_resize_scale(AV2_COMP *cpi) {
   }
 
   return calculate_dynamic_causal_frame_scale(cpi);
+}
+
+uint8_t av2_predecide_dynamic_tf_resize_denom(
+    AV2_COMP *cpi, const EncodeFrameInput *frame_input,
+    const EncodeFrameParams *frame_params) {
+  AV2_COMMON *const cm = &cpi->common;
+  const AV2EncoderConfig *const oxcf = &cpi->oxcf;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+
+  if (oxcf->resize_cfg.resize_mode != RESIZE_DYNAMIC ||
+      is_stat_generation_stage(cpi) || is_lossless_requested(&oxcf->rc_cfg) ||
+      oxcf->algo_cfg.enable_tpl_model ||
+      cm->seq_params.single_picture_header_flag ||
+      oxcf->gf_cfg.lag_in_frames <= 0 || frame_input == NULL ||
+      frame_input->source == NULL || frame_params == NULL ||
+      (cpi->resize_pending_params.width && cpi->resize_pending_params.height)) {
+    return SCALE_NUMERATOR;
+  }
+
+  if (frame_params->frame_type == KEY_FRAME) {
+    if (cpi->no_show_fwd_kf) return SCALE_NUMERATOR;
+    if (av2_is_unfiltered_source_resize_dyn_sc(cpi)) return SCALE_NUMERATOR;
+
+    YV12_BUFFER_CONFIG *const saved_unscaled = cpi->unscaled_source;
+    YV12_BUFFER_CONFIG *const saved_unscaled_last = cpi->unscaled_last_source;
+    const FRAME_TYPE saved_frame_type = cm->current_frame.frame_type;
+    const int saved_imm_out = cm->immediate_output_picture;
+    const unsigned int saved_frame_num = cm->current_frame.frame_number;
+    const uint8_t saved_resize_denom = cpi->resize_scale_denom;
+    const uint8_t saved_is_sc = cpi->resize_dyn_is_screen_content;
+    const int saved_base_target = cpi->rc.base_frame_target;
+
+    cpi->unscaled_source = frame_input->source;
+    cpi->unscaled_last_source = frame_input->last_source;
+    cm->current_frame.frame_type = KEY_FRAME;
+    cm->immediate_output_picture = frame_params->immediate_output_picture;
+    if (av2_is_shown_keyframe(cpi, KEY_FRAME) &&
+        !frame_params->frame_params_update_type_was_overlay &&
+        !oxcf->unit_test_cfg.single_seq_header_for_all_test) {
+      cm->current_frame.frame_number = 0;
+    }
+    cpi->resize_scale_denom = SCALE_NUMERATOR;
+    cpi->resize_dyn_is_screen_content = 0;
+    cpi->resize_dyn_kf_predecided = 0;
+
+    const uint8_t kf_d = calculate_dynamic_mode_resize_scale(cpi);
+
+    cpi->unscaled_source = saved_unscaled;
+    cpi->unscaled_last_source = saved_unscaled_last;
+    cm->current_frame.frame_type = saved_frame_type;
+    cm->immediate_output_picture = saved_imm_out;
+    cm->current_frame.frame_number = saved_frame_num;
+    cpi->resize_scale_denom = saved_resize_denom;
+    cpi->resize_dyn_is_screen_content = saved_is_sc;
+    cpi->rc.base_frame_target = saved_base_target;
+
+    cpi->resize_dyn_kf_denom = kf_d;
+    cpi->resize_dyn_kf_predecided = 1;
+    return kf_d;
+  }
+
+  if (frame_params->frame_type == INTRA_ONLY_FRAME) return SCALE_NUMERATOR;
+  if (cpi->kf_resize_dyn_is_sc || cpi->resize_dyn_is_screen_content) {
+    return SCALE_NUMERATOR;
+  }
+
+  const int cur_gf_idx = gf_group->index;
+  if (cur_gf_idx < 0 || cur_gf_idx >= MAX_STATIC_GF_GROUP_LENGTH) {
+    return SCALE_NUMERATOR;
+  }
+  if (cpi->resize_dyn_gf_ready) {
+    const uint8_t d = cpi->resize_dyn_gf_denom[cur_gf_idx];
+    if (d > SCALE_NUMERATOR && av2_is_unfiltered_source_resize_dyn_sc(cpi)) {
+      return SCALE_NUMERATOR;
+    }
+    return d;
+  }
+
+  if (gf_group->size - cur_gf_idx < 2) return SCALE_NUMERATOR;
+  if (av2_is_unfiltered_source_resize_dyn_sc(cpi)) return SCALE_NUMERATOR;
+
+  YV12_BUFFER_CONFIG *const saved_unscaled = cpi->unscaled_source;
+  YV12_BUFFER_CONFIG *const saved_unscaled_last = cpi->unscaled_last_source;
+  const FRAME_TYPE saved_frame_type = cm->current_frame.frame_type;
+  const int saved_imm_out = cm->immediate_output_picture;
+  const uint8_t saved_resize_denom = cpi->resize_scale_denom;
+  const int saved_base_target = cpi->rc.base_frame_target;
+
+  cpi->unscaled_source = frame_input->source;
+  cpi->unscaled_last_source = frame_input->last_source;
+  cm->current_frame.frame_type = frame_params->frame_type;
+  cm->immediate_output_picture = frame_params->immediate_output_picture;
+  cpi->resize_scale_denom = SCALE_NUMERATOR;
+
+  int has_group = 0;
+  populate_dynamic_gf_resize_scales(cpi, /*from_keyframe=*/0, &has_group, NULL,
+                                    NULL);
+
+  cpi->unscaled_source = saved_unscaled;
+  cpi->unscaled_last_source = saved_unscaled_last;
+  cm->current_frame.frame_type = saved_frame_type;
+  cm->immediate_output_picture = saved_imm_out;
+  cpi->resize_scale_denom = saved_resize_denom;
+  cpi->rc.base_frame_target = saved_base_target;
+
+  if (has_group) {
+    cpi->resize_dyn_gf_ready = 1;
+    return cpi->resize_dyn_gf_denom[cur_gf_idx];
+  }
+  return SCALE_NUMERATOR;
 }
 
 static uint8_t calculate_next_resize_scale(AV2_COMP *cpi) {

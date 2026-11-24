@@ -722,14 +722,17 @@ int av2_compute_rd_mult(const AV2_COMP *cpi, int qindex) {
 int av2_scale_resized_lpf_rdmult(const AV2_COMP *cpi, int rdmult, int is_uv) {
   if (!is_uv || rdmult <= 1) return rdmult;
   const AV2_COMMON *const cm = &cpi->common;
-  const int orig_w =
-      (cpi->unscaled_source != NULL && cpi->unscaled_source->y_crop_width > 0)
-          ? cpi->unscaled_source->y_crop_width
-          : cpi->oxcf.frm_dim_cfg.width;
-  const int orig_h =
-      (cpi->unscaled_source != NULL && cpi->unscaled_source->y_crop_height > 0)
-          ? cpi->unscaled_source->y_crop_height
-          : cpi->oxcf.frm_dim_cfg.height;
+  const YV12_BUFFER_CONFIG *const orig_src =
+      (cpi->unfiltered_source != NULL &&
+       cpi->unfiltered_source->y_crop_width > 0)
+          ? cpi->unfiltered_source
+          : cpi->unscaled_source;
+  const int orig_w = (orig_src != NULL && orig_src->y_crop_width > 0)
+                         ? orig_src->y_crop_width
+                         : cpi->oxcf.frm_dim_cfg.width;
+  const int orig_h = (orig_src != NULL && orig_src->y_crop_height > 0)
+                         ? orig_src->y_crop_height
+                         : cpi->oxcf.frm_dim_cfg.height;
   if (cm->features.coded_lossless || cm->width <= 0 || cm->height <= 0 ||
       orig_w <= 0 || orig_h <= 0 ||
       (cm->width >= orig_w && cm->height >= orig_h)) {

@@ -21,6 +21,12 @@ extern "C" {
 
 void av2_setup_frame_size(AV2_COMP *cpi);
 
+// Pre-decides the RESIZE_DYNAMIC scale denominator prior to temporal filtering
+// so ARF and co-scaled KF temporal filtering can run at the target resolution.
+uint8_t av2_predecide_dynamic_tf_resize_denom(
+    AV2_COMP *cpi, const EncodeFrameInput *frame_input,
+    const EncodeFrameParams *frame_params);
+
 // Returns 1 if a frame is scaled and 0 otherwise.
 static INLINE int av2_resize_scaled(const AV2_COMMON *cm) {
   return !(cm->width == cm->render_width && cm->height == cm->render_height);

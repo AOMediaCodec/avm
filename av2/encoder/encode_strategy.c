@@ -36,6 +36,7 @@
 #include "av2/encoder/firstpass.h"
 #include "av2/encoder/gop_structure.h"
 #include "av2/encoder/pass2_strategy.h"
+#include "av2/encoder/scale.h"
 #include "av2/encoder/segmentation.h"
 #include "av2/encoder/temporal_filter.h"
 #include "av2/encoder/tpl_model.h"
@@ -1136,8 +1137,19 @@ static int denoise_and_encode(AV2_COMP *const cpi, uint8_t *const dest,
   if (apply_filtering) {
     // TODO(bohanli): figure out why we need frame_type in cm here.
     cm->current_frame.frame_type = frame_params->frame_type;
-    const int code_arf =
-        av2_temporal_filter(cpi, arf_src_index, &show_existing_alt_ref);
+    int tf_resize_denom = SCALE_NUMERATOR;
+    if (oxcf->resize_cfg.resize_mode == RESIZE_DYNAMIC) {
+      const FRAME_UPDATE_TYPE ut = gf_group->update_type[gf_group->index];
+      const int is_unfiltered_intnl_arf =
+          (ut == INTNL_ARF_UPDATE) &&
+          !(arf_src_index >= (gf_group->is_user_specified ? 5 : 7));
+      if (!is_unfiltered_intnl_arf) {
+        tf_resize_denom = av2_predecide_dynamic_tf_resize_denom(
+            cpi, frame_input, frame_params);
+      }
+    }
+    const int code_arf = av2_temporal_filter(
+        cpi, arf_src_index, &show_existing_alt_ref, tf_resize_denom);
 
     cm->implicit_output_picture = cm->allow_direct_use;
     if (cpi->oxcf.ref_frm_cfg.add_sef_for_hidden_frames) {
