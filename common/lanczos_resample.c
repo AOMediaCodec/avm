@@ -683,7 +683,7 @@ void av2_resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
     return;
   }
   int16_t *tmpbuf =
-      (int16_t *)calloc((size_t)outwidth * inheight, sizeof(int16_t));
+      (int16_t *)malloc((size_t)outwidth * inheight * sizeof(int16_t));
   const int left_h = rfh->length / 2;
   const int right_h = get_resample_right_border(inwidth, outwidth, rfh);
   const int span_h = left_h + inwidth + right_h;
@@ -694,7 +694,7 @@ void av2_resample_2d(const int16_t *x, int inwidth, int inheight, int instride,
   const int downshifth = rfh->filter_bits - int_extra_bits;
   const int downshiftv = rfh->filter_bits + int_extra_bits;
   if (rfv->ext_type != EXT_GRADIENT) {
-    int16_t *tmparr_ = (int16_t *)calloc(span_h, sizeof(int16_t));
+    int16_t *tmparr_ = (int16_t *)malloc((size_t)span_h * sizeof(int16_t));
     int16_t *tmparrh = tmparr_ + left_h;
     for (int i = 0; i < inheight; ++i) {
       resample_1d_xc(x + instride * i, inwidth, rfh, downshifth, NULL,

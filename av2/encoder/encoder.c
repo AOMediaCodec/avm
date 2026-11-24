@@ -1124,14 +1124,27 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   cpi->resize_dyn_have_ema_dist = 0;
   cpi->resize_dyn_causal_hold = 0;
   cpi->resize_dyn_gop_coscaled = 0;
+  cpi->resize_dyn_is_screen_content = 0;
+  cpi->kf_resize_dyn_is_sc = 0;
   cpi->resize_dyn_base_qindex = 0;
   cpi->resize_dyn_causal_boost_qindex = 0;
   cpi->resize_dyn_causal_leaf_qindex = 0;
   cpi->resize_dyn_ema_p50 = 0.0;
+  cpi->resize_dyn_ema_p50_nz = 0.0;
   cpi->resize_dyn_ema_nz = 0.0;
   cpi->resize_dyn_ema_acr = 0.0;
   memset(cpi->resize_dyn_ema_dist, 0, sizeof(cpi->resize_dyn_ema_dist));
   memset(cpi->resize_dyn_ema_ac, 0, sizeof(cpi->resize_dyn_ema_ac));
+  cpi->resize_dyn_downscaled_buf = NULL;
+  cpi->resize_dyn_upscaled_y = NULL;
+  cpi->resize_dyn_upscaled_uv = NULL;
+  cpi->resize_dyn_scratch_pels = 0;
+  cpi->resize_dyn_sharp_mse = NULL;
+  cpi->resize_dyn_sharp_ac = NULL;
+  cpi->resize_dyn_sharp_blocks = 0;
+  cpi->resize_dyn_kf_predecided = 0;
+  cpi->resize_dyn_kf_denom = SCALE_NUMERATOR;
+  memset(cpi->resize_dyn_tf_bufs, 0, sizeof(cpi->resize_dyn_tf_bufs));
 
   // Setup identity scale factor
   av2_setup_scale_factors_for_frame(&cm->sf_identity, 1, 1, 1, 1);
@@ -2493,6 +2506,9 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
         features->allow_screen_content_tools && cpi->oxcf.kf_cfg.enable_intrabc;
     features->is_scc_content_by_detector = features->allow_screen_content_tools;
     cpi->allow_sc_kf_trial = false;  // Keyframe trial is GOOD-mode only.
+    cpi->resize_dyn_is_screen_content =
+        (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) ||
+        (cm->seq_params.force_screen_content_tools == 1);
     return;
   }
   // Estimate if the source frame is screen content, based on the portion of
@@ -2508,11 +2524,18 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
   // These threshold values are selected experimentally.
   const int color_thresh = 4;
   const unsigned int var_thresh = 0;
+  // Minimum 8-bit-scaled per-pixel variance for sharp screen/UI/voxel blocks;
+  // separates discrete UI/text/voxel edges (var >= 8) from smooth 1-LSB sky or
+  // wall gradients in natural video (var < 4).
+  const unsigned int sharp_var_thresh = 8;
   // Counts of blocks with no more than color_thresh colors.
   int counts_1 = 0;
   // Counts of blocks with no more than color_thresh colors and variance larger
   // than var_thresh.
   int counts_2 = 0;
+  // Counts of blocks with 2..color_thresh colors and sharp contrast
+  // (var >= sharp_var_thresh).
+  int counts_sharp = 0;
 
   for (int r = 0; r + blk_h <= height; r += blk_h) {
     for (int c = 0; c + blk_w <= width; c += blk_w) {
@@ -2529,6 +2552,7 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
         const unsigned int var =
             av2_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_16X16, bd);
         if (var > var_thresh) ++counts_2;
+        if (var >= sharp_var_thresh) ++counts_sharp;
       }
     }
   }
@@ -2559,6 +2583,14 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
       (cm->seq_params.force_screen_content_tools == 2) &&
       ((int64_t)counts_1 * blk_h * blk_w * 50 > (int64_t)width * height);
 
+  // Flag sharp low-color screen/UI/voxel content (> 1/128 ~= 0.78% of frame
+  // area with 2..4 colors and 8-bit per-pixel variance >= 8) or explicit
+  // screen-content tuning so RESIZE_DYNAMIC keeps native resolution.
+  cpi->resize_dyn_is_screen_content =
+      (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) ||
+      (cm->seq_params.force_screen_content_tools == 1) ||
+      ((int64_t)counts_sharp * blk_h * blk_w * 128 > (int64_t)width * height);
+
   if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
     features->allow_screen_content_tools = features->allow_intrabc =
         features->is_scc_content_by_detector = 1;
@@ -2579,6 +2611,51 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
     set_hole_fill_decision(cpi, width, height, blk_w, blk_h, counts_1,
                            counts_2);
   }
+}
+
+int av2_is_unfiltered_source_resize_dyn_sc(AV2_COMP *cpi) {
+  const AV2_COMMON *const cm = &cpi->common;
+  if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN ||
+      cm->seq_params.force_screen_content_tools == 1) {
+    return 1;
+  }
+  if (cpi->oxcf.mode == REALTIME) return 0;
+  if (cpi->unfiltered_source == NULL ||
+      cpi->unfiltered_source->y_buffer == NULL) {
+    return 0;
+  }
+  const uint16_t *const src = cpi->unfiltered_source->y_buffer;
+  const int stride = cpi->unfiltered_source->y_stride;
+  const int width = cpi->unfiltered_source->y_width;
+  const int height = cpi->unfiltered_source->y_height;
+  const int bd = cm->seq_params.bit_depth;
+  const int blk_w = 16;
+  const int blk_h = 16;
+  const int color_thresh = 4;
+  const unsigned int sharp_var_thresh = 8;
+  const int64_t area = (int64_t)width * (int64_t)height;
+  int counts_sharp = 0;
+  for (int r = 0; r + blk_h <= height; r += blk_h) {
+    for (int c = 0; c + blk_w <= width; c += blk_w) {
+      int count_buf[1 << 8];
+      const uint16_t *const this_src = src + r * stride + c;
+      int n_colors;
+      av2_count_colors_highbd(this_src, stride, blk_w, blk_h, bd, NULL,
+                              count_buf, &n_colors, NULL);
+      if (n_colors > 1 && n_colors <= color_thresh) {
+        struct buf_2d buf;
+        buf.stride = stride;
+        buf.buf = (uint16_t *)this_src;
+        const unsigned int var =
+            av2_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_16X16, bd);
+        if (var >= sharp_var_thresh) {
+          ++counts_sharp;
+          if ((int64_t)counts_sharp * blk_h * blk_w * 128 > area) return 1;
+        }
+      }
+    }
+  }
+  return 0;
 }
 
 // Function pointer to search site config initialization
@@ -3193,6 +3270,29 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
   int64_t *(*flg_pic_error)[GDF_RDO_QP_NUM] = errors.flg_pic_error;
   const int64_t rdmult =
       av2_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
+  int64_t rdmult_frame = rdmult;
+  int64_t rdmult_block = rdmult;
+  // On spatially downscaled RESIZE_DYNAMIC frames, account for upscaled
+  // pixel-area weighting in GDF RDO without inflating per-block mode-2 flag
+  // bitrate on small coded frames:
+  // - At >= 720p coded area, apply two factors of s_q12 (~(8/d)^1.0) uniformly.
+  // - Below 720p coded area, scale only the ~6-bit frame header by full
+  //   Parseval s_q12^3 (~(8/d)^1.5) while keeping per-block flags at baseline.
+  if (cpi->oxcf.resize_cfg.resize_mode == RESIZE_DYNAMIC &&
+      cpi->resize_scale_denom > SCALE_NUMERATOR &&
+      (cm->width < cpi->oxcf.frm_dim_cfg.width ||
+       cm->height < cpi->oxcf.frm_dim_cfg.height)) {
+    const int s_q12 = av2_get_resize_rdmult_q12(cpi->resize_scale_denom);
+    const int64_t rm1 = AVMMAX(ROUND_POWER_OF_TWO_64(rdmult * s_q12, 12), 1);
+    const int64_t rm2 = AVMMAX(ROUND_POWER_OF_TWO_64(rm1 * s_q12, 12), 1);
+    if ((int64_t)rec_width * rec_height >= 1280 * 720) {
+      rdmult_frame = rm2;
+      rdmult_block = rm2;
+    } else {
+      rdmult_frame = AVMMAX(ROUND_POWER_OF_TWO_64(rm2 * s_q12, 12), 1);
+      rdmult_block = rdmult;
+    }
+  }
 
   int *const block_ids = rdo_bufs->block_ids;
   int ctx_idx = 0, sb_size = cm->mib_size << MI_SIZE_LOG2;
@@ -3239,7 +3339,7 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
     slice_error += rec_pic_error[blk_idx];
   }
   double best_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      rdmult, (double)slice_rate / 16, slice_error, bit_depth);
+      rdmult_frame, (double)slice_rate / 16, slice_error, bit_depth);
   cm->gdf_info.gdf_mode = 0;
 
   int *const block_flags = rdo_bufs->block_flags;
@@ -3251,9 +3351,10 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
        gdf_mode++) {
     for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
       for (int qp_idx = qp_idx_start; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
-        slice_rate = (1 + gdf_block_enable_bit + GDF_RDO_QP_NUM_LOG2 +
-                      GDF_RDO_SCALE_NUM_LOG2)
-                     << AV2_PROB_COST_SHIFT;
+        const int header_rate = (1 + gdf_block_enable_bit +
+                                 GDF_RDO_QP_NUM_LOG2 + GDF_RDO_SCALE_NUM_LOG2)
+                                << AV2_PROB_COST_SHIFT;
+        int blocks_rate = 0;
         slice_error = 0;
         av2_copy(gdf_cdf, cm->fc->gdf_cdf);
         for (int ci = 0; ci < cm->gdf_info.gdf_block_num; ci++) {
@@ -3276,7 +3377,8 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
                                  ? rec_pic_error[blk_idx]
                                  : flg_pic_error[scale_idx][qp_idx][blk_idx];
               double block_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-                  rdmult, (double)block_rate / 16, block_error, bit_depth);
+                  rdmult_block, (double)block_rate / 16, block_error,
+                  bit_depth);
               if (block_cost < best_block_cost) {
                 block_flags[blk_idx] = block_flag;
                 best_block_rate = block_rate;
@@ -3284,13 +3386,21 @@ static void gdf_optimizer(AV2_COMP *cpi, AV2_COMMON *cm, GdfStripeBuf *bufs,
                 best_block_cost = block_cost;
               }
             }
-            slice_rate += best_block_rate;
+            blocks_rate += best_block_rate;
             slice_error += best_block_error;
             update_cdf(gdf_cdf, block_flags[blk_idx], 2);
           }
         }
-        double slice_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            rdmult, (double)slice_rate / 16, slice_error, bit_depth);
+        double slice_cost =
+            (rdmult_frame == rdmult_block)
+                ? RDCOST_DBL_WITH_NATIVE_BD_DIST(
+                      rdmult_frame, (double)(header_rate + blocks_rate) / 16,
+                      slice_error, bit_depth)
+                : (RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult_frame,
+                                                  (double)header_rate / 16,
+                                                  slice_error, bit_depth) +
+                   RDCOST_DBL_WITH_NATIVE_BD_DIST(
+                       rdmult_block, (double)blocks_rate / 16, 0, bit_depth));
 
         if (slice_cost < best_cost) {
           cm->gdf_info.gdf_mode = gdf_mode;
@@ -5156,9 +5266,11 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
     // the chances that could be missed detection as screen content.
     if (frame_is_kf_gf_arf(cpi)) {
       features->allow_screen_content_tools |= features->kf_allow_sc_tools;
+      cpi->resize_dyn_is_screen_content |= cpi->kf_resize_dyn_is_sc;
     }
   } else {
     features->kf_allow_sc_tools = features->allow_screen_content_tools;
+    cpi->kf_resize_dyn_is_sc = cpi->resize_dyn_is_screen_content;
   }
   cpi->is_screen_content_type = features->allow_screen_content_tools;
   if (!cpi->seq_params_locked && cpi->is_screen_content_type &&

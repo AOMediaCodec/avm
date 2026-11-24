@@ -102,11 +102,13 @@ double av2_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
  *                                         the lookahead buffer cpi->lookahead.
  * \param[in,out]   show_existing_arf      Whether to show existing ARF. This
  *                                         field is updated in this function.
+ * \param[in]   tf_resize_denom            Target resize denominator
+ *                                         (SCALE_NUMERATOR for native size).
  *
  * \return Whether temporal filtering is successfully done.
  */
 int av2_temporal_filter(AV2_COMP *cpi, const int filter_frame_lookahead_idx,
-                        int *show_existing_arf);
+                        int *show_existing_arf, int tf_resize_denom);
 
 #ifdef __cplusplus
 }  // extern "C"

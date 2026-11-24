@@ -2484,6 +2484,9 @@ typedef struct {
 /*!\brief Frees the GDF rate-distortion search buffers */
 void av2_gdf_rdo_buffers_free(GdfRdoBuffers *bufs);
 
+/*!\brief Frees reusable dynamic resize probing scratch buffers */
+void av2_free_resize_dyn_scratch_bufs(struct AV2_COMP *cpi);
+
 /*!
  * \brief Top level encoder structure.
  */
@@ -2951,6 +2954,20 @@ typedef struct AV2_COMP {
   uint8_t resize_dyn_gop_coscaled;
 
   /*!
+   * Non-zero if the current frame is flagged as sharp low-color screen/UI
+   * content (or explicitly signaled via screen-content tuning) to keep
+   * RESIZE_DYNAMIC at native resolution.
+   */
+  uint8_t resize_dyn_is_screen_content;
+
+  /*!
+   * Latched resize_dyn_is_screen_content flag from the current GOP's keyframe,
+   * propagated onto GF/ARF frames to protect transition frames inside a screen
+   * content GOP.
+   */
+  uint8_t kf_resize_dyn_is_sc;
+
+  /*!
    * Unboosted full-resolution leaf baseline qindex for the current GF group in
    * RESIZE_DYNAMIC mode.
    */
@@ -2981,6 +2998,12 @@ typedef struct AV2_COMP {
   double resize_dyn_ema_p50;
 
   /*!
+   * Exponentially smoothed causal non-flat-block median 16x16 MC MSE for
+   * zero-lag / single-frame RESIZE_DYNAMIC evaluation.
+   */
+  double resize_dyn_ema_p50_nz;
+
+  /*!
    * Exponentially smoothed causal active-block 16x16 motion-compensated MSE for
    * zero-lag / single-frame RESIZE_DYNAMIC evaluation.
    */
@@ -3003,6 +3026,65 @@ typedef struct AV2_COMP {
    * ratio per candidate scale denominator in RESIZE_DYNAMIC mode.
    */
   double resize_dyn_ema_ac[SCALE_NUMERATOR * 2 + 1];
+
+  /*!
+   * Reusable downscaled-plane scratch buffer for dynamic resize round-trip
+   * probing, allocated on demand and freed in av2_remove_compressor().
+   */
+  uint16_t *resize_dyn_downscaled_buf;
+
+  /*!
+   * Reusable upscaled luma-plane scratch buffer for dynamic resize round-trip
+   * probing, allocated on demand and freed in av2_remove_compressor().
+   */
+  uint16_t *resize_dyn_upscaled_y;
+
+  /*!
+   * Reusable upscaled chroma-plane scratch buffer for dynamic resize round-trip
+   * probing, allocated on demand and freed in av2_remove_compressor().
+   */
+  uint16_t *resize_dyn_upscaled_uv;
+
+  /*!
+   * Allocated pixel capacity of resize_dyn_downscaled_buf,
+   * resize_dyn_upscaled_y, and resize_dyn_upscaled_uv.
+   */
+  size_t resize_dyn_scratch_pels;
+
+  /*!
+   * Reusable per-block sharpness-weighted MSE scratch array for dynamic resize
+   * percentile selection.
+   */
+  double *resize_dyn_sharp_mse;
+
+  /*!
+   * Reusable per-block sharpness-weighted AC scratch array for dynamic resize
+   * percentile selection.
+   */
+  double *resize_dyn_sharp_ac;
+
+  /*!
+   * Allocated block capacity of resize_dyn_sharp_mse and resize_dyn_sharp_ac.
+   */
+  int resize_dyn_sharp_blocks;
+
+  /*!
+   * Non-zero if the current keyframe's RESIZE_DYNAMIC denominator was
+   * pre-decided prior to temporal filtering and cached in resize_dyn_kf_denom.
+   */
+  uint8_t resize_dyn_kf_predecided;
+
+  /*!
+   * Cached RESIZE_DYNAMIC denominator pre-decided for the current keyframe
+   * prior to temporal filtering.
+   */
+  uint8_t resize_dyn_kf_denom;
+
+  /*!
+   * Reusable resized frame buffers for running temporal filtering at the
+   * target resized resolution in RESIZE_DYNAMIC mode.
+   */
+  YV12_BUFFER_CONFIG resize_dyn_tf_bufs[MAX_LAG_BUFFERS];
 
   /*!
    * Pointer to struct holding adaptive data/contexts/models for the tile during
@@ -3615,6 +3697,11 @@ void av2_set_downsample_filter_options(AV2_COMP *cpi);
 // content tools is employed later. See av2_determine_sc_tools_with_encoding().
 void av2_set_screen_content_options(struct AV2_COMP *cpi,
                                     FeatureFlags *features);
+
+/*!\brief Read-only sharp screen/UI content check on cpi->unfiltered_source for
+ * RESIZE_DYNAMIC temporal-filtering scale pre-decision.
+ */
+int av2_is_unfiltered_source_resize_dyn_sc(struct AV2_COMP *cpi);
 
 // av2 uses 10,000,000 ticks/second as time stamp
 #define TICKS_PER_SEC 10000000LL

@@ -242,6 +242,7 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   free_gdf_buffers(&cm->gdf_info);
   gdf_free_guided_frame(cm);
   av2_gdf_rdo_buffers_free(&cpi->gdf_rdo_bufs);
+  av2_free_resize_dyn_scratch_bufs(cpi);
   const int use_cdef = cpi->oxcf.tool_cfg.enable_cdef;
   if (!is_stat_generation_stage(cpi) && use_cdef) {
     MultiThreadInfo *const mt_info = &cpi->mt_info;

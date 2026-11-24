@@ -604,6 +604,126 @@ TEST_P(ResizeDynamicZeroLagTest, AdaptsScaleAcrossCutInLowDelay) {
 AV2_INSTANTIATE_TEST_SUITE(ResizeDynamicZeroLagTest,
                            ::testing::Values(::libavm_test::kOnePassGood));
 
+// Synthetic screen-content source with sharp 2-color UI/text blocks (high
+// contrast, <= 4 colors per 16x16 block) to verify that RESIZE_DYNAMIC keeps
+// native resolution even without explicit screen-content tuning.
+class SyntheticScreenContentVideoSource
+    : public ::libavm_test::DummyVideoSource {
+ public:
+  static constexpr unsigned int kWidth = 128;
+  static constexpr unsigned int kHeight = 96;
+  static constexpr unsigned int kFrames = 17;
+
+  SyntheticScreenContentVideoSource() {
+    SetSize(kWidth, kHeight);
+    set_limit(kFrames);
+  }
+
+  ~SyntheticScreenContentVideoSource() override {}
+
+ protected:
+  void FillFrame() override {
+    if (img_ == NULL) return;
+    uint8_t *y_plane = img_->planes[AVM_PLANE_Y];
+    const int y_stride = img_->stride[AVM_PLANE_Y];
+    for (unsigned int r = 0; r < height_; ++r) {
+      for (unsigned int c = 0; c < width_; ++c) {
+        // Flat canvas with sharp 2-color horizontal/vertical UI bars that shift
+        // smoothly across frames.
+        const unsigned int shifted_r = (r + frame_ * 2u) & 15u;
+        const unsigned int shifted_c = (c + frame_ * 3u) & 31u;
+        const bool is_fg = (shifted_r >= 6u && shifted_r <= 9u) &&
+                           (shifted_c >= 4u && shifted_c <= 27u);
+        y_plane[r * y_stride + c] = is_fg ? 230 : 24;
+      }
+    }
+    for (int plane = AVM_PLANE_U; plane <= AVM_PLANE_V; ++plane) {
+      uint8_t *uv_plane = img_->planes[plane];
+      const int uv_stride = img_->stride[plane];
+      const unsigned int uv_h = (height_ + 1) >> 1;
+      const unsigned int uv_w = (width_ + 1) >> 1;
+      for (unsigned int r = 0; r < uv_h; ++r) {
+        memset(uv_plane + r * uv_stride, 128, uv_w);
+      }
+    }
+  }
+};
+
+class ResizeDynamicScreenContentGuardTest
+    : public ::libavm_test::CodecTestWithParam<libavm_test::TestMode>,
+      public ::libavm_test::EncoderTest {
+ protected:
+  ResizeDynamicScreenContentGuardTest()
+      : EncoderTest(GET_PARAM(0)), tune_screen_(false) {}
+  ~ResizeDynamicScreenContentGuardTest() override {}
+
+  void SetUp() override {
+    InitializeConfig();
+    SetMode(GET_PARAM(1));
+    const avm_rational timebase = { 1, 30 };
+    cfg_.g_timebase = timebase;
+    cfg_.rc_end_usage = AVM_Q;
+    cfg_.g_threads = 1;
+    cfg_.g_lag_in_frames = 17;
+    cfg_.rc_resize_mode = RESIZE_DYNAMIC;
+  }
+
+  void PreEncodeFrameHook(::libavm_test::VideoSource *video,
+                          ::libavm_test::Encoder *encoder) override {
+    if (video->frame() == 0) {
+      encoder->Control(AVME_SET_CPUUSED, 6);
+      encoder->Control(AVME_SET_ENABLEAUTOALTREF, 1);
+      encoder->Control(AV2E_SET_MIN_GF_INTERVAL, 4);
+      encoder->Control(AV2E_SET_MAX_GF_INTERVAL, 4);
+      encoder->Control(AVME_SET_QP, 210);
+      if (tune_screen_) {
+        encoder->Control(AV2E_SET_TUNE_CONTENT, AVM_CONTENT_SCREEN);
+      }
+    }
+  }
+
+  void DecompressedFrameHook(const avm_image_t &img,
+                             avm_codec_pts_t pts) override {
+    frame_info_list_.push_back(FrameInfo(pts, img.d_w, img.d_h));
+  }
+
+  bool tune_screen_;
+  std::vector<FrameInfo> frame_info_list_;
+};
+
+TEST_P(ResizeDynamicScreenContentGuardTest, KeepsNativeOnSharpScreenContent) {
+  tune_screen_ = false;
+  frame_info_list_.clear();
+  SyntheticScreenContentVideoSource video;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  ASSERT_EQ(frame_info_list_.size(),
+            static_cast<size_t>(SyntheticScreenContentVideoSource::kFrames));
+  for (size_t i = 0; i < frame_info_list_.size(); ++i) {
+    EXPECT_EQ(frame_info_list_[i].w, SyntheticScreenContentVideoSource::kWidth)
+        << "Frame " << i << " unexpectedly resized on sharp screen content";
+    EXPECT_EQ(frame_info_list_[i].h, SyntheticScreenContentVideoSource::kHeight)
+        << "Frame " << i << " unexpectedly resized on sharp screen content";
+  }
+}
+
+TEST_P(ResizeDynamicScreenContentGuardTest, KeepsNativeOnScreenContentTuning) {
+  tune_screen_ = true;
+  frame_info_list_.clear();
+  SyntheticSubgopVideoSource video;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  ASSERT_EQ(frame_info_list_.size(),
+            static_cast<size_t>(SyntheticSubgopVideoSource::kFrames));
+  for (size_t i = 0; i < frame_info_list_.size(); ++i) {
+    EXPECT_EQ(frame_info_list_[i].w, SyntheticSubgopVideoSource::kWidth)
+        << "Frame " << i << " unexpectedly resized with AVM_CONTENT_SCREEN";
+    EXPECT_EQ(frame_info_list_[i].h, SyntheticSubgopVideoSource::kHeight)
+        << "Frame " << i << " unexpectedly resized with AVM_CONTENT_SCREEN";
+  }
+}
+
+AV2_INSTANTIATE_TEST_SUITE(ResizeDynamicScreenContentGuardTest,
+                           ::testing::Values(::libavm_test::kOnePassGood));
+
 #if !CONFIG_SHARED
 TEST(LanczosResampleSimdTest, Resample1DBitExact) {
   ::libavm_test::ACMRandom rnd(::libavm_test::ACMRandom::DeterministicSeed());

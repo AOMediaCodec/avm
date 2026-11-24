@@ -20,6 +20,7 @@
 #include "av2/common/odintrin.h"
 #include "av2/common/quant_common.h"
 #include "av2/common/reconinter.h"
+#include "av2/common/resize.h"
 #include "av2/encoder/av2_quantize.h"
 #include "av2/encoder/encoder.h"
 #include "av2/encoder/extend.h"
@@ -178,6 +179,8 @@ static void subblock_motion_search(
  * \param[in]   block_size      Block size used for motion search
  * \param[in]   mb_row          Row index of the block in the frame
  * \param[in]   mb_col          Column index of the block in the frame
+ * \param[in]   tf_search_site_cfg Optional custom search site configuration
+ *                                 matching frame_to_filter->y_stride (or NULL).
  * \param[in]   ref_mv          Reference motion vector, which is commonly
  *                              inherited from the motion search result of
  *                              previous frame.
@@ -191,8 +194,9 @@ static void tf_motion_search(AV2_COMP *cpi,
                              const YV12_BUFFER_CONFIG *frame_to_filter,
                              const YV12_BUFFER_CONFIG *ref_frame,
                              const BLOCK_SIZE block_size, const int mb_row,
-                             const int mb_col, MV *ref_mv, MV *subblock_mvs,
-                             int *subblock_mses) {
+                             const int mb_col,
+                             const search_site_config *tf_search_site_cfg,
+                             MV *ref_mv, MV *subblock_mvs, int *subblock_mses) {
   // Frame information
   const int min_frame_size = AVMMIN(cpi->common.width, cpi->common.height);
 
@@ -218,7 +222,9 @@ static void tf_motion_search(AV2_COMP *cpi,
   SUBPEL_MOTION_SEARCH_PARAMS ms_params;
   const SEARCH_METHODS search_method = NSTEP;
   const search_site_config *search_site_cfg =
-      cpi->mv_search_params.search_site_cfg[SS_CFG_LOOKAHEAD];
+      (tf_search_site_cfg != NULL)
+          ? tf_search_site_cfg
+          : cpi->mv_search_params.search_site_cfg[SS_CFG_LOOKAHEAD];
   const int step_param = av2_init_search_range(
       AVMMAX(frame_to_filter->y_crop_width, frame_to_filter->y_crop_height),
       cpi->oxcf.tool_cfg.enable_high_motion);
@@ -870,6 +876,18 @@ static INLINE int get_q(const AV2_COMP *cpi) {
   return q;
 }
 
+static void init_tf_search_sites(
+    search_site_config sites[NUM_DISTINCT_SEARCH_METHODS],
+    int enable_high_motion, int stride) {
+  av2_init_dsmotion_compensation(&sites[DIAMOND], enable_high_motion, stride);
+  av2_init_motion_compensation_nstep(&sites[NSTEP], enable_high_motion, stride);
+  av2_init_motion_compensation_hex(&sites[HEX], enable_high_motion, stride);
+  av2_init_motion_compensation_bigdia(&sites[BIGDIA], enable_high_motion,
+                                      stride);
+  av2_init_motion_compensation_square(&sites[SQUARE], enable_high_motion,
+                                      stride);
+}
+
 /*!\endcond */
 /*!
  * \brief Sum and SSE source vs filtered framee difference returned by
@@ -894,6 +912,8 @@ typedef struct {
  * \param[in]   scale            Frame scaling factor
  * \param[in]   noise_levels     Estimated noise levels for each plane
  *                               in the frame (Y,U,V)
+ * \param[in]   fix_tf_geom      Whether to synchronize cm dimensions,
+ * mi_params, and search site strides with frame_to_filter
  *
  * \return Difference between filtered frame and the original frame
  *         (sum and sse)
@@ -904,7 +924,7 @@ static FRAME_DIFF tf_do_filtering(AV2_COMP *cpi, YV12_BUFFER_CONFIG **frames,
                                   const int is_key_frame,
                                   const BLOCK_SIZE block_size,
                                   const struct scale_factors *scale,
-                                  const double *noise_levels) {
+                                  const double *noise_levels, int fix_tf_geom) {
   // Basic information.
   const YV12_BUFFER_CONFIG *const frame_to_filter = frames[filter_frame_idx];
   const int frame_height = frame_to_filter->y_crop_height;
@@ -923,6 +943,23 @@ static FRAME_DIFF tf_do_filtering(AV2_COMP *cpi, YV12_BUFFER_CONFIG **frames,
   const int q_factor = get_q(cpi);
   // Factor to control the filering strength.
   const int filter_strength = cpi->oxcf.algo_cfg.arnr_strength;
+
+  AV2_COMMON *const cm = &cpi->common;
+  const int saved_cm_w = cm->width;
+  const int saved_cm_h = cm->height;
+  const int saved_mi_rows = cm->mi_params.mi_rows;
+  const int saved_mi_cols = cm->mi_params.mi_cols;
+  search_site_config tf_search_sites[NUM_DISTINCT_SEARCH_METHODS];
+  const search_site_config *tf_search_site_ptr = NULL;
+  if (fix_tf_geom) {
+    cm->width = frame_width;
+    cm->height = frame_height;
+    cm->mi_params.mi_rows = ALIGN_POWER_OF_TWO(frame_height, 3) >> MI_SIZE_LOG2;
+    cm->mi_params.mi_cols = ALIGN_POWER_OF_TWO(frame_width, 3) >> MI_SIZE_LOG2;
+    init_tf_search_sites(tf_search_sites, cpi->oxcf.tool_cfg.enable_high_motion,
+                         frame_to_filter->y_stride);
+    tf_search_site_ptr = tf_search_sites;
+  }
 
   // Save input state.
   MACROBLOCK *const mb = &cpi->td.mb;
@@ -992,8 +1029,8 @@ static FRAME_DIFF tf_do_filtering(AV2_COMP *cpi, YV12_BUFFER_CONFIG **frames,
           ref_mv.col *= -1;
         } else {  // Other reference frames.
           tf_motion_search(cpi, frame_to_filter, frames[frame], block_size,
-                           mb_row, mb_col, &ref_mv, subblock_mvs,
-                           subblock_mses);
+                           mb_row, mb_col, tf_search_site_ptr, &ref_mv,
+                           subblock_mvs, subblock_mses);
         }
         tf_build_predictor(frames[frame], mbd, block_size, mb_row, mb_col,
                            num_planes, scale, subblock_mvs, pred);
@@ -1046,6 +1083,12 @@ static FRAME_DIFF tf_do_filtering(AV2_COMP *cpi, YV12_BUFFER_CONFIG **frames,
   }
 
   // Restore input state
+  if (fix_tf_geom) {
+    cm->width = saved_cm_w;
+    cm->height = saved_cm_h;
+    cm->mi_params.mi_rows = saved_mi_rows;
+    cm->mi_params.mi_cols = saved_mi_cols;
+  }
   for (int i = 0; i < num_planes; i++) {
     mbd->plane[i].pre[0].buf = input_buffer[i];
   }
@@ -1071,6 +1114,13 @@ static FRAME_DIFF tf_do_filtering(AV2_COMP *cpi, YV12_BUFFER_CONFIG **frames,
  * \param[in]   is_second_arf   Whether the to-filter frame is the second ARF.
  *                              This field will affect the number of frames
  *                              used for filtering.
+ * \param[in,out] resized_center_buf Optional resized frame buffer used to
+ *                              estimate noise directly at (tf_w, tf_h) when
+ *                              filtering at a resized target resolution.
+ * \param[in]   tf_w            Target width for resized noise estimation.
+ * \param[in]   tf_h            Target height for resized noise estimation.
+ * \param[in]   adjust_noise_scale Multiplier applied to luma noise when
+ *                              selecting the temporal filtering window size.
  * \param[in,out] frames        Pointer to the frame buffer to setup
  * \param[in,out] num_frames_for_filtering  Number of frames used for filtering
  * \param[in,out] filter_frame_idx Index of the to-filter frame in the setup
@@ -1085,13 +1135,12 @@ static FRAME_DIFF tf_do_filtering(AV2_COMP *cpi, YV12_BUFFER_CONFIG **frames,
  * in this function. Estimated noise levels for YUV planes will be
  * saved in `noise_levels`.
  */
-static void tf_setup_filtering_buffer(const AV2_COMP *cpi,
-                                      const int filter_frame_lookahead_idx,
-                                      const int is_second_arf,
-                                      YV12_BUFFER_CONFIG **frames,
-                                      int *num_frames_for_filtering,
-                                      int *filter_frame_idx,
-                                      double *noise_levels) {
+static void tf_setup_filtering_buffer(
+    const AV2_COMP *cpi, const int filter_frame_lookahead_idx,
+    const int is_second_arf, YV12_BUFFER_CONFIG *resized_center_buf, int tf_w,
+    int tf_h, double adjust_noise_scale, YV12_BUFFER_CONFIG **frames,
+    int *num_frames_for_filtering, int *filter_frame_idx,
+    double *noise_levels) {
   // Number of frames used for filtering. Set `arnr_max_frames` as 1 to disable
   // temporal filtering.
   int num_frames = AVMMAX(cpi->oxcf.algo_cfg.arnr_max_frames, 1);
@@ -1129,9 +1178,22 @@ static void tf_setup_filtering_buffer(const AV2_COMP *cpi,
   assert(to_filter_buf != NULL);
   const YV12_BUFFER_CONFIG *to_filter_frame = &to_filter_buf->img;
   const int num_planes = av2_num_planes(&cpi->common);
+  const YV12_BUFFER_CONFIG *noise_src = to_filter_frame;
+  if (resized_center_buf != NULL) {
+    const AV2_COMMON *const cm = &cpi->common;
+    if (avm_realloc_frame_buffer(
+            resized_center_buf, tf_w, tf_h, cm->seq_params.subsampling_x,
+            cm->seq_params.subsampling_y, cpi->oxcf.border_in_pixels,
+            cm->features.byte_alignment, NULL, NULL, NULL, false) == 0) {
+      av2_resize_and_extend_frame_nonnormative(
+          to_filter_frame, resized_center_buf, (int)cm->seq_params.bit_depth,
+          num_planes);
+      noise_src = resized_center_buf;
+    }
+  }
   for (int plane = 0; plane < num_planes; ++plane) {
     noise_levels[plane] = av2_estimate_noise_from_single_plane(
-        to_filter_frame, plane, cpi->common.seq_params.bit_depth);
+        noise_src, plane, cpi->common.seq_params.bit_depth);
   }
   // Get quantization factor.
   const int q = get_q(cpi);
@@ -1143,15 +1205,16 @@ static void tf_setup_filtering_buffer(const AV2_COMP *cpi,
   // we will not change the number of frames for key frame filtering, which is
   // to avoid visual quality drop.
   int adjust_num = 0;
+  const double adj_noise0 = noise_levels[0] * adjust_noise_scale;
   if (num_frames == 1) {  // `arnr_max_frames = 1` is used to disable filtering.
     adjust_num = 0;
   } else if (filter_frame_lookahead_idx < 0 && q <= 10) {
     adjust_num = 0;
-  } else if (noise_levels[0] < 0.5) {
+  } else if (adj_noise0 < 0.5) {
     adjust_num = 6;
-  } else if (noise_levels[0] < 1.0) {
+  } else if (adj_noise0 < 1.0) {
     adjust_num = 4;
-  } else if (noise_levels[0] < 2.0) {
+  } else if (adj_noise0 < 2.0) {
     adjust_num = 2;
   }
 
@@ -1243,8 +1306,9 @@ double av2_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
 }
 
 int av2_temporal_filter(AV2_COMP *cpi, const int filter_frame_lookahead_idx,
-                        int *show_existing_arf) {
+                        int *show_existing_arf, int tf_resize_denom) {
   // Basic informaton of the current frame.
+  AV2_COMMON *const cm = &cpi->common;
   const GF_GROUP *const gf_group = &cpi->gf_group;
   const uint8_t group_idx = gf_group->index;
   const FRAME_UPDATE_TYPE update_type = gf_group->update_type[group_idx];
@@ -1261,16 +1325,75 @@ int av2_temporal_filter(AV2_COMP *cpi, const int filter_frame_lookahead_idx,
     return 0;
   }
 
+  int use_resized_tf = 0;
+  int tf_w = cpi->oxcf.frm_dim_cfg.width;
+  int tf_h = cpi->oxcf.frm_dim_cfg.height;
+  if (tf_resize_denom > SCALE_NUMERATOR) {
+    av2_calculate_scaled_size(&tf_w, &tf_h, tf_resize_denom);
+    if (tf_w > 0 && tf_h > 0 &&
+        (tf_w < cpi->oxcf.frm_dim_cfg.width ||
+         tf_h < cpi->oxcf.frm_dim_cfg.height)) {
+      use_resized_tf = 1;
+    }
+  }
+
   // Setup frame buffer for filtering.
   YV12_BUFFER_CONFIG *frames[MAX_LAG_BUFFERS] = { NULL };
   int num_frames_for_filtering = 0;
   int filter_frame_idx = -1;
   double noise_levels[MAX_MB_PLANE] = { 0 };
+  YV12_BUFFER_CONFIG *resized_center_buf =
+      use_resized_tf ? &cpi->resize_dyn_tf_bufs[MAX_LAG_BUFFERS - 1] : NULL;
+  const double adjust_noise_scale =
+      use_resized_tf ? sqrt((double)tf_resize_denom / (double)SCALE_NUMERATOR)
+                     : 1.0;
   tf_setup_filtering_buffer(cpi, filter_frame_lookahead_idx, is_second_arf,
+                            resized_center_buf, tf_w, tf_h, adjust_noise_scale,
                             frames, &num_frames_for_filtering,
                             &filter_frame_idx, noise_levels);
   assert(num_frames_for_filtering > 0);
   assert(filter_frame_idx < num_frames_for_filtering);
+
+  if (use_resized_tf) {
+    const int num_planes = av2_num_planes(cm);
+    const int bd = (int)cm->seq_params.bit_depth;
+    for (int f = 0; f < num_frames_for_filtering; ++f) {
+      if (f == filter_frame_idx && resized_center_buf != NULL &&
+          num_frames_for_filtering < MAX_LAG_BUFFERS &&
+          resized_center_buf->y_crop_width == tf_w &&
+          resized_center_buf->y_crop_height == tf_h) {
+        frames[f] = resized_center_buf;
+        continue;
+      }
+      if (avm_realloc_frame_buffer(
+              &cpi->resize_dyn_tf_bufs[f], tf_w, tf_h,
+              cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+              cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL,
+              NULL, NULL, false)) {
+        avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
+                           "Failed to allocate resized TF buffer");
+      }
+      av2_resize_and_extend_frame_nonnormative(
+          frames[f], &cpi->resize_dyn_tf_bufs[f], bd, num_planes);
+      frames[f] = &cpi->resize_dyn_tf_bufs[f];
+    }
+  }
+
+  if (use_resized_tf || cpi->oxcf.resize_cfg.resize_mode == RESIZE_DYNAMIC) {
+    const int target_arf_w = frames[filter_frame_idx]->y_crop_width;
+    const int target_arf_h = frames[filter_frame_idx]->y_crop_height;
+    if (cpi->alt_ref_buffer.y_crop_width != target_arf_w ||
+        cpi->alt_ref_buffer.y_crop_height != target_arf_h) {
+      if (avm_realloc_frame_buffer(
+              &cpi->alt_ref_buffer, target_arf_w, target_arf_h,
+              cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+              cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL,
+              NULL, NULL, cpi->alloc_pyramid)) {
+        avm_internal_error(&cm->error, AVM_CODEC_MEM_ERROR,
+                           "Failed to reallocate altref buffer");
+      }
+    }
+  }
 
   // Set showable frame.
   cpi->common.allow_direct_use = num_frames_for_filtering == 1 ||
@@ -1283,16 +1406,22 @@ int av2_temporal_filter(AV2_COMP *cpi, const int filter_frame_lookahead_idx,
 
   // Do filtering.
   const int is_key_frame = (filter_frame_lookahead_idx <= 0);
+  const int fix_tf_geom =
+      use_resized_tf ||
+      (cpi->oxcf.resize_cfg.resize_mode == RESIZE_DYNAMIC &&
+       (cm->width != frames[filter_frame_idx]->y_crop_width ||
+        cm->height != frames[filter_frame_idx]->y_crop_height ||
+        cpi->mv_search_params.search_site_cfg[SS_CFG_LOOKAHEAD][NSTEP].stride !=
+            frames[filter_frame_idx]->y_stride));
   // Setup scaling factors. Scaling on each of the arnr frames is not
   // supported.
-  // ARF is produced at the native frame size and resized when coded.
   struct scale_factors sf;
   av2_setup_scale_factors_for_frame(
       &sf, frames[0]->y_crop_width, frames[0]->y_crop_height,
       frames[0]->y_crop_width, frames[0]->y_crop_height);
-  const FRAME_DIFF diff =
-      tf_do_filtering(cpi, frames, num_frames_for_filtering, filter_frame_idx,
-                      is_key_frame, TF_BLOCK_SIZE, &sf, noise_levels);
+  const FRAME_DIFF diff = tf_do_filtering(
+      cpi, frames, num_frames_for_filtering, filter_frame_idx, is_key_frame,
+      TF_BLOCK_SIZE, &sf, noise_levels, fix_tf_geom);
 
   if (is_key_frame) {  // Key frame should always be filtered.
     assert(gf_group->update_type[gf_group->index] != KFFLT_UPDATE ||
@@ -1317,9 +1446,14 @@ int av2_temporal_filter(AV2_COMP *cpi, const int filter_frame_lookahead_idx,
     av2_set_target_rate(cpi, cpi->common.width, cpi->common.height);
     int top_index = 0;
     int bottom_index = 0;
+    const uint8_t saved_resize_denom = cpi->resize_scale_denom;
+    if (use_resized_tf) {
+      cpi->resize_scale_denom = SCALE_NUMERATOR;
+    }
     const int q = av2_rc_pick_q_and_bounds(
         cpi, &cpi->rc, cpi->oxcf.frm_dim_cfg.width,
         cpi->oxcf.frm_dim_cfg.height, group_idx, &bottom_index, &top_index);
+    cpi->resize_scale_denom = saved_resize_denom;
 
     const int ac_q = ROUND_POWER_OF_TWO(
         av2_ac_quant_QTX(q, 0, 0, cpi->common.seq_params.bit_depth),
