@@ -854,6 +854,7 @@ static void set_good_speed_features_framesize_independent(
       sf->tx_sf.tx_type_search.disable_inter_ist = true;
     }
     sf->tx_sf.prune_ist_by_best_rd = true;
+    sf->tx_sf.delay_trellis_start = true;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 5;
     sf->rd_sf.tx_domain_dist_thres_level = 1;
@@ -1593,6 +1594,7 @@ static AVM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->prune_inter_tx_part_rd_eval = false;
   tx_sf->enable_tx_partition = true;
   tx_sf->enable_adaptive_tx_search_level = false;
+  tx_sf->delay_trellis_start = false;
   tx_sf->prune_intra_ist_stx_by_zero_eob = false;
   tx_sf->prune_tx_part_stationarity = false;
   tx_sf->disable_cctx_dry_pass = false;

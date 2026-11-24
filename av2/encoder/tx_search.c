@@ -945,7 +945,7 @@ static INLINE void recon_intra(const AV2_COMP *cpi, MACROBLOCK *x, int plane,
                          rate_cost);
       } else if (quant_param_intra.use_optimize_b) {
         av2_optimize_b(cpi, x, plane, block, tx_size, best_tx_type, cctx_type,
-                       txb_ctx, rate_cost);
+                       txb_ctx, rate_cost, cpi->sf.tx_sf.delay_trellis_start);
       } else {
         bool enable_parity_hiding =
             cm->features.allow_parity_hiding &&
@@ -2337,7 +2337,8 @@ static AVM_FORCE_INLINE int64_t evaluate_tx_candidate(
                      ctx->txb_ctx, &rate_cost);
   } else if (quant_param->use_optimize_b) {
     av2_optimize_b(cpi, x, ctx->plane, ctx->block, ctx->tx_size, tx_type,
-                   CCTX_NONE, ctx->txb_ctx, &rate_cost);
+                   CCTX_NONE, ctx->txb_ctx, &rate_cost,
+                   tx_sf->delay_trellis_start);
   } else {
     const bool enable_parity_hiding =
         cm->features.allow_parity_hiding && !ctx->is_lossless &&
@@ -2988,7 +2989,7 @@ static void search_cctx_type(const AV2_COMP *cpi, MACROBLOCK *x, int block,
         else
           av2_optimize_b(cpi, x, plane, block, tx_size, tx_type, cctx_type,
                          &txb_ctx_uv[plane - AVM_PLANE_U],
-                         &rate_cost[plane - AVM_PLANE_U]);
+                         &rate_cost[plane - AVM_PLANE_U], false);
         skip_cctx_eval = skip_cctx_eval_based_on_eob(
             plane, is_inter, eobs_ptr_c1[block], cctx_type);
         if (skip_cctx_eval) break;

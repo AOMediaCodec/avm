@@ -1345,6 +1345,11 @@ typedef struct TX_SPEED_FEATURES {
   // Base qindex upper bound for applying the adaptive TCQ threshold
   int adaptive_tcq_threshold_qidx;
 
+  // Delay the trellis (TCQ) start position at the RD-search call sites by
+  // pruning trailing level-1 coefficients that are isolated by a long zero run
+  // before the trellis runs. Enabled for speed >= 4.
+  bool delay_trellis_start;
+
   // Skip IST/STX cascade for intra-luma candidates whose primary transform
   // quantizes to zero. Extends the intra-luma pre-skip / post-trellis gates
   // from eob == 1 to also cover eob == 0 (stx > 0 only, so skip-coded
