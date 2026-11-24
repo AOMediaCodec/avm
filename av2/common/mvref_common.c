@@ -2003,77 +2003,52 @@ static AVM_INLINE void get_row_smvp_states(const AV2_COMMON *cm,
   const int block_width_type =
       xd->width == 1 ? BLOCK_WIDTH_4
                      : (xd->width == 2 ? BLOCK_WIDTH_8 : BLOCK_WIDTH_OTHERS);
-  const int is_sb_boundary = (mi_row % cm->mib_size == 0);
+  // mib_size is a power of two.
+  const int is_sb_boundary = (mi_row & (cm->mib_size - 1)) == 0;
 
-  const MVP_UNIT_STATUS row_smvp_all_states[2][BLOCK_WIDTH_TYPES][4] = {
-    {
-        // Within the super-block, similar to the existing algorithm,
-        // access to information is allowed for each 4x4 unit.
-        {
-            // Block width is 4
-            { xd->up_available, -1, (xd->width - 1) },
-            { 0, -1, 0 },
-            { has_tr, -1, xd->width },
-            { xd->up_available && xd->left_available, -1, -1 },
-        },
-        {
-            // Block width is 8
-            { xd->up_available, -1, (xd->width - 1) },
-            { xd->up_available, -1, 0 },
-            { has_tr, -1, xd->width },
-            { xd->up_available && xd->left_available, -1, -1 },
-        },
-        {
-            // Block width is no less than 8
-            { xd->up_available, -1, (xd->width - 1) },
-            { xd->up_available, -1, 0 },
-            { has_tr, -1, xd->width },
-            { xd->up_available && xd->left_available, -1, -1 },
-        },
-    },
-    {
-        // Around the super-block boundary, to reduce the size of the line
-        // buffer, access to information is allowed for each 8x8 unit. The
-        // bottom-left 4x4 block's information is used to represent the entire
-        // 8x8 block.
-        {
-            // Block width is 4
-            { is_above_smvp_available(xd, mi_col, 0), -1,
-              compute_aligned_offset(mi_col, 0) },
-            { 0, -1, 0 },
-            { has_tr && is_above_smvp_available(xd, mi_col, 2), -1,
-              compute_aligned_offset(mi_col, 2) },
-            { is_above_smvp_available(xd, mi_col, -2), -1,
-              compute_aligned_offset(mi_col, -2) },
-        },
-        {
-            // Block width is 8
-            { is_above_smvp_available(xd, mi_col, 0), -1,
-              compute_aligned_offset(mi_col, 0) },
-            { 0, -1, 0 },
-            { has_tr && is_above_smvp_available(xd, mi_col, 2), -1,
-              compute_aligned_offset(mi_col, 2) },
-            { is_above_smvp_available(xd, mi_col, -2), -1,
-              compute_aligned_offset(mi_col, -2) },
-        },
-        {
-            // Block width is no less than 8
-            { is_above_smvp_available(xd, mi_col, xd->width - 2), -1,
-              compute_aligned_offset(mi_col, xd->width - 2) },
-            { is_above_smvp_available(xd, mi_col, 0), -1,
-              compute_aligned_offset(mi_col, 0) },
-            { has_tr && is_above_smvp_available(xd, mi_col, xd->width), -1,
-              compute_aligned_offset(mi_col, xd->width) },
-            { is_above_smvp_available(xd, mi_col, -2), -1,
-              compute_aligned_offset(mi_col, -2) },
-        },
-    }
-  };
-
-  for (int i = 0; i < 4; i++) {
-    row_smvp_state[i] =
-        row_smvp_all_states[is_sb_boundary][block_width_type][i];
+  if (!is_sb_boundary) {
+    // Within the super-block, similar to the existing algorithm, access to
+    // information is allowed for each 4x4 unit.
+    const int up_available = xd->up_available;
+    row_smvp_state[0] = (MVP_UNIT_STATUS){ up_available, -1, (xd->width - 1) };
+    // The second unit is not used when the block width is 4.
+    row_smvp_state[1] =
+        (MVP_UNIT_STATUS){ block_width_type == BLOCK_WIDTH_4 ? 0 : up_available,
+                           -1, 0 };
+    row_smvp_state[2] = (MVP_UNIT_STATUS){ has_tr, -1, xd->width };
+    row_smvp_state[3] =
+        (MVP_UNIT_STATUS){ up_available && xd->left_available, -1, -1 };
+    return;
   }
+
+  // Around the super-block boundary, to reduce the size of the line buffer,
+  // access to information is allowed for each 8x8 unit. The bottom-left 4x4
+  // block's information is used to represent the entire 8x8 block.
+  if (block_width_type == BLOCK_WIDTH_OTHERS) {
+    // Block width is no less than 8
+    row_smvp_state[0] =
+        (MVP_UNIT_STATUS){ is_above_smvp_available(xd, mi_col, xd->width - 2),
+                           -1, compute_aligned_offset(mi_col, xd->width - 2) };
+    row_smvp_state[1] =
+        (MVP_UNIT_STATUS){ is_above_smvp_available(xd, mi_col, 0), -1,
+                           compute_aligned_offset(mi_col, 0) };
+    row_smvp_state[2] =
+        (MVP_UNIT_STATUS){ has_tr &&
+                               is_above_smvp_available(xd, mi_col, xd->width),
+                           -1, compute_aligned_offset(mi_col, xd->width) };
+  } else {
+    // Block width is 4 or 8
+    row_smvp_state[0] =
+        (MVP_UNIT_STATUS){ is_above_smvp_available(xd, mi_col, 0), -1,
+                           compute_aligned_offset(mi_col, 0) };
+    row_smvp_state[1] = (MVP_UNIT_STATUS){ 0, -1, 0 };
+    row_smvp_state[2] =
+        (MVP_UNIT_STATUS){ has_tr && is_above_smvp_available(xd, mi_col, 2), -1,
+                           compute_aligned_offset(mi_col, 2) };
+  }
+  row_smvp_state[3] =
+      (MVP_UNIT_STATUS){ is_above_smvp_available(xd, mi_col, -2), -1,
+                         compute_aligned_offset(mi_col, -2) };
 }
 
 // return 1 if valid point is found

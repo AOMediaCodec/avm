@@ -57,6 +57,7 @@
 #include "av2/encoder/encodemb.h"
 #include "av2/encoder/encodemv.h"
 #include "av2/encoder/encodetxb.h"
+#include "av2/encoder/intra_mode_mlp.h"
 #include "av2/encoder/tip_memo.h"
 #include "av2/encoder/tip_search.h"
 #include "av2/encoder/ethread.h"
@@ -993,6 +994,12 @@ static AVM_INLINE void encode_rd_sb(AV2_COMP *cpi, ThreadData *td,
     memset(x->ms_memo, 0, sizeof(*x->ms_memo));
     x->ms_memo->sb_id = 1;
   }
+  // The HOG entries of the intra mode MLP are kept for one superblock.
+  if (td->intra_mlp_hog_cache == NULL) {
+    td->intra_mlp_hog_cache = avm_malloc(sizeof(*td->intra_mlp_hog_cache));
+  }
+  x->intra_mlp_hog_cache = td->intra_mlp_hog_cache;
+  if (x->intra_mlp_hog_cache != NULL) x->intra_mlp_hog_cache->valid = 0;
   x->reuse_inter_mode_cache_type =
       av2_get_erp_reuse_mode_flag(cpi->sf.inter_sf.reuse_erp_mode_flag);
   // The recursive partition search below runs init_encode_rd_sb() at the start

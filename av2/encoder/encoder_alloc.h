@@ -300,6 +300,8 @@ static AVM_INLINE void dealloc_compressor_data(AV2_COMP *cpi) {
   cpi->td.mb.resi_stat_bobs = NULL;
   avm_free(cpi->td.mb.resi_stat_txb_entropy_ctx);
   cpi->td.mb.resi_stat_txb_entropy_ctx = NULL;
+  avm_free(cpi->td.intra_mlp_hog_cache);
+  cpi->td.intra_mlp_hog_cache = NULL;
 
 #if CONFIG_DENOISE
   if (cpi->denoise_and_model) {

@@ -4173,14 +4173,20 @@ static INLINE void set_mi_offsets(const CommonModeInfoParams *const mi_params,
   mi_params->submi_grid_base[mi_grid_idx] =
       &mi_params->mi_alloc_sub[mi_alloc_idx];
   xd->submi = mi_params->submi_grid_base + mi_grid_idx;
+  // Point the other units of the block to their entries, as
+  // get_alloc_mi_idx() locates them. The first unit is set above.
+  const int mi_alloc_size_1dl = mi_size_wide_log2[mi_params->mi_alloc_bsize];
+  const int mi_alloc_stride = mi_params->mi_alloc_stride;
+  const int mi_stride = mi_params->mi_stride;
+  SUBMB_INFO *const mi_alloc_sub = mi_params->mi_alloc_sub;
+  SUBMB_INFO **submi_row = xd->submi;
   for (int y = 0; y < y_inside_boundary; y++) {
-    for (int x = 0; x < x_inside_boundary; x++) {
-      if (x == 0 && y == 0) continue;
-      const int mi_alloc_sub_idx =
-          get_alloc_mi_idx(mi_params, mi_row + y, mi_col + x);
-      xd->submi[y * mi_params->mi_stride + x] =
-          &mi_params->mi_alloc_sub[mi_alloc_sub_idx];
+    SUBMB_INFO *const alloc_row =
+        mi_alloc_sub + ((mi_row + y) >> mi_alloc_size_1dl) * mi_alloc_stride;
+    for (int x = (y == 0); x < x_inside_boundary; x++) {
+      submi_row[x] = alloc_row + ((mi_col + x) >> mi_alloc_size_1dl);
     }
+    submi_row += mi_stride;
   }
   // 'xd->tx_type_map' should point to an offset in 'mi_params->tx_type_map'.
   if (xd->tree_type != CHROMA_PART) {

@@ -215,6 +215,7 @@ if(NOT BUILD_SHARED_LIBS)
     "${AVM_ROOT}/test/av2_convolve_test.cc"
     "${AVM_ROOT}/test/av2_nn_predict_test.cc"
     "${AVM_ROOT}/test/av2_intra_mlp_layer_test.cc"
+    "${AVM_ROOT}/test/av2_k_means_test.cc"
     "${AVM_ROOT}/test/intra_mode_mlp_test.cc"
     "${AVM_ROOT}/test/partition_mlp_test.cc"
     "${AVM_ROOT}/test/sms_lazy_reset_test.cc"

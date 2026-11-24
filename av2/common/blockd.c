@@ -122,20 +122,18 @@ void av2_mark_block_as_coded(MACROBLOCKD *xd, BLOCK_SIZE bsize,
   const int mi_row_offset = mi_row & (sb_mi_size - 1);
   const int mi_col_offset = mi_col & (sb_mi_size - 1);
 
-  for (int r = 0; r < mi_size_high[bsize]; ++r)
-    for (int c = 0; c < mi_size_wide[bsize]; ++c) {
-      const int pos =
-          (mi_row_offset + r) * xd->is_mi_coded_stride + mi_col_offset + c;
-      switch (xd->tree_type) {
-        case SHARED_PART:
-          xd->is_mi_coded[0][pos] = 1;
-          xd->is_mi_coded[1][pos] = 1;
-          break;
-        case LUMA_PART: xd->is_mi_coded[0][pos] = 1; break;
-        case CHROMA_PART: xd->is_mi_coded[1][pos] = 1; break;
-        default: assert(0 && "Invalid tree type");
-      }
-    }
+  const int mi_wide = mi_size_wide[bsize];
+  const bool mark_luma = xd->tree_type != CHROMA_PART;
+  const bool mark_chroma = xd->tree_type != LUMA_PART;
+  assert(xd->tree_type == SHARED_PART || xd->tree_type == LUMA_PART ||
+         xd->tree_type == CHROMA_PART);
+
+  for (int r = 0; r < mi_size_high[bsize]; ++r) {
+    const int pos =
+        (mi_row_offset + r) * xd->is_mi_coded_stride + mi_col_offset;
+    if (mark_luma) memset(&xd->is_mi_coded[0][pos], 1, mi_wide);
+    if (mark_chroma) memset(&xd->is_mi_coded[1][pos], 1, mi_wide);
+  }
 }
 
 void av2_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,

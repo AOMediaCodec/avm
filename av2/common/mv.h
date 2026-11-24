@@ -224,6 +224,13 @@ static AVM_INLINE void fetch_mv_from_tmvp(MV *mv) {
 }
 
 #define ABS(x) (((x) >= 0) ? (x) : (-(x)))
+// Remainder of the division of value by radix, where radix is a power of two.
+// The remainder has the sign of value, as with the % operator.
+static INLINE int mv_remainder_pow2(int value, int radix) {
+  const int rem = value & (radix - 1);
+  return (value < 0 && rem != 0) ? rem - radix : rem;
+}
+
 // Reduce the precision of the MV to the target precision
 // The parameter radix define the step size of the MV .
 // For instance, radix = 1 for 1/8th pel, 2 for 1/4-th perl, 4 for 1/2 pel, 8
@@ -231,7 +238,7 @@ static AVM_INLINE void fetch_mv_from_tmvp(MV *mv) {
 static INLINE void lower_mv_precision(MV *mv, MvSubpelPrecision precision) {
   const int radix = (1 << (MV_PRECISION_ONE_EIGHTH_PEL - precision));
   if (radix == 1) return;
-  int mod = (mv->row % radix);
+  int mod = mv_remainder_pow2(mv->row, radix);
   if (mod != 0) {
     mv->row -= mod;
     if (ABS(mod) > (radix >> 1)) {
@@ -244,7 +251,7 @@ static INLINE void lower_mv_precision(MV *mv, MvSubpelPrecision precision) {
     mv->row = clamp(mv->row, MV_LOW + radix, MV_UPP - radix);
   }
 
-  mod = (mv->col % radix);
+  mod = mv_remainder_pow2(mv->col, radix);
   if (mod != 0) {
     mv->col -= mod;
     if (ABS(mod) > (radix >> 1)) {
@@ -264,7 +271,7 @@ static INLINE void full_pel_lower_mv_precision(FULLPEL_MV *full_pel_mv,
 
   const int radix = (1 << (MV_PRECISION_ONE_PEL - precision));
   if (radix == 1) return;
-  int mod = (full_pel_mv->row % radix);
+  int mod = mv_remainder_pow2(full_pel_mv->row, radix);
   if (mod != 0) {
     full_pel_mv->row -= mod;
     if (ABS(mod) > radix / 2) {
@@ -278,7 +285,7 @@ static INLINE void full_pel_lower_mv_precision(FULLPEL_MV *full_pel_mv,
                              GET_MV_RAWPEL(MV_UPP) - radix);
   }
 
-  mod = (full_pel_mv->col % radix);
+  mod = mv_remainder_pow2(full_pel_mv->col, radix);
   if (mod != 0) {
     full_pel_mv->col -= mod;
     if (ABS(mod) > radix / 2) {
@@ -308,7 +315,7 @@ static INLINE void full_pel_lower_mv_precision_one_comp(
   if (precision >= MV_PRECISION_ONE_PEL) return;
   const int radix = (1 << (MV_PRECISION_ONE_PEL - precision));
   int value = *comp_value;
-  int mod = (value % radix);
+  int mod = mv_remainder_pow2(value, radix);
   if (mod != 0) {
     if (mod < 0)
       value -= mod;

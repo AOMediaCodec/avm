@@ -365,36 +365,48 @@ void av2_update_state(const AV2_COMP *const cpi, ThreadData *td,
   // Note: the copying here must match corresponding decoder-side copying in
   // parse_decode_block().
   // TODO(any): Refactor.
-  for (y = 0; y < mi_height; y++) {
-    for (x_idx = 0; x_idx < mi_width; x_idx++) {
-      if ((xd->mb_to_right_edge >> (3 + MI_SIZE_LOG2)) + mi_width > x_idx &&
-          (xd->mb_to_bottom_edge >> (3 + MI_SIZE_LOG2)) + mi_height > y) {
-        const int mi_idx =
-            get_alloc_mi_idx(mi_params, mi_row + y, mi_col + x_idx);
-        xd->mi[x_idx + y * mis] = &mi_params->mi_alloc[mi_idx];
-        if (xd->tree_type == LUMA_PART) {
-          *(xd->mi[x_idx + y * mis]) = *mi_addr;
-        } else if (xd->tree_type == CHROMA_PART) {
-          xd->mi[x_idx + y * mis]->sb_type[PLANE_TYPE_UV] =
-              mi_addr->sb_type[PLANE_TYPE_UV];
-          xd->mi[x_idx + y * mis]->uv_mode = mi_addr->uv_mode;
-          xd->mi[x_idx + y * mis]->angle_delta[PLANE_TYPE_UV] =
-              mi_addr->angle_delta[PLANE_TYPE_UV];
-          xd->mi[x_idx + y * mis]->cfl_alpha_signs = mi_addr->cfl_alpha_signs;
-          xd->mi[x_idx + y * mis]->cfl_alpha_idx = mi_addr->cfl_alpha_idx;
-          xd->mi[x_idx + y * mis]->partition = mi_addr->partition;
-          xd->mi[x_idx + y * mis]->chroma_mi_row_start =
-              mi_addr->chroma_mi_row_start;
-          xd->mi[x_idx + y * mis]->chroma_mi_col_start =
-              mi_addr->chroma_mi_col_start;
-          xd->mi[x_idx + y * mis]
-              ->palette_mode_info.palette_size[PLANE_TYPE_UV] =
-              mi_addr->palette_mode_info.palette_size[PLANE_TYPE_UV];
-          for (i = PALETTE_MAX_SIZE; i < 3 * PALETTE_MAX_SIZE; i++)
-            xd->mi[x_idx + y * mis]->palette_mode_info.palette_colors[i] =
-                mi_addr->palette_mode_info.palette_colors[i];
-        } else {
-          xd->mi[x_idx + y * mis] = mi_addr;
+  // The units of the block inside the frame.
+  const int mi_width_in_frame =
+      AVMMIN(mi_width, (xd->mb_to_right_edge >> (3 + MI_SIZE_LOG2)) + mi_width);
+  const int mi_height_in_frame = AVMMIN(
+      mi_height, (xd->mb_to_bottom_edge >> (3 + MI_SIZE_LOG2)) + mi_height);
+  if (xd->tree_type == SHARED_PART) {
+    // Every unit points to the mode info of the block.
+    for (y = 0; y < mi_height_in_frame; y++) {
+      MB_MODE_INFO **const mi_row_ptr = xd->mi + y * mis;
+      for (x_idx = 0; x_idx < mi_width_in_frame; x_idx++)
+        mi_row_ptr[x_idx] = mi_addr;
+    }
+  } else {
+    for (y = 0; y < mi_height; y++) {
+      for (x_idx = 0; x_idx < mi_width; x_idx++) {
+        if ((xd->mb_to_right_edge >> (3 + MI_SIZE_LOG2)) + mi_width > x_idx &&
+            (xd->mb_to_bottom_edge >> (3 + MI_SIZE_LOG2)) + mi_height > y) {
+          const int mi_idx =
+              get_alloc_mi_idx(mi_params, mi_row + y, mi_col + x_idx);
+          xd->mi[x_idx + y * mis] = &mi_params->mi_alloc[mi_idx];
+          if (xd->tree_type == LUMA_PART) {
+            *(xd->mi[x_idx + y * mis]) = *mi_addr;
+          } else if (xd->tree_type == CHROMA_PART) {
+            xd->mi[x_idx + y * mis]->sb_type[PLANE_TYPE_UV] =
+                mi_addr->sb_type[PLANE_TYPE_UV];
+            xd->mi[x_idx + y * mis]->uv_mode = mi_addr->uv_mode;
+            xd->mi[x_idx + y * mis]->angle_delta[PLANE_TYPE_UV] =
+                mi_addr->angle_delta[PLANE_TYPE_UV];
+            xd->mi[x_idx + y * mis]->cfl_alpha_signs = mi_addr->cfl_alpha_signs;
+            xd->mi[x_idx + y * mis]->cfl_alpha_idx = mi_addr->cfl_alpha_idx;
+            xd->mi[x_idx + y * mis]->partition = mi_addr->partition;
+            xd->mi[x_idx + y * mis]->chroma_mi_row_start =
+                mi_addr->chroma_mi_row_start;
+            xd->mi[x_idx + y * mis]->chroma_mi_col_start =
+                mi_addr->chroma_mi_col_start;
+            xd->mi[x_idx + y * mis]
+                ->palette_mode_info.palette_size[PLANE_TYPE_UV] =
+                mi_addr->palette_mode_info.palette_size[PLANE_TYPE_UV];
+            for (i = PALETTE_MAX_SIZE; i < 3 * PALETTE_MAX_SIZE; i++)
+              xd->mi[x_idx + y * mis]->palette_mode_info.palette_colors[i] =
+                  mi_addr->palette_mode_info.palette_colors[i];
+          }
         }
       }
     }

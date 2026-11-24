@@ -16,6 +16,8 @@
 #ifndef AVM_AV2_ENCODER_PALETTE_H_
 #define AVM_AV2_ENCODER_PALETTE_H_
 
+#include "config/av2_rtcd.h"
+
 #include "av2/common/blockd.h"
 
 #ifdef __cplusplus
@@ -28,13 +30,9 @@ struct macroblock;
 
 /*!\cond */
 #define AV2_K_MEANS_RENAME(func, dim) func##_dim##dim
+// Name of the C version of a function that config/av2_rtcd.h declares.
+#define AV2_K_MEANS_RENAME_C(func, dim) func##_dim##dim##_c
 
-void AV2_K_MEANS_RENAME(av2_calc_indices, 1)(const int *data,
-                                             const int *centroids,
-                                             uint8_t *indices, int n, int k);
-void AV2_K_MEANS_RENAME(av2_calc_indices, 2)(const int *data,
-                                             const int *centroids,
-                                             uint8_t *indices, int n, int k);
 void AV2_K_MEANS_RENAME(av2_k_means, 1)(const int *data, int *centroids,
                                         uint8_t *indices, int n, int k,
                                         int max_itr);

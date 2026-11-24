@@ -23,6 +23,8 @@
 
 #define RENAME_(x, y) AV2_K_MEANS_RENAME(x, y)
 #define RENAME(x) RENAME_(x, AV2_K_MEANS_DIM)
+#define RENAME_C_(x, y) AV2_K_MEANS_RENAME_C(x, y)
+#define RENAME_C(x) RENAME_C_(x, AV2_K_MEANS_DIM)
 
 static int RENAME(calc_dist)(const int *p1, const int *p2) {
   int dist = 0;
@@ -33,8 +35,8 @@ static int RENAME(calc_dist)(const int *p1, const int *p2) {
   return dist;
 }
 
-void RENAME(av2_calc_indices)(const int *data, const int *centroids,
-                              uint8_t *indices, int n, int k) {
+void RENAME_C(av2_calc_indices)(const int *data, const int *centroids,
+                                uint8_t *indices, int n, int k) {
   for (int i = 0; i < n; ++i) {
     int min_dist = RENAME(calc_dist)(data + i * AV2_K_MEANS_DIM, centroids);
     indices[i] = 0;
@@ -122,3 +124,5 @@ void RENAME(av2_k_means)(const int *data, int *centroids, uint8_t *indices,
 }
 #undef RENAME_
 #undef RENAME
+#undef RENAME_C_
+#undef RENAME_C
