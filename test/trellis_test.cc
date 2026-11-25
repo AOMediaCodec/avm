@@ -2687,14 +2687,14 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(8, 10, 12), ::testing::Bool()));
 #endif  // HAVE_NEON
 
-#if HAVE_AVX2 || HAVE_NEON
+#if HAVE_AVX2 || HAVE_AVX512 || HAVE_NEON
 // The other 64-point TX sizes give the kernel the same inputs as a listed one.
 static const TX_SIZE kSt8TxSizes[] = {
   TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_64X64, TX_4X8,  TX_8X4,
   TX_8X16, TX_16X8, TX_16X32, TX_32X16, TX_4X16,  TX_16X4, TX_8X32,
   TX_32X8, TX_4X32, TX_32X4,  TX_8X64,  TX_64X8,
 };
-#endif  // HAVE_AVX2 || HAVE_NEON
+#endif  // HAVE_AVX2 || HAVE_AVX512 || HAVE_NEON
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
@@ -2704,6 +2704,15 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(kSt8TxSizes),
                        ::testing::Values(8, 10, 12), ::testing::Values(true)));
 #endif  // HAVE_AVX2
+
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, TcqLoopDiagonalSt8BlockTest,
+    ::testing::Combine(::testing::Values(av2_trellis_loop_diagonal_st8_c),
+                       ::testing::Values(av2_trellis_loop_diagonal_st8_avx512),
+                       ::testing::ValuesIn(kSt8TxSizes),
+                       ::testing::Values(8, 10, 12), ::testing::Values(true)));
+#endif  // HAVE_AVX512
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
@@ -2725,6 +2734,13 @@ INSTANTIATE_TEST_SUITE_P(AVX2, TcqLoopDiagonalSt8Test,
                              av2_trellis_loop_diagonal_st8_c,
                              av2_trellis_loop_diagonal_st8_avx2)));
 #endif  // HAVE_AVX2
+
+#if HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(AVX512, TcqLoopDiagonalSt8Test,
+                         ::testing::Values(TcqLoopDiagonalSt8TestFuncs(
+                             av2_trellis_loop_diagonal_st8_c,
+                             av2_trellis_loop_diagonal_st8_avx512)));
+#endif  // HAVE_AVX512
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(NEON, TcqLoopDiagonalSt8Test,
