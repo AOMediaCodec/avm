@@ -441,10 +441,6 @@ void av2_init_seq_coding_tools(AV2_COMP *cpi, SequenceHeader *seq,
       seq->still_picture || tool_cfg->monotonic_output_order;
   seq->force_screen_content_tools = 2;
   seq->force_integer_mv = 2;
-  if (seq->still_picture && seq->single_picture_header_flag) {
-    seq->force_screen_content_tools = 2;
-    seq->force_integer_mv = 2;
-  }
   if (oxcf->kf_cfg.sframe_type == RAS_FRAME)
     seq->order_hint_info.order_hint_bits_minus_1 =
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;  // 7
@@ -1196,12 +1192,6 @@ static void set_intrabc_tools(struct AV2_COMP *cpi) {
     features->allow_global_intrabc =
         (kf_cfg->enable_intrabc_ext != 2) && frame_is_intra_only(cm);
     features->allow_local_intrabc = !!kf_cfg->enable_intrabc_ext;
-    // On intra frames, allow_global_intrabc == 0 implies allow_local_intrabc
-    // == 1 in the bitstream. Turn off IntraBC if neither can be used.
-    if (frame_is_intra_only(cm) && !features->allow_global_intrabc &&
-        !features->allow_local_intrabc) {
-      features->allow_intrabc = 0;
-    }
   }
   if (features->allow_intrabc) {
     set_max_bvp_drl_bits(cpi);
@@ -2283,22 +2273,6 @@ static void set_mv_search_params(AV2_COMP *cpi) {
   }
 }
 
-// counts_1: Counts of blocks with no more than color_thresh colors.
-// counts_2: Counts of blocks with no more than color_thresh colors and
-// variance larger than var_thresh.
-static void set_hole_fill_decision(AV2_COMP *cpi, int width, int height,
-                                   int blk_w, int blk_h, int counts_1,
-                                   int counts_2) {
-  (void)width;
-  (void)height;
-  (void)blk_w;
-  (void)blk_h;
-  (void)counts_1;
-  (void)counts_2;
-  AV2_COMMON *const cm = &cpi->common;
-  cm->seq_params.enable_tip_hole_fill = 1;
-}
-
 static void subtract_average_c(uint16_t *src, int16_t *dst, int width,
                                int height, int round_offset, int num_pel_log2) {
   int sum = round_offset;
@@ -2482,18 +2456,53 @@ void av2_set_downsample_filter_options(AV2_COMP *cpi) {
   }
 }
 
-void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
+// Returns true when the top 4 populated 8-bit luma bins cover at least 224 of
+// 256 pixels, which isolates anti-aliased text/UI from textured content.
+static AVM_INLINE bool has_dense_top4_bins(const int *count_buf) {
+  int top4[4] = { 0, 0, 0, 0 };
+  for (int i = 0; i < (1 << 8); ++i) {
+    const int cnt = count_buf[i];
+    if (cnt > top4[3]) {
+      top4[3] = cnt;
+      for (int k = 2; k >= 0 && top4[k + 1] > top4[k]; --k) {
+        const int tmp = top4[k];
+        top4[k] = top4[k + 1];
+        top4[k + 1] = tmp;
+      }
+    }
+  }
+  return top4[0] + top4[1] + top4[2] + top4[3] >= 224;
+}
+
+SccDetectLevel av2_set_screen_content_options(AV2_COMP *cpi,
+                                              FeatureFlags *features) {
   const AV2_COMMON *const cm = &cpi->common;
+  const uint8_t force_sc = cm->seq_params.force_screen_content_tools;
   if (cpi->oxcf.mode == REALTIME) {
     features->allow_screen_content_tools =
-        cm->seq_params.force_screen_content_tools == 2
-            ? (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN)
-            : cm->seq_params.force_screen_content_tools;
+        force_sc == 2 ? (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN)
+                      : (force_sc != 0);
     features->allow_intrabc =
         features->allow_screen_content_tools && cpi->oxcf.kf_cfg.enable_intrabc;
-    features->is_scc_content_by_detector = features->allow_screen_content_tools;
-    cpi->allow_sc_kf_trial = false;  // Keyframe trial is GOOD-mode only.
-    return;
+    cpi->is_screen_content_type = features->allow_screen_content_tools
+                                      ? SCC_FRAME_DETECTOR
+                                      : SCC_FRAME_NONE;
+    return features->allow_screen_content_tools ? SCC_DETECT_STRONG
+                                                : SCC_DETECT_NONE;
+  }
+  // Skip the spatial scan when screen-content tools are explicitly forced.
+  if (force_sc == 0) {
+    features->allow_screen_content_tools = features->allow_intrabc = 0;
+    cpi->is_screen_content_type = SCC_FRAME_NONE;
+    return SCC_DETECT_NONE;
+  }
+  if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN || force_sc == 1) {
+    features->allow_screen_content_tools = features->allow_intrabc = 1;
+    const bool is_screen_tune =
+        cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN;
+    cpi->is_screen_content_type =
+        is_screen_tune ? SCC_FRAME_DETECTOR : SCC_FRAME_HEURISTIC;
+    return is_screen_tune ? SCC_DETECT_STRONG : SCC_DETECT_WEAK;
   }
   // Estimate if the source frame is screen content, based on the portion of
   // blocks that have few luma colors.
@@ -2513,9 +2522,18 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
   // Counts of blocks with no more than color_thresh colors and variance larger
   // than var_thresh.
   int counts_2 = 0;
+  // Counts of blocks with 2..4 colors and per-pixel variance >= 4.
+  int counts_v4 = 0;
+  // Counts of anti-aliased text/UI blocks and textured photo blocks.
+  int counts_aa = 0;
+  int counts_photo = 0;
 
+  // Checkerboard-subsample 50% of 16x16 blocks at speed >= 3 to halve scan
+  // cost.
+  const int step = (cpi->oxcf.speed >= 3) ? 2 : 1;
   for (int r = 0; r + blk_h <= height; r += blk_h) {
-    for (int c = 0; c + blk_w <= width; c += blk_w) {
+    const int init_c = (step == 2 && ((r / blk_h) & 1)) ? blk_w : 0;
+    for (int c = init_c; c + blk_w <= width; c += blk_w * step) {
       int count_buf[1 << 8];  // Maximum (1 << 8) bins for hbd path.
       const uint16_t *const this_src = src + r * stride + c;
       int n_colors;
@@ -2529,56 +2547,76 @@ void av2_set_screen_content_options(AV2_COMP *cpi, FeatureFlags *features) {
         const unsigned int var =
             av2_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_16X16, bd);
         if (var > var_thresh) ++counts_2;
+        if (var >= 4) ++counts_v4;
+      } else if (cpi->oxcf.speed >= 1) {
+        if (n_colors > color_thresh && n_colors <= 24) {
+          if (has_dense_top4_bins(count_buf)) {
+            struct buf_2d buf;
+            buf.stride = stride;
+            buf.buf = (uint16_t *)this_src;
+            const unsigned int var =
+                av2_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_16X16, bd);
+            if (var >= 64) ++counts_aa;
+          }
+        } else if (n_colors > 40) {
+          ++counts_photo;
+        }
       }
     }
   }
 
+  if (step == 2) {
+    counts_1 *= 2;
+    counts_2 *= 2;
+    counts_v4 *= 2;
+    counts_aa *= 2;
+    counts_photo *= 2;
+  }
+
+  const int64_t area = (int64_t)width * height;
+  const int64_t blk_area = (int64_t)blk_h * blk_w;
+  // Penalize counts by 1/16 of textured (> 40-color) blocks so camera sequences
+  // with sparse flat areas stay clean while anti-aliased UI/text still fires.
+  const int eff_c1 = (cpi->oxcf.speed >= 1)
+                         ? AVMMAX(0, counts_1 + counts_aa - counts_photo / 16)
+                         : counts_1;
+  const int eff_c2 = (cpi->oxcf.speed >= 1)
+                         ? AVMMAX(0, counts_2 + counts_aa - counts_photo / 16)
+                         : counts_2;
+  const int eff_v4 = (cpi->oxcf.speed >= 1)
+                         ? AVMMAX(0, counts_v4 + counts_aa - counts_photo / 16)
+                         : counts_v4;
   const int col_factor = 11;
   const int var_factor = 12;
 
-  // The threshold values are selected experimentally.
-  features->allow_screen_content_tools =
-      counts_1 * blk_h * blk_w * col_factor > width * height;
-  // IntraBC would force loop filters off, so we use more strict rules that also
-  // requires that the block has high variance.
-  features->allow_intrabc =
-      features->allow_screen_content_tools &&
-      counts_2 * blk_h * blk_w * var_factor > width * height;
+  // Allow looser screen tools at > 1/11 low-color blocks; require > 1/12
+  // non-zero-variance low-color blocks for the stricter detector tier.
+  const bool allow_sc = (int64_t)eff_c1 * blk_area * col_factor > area;
+  bool strict_sc = allow_sc && ((int64_t)eff_c2 * blk_area * var_factor > area);
 
-  // Stricter detector check (2..4 colors and var > 0 in > 1/12 of the frame),
-  // unlike the looser color-only allow_screen_content_tools check (> 1/11).
-  // Passing frames allow palette directly; looser-only keyframes still run the
-  // two-pass trial in av2_determine_sc_tools_with_encoding().
-  features->is_scc_content_by_detector =
-      features->allow_screen_content_tools &&
-      counts_2 * blk_h * blk_w * var_factor > width * height;
-
-  // Require > 2% (1/50) low-color 16x16 blocks to run the two-pass keyframe
-  // palette trial (int64_t avoids 32-bit overflow on >= 43 MP frames).
-  cpi->allow_sc_kf_trial =
-      (cm->seq_params.force_screen_content_tools == 2) &&
-      ((int64_t)counts_1 * blk_h * blk_w * 50 > (int64_t)width * height);
-
-  if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
-    features->allow_screen_content_tools = features->allow_intrabc =
-        features->is_scc_content_by_detector = 1;
-    return;
+  // When the two-pass keyframe trial is disabled (speed >= 5), rescue partial
+  // screen-content keyframes just below the 1/11 threshold if they have > 1/17
+  // high-contrast low-color blocks.
+  if (cpi->oxcf.speed >= 5 && cm->current_frame.frame_type == KEY_FRAME &&
+      !allow_sc && ((int64_t)eff_c1 * blk_area * 17 > area) &&
+      ((int64_t)eff_v4 * blk_area * 17 > area)) {
+    strict_sc = true;
   }
 
-  if (cm->seq_params.force_screen_content_tools > 0) {
-    features->allow_intrabc = 1;
-    return;
+  features->allow_screen_content_tools = allow_sc || strict_sc;
+  features->allow_intrabc = 1;
+  if (strict_sc) {
+    cpi->is_screen_content_type = SCC_FRAME_DETECTOR;
+    return SCC_DETECT_STRONG;
   }
-  if (cm->seq_params.force_screen_content_tools != 2) {
-    features->allow_screen_content_tools = features->allow_intrabc =
-        cm->seq_params.force_screen_content_tools;
-    return;
+  if (allow_sc) {
+    cpi->is_screen_content_type = SCC_FRAME_HEURISTIC;
+    return SCC_DETECT_WEAK;
   }
-
-  if (frame_is_intra_only(cm) && cm->seq_params.enable_tip) {
-    set_hole_fill_decision(cpi, width, height, blk_w, blk_h, counts_1,
-                           counts_2);
-  }
+  cpi->is_screen_content_type = SCC_FRAME_NONE;
+  // Require > 2% (1/50) low-color blocks to allow the two-pass keyframe trial.
+  return ((int64_t)eff_c1 * blk_area * 50 > area) ? SCC_DETECT_TRIAL
+                                                  : SCC_DETECT_NONE;
 }
 
 // Function pointer to search site config initialization
@@ -5149,22 +5187,39 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size, uint8_t *dest,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, encode_frame_to_data_rate_time);
 #endif
-  av2_set_screen_content_options(cpi, features);
-  if (cm->current_frame.frame_type != KEY_FRAME) {
-    // the current kf_allow_sc_tools will be considered when we set
-    // allow_screen_content_tools flag for arf frames, in order to reduce
-    // the chances that could be missed detection as screen content.
-    if (frame_is_kf_gf_arf(cpi)) {
-      features->allow_screen_content_tools |= features->kf_allow_sc_tools;
+  const SccDetectLevel detect_level =
+      av2_set_screen_content_options(cpi, features);
+  if (cm->current_frame.frame_type == KEY_FRAME) {
+    if (detect_level == SCC_DETECT_STRONG) {
+      cpi->kf_scc_level = GOP_SCC_DETECTOR;
+    } else if (detect_level == SCC_DETECT_WEAK) {
+      cpi->kf_scc_level = GOP_SCC_WEAK_NO_PAL;
+    } else if (detect_level == SCC_DETECT_TRIAL) {
+      cpi->kf_scc_level = GOP_SCC_TRIAL_CAND;
+    } else {
+      cpi->kf_scc_level = GOP_SCC_NONE;
     }
   } else {
-    features->kf_allow_sc_tools = features->allow_screen_content_tools;
-  }
-  cpi->is_screen_content_type = features->allow_screen_content_tools;
-  if (!cpi->seq_params_locked && cpi->is_screen_content_type &&
-      oxcf->part_cfg.enable_ext_partitions) {
-    cm->seq_params.enable_ext_partitions = 1;
-    cpi->sf.part_sf.disable_ext_partitions = false;
+    const bool kf_has_sc = cpi->kf_scc_level >= GOP_SCC_WEAK_NO_PAL;
+    const bool kf_strict_sc =
+        cpi->oxcf.speed >= 1 && cpi->kf_scc_level == GOP_SCC_DETECTOR;
+    if (kf_strict_sc) {
+      features->allow_screen_content_tools = 1;
+      cpi->is_screen_content_type = SCC_FRAME_DETECTOR;
+    } else if (kf_has_sc) {
+      // For trial-only keyframe promotions, keep heavy speed-feature
+      // exemptions (is_screen_content_type) restricted to boosted frames while
+      // allowing palette and identity transform tools across non-boosted
+      // inter frames at speed >= 2.
+      if (frame_is_kf_gf_arf(cpi)) {
+        features->allow_screen_content_tools = 1;
+        if (cpi->is_screen_content_type == SCC_FRAME_NONE) {
+          cpi->is_screen_content_type = SCC_FRAME_HEURISTIC;
+        }
+      } else if (cpi->oxcf.speed >= 2) {
+        features->allow_screen_content_tools = 1;
+      }
+    }
   }
   set_intrabc_tools(cpi);
   const bool compute_ds_filter =

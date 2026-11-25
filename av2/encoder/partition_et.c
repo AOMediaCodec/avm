@@ -256,7 +256,7 @@ bool av2_partition_et_after_none_and_split(
   // Only allow early termination on screen content when PARTITION_NONE is a
   // zero-residual skip, preserving the speedup on flat backgrounds while
   // splitting blocks with sharp residual edges.
-  if (cpi->common.features.is_scc_content_by_detector) {
+  if (av2_is_scc_by_detector(cpi)) {
     const PICK_MODE_CONTEXT *none_ctx = pc_tree->none[pc_tree->region_type];
     const int sdp_idx = av2_get_sdp_idx(x->e_mbd.tree_type);
     if (!none_ctx ||

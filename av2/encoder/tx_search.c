@@ -1619,7 +1619,7 @@ static AVM_INLINE uint16_t get_tx_mask(const AV2_COMP *cpi, MACROBLOCK *x,
       // first frame and permanently locks it out via the per-frame EMA update.
       // On screen content, exempt IDTX, V_DCT, and H_DCT while keeping
       // statistical pruning for the remaining transform types.
-      if (cm->features.is_scc_content_by_detector) {
+      if (av2_is_scc_by_detector(cpi)) {
         prune &= ~((1 << IDTX) | (1 << V_DCT) | (1 << H_DCT));
       }
       allowed_tx_mask &= (~prune);
@@ -1639,7 +1639,7 @@ static AVM_INLINE uint16_t get_tx_mask(const AV2_COMP *cpi, MACROBLOCK *x,
       prune_tx_2D(x, plane_bsize, tx_size, blk_row, blk_col, tx_set_type,
                   txfm_params->prune_2d_txfm_mode, txk_map, &allowed_tx_mask);
       if (cpi->sf.tx_sf.tx_type_search.winner_mode_tx_type_pruning >= 1 &&
-          cm->features.is_scc_content_by_detector) {
+          av2_is_scc_by_detector(cpi)) {
         allowed_tx_mask |= scc_tx_mask;
       }
     }
