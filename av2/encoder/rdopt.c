@@ -9424,6 +9424,34 @@ static INLINE bool has_intra_neighbor(const MACROBLOCKD *xd) {
          av2_get_intra_inter_context(xd) > 0;
 }
 
+static INLINE bool early_terminate_intra_mode_search(
+    const MACROBLOCK *x, const InterModeSearchState *search_state, int mode_idx,
+    int skip_intra_in_interframe) {
+  if (skip_intra_in_interframe &&
+      search_state->intra_search_state.skip_intra_modes)
+    return true;
+
+  if (skip_intra_in_interframe >= 5 && mode_idx >= FIRST_MODE_COUNT) {
+    const MACROBLOCKD *const xd = &x->e_mbd;
+    const MB_MODE_INFO *const mbmi = xd->mi[0];
+    const MB_MODE_INFO *const cached_mi = x->inter_mode_cache[0];
+
+    int reuse_cached_mode = 0;
+    if (cached_mi &&
+        should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
+        is_mode_intra(cached_mi->mode)) {
+      reuse_cached_mode = 1;
+    }
+
+    if (!xd->lossless[mbmi->segment_id] && !reuse_cached_mode &&
+        search_state->best_rd < (INT64_MAX / 2) &&
+        search_state->best_intra_rd > (1.05 * search_state->best_rd))
+      return true;
+  }
+
+  return false;
+}
+
 // Evaluate intra prediction modes in an inter frame at the block level
 static void av2_evaluate_intra_modes_in_inter_frame(
     const struct AV2_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
@@ -9577,9 +9605,12 @@ static void av2_evaluate_intra_modes_in_inter_frame(
                   bsize > BLOCK_16X16)) &&
                 mode_idx != DC_PRED)
               continue;
-            if (sf->intra_sf.skip_intra_in_interframe &&
-                search_state->intra_search_state.skip_intra_modes)
-              break;
+            if (early_terminate_intra_mode_search(
+                    x, search_state, mode_idx,
+                    sf->intra_sf.skip_intra_in_interframe)) {
+              set_mv_precision(mbmi, mbmi->max_mv_precision);
+              return;
+            }
             mbmi->y_mode_idx = mode_idx;
             mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
             av2_set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle,

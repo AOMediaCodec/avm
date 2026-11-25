@@ -842,7 +842,7 @@ static void set_good_speed_features_framesize_independent(
     // Disabling it until it is fixed.
     // sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
 
-    sf->intra_sf.skip_intra_in_interframe = (cpi->oxcf.mode == GOOD) ? 4 : 2;
+    sf->intra_sf.skip_intra_in_interframe = (cpi->oxcf.mode == GOOD) ? 5 : 2;
 
     sf->tpl_sf.prune_starting_mv = 2;
     sf->tpl_sf.subpel_force_stop = HALF_PEL;
