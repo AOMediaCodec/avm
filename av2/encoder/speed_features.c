@@ -1293,19 +1293,26 @@ static void set_rt_speed_features_framesize_dependent(AV2_COMP *const cpi,
                                                       SPEED_FEATURES *const sf,
                                                       int speed) {
   const AV2_COMMON *const cm = &cpi->common;
+  const bool is_screen_content =
+      cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN;
   if (speed >= 6) {
+    const bool is_lowres = cm->width * cm->height < 640 * 360;
+    const AQ_MODE aq_mode = cpi->oxcf.q_cfg.aq_mode;
     sf->rd_sf.optimize_coefficients = NO_TRELLIS_OPT;
+    if (speed == 6 && cpi->oxcf.algo_cfg.enable_trellis_quant &&
+        !is_lossless_requested(&cpi->oxcf.rc_cfg) &&
+        ((!is_screen_content &&
+          (aq_mode == NO_AQ || aq_mode == CYCLIC_REFRESH_AQ)) ||
+         (is_lowres && aq_mode == NO_AQ))) {
+      sf->rd_sf.optimize_coefficients = FINAL_PASS_TRELLIS_OPT;
+    }
     sf->tx_sf.prune_tx_part_stationarity = true;
+    sf->mv_sf.use_downsampled_sad = 0;
     sf->mv_sf.subpel_iters_per_step = 1;
     sf->mv_sf.newmv_drl_search_limit = 1;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
-    if (cm->width * cm->height < 640 * 360) {
+    if (is_lowres) {
       const uint64_t frame_sad = cpi->rc.frame_source_sad;
-      if (cpi->oxcf.algo_cfg.enable_trellis_quant &&
-          cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
-          !is_lossless_requested(&cpi->oxcf.rc_cfg)) {
-        sf->rd_sf.optimize_coefficients = FINAL_PASS_TRELLIS_OPT;
-      }
       sf->tx_sf.prune_tx_part_stationarity = false;
       if (frame_sad > 10000) {
         sf->mv_sf.subpel_iters_per_step = 2;
@@ -1314,6 +1321,8 @@ static void set_rt_speed_features_framesize_dependent(AV2_COMP *const cpi,
           sf->mv_sf.subpel_search_method = SUBPEL_TREE;
         }
       }
+    } else if (!is_screen_content) {
+      sf->mv_sf.use_downsampled_sad = 1;
     }
     set_speed_feature_params(cpi);
   }

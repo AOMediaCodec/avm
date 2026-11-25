@@ -3429,6 +3429,10 @@ static void select_tx_partition_type(
           ? DRY_PASS_ALLOWED_MAX_TX_PARTITION_TYPES
           : TX_PARTITION_TYPES;
 
+  const bool bypass_rt_tx_stat =
+      cpi->oxcf.mode == REALTIME && cpi->oxcf.speed >= 6 &&
+      !cpi->is_screen_content_type && !frame_is_intra_only(&cpi->common) &&
+      x->source_sad_level >= kLowSad;
   for (TX_PARTITION_TYPE type = 0; type < max_tx_part_type; ++type) {
     if (cpi->oxcf.txfm_cfg.reduced_tx_part_set && type > TX_PARTITION_VERT) {
       break;
@@ -3450,7 +3454,8 @@ static void select_tx_partition_type(
       continue;
     }
 
-    if (cpi->sf.tx_sf.prune_tx_part_stationarity && type != TX_PARTITION_NONE) {
+    if (cpi->sf.tx_sf.prune_tx_part_stationarity && !bypass_rt_tx_stat &&
+        type != TX_PARTITION_NONE) {
       if (!stationarity_valid) {
         const int margin = (cpi->oxcf.mode == GOOD && cpi->oxcf.speed >= 5)
                                ? 1

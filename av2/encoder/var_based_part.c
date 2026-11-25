@@ -1025,8 +1025,12 @@ static void setup_planes(AV2_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 
   // Check if other enabled reference frames provide a better zero-MV
   // predictor for partitioning, biasing toward last_frame by factor 0.9.
-  if ((x->source_sad_level != kZeroSad || !use_last_ref) && *y_sad > 0 &&
-      !x->sb_me_partition) {
+  const SOURCE_SAD min_other_ref_sad =
+      (cm->width * cm->height >= 640 * 360 && !cpi->is_screen_content_type)
+          ? kVeryLowSad
+          : kZeroSad;
+  if ((x->source_sad_level > min_other_ref_sad || !use_last_ref) &&
+      *y_sad > 0 && !x->sb_me_partition) {
     MV_REFERENCE_FRAME best_other_ref = NONE_FRAME;
     unsigned int best_other_sad = UINT_MAX;
     const YV12_BUFFER_CONFIG *best_other_yv12 = NULL;
@@ -1402,10 +1406,9 @@ void av2_choose_var_based_partitioning(AV2_COMP *cpi,
           force_split_ancestors(force_split, offset_64x64, offset_32x32,
                                 blk64_idx, lvl1_idx);
         } else if (!is_key_frame && !is_screen) {
-          const bool lowres_nonscreen =
-              is_lowres && !cpi->is_screen_content_type;
-          const int maxvar_thresh_shift = lowres_nonscreen ? 2 : 4;
-          const int minvar_scale_shift = lowres_nonscreen ? 3 : 2;
+          const bool is_nonscreen = !cpi->is_screen_content_type;
+          const int maxvar_thresh_shift = is_nonscreen ? 2 : 4;
+          const int minvar_scale_shift = is_nonscreen ? 3 : 2;
           if ((max_min_var_16X16_diff > (thresholds[3] >> 1) &&
                maxvar_16x16[blk64_idx][lvl1_idx] > thresholds[3]) ||
               (is_360p_or_smaller &&
