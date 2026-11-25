@@ -219,12 +219,19 @@ static INLINE int x86_simd_caps(void) {
         if (reg_ebx & BIT(5)) flags |= HAS_AVX2;
 
         /* AVX-512 needs OS opmask/ZMM state saved: XCR0 bits 1,2,5,6,7. */
-        if ((xgetbv() & 0xe6) == 0xe6) {
+        if ((flags & HAS_AVX2) && (xgetbv() & 0xe6) == 0xe6) {
           const unsigned int avx512_mask =
-              BIT(16) | BIT(17) | BIT(30) | BIT(31);
-          if ((reg_ebx & avx512_mask) == avx512_mask) {
+              BIT(16) | BIT(17) | BIT(28) | BIT(30) | BIT(31);
+          // Ice Lake+ feature set: VBMI, VBMI2, GFNI, VAES, VPCLMULQDQ, VNNI,
+          // BITALG, POPCNTDQ. Excludes Skylake-SP/Cascade Lake (AVX-512
+          // frequency throttling).
+          const unsigned int avx512_icl_mask = BIT(1) | BIT(6) | BIT(8) |
+                                               BIT(9) | BIT(10) | BIT(11) |
+                                               BIT(12) | BIT(14);
+          if ((reg_ebx & avx512_mask) == avx512_mask &&
+              (reg_ecx & avx512_icl_mask) == avx512_icl_mask) {
             flags |= HAS_AVX512;
-            if (reg_ecx & BIT(11)) flags |= HAS_AVX512_VNNI;
+            flags |= HAS_AVX512_VNNI;
           }
         }
       }
