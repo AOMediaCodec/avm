@@ -1197,6 +1197,9 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   //    when no neighbor uses intra prediction.
   // 4: In GOOD mode, extend level 3 to skip on any transform-skip inter winner
   //    regardless of neighbor modes.
+  // 5: In GOOD mode, in addition to the features at level 4, early terminate
+  //    intra mode search when the best intra rd cost for the FIRST_MODE_COUNT
+  //    modes is larger than the inter cost by 5%.
   int skip_intra_in_interframe;
 
   // variance threshold for intra mode gating when inter turned out to be skip
