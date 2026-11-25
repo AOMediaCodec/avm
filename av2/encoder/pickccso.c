@@ -658,7 +658,7 @@ static void ccso_try_luma_filter(const AV2_COMMON *cm, CcsoCtx *ctx,
   }
   const int unit_size = 1 << (unit_log2);
   for (int y = y_begin; y < y_limit; y += blk_size) {
-    for (int x = 0; x < pic_width; x += blk_size) {
+    for (int x = ctx->filter_x_start; x < pic_width; x += blk_size) {
       // Row major index of the filter unit, as the frame wide loop counted
       // them.
       const int fb_idx = (y >> blk_log2) * fb_cols + (x >> blk_log2);
@@ -756,7 +756,7 @@ static void ccso_try_chroma_filter(const AV2_COMMON *cm, CcsoCtx *ctx,
   }
   const int unit_size_y = 1 << unit_log2_y;
   for (int y = y_begin; y < y_limit; y += blk_size_y) {
-    for (int x = 0; x < pic_width; x += blk_size_x) {
+    for (int x = ctx->filter_x_start; x < pic_width; x += blk_size_x) {
       // Row major index of the filter unit, as the frame wide loop counted
       // them.
       const int fb_idx = (y >> blk_log2_y) * fb_cols + (x >> blk_log2_x);
@@ -869,7 +869,7 @@ static void compute_distortion(const AV2_COMMON *cm, const CcsoCtx *ctx,
   rec16 += (rec_stride << blk_log2_y) * row_start;
   *total_distortion = 0;
   for (int y = y_begin; y < y_limit; y += blk_size_y) {
-    for (int x = 0; x < width; x += blk_size_x) {
+    for (int x = ctx->filter_x_start; x < width; x += blk_size_x) {
       const int h_scale = MI_SIZE_LOG2 - subsampling_x;
       const int v_scale = MI_SIZE_LOG2 - subsampling_y;
       // check BRU skip in entire CCSO FSU
@@ -1525,6 +1525,79 @@ void av2_ccso_ctx_free(AV2_COMP *cpi) {
   }
 }
 
+// Sets the distortion of every filter unit after filtering with
+// filter_offset from the class statistics: the unfiltered distortion plus
+// offset * (offset * count - 2 * error) of every class. The last row of filter
+// units is filtered when the plane has padded rows, the last column when it
+// has padded columns.
+static void dist_from_class_stats(const AV2_COMMON *cm, CcsoCtx *ctx,
+                                  MACROBLOCKD *xd,
+                                  const int8_t *filter_offset) {
+  const CcsoCtxCommon *s = &ctx->ccso_cm;
+  const int max_band = 1 << ctx->max_band_log2;
+
+  for (int fb_idx = 0; fb_idx < s->sb_count; fb_idx++) {
+    int64_t dist = (int64_t)s->unfiltered_dist_block[fb_idx];
+    if (ctx->ccso_bo_only) {
+      for (int band_num = 0; band_num < max_band; band_num++) {
+        const int64_t offset = filter_offset[band_num << 4];
+        dist += offset * (offset * ctx->total_class_cnt_bo[band_num][fb_idx] -
+                          2 * ctx->total_class_err_bo[band_num][fb_idx]);
+      }
+    } else {
+      for (int d0 = 0; d0 < ctx->max_edge_interval; d0++) {
+        for (int d1 = 0; d1 < ctx->max_edge_interval; d1++) {
+          for (int band_num = 0; band_num < max_band; band_num++) {
+            const int64_t offset =
+                filter_offset[(band_num << 4) + (d0 << 2) + d1];
+            dist += offset *
+                    (offset * ctx->total_class_cnt[d0][d1][band_num][fb_idx] -
+                     2 * ctx->total_class_err[d0][d1][band_num][fb_idx]);
+          }
+        }
+      }
+    }
+    ctx->training_dist_block[fb_idx] = (uint64_t)AVMMAX(dist, 0);
+  }
+
+  const struct buf_2d *const dst = &xd->plane[s->plane].dst;
+  if (dst->height > dst->crop_height) {
+    CcsoRowJob job;
+    memset(&job, 0, sizeof(job));
+    job.cm = cm;
+    job.ctx = ctx;
+    job.xd = xd;
+    job.job = CCSO_JOB_FILTER;
+    job.filter_offset = filter_offset;
+    job.row_start = s->ccso_nvfb - 1;
+    job.row_end = s->ccso_nvfb;
+    ccso_process_rows(&job);
+  }
+  if (dst->width > dst->crop_width) {
+    const int blk_log2_x = s->log2_filter_unit_size_x;
+    const int row_end = s->ccso_nvfb - (dst->height > dst->crop_height);
+    const int x_start = ((dst->width - 1) >> blk_log2_x) << blk_log2_x;
+    const int y_limit =
+        AVMMIN(row_end << s->log2_filter_unit_size_y, dst->height);
+    const int copy_width = dst->width - x_start;
+    for (int y = 0; y < y_limit; ++y) {
+      const int offset = y * ctx->ccso_stride + x_start;
+      av2_copy_array(ctx->temp_rec_uv_buf + offset, s->rec_uv + offset,
+                     copy_width);
+    }
+    ctx->filter_x_start = x_start;
+    if (s->plane > 0)
+      ccso_try_chroma_filter(cm, ctx, xd, filter_offset, 0, row_end);
+    else
+      ccso_try_luma_filter(cm, ctx, xd, filter_offset, 0, row_end);
+    uint64_t column_distortion;
+    compute_distortion(cm, ctx, xd, ctx->temp_rec_uv_buf,
+                       ctx->training_dist_block, 0, row_end,
+                       &column_distortion);
+    ctx->filter_x_start = 0;
+  }
+}
+
 // Runs the RD-cost training loop for one (candidate, reuse_ccso_idx,
 // ref_idx, sb_reuse_idx) combination and updates s->best if it improves
 // on the current best for this max_band_log2 iteration.
@@ -1554,9 +1627,13 @@ static AVM_INLINE void run_training(AV2_COMMON *cm, CcsoCtx *ctx,
                          max_band * 16);
         }
       }
-      // Filter the plane and compute the per filter unit distortions
-      // (ctx->training_dist_block); the frame total is not needed here.
-      ccso_run_rows(cm, ctx, xd, CCSO_JOB_FILTER, 0, filter_offset, NULL, NULL);
+      // Compute the per filter unit distortions (ctx->training_dist_block);
+      // the frame total is not needed here.
+      if (s->dist_from_stats)
+        dist_from_class_stats(cm, ctx, xd, filter_offset);
+      else
+        ccso_run_rows(cm, ctx, xd, CCSO_JOB_FILTER, 0, filter_offset, NULL,
+                      NULL);
     }
 
     uint64_t cur_total_dist = 0;
@@ -2128,6 +2205,8 @@ static void derive_ccso_filter(AV2_COMP *cpi, const int plane,
   // At least one of the four edge offset band counts must be searched.
   assert(cpi->sf.lpf_sf.ccso_eo_band_mask & 0xF);
   ccso_cm->eo_band_mask = cpi->sf.lpf_sf.ccso_eo_band_mask;
+  ccso_cm->dist_from_stats =
+      cpi->sf.lpf_sf.ccso_dist_from_stats && !cm->bru.enabled;
 
   ctx->final.filtered_cost = UINT64_MAX;
   ctx->final.ref_idx = -1;
