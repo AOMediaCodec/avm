@@ -7876,6 +7876,12 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           "Still pictures must be coded as closed loop keyframes");
     }
     current_frame->frame_type = KEY_FRAME;
+    // For a single picture, OrderHintBits is 0 and the frame is a closed
+    // loop key frame. Thus order_hint and the display order hint are 0.
+    current_frame->order_hint = 0;
+    current_frame->display_order_hint = 0;
+    current_frame->display_order_hint_restricted = 0;
+    current_frame->frame_number = 0;
     pbi->decoding_first_frame = 1;
     reset_frame_buffers(cm);
     cm->cur_frame->frame_output_done = 0;
