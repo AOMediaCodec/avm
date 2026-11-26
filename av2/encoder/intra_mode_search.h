@@ -90,7 +90,6 @@ typedef struct IntraModeSearchState {
   int64_t dist_uvs;           /*!< \brief Distortion of the uv_mode's recon */
   int skip_uvs;               /*!< \brief Whether the uv txfm is skippable */
   UV_PREDICTION_MODE mode_uv; /*!< \brief The best uv mode */
-  PALETTE_MODE_INFO pmi_uv;   /*!< \brief Color map if mode_uv is palette */
   int8_t uv_angle_delta;      /*!< \brief Angle delta if mode_uv directional */
   int uv_mode_idx;            /*!< \brief UV mode Index */
   /**@}*/

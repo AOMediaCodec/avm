@@ -8279,7 +8279,6 @@ static AVM_INLINE void init_intra_mode_search_state(
   intra_search_state->dir_mode_skip_mask_ready = 0;
   av2_zero(intra_search_state->directional_mode_skip_mask);
   intra_search_state->rate_uv_intra = INT_MAX;
-  av2_zero(intra_search_state->pmi_uv);
   for (int i = 0; i < REFERENCE_MODES; ++i)
     intra_search_state->best_pred_rd[i] = INT64_MAX;
 }

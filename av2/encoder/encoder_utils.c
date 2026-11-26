@@ -716,9 +716,8 @@ void av2_setup_frame(AV2_COMP *cpi) {
 // The second encoding is with screen content tools.
 // We compare the psnr and frame size to make the decision.
 static void screen_content_tools_determination(
-    AV2_COMP *cpi, const int allow_screen_content_tools_orig_decision,
-    const int allow_intrabc_orig_decision,
-    const int is_screen_content_type_orig_decision, const bool gate_by_kf_trial,
+    AV2_COMP *cpi, const int orig_allow_sc, const int orig_allow_intrabc,
+    const SccFrameLevel orig_scc_type, const bool gate_by_kf_trial,
     const int pass, int *projected_size_pass, PSNR_STATS *psnr) {
   AV2_COMMON *const cm = &cpi->common;
   FeatureFlags *const features = &cm->features;
@@ -757,37 +756,22 @@ static void screen_content_tools_determination(
         (gate_by_kf_trial && palette_ratio >= 0.02 && psnr_diff >= 0.05);
   }
   const int is_sc_encoding_much_better = (psnr_diff_is_large || ratio_is_large);
-
-  // the following two flags are used to determine if we enable intrabc or not.
-  // Since intrabc is an expensive tool, we raise the threshold of
-  // palette_ratio.
-  // Note: these two conditions are intentionally separated (see note above).
-  int ratio_is_large_2 = (palette_ratio >= 0.25);
-  if (ratio_is_large_2) {
-    ratio_is_large_2 = ((psnr_diff / palette_ratio) > 4);
-  }
-  const int is_sc_encoding_much_better_2 =
-      (psnr_diff_is_large || ratio_is_large_2);
   if (is_sc_encoding_much_better) {
     // Use screen content tools, if we get coding gain.
     features->allow_screen_content_tools = 1;
-    features->allow_intrabc =
-        (is_sc_encoding_much_better_2 || cpi->intrabc_used ||
-         allow_intrabc_orig_decision);
-    cpi->is_screen_content_type = 1;
+    features->allow_intrabc = cpi->intrabc_used || orig_allow_intrabc;
+    cpi->is_screen_content_type = SCC_FRAME_HEURISTIC;
+    cpi->kf_scc_level = GOP_SCC_TRIAL_PASSED;
   } else {
     // Use original screen content decision.
-    features->allow_screen_content_tools =
-        allow_screen_content_tools_orig_decision;
-    features->allow_intrabc = allow_intrabc_orig_decision;
-    cpi->is_screen_content_type = is_screen_content_type_orig_decision;
+    features->allow_screen_content_tools = orig_allow_sc;
+    features->allow_intrabc = orig_allow_intrabc;
+    cpi->is_screen_content_type = orig_scc_type;
+    cpi->kf_scc_level =
+        orig_allow_sc
+            ? (gate_by_kf_trial ? GOP_SCC_WEAK_NO_PAL : GOP_SCC_TRIAL_PASSED)
+            : GOP_SCC_NONE;
   }
-  // Keep non-palette screen-content tools on their original decision above if
-  // the trial fails, while recording the GOP palette gate separately.
-  cpi->kf_trial_allow_palette =
-      !cpi->sf.intra_sf.disable_palette &&
-      (gate_by_kf_trial ? (is_sc_encoding_much_better != 0)
-                        : (features->allow_screen_content_tools != 0));
 }
 
 // Set some encoding parameters to make the encoding process fast.
@@ -800,7 +784,7 @@ static void set_encoding_params_for_screen_content(AV2_COMP *cpi,
     // Use a high q, and a fixed block size for fast encoding.
     cm->features.allow_screen_content_tools = 0;
     cm->features.allow_intrabc = 0;
-    cpi->is_screen_content_type = 0;
+    cpi->is_screen_content_type = SCC_FRAME_NONE;
     cpi->sf.part_sf.partition_search_type = FIXED_PARTITION;
     cpi->sf.part_sf.fixed_partition_size = BLOCK_32X32;
     return;
@@ -811,16 +795,14 @@ static void set_encoding_params_for_screen_content(AV2_COMP *cpi,
   cm->features.allow_screen_content_tools = 1;
   // TODO(chengchen): turn intrabc on could lead to data race issue.
   // cm->allow_intrabc = 1;
-  cpi->is_screen_content_type = 1;
+  cpi->is_screen_content_type = SCC_FRAME_HEURISTIC;
   cpi->sf.part_sf.partition_search_type = FIXED_PARTITION;
   cpi->sf.part_sf.fixed_partition_size = BLOCK_32X32;
 }
 
 // Determines whether to use screen content tools for the key frame group.
-// This function modifies "cm->features.allow_screen_content_tools",
-// "cm->features.allow_intrabc" and "cpi->is_screen_content_type".
-// Also sets the GOP palette gate (cpi->kf_trial_allow_palette) on each
-// KEY_FRAME when av2_gate_palette_by_kf_trial() is active.
+// Updates cm->features.allow_screen_content_tools, cm->features.allow_intrabc,
+// cpi->is_screen_content_type, and cpi->kf_scc_level.
 void av2_determine_sc_tools_with_encoding(AV2_COMP *cpi, const int q_orig) {
   AV2_COMMON *const cm = &cpi->common;
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
@@ -829,36 +811,42 @@ void av2_determine_sc_tools_with_encoding(AV2_COMP *cpi, const int q_orig) {
   int projected_size_pass[3] = { 0 };
   PSNR_STATS psnr[3];
   const int is_key_frame = cm->current_frame.frame_type == KEY_FRAME;
-  // Inter frames reuse the preceding keyframe's cpi->kf_trial_allow_palette.
+  // Inter frames reuse the preceding keyframe's cpi->kf_scc_level.
   if (!is_key_frame) return;
-  const int allow_screen_content_tools_orig_decision =
-      cm->features.allow_screen_content_tools;
-  const int allow_intrabc_orig_decision = cm->features.allow_intrabc;
-  const int is_screen_content_type_orig_decision = cpi->is_screen_content_type;
-  const bool allow_palette = !cpi->sf.intra_sf.disable_palette;
+  if (cpi->sf.intra_sf.disable_palette) {
+    if (cpi->kf_scc_level == GOP_SCC_TRIAL_CAND) {
+      cpi->kf_scc_level = GOP_SCC_NONE;
+    }
+    return;
+  }
+  const int orig_allow_sc = cm->features.allow_screen_content_tools;
+  const int orig_allow_intrabc = cm->features.allow_intrabc;
+  const SccFrameLevel orig_scc_type = cpi->is_screen_content_type;
   const bool gate_by_kf_trial = av2_gate_palette_by_kf_trial(cpi, q_orig);
-  // Default if the trial is skipped below (e.g., !gate_by_kf_trial or fwd_kf).
-  cpi->kf_trial_allow_palette =
-      allow_palette && (allow_screen_content_tools_orig_decision != 0);
   if (cpi->oxcf.tune_cfg.content == AVM_CONTENT_SCREEN) {
     cm->features.allow_screen_content_tools = cm->features.allow_intrabc = 1;
-    cpi->kf_trial_allow_palette = allow_palette;
+    cpi->is_screen_content_type = SCC_FRAME_DETECTOR;
+    cpi->kf_scc_level = GOP_SCC_DETECTOR;
     return;
   }
   // Trust the stricter per-frame check in av2_set_screen_content_options()
   // without running the trial; <= 2% low-color keyframes fast-reject below.
-  if (gate_by_kf_trial && cm->features.is_scc_content_by_detector) {
-    cpi->kf_trial_allow_palette = true;
+  if (av2_is_scc_by_detector(cpi)) {
+    cpi->kf_scc_level = GOP_SCC_DETECTOR;
     return;
   }
-  if (gate_by_kf_trial && !cpi->allow_sc_kf_trial) {
-    cpi->kf_trial_allow_palette = false;
+  const bool allow_sc_kf_trial =
+      (cm->seq_params.force_screen_content_tools == 2) &&
+      (cpi->kf_scc_level >= GOP_SCC_TRIAL_CAND);
+  if (gate_by_kf_trial && !allow_sc_kf_trial) {
+    cpi->kf_scc_level = orig_allow_sc ? GOP_SCC_WEAK_NO_PAL : GOP_SCC_NONE;
     return;
   }
   // When gate_by_kf_trial is true, still run the trial on keyframes that only
   // passed the looser allow_screen_content_tools check.
   if (oxcf->kf_cfg.fwd_kf_enabled ||
-      (!gate_by_kf_trial && is_screen_content_type_orig_decision)) {
+      (!gate_by_kf_trial && orig_scc_type != SCC_FRAME_NONE)) {
+    cpi->kf_scc_level = orig_allow_sc ? GOP_SCC_TRIAL_PASSED : GOP_SCC_NONE;
     return;
   }
 
@@ -906,7 +894,7 @@ void av2_determine_sc_tools_with_encoding(AV2_COMP *cpi, const int q_orig) {
   // The two encoding passes aim to help determine whether to use screen
   // content tools, with a high q and fixed partition.
   // Enable palette during pass 1 so the trial can measure its coding gain.
-  cpi->kf_trial_allow_palette = allow_palette;
+  cpi->kf_scc_level = GOP_SCC_TRIAL_PASSED;
   for (int pass = 0; pass < 2; ++pass) {
     set_encoding_params_for_screen_content(cpi, pass);
     av2_set_quantizer(cpi, q_cfg->qm_minlevel, q_cfg->qm_maxlevel,
@@ -924,14 +912,11 @@ void av2_determine_sc_tools_with_encoding(AV2_COMP *cpi, const int q_orig) {
     // transform / motion compensation build reconstruction frame
     av2_encode_frame(cpi);
     // Screen content decision
-    screen_content_tools_determination(
-        cpi, allow_screen_content_tools_orig_decision,
-        allow_intrabc_orig_decision, is_screen_content_type_orig_decision,
-        gate_by_kf_trial, pass, projected_size_pass, psnr);
+    screen_content_tools_determination(cpi, orig_allow_sc, orig_allow_intrabc,
+                                       orig_scc_type, gate_by_kf_trial, pass,
+                                       projected_size_pass, psnr);
   }
-  if (!allow_palette) cpi->kf_trial_allow_palette = false;
   assert(is_key_frame);
-  cm->features.kf_allow_sc_tools = cm->features.allow_screen_content_tools;
   if (gate_by_kf_trial) {
     cpi->sf = sf_orig;
     cpi->winner_mode_params = winner_mode_params_orig;

@@ -1226,6 +1226,9 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
   int prune_palette_search_level;
   // Disable palette for speed >= 5 preset when it is not screen content.
   bool disable_palette;
+  // Frame-level luma palette search gate computed in
+  // av2_set_speed_features_qindex_dependent().
+  bool allow_palette_luma;
   // Reuse chroma mode rate and distortion info during intra modes evaluation
   // in inter frames.
   // False: No reuse

@@ -1306,16 +1306,7 @@ typedef struct {
    * If true, palette tool and/or intra block copy tools may be used.
    */
   bool allow_screen_content_tools;
-  bool allow_intrabc; /*!< If true, intra block copy tool may be used. */
-  /*!
-   * check if the content is detected as screen content from the detector
-   */
-  bool is_scc_content_by_detector;
-
-  /*!
-   * allow_screen_content_tools on key frames
-   */
-  bool kf_allow_sc_tools;
+  bool allow_intrabc;        /*!< If true, intra block copy tool may be used. */
   bool allow_global_intrabc; /*!< If true, intra block copy tool may use the
                                global search range. */
   bool allow_local_intrabc;  /*!< If true, intra block copy tool may use the

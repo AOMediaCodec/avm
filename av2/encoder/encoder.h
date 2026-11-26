@@ -2485,6 +2485,42 @@ typedef struct {
 void av2_gdf_rdo_buffers_free(GdfRdoBuffers *bufs);
 
 /*!
+ * \brief Spatial screen-content classification returned by
+ * av2_set_screen_content_options().
+ */
+typedef enum {
+  SCC_DETECT_NONE = 0,   // <= 1/50 low-color blocks (or forced off)
+  SCC_DETECT_TRIAL = 1,  // > 1/50 low-color blocks: eligible for KF trial
+  SCC_DETECT_WEAK = 2,   // > 1/11 low-color blocks, <= 1/12 var > 0
+  SCC_DETECT_STRONG =
+      3,  // > 1/12 var > 0, speed >= 5 KF rescue, or screen tune
+} SccDetectLevel;
+
+/*!
+ * \brief GOP-level screen-content state set on each KEY_FRAME (not carried
+ * across keyframes).
+ */
+typedef enum {
+  GOP_SCC_NONE = 0,        // Not screen content (or KF trial rejected)
+  GOP_SCC_TRIAL_CAND = 1,  // > 1/50 low-color blocks on KF (pending trial)
+  GOP_SCC_WEAK_NO_PAL =
+      2,  // > 1/11 low-color blocks, KF trial rejected palette
+  GOP_SCC_TRIAL_PASSED = 3,  // KF 2-pass trial passed (SC tools + palette on)
+  GOP_SCC_DETECTOR = 4,      // Detector-confirmed SCC on keyframe
+} GopSccLevel;
+
+/*!
+ * \brief Per-frame encoder screen-content tier: non-zero enables heuristic
+ * rate-control and speed-feature exemptions; SCC_FRAME_DETECTOR additionally
+ * enables strict detector-gated tools (hash-ME, palette, 1080p 4x4).
+ */
+typedef enum {
+  SCC_FRAME_NONE = 0,
+  SCC_FRAME_HEURISTIC = 1,
+  SCC_FRAME_DETECTOR = 2,
+} SccFrameLevel;
+
+/*!
  * \brief Top level encoder structure.
  */
 typedef struct AV2_COMP {
@@ -3098,24 +3134,15 @@ typedef struct AV2_COMP {
   InterpSearchFlags interp_search_flags;
 
   /*!
-   * Set for screen contents or when screen content tools are enabled.
+   * Per-frame encoder screen-content tier (SCC_FRAME_NONE,
+   * SCC_FRAME_HEURISTIC, or SCC_FRAME_DETECTOR).
    */
-  int is_screen_content_type;
+  SccFrameLevel is_screen_content_type;
 
   /*!
-   * GOP-level palette gate set per KEY_FRAME in
-   * av2_determine_sc_tools_with_encoding() and read in should_try_palette()
-   * when av2_gate_palette_by_kf_trial() is true (not carried across All-Intra
-   * keyframes).
+   * GOP-level screen-content state determined on each KEY_FRAME.
    */
-  bool kf_trial_allow_palette;
-
-  /*!
-   * Set in av2_set_screen_content_options() when > 2% of pixels lie in
-   * 2..4-color 16x16 luma blocks under auto-detection; gates running the
-   * two-pass keyframe trial in av2_determine_sc_tools_with_encoding().
-   */
-  bool allow_sc_kf_trial;
+  GopSccLevel kf_scc_level;
 
 #if CONFIG_COLLECT_PARTITION_STATS == 2
   /*!
@@ -3613,8 +3640,8 @@ void av2_set_downsample_filter_options(AV2_COMP *cpi);
 // However, the estimation is not accurate and may misclassify videos.
 // A slower but more accurate approach that determines whether to use screen
 // content tools is employed later. See av2_determine_sc_tools_with_encoding().
-void av2_set_screen_content_options(struct AV2_COMP *cpi,
-                                    FeatureFlags *features);
+SccDetectLevel av2_set_screen_content_options(struct AV2_COMP *cpi,
+                                              FeatureFlags *features);
 
 // av2 uses 10,000,000 ticks/second as time stamp
 #define TICKS_PER_SEC 10000000LL
@@ -3639,9 +3666,13 @@ static INLINE int frame_is_kf_gf_arf(const AV2_COMP *cpi) {
          update_type == KFFLT_UPDATE || update_type == GF_UPDATE;
 }
 
+static INLINE bool av2_is_scc_by_detector(const AV2_COMP *const cpi) {
+  return cpi->is_screen_content_type == SCC_FRAME_DETECTOR;
+}
+
 // TODO(huisu@google.com, youzhou@microsoft.com): enable hash-me for HBD.
 static INLINE int av2_use_hash_me(const AV2_COMP *const cpi) {
-  if (!cpi->common.features.is_scc_content_by_detector) return 0;
+  if (!av2_is_scc_by_detector(cpi)) return 0;
   return (cpi->common.features.allow_intrabc) &&
          (frame_is_intra_only(&cpi->common) ||
           cpi->common.features.allow_local_intrabc);
@@ -4030,10 +4061,11 @@ static INLINE void av2_set_seq_lr_tools_mask(SequenceHeader *const seq_params,
 #define PALETTE_KF_TRIAL_SPEED0_MAX_QINDEX_8B 175
 
 // Returns true in GOOD mode when palette search should be gated by the
-// stricter detector check (is_scc_content_by_detector) or the GOP keyframe
-// trial (kf_trial_allow_palette): speeds 1-4 when !disable_palette, and speed
-// 0 up to PALETTE_KF_TRIAL_SPEED0_MAX_QINDEX_8B. Explicit qindex lets the
-// keyframe trial pass q_orig before av2_set_quantizer() sets base_qindex.
+// stricter detector check (av2_is_scc_by_detector) or the GOP keyframe
+// trial (kf_scc_level >= GOP_SCC_TRIAL_PASSED): speeds 1-4 when
+// !disable_palette, and speed 0 up to PALETTE_KF_TRIAL_SPEED0_MAX_QINDEX_8B.
+// Explicit qindex lets the keyframe trial pass q_orig before
+// av2_set_quantizer() sets base_qindex.
 static INLINE bool av2_gate_palette_by_kf_trial(const AV2_COMP *cpi,
                                                 int qindex) {
   const AV2_COMMON *const cm = &cpi->common;

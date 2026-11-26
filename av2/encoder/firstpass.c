@@ -1080,9 +1080,7 @@ void av2_first_pass(AV2_COMP *cpi, const int64_t ts_duration) {
   const int qindex = find_fp_qindex(seq_params->bit_depth);
   // Detect if the key frame is screen content type.
   if (frame_is_intra_only(cm)) {
-    FeatureFlags *const features = &cm->features;
-    av2_set_screen_content_options(cpi, features);
-    cpi->is_screen_content_type = features->allow_screen_content_tools;
+    (void)av2_set_screen_content_options(cpi, &cm->features);
   }
 
   const bool compute_ds_filter =

@@ -911,28 +911,12 @@ int64_t av2_rd_pick_intra_sbuv_mode(const AV2_COMP *const cpi, MACROBLOCK *x,
   return best_rd;
 }
 
-// Shared palette gate for intra luma (av2_rd_pick_intra_sby_mode()) and
-// inter-frame intra search (av2_search_palette_mode(),
-// av2_handle_intra_mode()):
-// - Un-gated (!disable_palette && !gate_by_kf_trial): follow
-//   allow_screen_content_tools (e.g., REALTIME, or speed 0 coarse QPs).
-// - is_scc_content_by_detector: always allow on frames passing the stricter
-//   check in av2_set_screen_content_options() (even mid-GOP or speed >= 4).
-// - Keyframe-gated (gate_by_kf_trial && kf_trial_allow_palette): reuse the GOP
-//   keyframe decision from av2_determine_sc_tools_with_encoding().
+// Returns true when luma palette search is allowed on this block.
 static AVM_INLINE bool should_try_palette(const AV2_COMP *const cpi,
-                                          const MB_MODE_INFO *const mbmi,
-                                          int plane_type) {
-  const FeatureFlags *const features = &cpi->common.features;
-  const bool disable_palette = cpi->sf.intra_sf.disable_palette;
-  const bool gate_by_kf_trial =
-      av2_gate_palette_by_kf_trial(cpi, cpi->common.quant_params.base_qindex);
-  const bool allow_palette_sf =
-      (!disable_palette && !gate_by_kf_trial) ||
-      features->is_scc_content_by_detector ||
-      (gate_by_kf_trial && cpi->kf_trial_allow_palette);
-  return cpi->oxcf.tool_cfg.enable_palette && allow_palette_sf &&
-         av2_allow_palette(plane_type, features->allow_screen_content_tools,
+                                          const MB_MODE_INFO *const mbmi) {
+  return cpi->sf.intra_sf.allow_palette_luma &&
+         av2_allow_palette(PLANE_TYPE_Y,
+                           cpi->common.features.allow_screen_content_tools,
                            mbmi->sb_type[PLANE_TYPE_Y]);
 }
 
@@ -950,7 +934,7 @@ int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
   MB_MODE_INFO *const mbmi = x->e_mbd.mi[0];
 
   // Only try palette mode when the best mode so far is an intra mode.
-  int search_palette_mode = should_try_palette(cpi, mbmi, PLANE_TYPE_Y) &&
+  int search_palette_mode = should_try_palette(cpi, mbmi) &&
                             !is_inter_mode(best_mbmode->mode) &&
                             rd_cost->rate < INT_MAX;
   const MB_MODE_INFO *cached_mode = x->inter_mode_cache[0];
@@ -1039,7 +1023,6 @@ int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
         intra_search_state->best_dpcm_uv_index = mbmi->use_dpcm_uv;
         intra_search_state->best_dpcm_uv_dir = mbmi->dpcm_mode_uv;
       }
-      intra_search_state->pmi_uv = *pmi;
       intra_search_state->uv_angle_delta = mbmi->angle_delta[PLANE_TYPE_UV];
     }
 
@@ -1049,12 +1032,6 @@ int av2_search_palette_mode(IntraModeSearchState *intra_search_state,
     if (xd->lossless[mbmi->segment_id]) {
       mbmi->use_dpcm_uv = intra_search_state->best_dpcm_uv_index;
       mbmi->dpcm_mode_uv = intra_search_state->best_dpcm_uv_dir;
-    }
-    pmi->palette_size[1] = intra_search_state->pmi_uv.palette_size[1];
-    if (pmi->palette_size[1] > 0) {
-      memcpy(pmi->palette_colors + PALETTE_MAX_SIZE,
-             intra_search_state->pmi_uv.palette_colors + PALETTE_MAX_SIZE,
-             2 * PALETTE_MAX_SIZE * sizeof(pmi->palette_colors[0]));
     }
     mbmi->angle_delta[PLANE_TYPE_UV] = intra_search_state->uv_angle_delta;
     skippable = skippable && intra_search_state->skip_uvs;
@@ -1442,8 +1419,6 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
   av2_init_rd_stats(rd_stats_uv);
   const int num_planes = av2_num_planes(cm);
   if (num_planes > 1) {
-    PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
-    const int try_palette = should_try_palette(cpi, mbmi, PLANE_TYPE_UV);
     // If no good uv-predictor had been found, search for it.
     const int rate_y = rd_stats_y->rate;
     const int64_t rdy =
@@ -1480,7 +1455,6 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
       intra_search_state->best_dpcm_uv_index = mbmi->use_dpcm_uv;
       intra_search_state->best_dpcm_uv_dir = mbmi->dpcm_mode_uv;
     }
-    if (try_palette) intra_search_state->pmi_uv = *pmi;
     intra_search_state->uv_angle_delta = mbmi->angle_delta[PLANE_TYPE_UV];
 
     intra_search_state->uv_mode_idx = mbmi->uv_mode_idx;
@@ -1508,12 +1482,6 @@ int64_t av2_handle_intra_mode(IntraModeSearchState *intra_search_state,
       mbmi->dpcm_mode_uv = intra_search_state->best_dpcm_uv_dir;
     }
     mbmi->uv_mode_idx = intra_search_state->uv_mode_idx;
-    if (try_palette) {
-      pmi->palette_size[1] = intra_search_state->pmi_uv.palette_size[1];
-      memcpy(pmi->palette_colors + PALETTE_MAX_SIZE,
-             intra_search_state->pmi_uv.palette_colors + PALETTE_MAX_SIZE,
-             2 * PALETTE_MAX_SIZE * sizeof(pmi->palette_colors[0]));
-    }
     mbmi->angle_delta[PLANE_TYPE_UV] = intra_search_state->uv_angle_delta;
   }
 
@@ -1899,7 +1867,7 @@ int64_t av2_rd_pick_intra_sby_mode(const AV2_COMP *const cpi, ThreadData *td,
   // this function.
   int beat_best_rd = 0;
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
-  const bool try_palette = should_try_palette(cpi, mbmi, PLANE_TYPE_Y);
+  const bool try_palette = should_try_palette(cpi, mbmi);
   uint8_t *best_palette_color_map =
       try_palette ? x->palette_buffer->best_palette_color_map : NULL;
   const int context = get_y_mode_idx_ctx(xd);

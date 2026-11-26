@@ -3237,7 +3237,7 @@ static AVM_INLINE void init_allowed_partitions(
   // except allow 16x8 and 8x16 to split into leaf 16x4 and 4x16 blocks.
   const bool scc_1080p_sub8x8 = cpi->speed >= 1 &&
                                 AVMMIN(cm->width, cm->height) >= 1080 &&
-                                cm->features.is_scc_content_by_detector;
+                                av2_is_scc_by_detector(cpi);
   const int ext_min_partition_size =
       scc_1080p_sub8x8 ? AVMMAX(blk_params->min_partition_size, BLOCK_8X8)
                        : blk_params->min_partition_size;
@@ -4191,7 +4191,7 @@ static void rectangular_partition_search(
       // already split into two 4x4s, prune PARTITION_HORZ on the right 4x8
       // sub-block so it only evaluates unsplit 4x8 ([4x4, 4x4 | 4x8]) and
       // skips re-evaluating four 4x4s ([4x4, 4x4 | 4x4, 4x4]).
-      if (cpi->speed >= 1 && cm->features.is_scc_content_by_detector &&
+      if (cpi->speed >= 1 && av2_is_scc_by_detector(cpi) &&
           bsize == BLOCK_8X8 && rect_type == VERT && sub_idx == 1 &&
           part_search_state->forced_partition == PARTITION_INVALID &&
           !x->must_find_valid_partition) {
@@ -4377,7 +4377,7 @@ static void prune_partitions_after_none(AV2_COMP *const cpi, MACROBLOCK *x,
   // At speed >= 1 on screen content, skip sub-8x8 (8x4, 4x8, 4x4) partition
   // searches when the 8x8 (or 8x4/4x8) PARTITION_NONE candidate is already a
   // zero-residual skip block.
-  if (cpi->speed >= 1 && cm->features.is_scc_content_by_detector &&
+  if (cpi->speed >= 1 && av2_is_scc_by_detector(cpi) &&
       is_bsize_geq(BLOCK_8X8, bsize) &&
       (ctx_none->skippable ||
        ctx_none->mic.skip_txfm[av2_get_sdp_idx(xd->tree_type)])) {
@@ -6114,7 +6114,7 @@ bool av2_rd_pick_partition(
   // unsplit block.
   if (template_tree && template_tree->partition == PARTITION_INVALID &&
       AVMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 32) {
-    const int floor_px = cm->features.is_scc_content_by_detector ? 4 : 8;
+    const int floor_px = av2_is_scc_by_detector(cpi) ? 4 : 8;
     int mind = AVMMIN(block_size_wide[bsize], block_size_high[bsize]);
     int levels = 0;
     while (mind > floor_px) {
