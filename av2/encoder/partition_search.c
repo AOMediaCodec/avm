@@ -226,6 +226,32 @@ static void tx_partition_count_update(MACROBLOCK *x, BLOCK_SIZE plane_bsize,
   }
 }
 
+static void align_segment_id_with_final_skip(const AV2_COMP *const cpi,
+                                             MACROBLOCKD *const xd,
+                                             MB_MODE_INFO *const mbmi,
+                                             BLOCK_SIZE bsize) {
+  const AV2_COMMON *const cm = &cpi->common;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const struct segmentation *const seg = &cm->seg;
+  if (xd->tree_type == CHROMA_PART || !seg->enabled || seg->segid_preskip ||
+      !seg->update_map || cm->features.has_lossless_segment ||
+      !mbmi->skip_txfm[PLANE_TYPE_Y]) {
+    return;
+  }
+  int cdf_num;
+  const int pred = av2_get_spatial_seg_pred(cm, xd, &cdf_num, 1);
+  if (pred == mbmi->segment_id) return;
+  for (int y = 0; y < mi_size_high[bsize]; ++y) {
+    for (int x = 0; x < mi_size_wide[bsize]; ++x) {
+      const int row = xd->mi_row + y, col = xd->mi_col + x;
+      if (row >= mi_params->mi_rows || col >= mi_params->mi_cols) continue;
+      mi_params->mi_grid_base[get_mi_grid_idx(mi_params, row, col)]
+          ->segment_id = pred;
+    }
+  }
+  mbmi->segment_id = pred;
+}
+
 static void encode_superblock(const AV2_COMP *const cpi, TileDataEnc *tile_data,
                               ThreadData *td, TokenExtra **t, RUN_TYPE dry_run,
                               BLOCK_SIZE bsize, int plane_start, int plane_end,
@@ -342,6 +368,9 @@ static void encode_superblock(const AV2_COMP *const cpi, TileDataEnc *tile_data,
 #endif  // CONFIG_MISMATCH_DEBUG
 
     av2_encode_sb(cpi, x, bsize, dry_run, plane_start, plane_end);
+    // Final skip is known only after av2_encode_sb(); align before chroma.
+    if (dry_run == OUTPUT_ENABLED)
+      align_segment_id_with_final_skip(cpi, xd, mbmi, bsize);
     av2_tokenize_sb_vartx(cpi, td, dry_run, bsize, rate,
                           tile_data->allow_update_cdf, plane_start, plane_end);
   }
