@@ -220,10 +220,11 @@ void av2_fill_mode_rates(AV2_COMMON *const cm, ModeCosts *mode_costs,
                            fc->palette_uv_mode_cdf, 2, NULL);
 
   for (i = 0; i < PALETTE_SIZES; ++i) {
+    const int nsymbs = i + PALETTE_MIN_SIZE;
     for (j = 0; j < PALETTE_COLOR_INDEX_CONTEXTS; ++j) {
       av2_cost_tokens_from_cdf(mode_costs->palette_y_color_cost[i][j],
-                               fc->palette_y_color_index_cdf[i][j],
-                               PALETTE_COLORS, NULL);
+                               fc->palette_y_color_index_cdf[i][j], nsymbs,
+                               NULL);
     }
   }
 
