@@ -306,6 +306,8 @@ if (avm_config("CONFIG_AV2_ENCODER") eq "yes") {
   specialize qw/av2_wedge_sign_from_residuals sse2 avx2/;
   add_proto qw/void av2_wedge_compute_delta_squares/, "int16_t *d, const int16_t *a, const int16_t *b, int N";
   specialize qw/av2_wedge_compute_delta_squares sse2 avx2/;
+  add_proto qw/int64_t av2_wedge_init_delta_squares/, "int16_t *ds, const int16_t *r1, const int16_t *d, int N, int bd";
+  specialize qw/av2_wedge_init_delta_squares avx2/;
 
   # hash
   add_proto qw/uint32_t av2_get_crc32c_value/, "void *crc_calculator, uint8_t *p, size_t length";

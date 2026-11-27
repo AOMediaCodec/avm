@@ -389,6 +389,7 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.prune_motion_mode_level = 1;
   sf->inter_sf.prune_ref_frames = 0;
   sf->inter_sf.prune_wedge_pred_diff_based = 1;
+  sf->inter_sf.fast_wedge_sign_estimate = 1;
   sf->inter_sf.selective_ref_frame = 1;
   sf->inter_sf.skip_mode_eval_based_on_rate_cost = 1;
   sf->inter_sf.skip_eval_intrabc_in_inter_frame =

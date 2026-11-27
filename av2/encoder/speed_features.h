@@ -1023,7 +1023,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Only enable wedge search if the variance is above this threshold.
   unsigned int disable_wedge_search_var_thresh;
 
-  // Whether fast wedge sign estimate is used
+  // Select each inter-inter wedge mask's lower-SSE polarity directly via an
+  // exact algebraic identity on the squared-residual differences, rather than
+  // evaluating blended SSE for both signs (differs from exhaustive two-sign
+  // search only in fixed-point right-shift rounding to fit 16-bit SIMD lanes).
   int fast_wedge_sign_estimate;
 
   // Whether to prune wedge search based on predictor difference
